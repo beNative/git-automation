@@ -335,14 +335,18 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   useEffect(() => {
     if (repository) {
       setFormData(repository);
-      if (repository.tasks.length > 0 && !selectedTaskId) {
+      // When the repository prop changes, always reset the selected task.
+      if (repository.tasks && repository.tasks.length > 0) {
         setSelectedTaskId(repository.tasks[0].id);
+      } else {
+        setSelectedTaskId(null);
       }
     } else {
+      // This is for creating a new repository.
       setFormData(NEW_REPO_TEMPLATE);
       setSelectedTaskId(null);
     }
-  }, [repository, selectedTaskId]);
+  }, [repository]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
