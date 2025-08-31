@@ -12,6 +12,7 @@ import { IconContext } from './contexts/IconContext';
 import CommandPalette from './components/CommandPalette';
 import StatusBar from './components/StatusBar';
 import DirtyRepoModal from './components/modals/DirtyRepoModal';
+import TaskSelectionModal from './components/modals/TaskSelectionModal';
 
 const App: React.FC = () => {
   const {
@@ -43,6 +44,11 @@ const App: React.FC = () => {
     statusOutput: string;
     resolve: ((choice: 'stash' | 'force' | 'cancel') => void) | null;
   }>({ isOpen: false, repo: null, task: null, statusOutput: '', resolve: null });
+
+  const [taskSelectionModal, setTaskSelectionModal] = useState<{
+    isOpen: boolean;
+    repo: Repository | null;
+  }>({ isOpen: false, repo: null });
 
   const [settings, setSettings] = useState<GlobalSettings>(() => {
     try {
@@ -159,6 +165,19 @@ const App: React.FC = () => {
     setDirtyRepoModal({ isOpen: false, repo: null, task: null, statusOutput: '', resolve: null });
   };
 
+  const handleInitiateRunTask = (repoId: string) => {
+    const repo = repositories.find(r => r.id === repoId);
+    if (!repo || repo.tasks.length === 0) return;
+
+    if (repo.tasks.length === 1) {
+      // If there's only one task, run it directly
+      handleRunTask(repo.id, repo.tasks[0].id);
+    } else {
+      // If there are multiple tasks, open the selection modal
+      setTaskSelectionModal({ isOpen: true, repo });
+    }
+  };
+
   const handleViewLogs = (repoId: string) => {
     setLogPanel({ isOpen: true, repoId, height: logPanel.height });
   };
@@ -183,7 +202,7 @@ const App: React.FC = () => {
       default:
         return <Dashboard 
           repositories={repositories} 
-          onRunTask={handleRunTask} 
+          onInitiateRunTask={handleInitiateRunTask} 
           onViewLogs={handleViewLogs}
           onEditRepo={(repoId: string) => handleEditRepository(repoId)}
           onDeleteRepo={handleDeleteRepo}
@@ -230,6 +249,18 @@ const App: React.FC = () => {
           isOpen={dirtyRepoModal.isOpen}
           statusOutput={dirtyRepoModal.statusOutput}
           onChoose={handleDirtyRepoChoice}
+        />
+
+        <TaskSelectionModal
+          isOpen={taskSelectionModal.isOpen}
+          repository={taskSelectionModal.repo}
+          onClose={() => setTaskSelectionModal({ isOpen: false, repo: null })}
+          onSelect={(taskId) => {
+            if (taskSelectionModal.repo) {
+              handleRunTask(taskSelectionModal.repo.id, taskId);
+            }
+            setTaskSelectionModal({ isOpen: false, repo: null });
+          }}
         />
 
         <CommandPalette 

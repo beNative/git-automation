@@ -5,7 +5,7 @@ import { PlusCircleIcon } from './icons/PlusCircleIcon';
 
 interface DashboardProps {
   repositories: Repository[];
-  onRunTask: (repoId: string, taskId: string) => void;
+  onInitiateRunTask: (repoId: string) => void;
   onViewLogs: (repoId: string) => void;
   onEditRepo: (repoId: string) => void;
   onDeleteRepo: (repoId: string) => void;
@@ -14,7 +14,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({
   repositories,
-  onRunTask,
+  onInitiateRunTask,
   onViewLogs,
   onEditRepo,
   onDeleteRepo,
@@ -36,7 +36,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <RepositoryCard
           key={repo.id}
           repository={repo}
-          onRunTask={onRunTask}
+          onInitiateRunTask={onInitiateRunTask}
           onViewLogs={onViewLogs}
           onEditRepo={onEditRepo}
           onDeleteRepo={onDeleteRepo}

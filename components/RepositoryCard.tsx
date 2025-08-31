@@ -2,9 +2,7 @@ import React from 'react';
 import type { Repository, GitRepository } from '../types';
 import { RepoStatus, BuildHealth, VcsType } from '../types';
 import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
-import Popover from './Popover';
 import { PlayIcon } from './icons/PlayIcon';
-import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { DocumentTextIcon } from './icons/DocumentTextIcon';
 import { PencilIcon } from './icons/PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
@@ -15,7 +13,7 @@ import { SvnIcon } from './icons/SvnIcon';
 
 interface RepositoryCardProps {
   repository: Repository;
-  onRunTask: (repoId: string, taskId: string) => void;
+  onInitiateRunTask: (repoId: string) => void;
   onViewLogs: (repoId: string) => void;
   onEditRepo: (repoId: string) => void;
   onDeleteRepo: (repoId: string) => void;
@@ -24,7 +22,7 @@ interface RepositoryCardProps {
 
 const RepositoryCard: React.FC<RepositoryCardProps> = ({
   repository,
-  onRunTask,
+  onInitiateRunTask,
   onViewLogs,
   onEditRepo,
   onDeleteRepo,
@@ -32,31 +30,11 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
 }) => {
   const { id, name, remoteUrl, status, lastUpdated, buildHealth, tasks, vcs } = repository;
 
-  const handleRunTask = (taskId: string) => {
-    onRunTask(id, taskId);
+  const getRunButtonTitle = () => {
+    if (tasks.length === 0) return 'No tasks available to run.';
+    if (tasks.length === 1) return `Run Task: ${tasks[0].name}`;
+    return `Select a task to run... (${tasks.length} available)`;
   };
-
-  const dropdownContent = (
-    <div
-      className="w-56 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 focus:outline-none"
-    >
-      <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-        {tasks.map(task => (
-          <button
-            key={task.id}
-            onClick={() => handleRunTask(task.id)}
-            className="w-full text-left block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-            role="menuitem"
-          >
-            {task.name}
-          </button>
-        ))}
-        {tasks.length === 0 && (
-          <span className="block px-4 py-2 text-sm text-gray-400 dark:text-gray-400">No tasks configured.</span>
-        )}
-      </div>
-    </div>
-  );
 
 
   return (
@@ -104,29 +82,17 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             Last updated: {lastUpdated ? new Date(lastUpdated).toLocaleString() : 'Never'}
           </p>
           <div className="flex justify-around items-center">
-            <div className="flex rounded-md shadow-sm">
+            <div className="flex-1 max-w-[150px]">
               <button
-                  onClick={() => tasks.length > 0 && handleRunTask(tasks[0].id)}
+                  onClick={() => onInitiateRunTask(id)}
                   disabled={isProcessing || tasks.length === 0}
-                  className="flex items-center pl-3 pr-2 py-1.5 text-sm font-medium text-white bg-green-600 rounded-l-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                  title={tasks.length > 0 ? `Run: ${tasks[0].name}` : 'No tasks available'}
+                  className="w-full flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                  title={getRunButtonTitle()}
               >
-                  <PlayIcon className="h-4 w-4 mr-1" />
+                  <PlayIcon className="h-4 w-4 mr-1.5" />
                   Run Task
+                  {tasks.length > 1 && <span className="ml-1 text-green-200 text-xs">({tasks.length})</span>}
               </button>
-              
-              <Popover
-                align="end"
-                content={dropdownContent}
-                trigger={
-                  <button
-                    disabled={isProcessing || tasks.length === 0}
-                    className="px-2 py-1.5 text-sm font-medium text-white bg-green-700 rounded-r-md hover:bg-green-800 disabled:bg-gray-600 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronDownIcon className="h-4 w-4" />
-                  </button>
-                }
-              />
             </div>
 
             <button 
