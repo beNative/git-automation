@@ -37,7 +37,7 @@ const mainConfig = {
     format: 'cjs',
     sourcemap: !isProd,
     minify: isProd,
-    external: ['electron'], // Exclude electron from the bundle
+    external: ['electron', 'electron-squirrel-startup'], // Exclude electron from the bundle
     define: {
         'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
     },
