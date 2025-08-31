@@ -50,7 +50,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden flex flex-col transition-all duration-300 hover:shadow-cyan-500/20 hover:scale-[1.02]">
+    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-cyan-500/20 hover:scale-[1.02] ${isDropdownOpen ? 'overflow-visible z-10' : 'overflow-hidden'}`}>
       <div className="p-5 flex-grow">
         <div className="flex items-start justify-between">
           <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate">{name}</h3>
@@ -111,15 +111,14 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 <div className="origin-top-right absolute right-0 top-full mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 focus:outline-none z-20">
                   <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                     {tasks.map(task => (
-                       <a
+                       <button
                         key={task.id}
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); handleRunTask(task.id); }}
-                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                        onClick={() => handleRunTask(task.id)}
+                        className="w-full text-left block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                         role="menuitem"
                       >
                         {task.name}
-                      </a>
+                      </button>
                     ))}
                     {tasks.length === 0 && (
                        <span className="block px-4 py-2 text-sm text-gray-400 dark:text-gray-400">No tasks configured.</span>
