@@ -96,10 +96,20 @@ const TaskStepItem: React.FC<{
             (acc[suggestion.group] = acc[suggestion.group] || []).push(suggestion);
             return acc;
         }, {} as Record<string, ProjectSuggestion[]>);
+        
+        const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+          const newValue = e.target.value;
+          // When a predefined command is selected, update the step.
+          // When "Custom Command..." is selected, do nothing, preserving the current text for editing.
+          if (newValue !== CUSTOM_COMMAND_VALUE) {
+            onStepChange(step.id, { command: newValue });
+          }
+        };
+
         return (
           <div className="space-y-2">
             <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Command</label>
-            <select value={selectValue} onChange={(e) => onStepChange(step.id, { command: e.target.value === CUSTOM_COMMAND_VALUE ? '' : e.target.value })} className={formInputStyle}>
+            <select value={selectValue} onChange={handleSelectChange} className={formInputStyle}>
               {Object.entries(groupedSuggestions).map(([groupName, suggestions]) => (
                   <optgroup key={groupName} label={groupName}>
                       {suggestions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -107,16 +117,15 @@ const TaskStepItem: React.FC<{
               ))}
               <option value={CUSTOM_COMMAND_VALUE}>Custom Command...</option>
             </select>
-            {isCustom && (
-                <textarea
-                    placeholder={`e.g., npm run build -- --env=production\nUse \${VAR_NAME} for variables.`}
-                    value={step.command || ''}
-                    onChange={(e) => onStepChange(step.id, { command: e.target.value })}
-                    required
-                    className={`${formInputStyle} font-mono min-h-[6rem] text-sm`}
-                    rows={3}
-                />
-            )}
+            
+            <textarea
+                placeholder={`e.g., npm run build -- --env=production\nUse \${VAR_NAME} for variables.`}
+                value={step.command || ''}
+                onChange={(e) => onStepChange(step.id, { command: e.target.value })}
+                required
+                className={`${formInputStyle} font-mono min-h-[6rem] text-sm`}
+                rows={3}
+            />
           </div>
         );
       })()}
@@ -367,7 +376,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
   const handleNewTask = () => {
     const newTask: Task = { id: `task_${Date.now()}`, name: 'New Task', steps: [], variables: [] };
-    setFormData(prev => ({ ...prev, tasks: [...(prev.tasks || []), newTask] }));
+    const newTasks = [...(formData.tasks || []), newTask];
+    setFormData(prev => ({ ...prev, tasks: newTasks }));
     setSelectedTaskId(newTask.id);
   };
   
