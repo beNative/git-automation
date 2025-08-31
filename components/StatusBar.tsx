@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import type { LogEntry } from '../types';
 import { GitBranchIcon } from './icons/GitBranchIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
@@ -12,14 +12,6 @@ interface StatusBarProps {
 }
 
 const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog }) => {
-    const [appVersion, setAppVersion] = useState('');
-
-    useEffect(() => {
-        window.electronAPI.getAppVersion()
-            .then(setAppVersion)
-            .catch(err => console.error("Failed to get app version", err));
-    }, []);
-
     const LOG_LEVEL_COLOR_CLASSES: Record<string, string> = {
         info: 'text-gray-400',
         command: 'text-cyan-400',
@@ -62,11 +54,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                     <div className="flex items-center text-yellow-600 dark:text-yellow-400" title="Simulation mode is active. No real commands will be run.">
                         <BeakerIcon className="h-4 w-4 mr-1.5" />
                         <span>Sim Mode</span>
-                    </div>
-                )}
-                {appVersion && (
-                     <div title={`Version ${appVersion}`}>
-                        <span>v{appVersion}</span>
                     </div>
                 )}
             </div>
