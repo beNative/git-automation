@@ -53,7 +53,11 @@ export interface GlobalSettings {
 
 export enum TaskStepType {
   GitPull = 'GIT_PULL',
+  GitFetch = 'GIT_FETCH',
+  GitCheckout = 'GIT_CHECKOUT',
+  GitStash = 'GIT_STASH',
   InstallDeps = 'INSTALL_DEPS',
+  RunTests = 'RUN_TESTS',
   RunCommand = 'RUN_COMMAND',
 }
 
@@ -61,6 +65,7 @@ export interface TaskStep {
   id: string;
   type: TaskStepType;
   command?: string; // Only for RunCommand
+  branch?: string; // Only for GitCheckout
 }
 
 export interface Task {
@@ -74,7 +79,7 @@ export interface ActiveModal {
   type: 'repo-form' | null;
 }
 
-export type AppView = 'dashboard' | 'settings' | 'info';
+export type AppView = 'dashboard' | 'settings' | 'info' | 'edit-repository';
 
 export interface ProjectSuggestion {
   label: string;

@@ -64,7 +64,12 @@ export const useRepositoryManager = () => {
     );
   }, []);
 
-  const runTask = useCallback(async (repo: Repository, task: Task, settings: GlobalSettings) => {
+  const runTask = useCallback(async (
+    repo: Repository,
+    task: Task,
+    settings: GlobalSettings,
+    onDirty: (statusOutput: string) => Promise<'stash' | 'force' | 'cancel'>
+  ) => {
     const { id: repoId } = repo;
     setIsProcessing(prev => new Set(prev).add(repoId));
     
@@ -80,6 +85,24 @@ export const useRepositoryManager = () => {
         if (settings.simulationMode) {
           await runSimulationStep(repoId, step, settings, addLogEntry);
         } else {
+          // Real mode: check for dirty repo before git pull
+          if (step.type === TaskStepType.GitPull) {
+            const statusResult = await window.electronAPI.checkGitStatus(repo.localPath);
+            if (statusResult.isDirty) {
+              addLogEntry(repoId, 'Uncommitted changes detected.', LogLevel.Warn);
+              const choice = await onDirty(statusResult.output);
+
+              if (choice === 'cancel') {
+                 addLogEntry(repoId, 'Task cancelled by user.', LogLevel.Info);
+                 updateRepoStatus(repoId, RepoStatus.Idle);
+                 throw new Error('cancelled'); // Special error to suppress toast
+              } else if (choice === 'stash') {
+                addLogEntry(repoId, 'Stashing changes...', LogLevel.Info);
+                await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash}, settings, addLogEntry);
+              }
+              // if 'force', proceed as normal
+            }
+          }
           await runRealStep(repo, step, settings, addLogEntry);
         }
       }
@@ -87,6 +110,7 @@ export const useRepositoryManager = () => {
       addLogEntry(repoId, `Task '${task.name}' completed successfully.`, LogLevel.Success);
       updateRepoStatus(repoId, RepoStatus.Success, BuildHealth.Healthy);
     } catch (error: any) {
+      if (error.message === 'cancelled') throw error;
       const errorMessage = error.message || 'An unknown error occurred.';
       addLogEntry(repoId, `Error during task '${task.name}': ${errorMessage}`, LogLevel.Error);
       addLogEntry(repoId, 'Task failed.', LogLevel.Error);
@@ -156,12 +180,35 @@ const runSimulationStep = async (
             randomFail(0.1, 'Simulated merge conflict.');
             addLogEntry(repoId, 'Successfully pulled latest changes.', LogLevel.Success);
             break;
+        case TaskStepType.GitFetch:
+            addLogEntry(repoId, `git fetch`, LogLevel.Command);
+            await simulateDelay(1000);
+            addLogEntry(repoId, 'Successfully fetched from remote.', LogLevel.Success);
+            break;
+        case TaskStepType.GitCheckout:
+            const branch = step.branch || 'main';
+            addLogEntry(repoId, `git checkout ${branch}`, LogLevel.Command);
+            await simulateDelay(500);
+            addLogEntry(repoId, `Switched to branch '${branch}'.`, LogLevel.Success);
+            break;
+        case TaskStepType.GitStash:
+            addLogEntry(repoId, `git stash`, LogLevel.Command);
+            await simulateDelay(500);
+            addLogEntry(repoId, 'Successfully stashed changes.', LogLevel.Success);
+            break;
         case TaskStepType.InstallDeps:
             const command = settings.defaultPackageManager === 'npm' ? 'npm install' : 'yarn install';
             addLogEntry(repoId, command, LogLevel.Command);
             await simulateDelay(3000);
             randomFail(0.1, 'Simulated dependency installation failed.');
             addLogEntry(repoId, 'Dependencies installed successfully.', LogLevel.Success);
+            break;
+        case TaskStepType.RunTests:
+            const testCommand = settings.defaultPackageManager === 'npm' ? 'npm test' : 'yarn test';
+            addLogEntry(repoId, testCommand, LogLevel.Command);
+            await simulateDelay(5000);
+            randomFail(0.2, 'Simulated tests failed.');
+            addLogEntry(repoId, 'Tests passed successfully.', LogLevel.Success);
             break;
         case TaskStepType.RunCommand:
             if (step.command) {
@@ -185,7 +232,7 @@ const runRealStep = (
     addLogEntry: (repoId: string, message: string, level: LogLevel) => void
 ) => {
   return new Promise<void>((resolve, reject) => {
-    const { id: repoId, localPath } = repo;
+    const { id: repoId } = repo;
 
     const cleanupListeners = () => {
       window.electronAPI.removeTaskListeners();

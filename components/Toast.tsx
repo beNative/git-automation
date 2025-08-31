@@ -1,13 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { XCircleIcon } from './icons/XCircleIcon';
+import { InformationCircleIcon } from './icons/InformationCircleIcon';
 import { XIcon } from './icons/XIcon';
 
 interface ToastProps {
   message: string;
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'info';
   onClose: () => void;
 }
+
+const TYPE_CONFIG = {
+  success: {
+    bgColor: 'bg-green-600',
+    Icon: CheckCircleIcon,
+  },
+  error: {
+    bgColor: 'bg-red-600',
+    Icon: XCircleIcon,
+  },
+  info: {
+    bgColor: 'bg-blue-600',
+    Icon: InformationCircleIcon,
+  },
+};
 
 const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
   const [visible, setVisible] = useState(false);
@@ -21,9 +37,8 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
     
     return () => clearTimeout(timer);
   }, [message, onClose]);
-
-  const bgColor = type === 'success' ? 'bg-green-600' : 'bg-red-600';
-  const Icon = type === 'success' ? CheckCircleIcon : XCircleIcon;
+  
+  const { bgColor, Icon } = TYPE_CONFIG[type];
 
   return (
     <div

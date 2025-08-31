@@ -3,7 +3,7 @@ import { useRepositoryManager } from './hooks/useRepositoryManager';
 import type { Repository, GlobalSettings, AppView, Task, LogEntry } from './types';
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
-import RepoFormModal from './components/modals/RepoFormModal';
+import RepoEditView from './components/modals/RepoFormModal'; // Repurposed for the new view
 import Toast from './components/Toast';
 import InfoView from './components/InfoView';
 import SettingsView from './components/SettingsView';
@@ -11,6 +11,7 @@ import LogPanel from './components/LogPanel';
 import { IconContext } from './contexts/IconContext';
 import CommandPalette from './components/CommandPalette';
 import StatusBar from './components/StatusBar';
+import DirtyRepoModal from './components/modals/DirtyRepoModal';
 
 const App: React.FC = () => {
   const {
@@ -24,9 +25,8 @@ const App: React.FC = () => {
     isProcessing,
   } = useRepositoryManager();
   
-  const [activeModal, setActiveModal] = useState<{ type: 'repo-form' | null }>({ type: null });
-  const [repoToEdit, setRepoToEdit] = useState<Repository | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [repoToEditId, setRepoToEditId] = useState<string | 'new' | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [activeView, setActiveView] = useState<AppView>('dashboard');
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
   
@@ -35,6 +35,14 @@ const App: React.FC = () => {
     repoId: null as string | null,
     height: 300,
   });
+
+  const [dirtyRepoModal, setDirtyRepoModal] = useState<{
+    isOpen: boolean;
+    repo: Repository | null;
+    task: Task | null;
+    statusOutput: string;
+    resolve: ((choice: 'stash' | 'force' | 'cancel') => void) | null;
+  }>({ isOpen: false, repo: null, task: null, statusOutput: '', resolve: null });
 
   const [settings, setSettings] = useState<GlobalSettings>(() => {
     try {
@@ -48,8 +56,9 @@ const App: React.FC = () => {
         iconSet: 'heroicons' as 'heroicons' | 'lucide',
       };
       return savedSettings ? { ...defaults, ...JSON.parse(savedSettings) } : defaults;
-    } catch (error) {
-       return {
+    } catch {
+      // Fallback to defaults if settings are corrupt
+      return {
         defaultPackageManager: 'npm',
         defaultBuildCommand: 'npm run build',
         notifications: true,
@@ -59,181 +68,181 @@ const App: React.FC = () => {
       };
     }
   });
-
-  const latestLog = useMemo<LogEntry | null>(() => {
-    const allLogs = Object.values(logs).flat();
-    if (allLogs.length === 0) return null;
-    // Sort by timestamp descending to find the latest
-    return allLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
-  }, [logs]);
-
-
+  
+  // Effect to apply theme
   useEffect(() => {
-    // Apply theme class to the root element
     if (settings.theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
   }, [settings.theme]);
-
-  // Effect to handle Command Palette shortcut
+  
+  // Effect for Command Palette
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-        if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
-            event.preventDefault();
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
             setCommandPaletteOpen(prev => !prev);
         }
     };
-
     window.addEventListener('keydown', handleKeyDown);
-    return () => {
-        window.removeEventListener('keydown', handleKeyDown);
-    };
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleSaveSettings = (newSettings: GlobalSettings) => {
     setSettings(newSettings);
     localStorage.setItem('globalSettings', JSON.stringify(newSettings));
-    showToast('Settings saved successfully', 'success');
+    setToast({ message: 'Settings saved successfully!', type: 'success' });
+  };
+
+  const handleEditRepository = (repoId: string | 'new') => {
+    setRepoToEditId(repoId);
+    setActiveView('edit-repository');
+  };
+
+  const handleCancelEditRepository = () => {
+    setRepoToEditId(null);
+    setActiveView('dashboard');
   };
   
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+  const handleSaveRepo = (repo: Repository) => {
+    if (repositories.some(r => r.id === repo.id)) {
+      updateRepository(repo);
+      setToast({ message: 'Repository updated!', type: 'success' });
+    } else {
+      addRepository(repo);
+      setToast({ message: 'Repository added!', type: 'success' });
+    }
+    handleCancelEditRepository();
   };
-  
+
+  const handleDeleteRepo = (repoId: string) => {
+    if (window.confirm('Are you sure you want to delete this repository?')) {
+      deleteRepository(repoId);
+      setToast({ message: 'Repository deleted.', type: 'error' });
+    }
+  };
+
   const handleRunTask = useCallback(async (repoId: string, taskId: string) => {
     const repo = repositories.find(r => r.id === repoId);
-    const taskToRun = repo?.tasks.find(t => t.id === taskId);
-    
-    if (!repo || !taskToRun) {
-      showToast('Repository or Task not found.', 'error');
+    const task = repo?.tasks.find(t => t.id === taskId);
+    if (!repo || !task) {
+      setToast({ message: 'Repository or task not found.', type: 'error' });
       return;
     }
 
     clearLogs(repoId);
-    setLogPanel(prev => ({ ...prev, isOpen: true, repoId }));
+    setLogPanel({ isOpen: true, repoId, height: logPanel.height });
+    
+    const onDirty = (statusOutput: string) => {
+      return new Promise<'stash' | 'force' | 'cancel'>((resolve) => {
+        setDirtyRepoModal({ isOpen: true, repo, task, statusOutput, resolve });
+      });
+    };
 
     try {
-      await runTask(repo, taskToRun, settings); // Pass the whole repo object
-      if (settings.notifications) {
-        showToast(`Task '${taskToRun.name}' completed successfully.`, 'success');
+      await runTask(repo, task, settings, onDirty);
+    } catch (e: any) {
+      if (e.message !== 'cancelled') { // Don't show toast for user cancellation
+        setToast({ message: e.message || 'Task failed!', type: 'error' });
+      } else {
+        setToast({ message: 'Task was cancelled.', type: 'info' });
       }
-    } catch (error) {
-      if (settings.notifications) {
-        showToast(`Task '${taskToRun.name}' failed for ${repo.name}.`, 'error');
-      }
     }
-  }, [clearLogs, runTask, settings, repositories]);
+  }, [repositories, settings, runTask, clearLogs, logPanel.height]);
 
-  const handleOpenEditModal = (repo: Repository) => {
-    setRepoToEdit(repo);
-    setActiveModal({ type: 'repo-form' });
-  };
-  
-  const handleOpenNewModal = () => {
-    setRepoToEdit(null);
-    setActiveModal({ type: 'repo-form' });
+  const handleDirtyRepoChoice = (choice: 'stash' | 'force' | 'cancel') => {
+    if (dirtyRepoModal.resolve) {
+      dirtyRepoModal.resolve(choice);
+    }
+    setDirtyRepoModal({ isOpen: false, repo: null, task: null, statusOutput: '', resolve: null });
   };
 
-  const handleSaveRepo = (repo: Repository) => {
-    if (repositories.some(r => r.id === repo.id)) {
-      updateRepository(repo);
-      showToast('Repository updated successfully!', 'success');
-    } else {
-      addRepository(repo);
-      showToast('Repository added successfully!', 'success');
-    }
-    closeModal();
+  const handleViewLogs = (repoId: string) => {
+    setLogPanel({ isOpen: true, repoId, height: logPanel.height });
   };
   
-  const handleDeleteRepo = (repoId: string) => {
-    if (window.confirm('Are you sure you want to delete this repository?')) {
-      deleteRepository(repoId);
-      showToast('Repository deleted.', 'success');
-    }
-  };
-  
-  const closeModal = () => setActiveModal({ type: null });
+  const latestLog = useMemo(() => {
+    const allLogs = Object.values(logs).flat();
+    if (allLogs.length === 0) return null;
+    return allLogs.reduce((latest, current) => new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest);
+  }, [logs]);
 
-  const renderView = () => {
+  const CurrentView = () => {
     switch (activeView) {
-      case 'info':
-        return <InfoView />;
       case 'settings':
         return <SettingsView currentSettings={settings} onSave={handleSaveSettings} />;
+      case 'info':
+        return <InfoView />;
+      case 'edit-repository':
+        const repo = repoToEditId === 'new' ? null : repositories.find(r => r.id === repoToEditId) || null;
+        // The key ensures the component re-mounts when switching between editing different repos
+        return <RepoEditView key={repoToEditId} repository={repo} onSave={handleSaveRepo} onCancel={handleCancelEditRepository} />;
       case 'dashboard':
       default:
-        return (
-          <Dashboard
-            repositories={repositories}
-            onRunTask={handleRunTask}
-            onViewLogs={(repoId) => setLogPanel({ isOpen: true, repoId, height: logPanel.height })}
-            onEditRepo={handleOpenEditModal}
-            onDeleteRepo={handleDeleteRepo}
-            isProcessing={isProcessing}
-          />
-        );
+        return <Dashboard 
+          repositories={repositories} 
+          onRunTask={handleRunTask} 
+          onViewLogs={handleViewLogs}
+          onEditRepo={(repoId: string) => handleEditRepository(repoId)}
+          onDeleteRepo={handleDeleteRepo}
+          isProcessing={isProcessing}
+        />;
     }
   };
 
   return (
-    <IconContext.Provider value={settings.iconSet || 'heroicons'}>
-      <div className="min-h-screen font-sans flex flex-col bg-gray-100 dark:bg-gray-900">
-        <Header 
-          onNewRepo={handleOpenNewModal} 
-          activeView={activeView}
-          onSetView={setActiveView}
-        />
-        <main className="p-4 sm:p-6 lg:p-8 flex-grow">
-          {renderView()}
+    <IconContext.Provider value={settings.iconSet}>
+      <div className="flex flex-col h-screen">
+        <Header onNewRepo={() => handleEditRepository('new')} activeView={activeView} onSetView={setActiveView} />
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+          <CurrentView />
         </main>
         
-        <StatusBar
-          repoCount={repositories.length}
-          processingCount={isProcessing.size}
+        <StatusBar 
+          repoCount={repositories.length} 
+          processingCount={isProcessing.size} 
           isSimulationMode={settings.simulationMode}
           latestLog={latestLog}
         />
         
-        <CommandPalette
+        {logPanel.isOpen && (
+          <LogPanel 
+            isOpen={logPanel.isOpen} 
+            onClose={() => setLogPanel(prev => ({ ...prev, isOpen: false }))}
+            logs={logs[logPanel.repoId || ''] || []}
+            repository={repositories.find(r => r.id === logPanel.repoId)}
+            height={logPanel.height}
+            setHeight={(h) => setLogPanel(p => ({...p, height: h}))}
+          />
+        )}
+        
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+
+        <DirtyRepoModal
+          isOpen={dirtyRepoModal.isOpen}
+          statusOutput={dirtyRepoModal.statusOutput}
+          onChoose={handleDirtyRepoChoice}
+        />
+
+        <CommandPalette 
             isOpen={isCommandPaletteOpen}
             onClose={() => setCommandPaletteOpen(false)}
             repositories={repositories}
-            onSetView={(view) => {
-                setActiveView(view);
-                setCommandPaletteOpen(false);
-            }}
-            onNewRepo={() => {
-                handleOpenNewModal();
-                setCommandPaletteOpen(false);
-            }}
+            onSetView={setActiveView}
+            onNewRepo={() => handleEditRepository('new')}
             onRunTask={(repoId, taskId) => {
                 handleRunTask(repoId, taskId);
                 setCommandPaletteOpen(false);
             }}
         />
-        
-        {activeModal.type === 'repo-form' && (
-          <RepoFormModal
-            isOpen={true}
-            onClose={closeModal}
-            onSave={handleSaveRepo}
-            repository={repoToEdit}
-          />
-        )}
-        
-        <LogPanel
-          isOpen={logPanel.isOpen}
-          onClose={() => setLogPanel(prev => ({...prev, isOpen: false}))}
-          logs={logPanel.repoId ? logs[logPanel.repoId] || [] : []}
-          repository={repositories.find(r => r.id === logPanel.repoId)}
-          height={logPanel.height}
-          setHeight={(height) => setLogPanel(prev => ({...prev, height}))}
-        />
-
-        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       </div>
     </IconContext.Provider>
   );

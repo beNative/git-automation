@@ -7,7 +7,7 @@ interface DashboardProps {
   repositories: Repository[];
   onRunTask: (repoId: string, taskId: string) => void;
   onViewLogs: (repoId: string) => void;
-  onEditRepo: (repo: Repository) => void;
+  onEditRepo: (repoId: string) => void;
   onDeleteRepo: (repoId: string) => void;
   isProcessing: Set<string>;
 }

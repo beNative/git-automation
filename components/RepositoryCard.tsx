@@ -15,7 +15,7 @@ interface RepositoryCardProps {
   repository: Repository;
   onRunTask: (repoId: string, taskId: string) => void;
   onViewLogs: (repoId: string) => void;
-  onEditRepo: (repo: Repository) => void;
+  onEditRepo: (repoId: string) => void;
   onDeleteRepo: (repoId: string) => void;
   isProcessing: boolean;
 }
@@ -136,7 +136,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
               <DocumentTextIcon className="h-5 w-5" />
             </button>
             <button 
-              onClick={() => onEditRepo(repository)} 
+              onClick={() => onEditRepo(id)} 
               className="p-2 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
               title="Configure Repository"
             >

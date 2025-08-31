@@ -10,6 +10,7 @@ export interface ProjectSuggestion {
 export interface IElectronAPI {
   getDoc: (docName: string) => Promise<string>;
   getProjectSuggestions: (args: { repoPath: string, repoName: string }) => Promise<ProjectSuggestion[]>;
+  checkGitStatus: (repoPath: string) => Promise<{ isDirty: boolean; output: string }>;
   
   runTaskStep: (args: {
     repo: Repository;

@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { platform } from 'os';
 import { autoUpdater } from 'electron-updater';
-import { spawn } from 'child_process';
+import { spawn, exec } from 'child_process';
 import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion } from '../types';
 import { TaskStepType, LogLevel } from '../types';
 
@@ -140,6 +140,21 @@ ipcMain.handle('get-project-suggestions', async (event, { repoPath, repoName }: 
   return suggestions;
 });
 
+// --- IPC handler for checking git status ---
+ipcMain.handle('check-git-status', async (event, repoPath: string): Promise<{ isDirty: boolean; output: string }> => {
+    return new Promise((resolve) => {
+        exec('git status --porcelain', { cwd: repoPath }, (error, stdout, stderr) => {
+            if (error) {
+                // If the command fails (e.g., not a git repo), consider it not dirty.
+                resolve({ isDirty: false, output: stderr });
+                return;
+            }
+            const isDirty = stdout.trim().length > 0;
+            resolve({ isDirty, output: stdout });
+        });
+    });
+});
+
 
 // --- IPC Handler for running real task steps ---
 ipcMain.on('run-task-step', (event, { repo, step, settings }: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {
@@ -158,9 +173,30 @@ ipcMain.on('run-task-step', (event, { repo, step, settings }: { repo: Repository
             command = 'git';
             args = ['pull'];
             break;
+        case TaskStepType.GitFetch:
+            command = 'git';
+            args = ['fetch'];
+            break;
+        case TaskStepType.GitCheckout:
+            if (!step.branch) {
+                sendLog('Skipping checkout: no branch specified.', LogLevel.Warn);
+                sendEnd(0);
+                return;
+            }
+            command = 'git';
+            args = ['checkout', step.branch];
+            break;
+        case TaskStepType.GitStash:
+            command = 'git';
+            args = ['stash'];
+            break;
         case TaskStepType.InstallDeps:
             command = settings.defaultPackageManager;
             args = ['install'];
+            break;
+        case TaskStepType.RunTests:
+            command = settings.defaultPackageManager;
+            args = ['test'];
             break;
         case TaskStepType.RunCommand:
             if (!step.command) {
