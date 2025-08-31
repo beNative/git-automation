@@ -7,6 +7,7 @@ import LogModal from './components/modals/LogModal';
 import RepoFormModal from './components/modals/RepoFormModal';
 import SettingsModal from './components/modals/SettingsModal';
 import Toast from './components/Toast';
+import InfoView from './components/InfoView';
 
 const App: React.FC = () => {
   const {
@@ -23,6 +24,7 @@ const App: React.FC = () => {
   const [activeModal, setActiveModal] = useState<ActiveModal>({ type: null, repoId: null });
   const [repoToEdit, setRepoToEdit] = useState<Repository | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [showInfoView, setShowInfoView] = useState(false);
 
   const [settings, setSettings] = useState<GlobalSettings>(() => {
     const savedSettings = localStorage.getItem('globalSettings');
@@ -76,8 +78,6 @@ const App: React.FC = () => {
       updateRepository(repo);
       showToast('Repository updated successfully!', 'success');
     } else {
-      // FIX: The `addRepository` function expects an object without an `id` and other metadata fields.
-      // Destructure `repo` to pass only the necessary data, allowing `useRepositoryManager` to handle ID generation.
       const { id, status, lastUpdated, buildHealth, ...repoData } = repo;
       addRepository(repoData);
       showToast('Repository added successfully!', 'success');
@@ -94,21 +94,31 @@ const App: React.FC = () => {
   
   const closeModal = () => setActiveModal({ type: null });
 
+  const handleToggleInfoView = () => {
+    setShowInfoView(prev => !prev);
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 font-sans">
       <Header 
         onNewRepo={handleOpenNewModal} 
-        onOpenSettings={() => setActiveModal({ type: 'settings' })} 
+        onOpenSettings={() => setActiveModal({ type: 'settings' })}
+        onToggleInfo={handleToggleInfoView}
+        isInfoViewVisible={showInfoView}
       />
       <main className="p-4 sm:p-6 lg:p-8">
-        <Dashboard
-          repositories={repositories}
-          onRunAutomation={handleRunAutomation}
-          onViewLogs={(repoId) => setActiveModal({ type: 'logs', repoId })}
-          onEditRepo={handleOpenEditModal}
-          onDeleteRepo={handleDeleteRepo}
-          isProcessing={isProcessing}
-        />
+        {showInfoView ? (
+          <InfoView />
+        ) : (
+          <Dashboard
+            repositories={repositories}
+            onRunAutomation={handleRunAutomation}
+            onViewLogs={(repoId) => setActiveModal({ type: 'logs', repoId })}
+            onEditRepo={handleOpenEditModal}
+            onDeleteRepo={handleDeleteRepo}
+            isProcessing={isProcessing}
+          />
+        )}
       </main>
       
       {activeModal.type === 'logs' && activeModal.repoId && (

@@ -8,7 +8,7 @@
   "scripts": {
     "start": "concurrently \"npm:watch\" \"npm:electron\"",
     "watch": "node esbuild.config.js --watch",
-    "electron": "wait-on dist/main.js dist/renderer.js && electron .",
+    "electron": "wait-on dist/main.js dist/renderer.js dist/preload.js && electron .",
     "build": "cross-env NODE_ENV=production node esbuild.config.js",
     "pack": "npm run build && electron-builder",
     "test": "echo \"See README.md for testing instructions.\" && exit 0"
@@ -17,7 +17,9 @@
     "electron-squirrel-startup": "^1.0.0",
     "electron-updater": "^6.2.1",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
@@ -41,6 +43,12 @@
       "buildResources": "assets",
       "output": "release"
     },
+    "extraResources": [
+      {
+        "from": "dist/docs",
+        "to": "docs"
+      }
+    ],
     "publish": {
       "provider": "github",
       "owner": "your-github-username",

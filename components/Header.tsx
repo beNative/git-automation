@@ -1,13 +1,18 @@
 import React from 'react';
 import { PlusIcon } from './icons/PlusIcon';
 import { CogIcon } from './icons/CogIcon';
+import { InformationCircleIcon } from './icons/InformationCircleIcon';
+import { XIcon } from './icons/XIcon';
+
 
 interface HeaderProps {
   onNewRepo: () => void;
   onOpenSettings: () => void;
+  onToggleInfo: () => void;
+  isInfoViewVisible: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ onNewRepo, onOpenSettings }) => {
+const Header: React.FC<HeaderProps> = ({ onNewRepo, onOpenSettings, onToggleInfo, isInfoViewVisible }) => {
   return (
     <header className="bg-gray-800/80 backdrop-blur-sm sticky top-0 z-10 shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -29,6 +34,17 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, onOpenSettings }) => {
               aria-label="Settings"
             >
               <CogIcon className="h-6 w-6" />
+            </button>
+             <button
+              onClick={onToggleInfo}
+              className={`p-2 rounded-full transition-colors ${
+                isInfoViewVisible
+                  ? 'bg-cyan-600 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white`}
+              aria-label={isInfoViewVisible ? "Close Info" : "Open Info"}
+            >
+              {isInfoViewVisible ? <XIcon className="h-6 w-6" /> : <InformationCircleIcon className="h-6 w-6" />}
             </button>
           </div>
         </div>

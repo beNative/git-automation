@@ -17,7 +17,8 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    "esbuild.config.js"
+    "esbuild.config.js",
+    "electron/electron.d.ts"
   ],
   "exclude": ["node_modules", "dist", "release"]
 }

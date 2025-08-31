@@ -1,5 +1,6 @@
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'path';
+import fs from 'fs/promises';
 import { platform } from 'os';
 import { autoUpdater } from 'electron-updater';
 
@@ -16,6 +17,7 @@ const createWindow = () => {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
     autoHideMenuBar: true,
     icon: path.join(__dirname, 'assets/icon.png'), // Optional: add an icon
@@ -41,8 +43,6 @@ app.on('ready', () => {
 
 // Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', () => {
-  // FIX: Use `platform()` from the 'os' module to correctly check the operating system.
-  // This resolves a TypeScript error caused by incorrect type inference for the global `process` object.
   if (platform() !== 'darwin') {
     app.quit();
   }
@@ -55,6 +55,26 @@ app.on('activate', () => {
     createWindow();
   }
 });
+
+// --- IPC Handler for fetching documentation ---
+ipcMain.handle('get-doc', async (event, docName: string) => {
+  try {
+    const isPackaged = app.isPackaged;
+    // Define the base path to the 'docs' directory based on environment
+    const docsBasePath = isPackaged
+      // Fix: `process.resourcesPath` is an Electron-specific property not available in the default Node.js `process` type.
+      ? path.join((process as any).resourcesPath, 'docs') // In production, it's in the resources folder
+      : path.join(__dirname, 'docs');             // In dev, it's in the dist/docs folder
+    
+    const filePath = path.join(docsBasePath, docName);
+    const content = await fs.readFile(filePath, 'utf-8');
+    return content;
+  } catch (error) {
+    console.error(`Failed to read doc: ${docName}`, error);
+    return `# Error\n\nCould not load document: ${docName}.`;
+  }
+});
+
 
 // --- Auto-updater event listeners ---
 

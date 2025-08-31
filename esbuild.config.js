@@ -45,6 +45,19 @@ const mainConfig = {
     },
 };
 
+// --- Preload Script Build ---
+const preloadConfig = {
+    entryPoints: ['electron/preload.ts'],
+    bundle: true,
+    outfile: path.join(distPath, 'preload.js'),
+    platform: 'node', // Runs in a Node-like context in the renderer
+    target: 'node18',
+    format: 'cjs',
+    sourcemap: !isProd,
+    minify: isProd,
+    external: ['electron'],
+};
+
 
 // --- Copy Static Files ---
 function copyStaticFiles() {
@@ -70,6 +83,21 @@ function copyStaticFiles() {
             console.error('Failed to copy assets directory:', e);
         }
     }
+    
+    // Copy documentation files
+    const docsDest = path.resolve(distPath, 'docs');
+    fs.mkdirSync(docsDest, { recursive: true });
+    const docFiles = ['README.md', 'FUNCTIONAL_MANUAL.md', 'TECHNICAL_MANUAL.md', 'CHANGELOG.md'];
+    docFiles.forEach(file => {
+        try {
+            fs.copyFileSync(path.resolve(__dirname, file), path.resolve(docsDest, file));
+        } catch (e) {
+            console.error(`Failed to copy ${file}:`, e);
+        }
+    });
+     if (isWatch) {
+        console.log('Copied documentation files to dist/docs/');
+    }
 }
 
 
@@ -80,18 +108,26 @@ async function build() {
             console.log('Starting esbuild in watch mode...');
             const rendererContext = await esbuild.context(rendererConfig);
             const mainContext = await esbuild.context(mainConfig);
+            const preloadContext = await esbuild.context(preloadConfig);
             
             copyStaticFiles(); // Initial copy
             
-            // Simple file watcher for index.html
+            // Simple file watcher for static files
             fs.watch('index.html', () => copyStaticFiles());
+            fs.watch('README.md', () => copyStaticFiles());
+            fs.watch('FUNCTIONAL_MANUAL.md', () => copyStaticFiles());
+            fs.watch('TECHNICAL_MANUAL.md', () => copyStaticFiles());
+            fs.watch('CHANGELOG.md', () => copyStaticFiles());
 
             await rendererContext.watch();
             await mainContext.watch();
+            await preloadContext.watch();
+
         } else {
             console.log('Building for production...');
             await esbuild.build(rendererConfig);
             await esbuild.build(mainConfig);
+            await esbuild.build(preloadConfig);
             copyStaticFiles();
             console.log('Build successful.');
         }
