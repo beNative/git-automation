@@ -9,6 +9,7 @@ import InfoView from './components/InfoView';
 import SettingsView from './components/SettingsView';
 import LogPanel from './components/LogPanel';
 import { IconContext } from './contexts/IconContext';
+import CommandPalette from './components/CommandPalette';
 
 const App: React.FC = () => {
   const {
@@ -26,6 +27,7 @@ const App: React.FC = () => {
   const [repoToEdit, setRepoToEdit] = useState<Repository | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [activeView, setActiveView] = useState<AppView>('dashboard');
+  const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
   
   const [logPanel, setLogPanel] = useState({
     isOpen: false,
@@ -65,6 +67,21 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [settings.theme]);
+
+  // Effect to handle Command Palette shortcut
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+            event.preventDefault();
+            setCommandPaletteOpen(prev => !prev);
+        }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const handleSaveSettings = (newSettings: GlobalSettings) => {
     setSettings(newSettings);
@@ -163,6 +180,24 @@ const App: React.FC = () => {
         <main className="p-4 sm:p-6 lg:p-8 flex-grow">
           {renderView()}
         </main>
+        
+        <CommandPalette
+            isOpen={isCommandPaletteOpen}
+            onClose={() => setCommandPaletteOpen(false)}
+            repositories={repositories}
+            onSetView={(view) => {
+                setActiveView(view);
+                setCommandPaletteOpen(false);
+            }}
+            onNewRepo={() => {
+                handleOpenNewModal();
+                setCommandPaletteOpen(false);
+            }}
+            onRunTask={(repoId, taskId) => {
+                handleRunTask(repoId, taskId);
+                setCommandPaletteOpen(false);
+            }}
+        />
         
         {activeModal.type === 'repo-form' && (
           <RepoFormModal
