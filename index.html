@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF--8" />
+    <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Git Automation Dashboard</title>
@@ -9,15 +9,17 @@
   <script type="importmap">
 {
   "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
     "react": "https://aistudiocdn.com/react@^19.1.1",
+    "electron": "https://aistudiocdn.com/electron@^37.4.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/"
+    "path": "https://aistudiocdn.com/path@^0.12.7"
   }
 }
 </script>
 </head>
   <body class="bg-gray-900 text-gray-100">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script defer src="./renderer.js"></script>
   </body>
 </html>
