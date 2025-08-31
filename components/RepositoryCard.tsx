@@ -108,7 +108,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
               </div>
 
               {isDropdownOpen && (
-                <div className="origin-top-right absolute right-0 bottom-full mb-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                <div className="origin-top-right absolute right-0 top-full mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 focus:outline-none z-20">
                   <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                     {tasks.map(task => (
                        <a
