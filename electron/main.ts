@@ -1,8 +1,6 @@
-// FIX: Add a triple-slash directive to include Node.js type definitions. This resolves errors for `require`, `__dirname`, and `process.platform` which are available in the Electron main process.
-/// <reference types="node" />
-
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
+import { platform } from 'os';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -37,7 +35,9 @@ app.on('ready', createWindow);
 
 // Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  // FIX: Use `platform()` from the 'os' module to correctly check the operating system.
+  // This resolves a TypeScript error caused by incorrect type inference for the global `process` object.
+  if (platform() !== 'darwin') {
     app.quit();
   }
 });
