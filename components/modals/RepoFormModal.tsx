@@ -204,6 +204,7 @@ const RepoFormModal: React.FC<RepoFormModalProps> = ({ isOpen, onClose, onSave, 
             onClose={() => setTaskFormOpen(false)}
             onSave={handleSaveTask}
             task={taskToEdit}
+            repository={formData as Repository}
         />
       )}
     </>

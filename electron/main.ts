@@ -83,6 +83,26 @@ ipcMain.handle('get-doc', async (event, docName: string) => {
   }
 });
 
+// --- IPC Handler for reading package.json scripts ---
+ipcMain.handle('get-package-scripts', async (event, repoPath: string): Promise<string[]> => {
+  if (!repoPath) return [];
+
+  const packageJsonPath = path.join(repoPath, 'package.json');
+  try {
+    const fileContent = await fs.readFile(packageJsonPath, 'utf-8');
+    const packageJson = JSON.parse(fileContent);
+    if (packageJson && typeof packageJson.scripts === 'object') {
+      return Object.keys(packageJson.scripts);
+    }
+    return [];
+  } catch (error) {
+    // Log the error but don't bother the user. This is an enhancement, not critical.
+    console.warn(`Could not read or parse package.json at ${packageJsonPath}:`, error);
+    return [];
+  }
+});
+
+
 // --- IPC Handler for running real task steps ---
 ipcMain.on('run-task-step', (event, { repo, step, settings }: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {
     const sendLog = (message: string, level: LogLevel) => {

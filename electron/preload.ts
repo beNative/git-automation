@@ -7,6 +7,9 @@ const taskStepEndChannel = 'task-step-end';
 contextBridge.exposeInMainWorld('electronAPI', {
   // Documentation
   getDoc: (docName: string): Promise<string> => ipcRenderer.invoke('get-doc', docName),
+  
+  // Smart Scripts
+  getPackageScripts: (repoPath: string): Promise<string[]> => ipcRenderer.invoke('get-package-scripts', repoPath),
 
   // Real Task Execution
   runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {

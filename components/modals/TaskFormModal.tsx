@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { Task, TaskStep } from '../../types';
+import type { Task, TaskStep, Repository } from '../../types';
 import { TaskStepType } from '../../types';
 import { XIcon } from '../icons/XIcon';
 import { PlusIcon } from '../icons/PlusIcon';
@@ -13,6 +13,7 @@ interface TaskFormModalProps {
   onClose: () => void;
   onSave: (task: Task) => void;
   task: Task | null;
+  repository: Partial<Repository> | null;
 }
 
 const STEP_TYPE_LABELS: Record<TaskStepType, string> = {
@@ -51,9 +52,11 @@ const PREDEFINED_VALUES = PREDEFINED_COMMAND_GROUPS.flatMap(group => Object.keys
 const CUSTOM_COMMAND_VALUE = 'custom_command';
 
 
-const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, task }) => {
+const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, task, repository }) => {
   const [name, setName] = useState('');
   const [steps, setSteps] = useState<TaskStep[]>([]);
+  const [detectedScripts, setDetectedScripts] = useState<string[]>([]);
+  const [isLoadingScripts, setIsLoadingScripts] = useState(false);
 
   useEffect(() => {
     if (task) {
@@ -64,6 +67,26 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, 
       setSteps([]);
     }
   }, [task, isOpen]);
+  
+  useEffect(() => {
+    if (isOpen && repository?.localPath) {
+      setIsLoadingScripts(true);
+      setDetectedScripts([]); // Reset on open
+      window.electronAPI.getPackageScripts(repository.localPath)
+        .then(scripts => {
+          setDetectedScripts(scripts || []);
+        })
+        .catch(error => {
+          console.warn("Could not load package.json scripts:", error);
+          setDetectedScripts([]);
+        })
+        .finally(() => {
+          setIsLoadingScripts(false);
+        });
+    } else {
+      setDetectedScripts([]); // Clear if no path or modal closed
+    }
+  }, [isOpen, repository?.localPath]);
 
   const handleAddStep = () => {
     const newStep: TaskStep = {
@@ -94,8 +117,13 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, 
           if (newType !== TaskStepType.RunCommand) {
             delete updatedStep.command;
           } else {
-            // Set a default predefined command when switching to RunCommand
-            updatedStep.command = 'npm run build';
+            // Set a smart default command when switching TO RunCommand
+            const defaultCommand = detectedScripts.includes('build')
+                ? 'npm run build'
+                : detectedScripts.length > 0
+                ? `npm run ${detectedScripts[0]}`
+                : 'npm run build';
+            updatedStep.command = defaultCommand;
           }
         }
         if (newCommand !== undefined) {
@@ -161,7 +189,8 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, 
                     </select>
                     {step.type === TaskStepType.RunCommand && (
                       (() => {
-                        const isCustom = !PREDEFINED_VALUES.includes(step.command || '');
+                        const allPredefined = [...PREDEFINED_VALUES, ...detectedScripts.flatMap(s => [`npm run ${s}`, `yarn ${s}`])];
+                        const isCustom = !allPredefined.includes(step.command || '');
                         const selectValue = isCustom ? CUSTOM_COMMAND_VALUE : step.command;
 
                         return (
@@ -178,6 +207,17 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, 
                               }}
                               className={formSelectStyle}
                             >
+                              {(isLoadingScripts || detectedScripts.length > 0) && (
+                                <optgroup label="Detected Scripts">
+                                  {isLoadingScripts && <option disabled>Loading project scripts...</option>}
+                                  {detectedScripts.map(script => (
+                                    <option key={`npm-${script}`} value={`npm run ${script}`}>{`npm run ${script}`}</option>
+                                  ))}
+                                  {detectedScripts.map(script => (
+                                    <option key={`yarn-${script}`} value={`yarn ${script}`}>{`yarn ${script}`}</option>
+                                  ))}
+                                </optgroup>
+                              )}
                               {PREDEFINED_COMMAND_GROUPS.map(group => (
                                 <optgroup key={group.label} label={group.label}>
                                   {Object.entries(group.commands).map(([value, label]) => (
