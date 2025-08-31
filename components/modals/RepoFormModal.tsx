@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import type { Repository, Task, TaskStep } from '../../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { Repository, Task, TaskStep, ProjectSuggestion } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType } from '../../types';
 import { XIcon } from '../icons/XIcon';
 import { PencilIcon } from '../icons/PencilIcon';
@@ -37,15 +37,11 @@ const STEP_TYPE_LABELS: Record<TaskStepType, string> = {
 
 const PREDEFINED_COMMAND_GROUPS = [
     {
-        label: "NPM Scripts",
-        commands: { 'npm run build': 'Build', 'npm run start': 'Start', 'npm run test': 'Test' }
+        label: "Common Scripts",
+        commands: { 'npm run build': 'Build (npm)', 'npm run start': 'Start (npm)', 'npm run test': 'Test (npm)', 'yarn build': 'Build (yarn)', 'yarn start': 'Start (yarn)', 'yarn test': 'Test (yarn)' }
     },
     {
-        label: "Yarn Scripts",
-        commands: { 'yarn build': 'Build', 'yarn start': 'Start', 'yarn test': 'Test' }
-    },
-    {
-        label: "Application",
+        label: "Common Applications",
         commands: { 'electron-builder': 'Package with electron-builder', 'electron .': 'Run unpacked with electron' }
     }
 ];
@@ -59,25 +55,25 @@ const TaskEditor: React.FC<{
   repository: Partial<Repository> | null;
 }> = ({ task, onSave, onCancel, repository }) => {
     const [editedTask, setEditedTask] = useState<Task>(task);
-    const [detectedScripts, setDetectedScripts] = useState<string[]>([]);
-    const [isLoadingScripts, setIsLoadingScripts] = useState(false);
+    const [detectedSuggestions, setDetectedSuggestions] = useState<ProjectSuggestion[]>([]);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
     useEffect(() => {
         setEditedTask(task);
     }, [task]);
 
     useEffect(() => {
-        if (repository?.localPath) {
-          setIsLoadingScripts(true);
-          setDetectedScripts([]);
-          window.electronAPI.getPackageScripts(repository.localPath)
-            .then(scripts => setDetectedScripts(scripts || []))
-            .catch(error => console.warn("Could not load package.json scripts:", error))
-            .finally(() => setIsLoadingScripts(false));
+        if (repository?.localPath && repository.name) {
+          setIsLoadingSuggestions(true);
+          setDetectedSuggestions([]);
+          window.electronAPI.getProjectSuggestions({ repoPath: repository.localPath, repoName: repository.name })
+            .then(suggestions => setDetectedSuggestions(suggestions || []))
+            .catch(error => console.warn("Could not load project suggestions:", error))
+            .finally(() => setIsLoadingSuggestions(false));
         } else {
-          setDetectedScripts([]);
+          setDetectedSuggestions([]);
         }
-    }, [repository?.localPath]);
+    }, [repository?.localPath, repository?.name]);
 
     const handleStepChange = (id: string, newType?: TaskStepType, newCommand?: string) => {
         setEditedTask(prev => ({
@@ -89,7 +85,8 @@ const TaskEditor: React.FC<{
                         updatedStep.type = newType;
                         if (newType !== TaskStepType.RunCommand) delete updatedStep.command;
                         else {
-                             const defaultCommand = detectedScripts.includes('build') ? 'npm run build' : detectedScripts.length > 0 ? `npm run ${detectedScripts[0]}` : 'npm run build';
+                             const buildSuggestion = detectedSuggestions.find(s => s.label.toLowerCase().includes('build'));
+                             const defaultCommand = buildSuggestion ? buildSuggestion.value : (detectedSuggestions.length > 0 ? detectedSuggestions[0].value : 'npm run build');
                              updatedStep.command = defaultCommand;
                         }
                     }
@@ -129,6 +126,13 @@ const TaskEditor: React.FC<{
     const formSelectStyle = "block w-full bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
     const formInputStyle = "block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
 
+    const groupedSuggestions = useMemo(() => {
+        return detectedSuggestions.reduce((acc, suggestion) => {
+            (acc[suggestion.group] = acc[suggestion.group] || []).push(suggestion);
+            return acc;
+        }, {} as Record<string, ProjectSuggestion[]>);
+    }, [detectedSuggestions]);
+
     return (
         <div className="space-y-6">
             <div>
@@ -154,19 +158,20 @@ const TaskEditor: React.FC<{
                                 ))}
                             </select>
                             {step.type === TaskStepType.RunCommand && (() => {
-                                const allPredefined = [...PREDEFINED_VALUES, ...detectedScripts.flatMap(s => [`npm run ${s}`, `yarn ${s}`])];
+                                const allPredefined = [...PREDEFINED_VALUES, ...detectedSuggestions.map(s => s.value)];
                                 const isCustom = !allPredefined.includes(step.command || '');
                                 const selectValue = isCustom ? CUSTOM_COMMAND_VALUE : step.command;
                                 return (
                                     <div className="space-y-2">
                                         <select value={selectValue} onChange={(e) => handleStepChange(step.id, undefined, e.target.value === CUSTOM_COMMAND_VALUE ? '' : e.target.value)} className={formSelectStyle}>
-                                            {(isLoadingScripts || detectedScripts.length > 0) && (
-                                                <optgroup label="Detected Scripts">
-                                                    {isLoadingScripts && <option disabled>Loading...</option>}
-                                                    {detectedScripts.map(script => <option key={`npm-${script}`} value={`npm run ${script}`}>{`npm run ${script}`}</option>)}
-                                                    {detectedScripts.map(script => <option key={`yarn-${script}`} value={`yarn ${script}`}>{`yarn ${script}`}</option>)}
+                                            {isLoadingSuggestions && <optgroup label="Loading..."><option disabled>Loading project suggestions...</option></optgroup>}
+                                            
+                                            {Object.entries(groupedSuggestions).map(([groupName, suggestions]) => (
+                                                <optgroup key={groupName} label={groupName}>
+                                                    {suggestions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                                                 </optgroup>
-                                            )}
+                                            ))}
+
                                             {PREDEFINED_COMMAND_GROUPS.map(group => (
                                                 <optgroup key={group.label} label={group.label}>
                                                     {Object.entries(group.commands).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -174,7 +179,7 @@ const TaskEditor: React.FC<{
                                             ))}
                                             <option value={CUSTOM_COMMAND_VALUE}>Custom Command...</option>
                                         </select>
-                                        {isCustom && <input type="text" placeholder="e.g., npm run build:win" value={step.command || ''} onChange={(e) => handleStepChange(step.id, undefined, e.target.value)} required className={`${formSelectStyle}`} />}
+                                        {isCustom && <input type="text" placeholder="e.g., npm run build:win" value={step.command || ''} onChange={(e) => handleStepChange(step.id, undefined, e.target.value)} required className={`${formInputStyle}`} />}
                                     </div>
                                 );
                             })()}

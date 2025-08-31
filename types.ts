@@ -75,3 +75,9 @@ export interface ActiveModal {
 }
 
 export type AppView = 'dashboard' | 'settings' | 'info';
+
+export interface ProjectSuggestion {
+  label: string;
+  value: string;
+  group: string;
+}

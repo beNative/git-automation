@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import { platform } from 'os';
 import { autoUpdater } from 'electron-updater';
 import { spawn } from 'child_process';
-import type { Repository, TaskStep, GlobalSettings } from '../types';
+import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion } from '../types';
 import { TaskStepType, LogLevel } from '../types';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -80,24 +80,66 @@ ipcMain.handle('get-doc', async (event, docName: string) => {
   }
 });
 
-// --- IPC Handler for reading package.json scripts ---
-ipcMain.handle('get-package-scripts', async (event, repoPath: string): Promise<string[]> => {
+// --- IPC Handler for project configuration suggestions ---
+ipcMain.handle('get-project-suggestions', async (event, { repoPath, repoName }: { repoPath: string; repoName: string }): Promise<ProjectSuggestion[]> => {
   if (!repoPath) return [];
 
-  const packageJsonPath = path.join(repoPath, 'package.json');
+  const suggestions: ProjectSuggestion[] = [];
+  const addSuggestion = (suggestion: Omit<ProjectSuggestion, 'group'>, group: string) => {
+    suggestions.push({ ...suggestion, group });
+  };
+
+  // 1. package.json scripts
   try {
-    const fileContent = await fs.readFile(packageJsonPath, 'utf-8');
-    const packageJson = JSON.parse(fileContent);
-    if (packageJson && typeof packageJson.scripts === 'object') {
-      return Object.keys(packageJson.scripts);
+    const pkgJsonPath = path.join(repoPath, 'package.json');
+    const fileContent = await fs.readFile(pkgJsonPath, 'utf-8');
+    const pkg = JSON.parse(fileContent);
+    if (pkg && pkg.scripts && typeof pkg.scripts === 'object') {
+      for (const scriptName of Object.keys(pkg.scripts)) {
+        addSuggestion({ label: `npm run ${scriptName}`, value: `npm run ${scriptName}` }, 'Detected NPM Scripts');
+        addSuggestion({ label: `yarn ${scriptName}`, value: `yarn ${scriptName}` }, 'Detected Yarn Scripts');
+      }
     }
-    return [];
-  } catch (error) {
-    // Log the error but don't bother the user. This is an enhancement, not critical.
-    console.warn(`Could not read or parse package.json at ${packageJsonPath}:`, error);
-    return [];
-  }
+  } catch (e) { /* ignore */ }
+
+  // 2. Dockerfile
+  try {
+    const dockerfilePath = path.join(repoPath, 'Dockerfile');
+    await fs.access(dockerfilePath);
+    const imageName = repoName.toLowerCase().replace(/[^a-z0-9_.-]/g, '-');
+    addSuggestion({ label: `Build Docker image '${imageName}'`, value: `docker build -t ${imageName} .` }, 'Detected Docker Commands');
+    addSuggestion({ label: `Run Docker image '${imageName}'`, value: `docker run ${imageName}` }, 'Detected Docker Commands');
+  } catch (e) { /* ignore */ }
+
+  // 3. docker-compose.yml
+  try {
+    const composePath = path.join(repoPath, 'docker-compose.yml');
+    await fs.access(composePath);
+    addSuggestion({ label: `Docker Compose Up`, value: `docker-compose up -d` }, 'Detected Docker Compose');
+    addSuggestion({ label: `Docker Compose Down`, value: `docker-compose down` }, 'Detected Docker Compose');
+  } catch (e) { /* ignore */ }
+
+  // 4. Makefile
+  try {
+    const makefilePath = path.join(repoPath, 'Makefile');
+    const content = await fs.readFile(makefilePath, 'utf-8');
+    const regex = /^([a-zA-Z0-9/_-]+):/gm;
+    let match;
+    const targets = new Set<string>();
+    while ((match = regex.exec(content)) !== null) {
+      const target = match[1];
+      if (target !== 'PHONY') {
+        targets.add(target);
+      }
+    }
+    for (const target of targets) {
+      addSuggestion({ label: `make ${target}`, value: `make ${target}` }, 'Detected Makefile Targets');
+    }
+  } catch (e) { /* ignore */ }
+
+  return suggestions;
 });
+
 
 // --- IPC Handler for running real task steps ---
 ipcMain.on('run-task-step', (event, { repo, step, settings }: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {

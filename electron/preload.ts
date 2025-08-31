@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel } from '../types';
+import type { Repository, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion } from '../types';
 
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDoc: (docName: string): Promise<string> => ipcRenderer.invoke('get-doc', docName),
   
   // Smart Scripts
-  getPackageScripts: (repoPath: string): Promise<string[]> => ipcRenderer.invoke('get-package-scripts', repoPath),
+  getProjectSuggestions: (args: { repoPath: string, repoName: string }): Promise<ProjectSuggestion[]> => ipcRenderer.invoke('get-project-suggestions', args),
   
   // Real Task Execution
   runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {
