@@ -15,7 +15,15 @@ export const useRepositoryManager = () => {
   const [repositories, setRepositories] = useState<Repository[]>(() => {
     try {
       const savedRepos = localStorage.getItem('repositories');
-      return savedRepos ? JSON.parse(savedRepos) : [];
+      if (savedRepos) {
+        const parsedRepos: Repository[] = JSON.parse(savedRepos);
+        // Data migration: ensure every repo has a `tasks` array.
+        return parsedRepos.map(repo => ({
+          ...repo,
+          tasks: repo.tasks || [],
+        }));
+      }
+      return [];
     } catch (error) {
       console.error("Failed to parse repositories from localStorage", error);
       return [];

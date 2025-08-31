@@ -20,20 +20,20 @@ const LOG_LEVEL_STYLES: Record<LogLevel, string> = {
   [LogLevel.Warn]: 'text-yellow-600 dark:text-yellow-400',
 };
 
-const MIN_HEIGHT = 100;
-const MAX_HEIGHT = window.innerHeight - 100;
+const MIN_HEIGHT = 100; // Minimum pixel height for the panel
 
 const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, height, setHeight }) => {
   const logContainerRef = useRef<HTMLDivElement>(null);
-  const resizeHandleRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
 
+  // Auto-scroll to the bottom of the logs when new entries are added
   useEffect(() => {
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [logs]);
 
+  // Mouse event handlers for resizing
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
@@ -45,13 +45,16 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (isResizing) {
+      const maxHeight = window.innerHeight - 100; // Prevent overlapping the header
       const newHeight = window.innerHeight - e.clientY;
-      if (newHeight >= MIN_HEIGHT && newHeight <= MAX_HEIGHT) {
+
+      if (newHeight >= MIN_HEIGHT && newHeight <= maxHeight) {
         setHeight(newHeight);
       }
     }
   }, [isResizing, setHeight]);
   
+  // Effect to add and remove global event listeners for resizing
   useEffect(() => {
     if (isResizing) {
       window.addEventListener('mousemove', handleMouseMove);
@@ -68,11 +71,13 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
     <div
       className={`fixed bottom-0 left-0 right-0 z-20 bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700 transition-transform duration-300 ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
       style={{ height: `${height}px` }}
+      aria-hidden={!isOpen}
     >
       <div 
-        ref={resizeHandleRef}
         onMouseDown={handleMouseDown}
-        className="absolute top-0 left-0 right-0 h-2 cursor-row-resize flex items-center justify-center group"
+        className="absolute -top-1 left-0 right-0 h-2 cursor-row-resize flex items-center justify-center group"
+        aria-label="Resize log panel"
+        role="separator"
       >
         <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-cyan-500 transition-colors"/>
       </div>
@@ -85,6 +90,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
           <button
             onClick={onClose}
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            aria-label="Close log panel"
           >
             <XIcon className="h-5 w-5" />
           </button>
@@ -93,6 +99,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
         <main
           ref={logContainerRef}
           className="flex-grow px-4 pb-4 bg-gray-50 dark:bg-gray-900 overflow-y-auto font-mono text-sm"
+          role="log"
         >
           {logs.map((log, index) => (
             <div key={index} className={`flex ${LOG_LEVEL_STYLES[log.level]}`}>
