@@ -9,6 +9,7 @@ A dashboard to manage and automate the workflow for a set of Git repositories, i
 - View real-time logs for automation tasks.
 - Configure global settings for package managers and build commands.
 - Cross-platform support (Windows, macOS, Linux).
+- **Automatic Updates:** The application automatically checks for new versions and prompts you to install them.
 
 ## Development
 
@@ -70,6 +71,51 @@ To build for a specific platform (e.g., building for Windows on a macOS machine)
 -   `npm run pack -- --linux` (for Linux)
 
 Note: Building for macOS requires a macOS host. Building for Windows is possible on other platforms with Docker.
+
+## Automatic Updates
+
+This application uses `electron-updater` to handle automatic updates.
+
+### How it Works
+
+1.  When the application starts, it checks for a new version from the GitHub repository specified in `package.json`.
+2.  If a new version is found, it will be downloaded in the background.
+3.  Once the download is complete, you will be prompted with a dialog to restart the application to apply the update.
+
+### Configuring Your Release Repository
+
+To publish new versions and enable updates, you need to:
+
+1.  **Create a public GitHub repository** to host your releases.
+
+2.  **Update `package.json`:**
+    In the `build.publish` section, replace the placeholder values with your GitHub username and repository name:
+    ```json
+    "publish": {
+      "provider": "github",
+      "owner": "your-github-username",
+      "repo": "your-repo-name"
+    }
+    ```
+
+3.  **Create a GitHub Access Token:**
+    -   Go to [GitHub's Personal Access Tokens page](https://github.com/settings/tokens).
+    -   Generate a new token (classic) with the `repo` scope. This token is required for `electron-builder` to create releases and upload your packaged application.
+
+4.  **Set the `GH_TOKEN` Environment Variable:**
+    Before running the packaging script, set the `GH_TOKEN` environment variable to the value of the token you just created.
+    ```bash
+    # On macOS/Linux
+    export GH_TOKEN="your_github_token_here"
+    
+    # On Windows (PowerShell)
+    $env:GH_TOKEN="your_github_token_here"
+    ```
+
+5.  **Publish a New Release:**
+    Run the `npm run pack` command. `electron-builder` will build your application, create a new draft release on GitHub, and upload the installers/executables. You can then publish the draft release from the GitHub UI.
+
+Once a new release is published, existing installations of your app will automatically detect and download it.
 
 ## Testing the Build
 

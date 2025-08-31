@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "electron-squirrel-startup": "^1.0.0",
+    "electron-updater": "^6.2.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
@@ -40,6 +41,11 @@
       "buildResources": "assets",
       "output": "release"
     },
+    "publish": {
+      "provider": "github",
+      "owner": "your-github-username",
+      "repo": "your-github-repo-name"
+    },
     "win": {
       "target": "nsis"
     },
@@ -51,6 +57,10 @@
         "AppImage",
         "deb"
       ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
   }
 }
