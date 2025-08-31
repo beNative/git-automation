@@ -1,0 +1,5 @@
+{
+  "name": "Git Automation Dashboard",
+  "description": "A dashboard to manage and automate the workflow for a set of Git repositories, including pulling, installing dependencies, and running build scripts.",
+  "requestFramePermissions": []
+}
