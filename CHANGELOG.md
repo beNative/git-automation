@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - YYYY-MM-DD
+
+### Added
+- **Repository-Specific Tasks:** Tasks are now created and managed for each individual repository. The global task list has been removed.
+- **Resizable Log Panel:** The log modal has been replaced with a resizable panel at the bottom of the application window for a more integrated experience.
+- **Tab-based Navigation:** The main application layout is now controlled by tabs in the header, allowing users to switch between the Dashboard, a new dedicated Settings view, and the Info hub.
+
+### Changed
+- **Major UI Refactor:** The settings modal has been converted into a main application view.
+- The "Edit Repository" modal now includes a "Tasks" tab for managing that repository's specific automation scripts.
+- The application header now serves as the primary navigation control.
+
 ## [1.1.0] - YYYY-MM-DD
 
 ### Added

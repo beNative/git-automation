@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { Repository, Task } from '../types';
+import type { Repository } from '../types';
 import { RepoStatus, BuildHealth } from '../types';
 import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
 import { PlayIcon } from './icons/PlayIcon';
@@ -13,7 +13,6 @@ import { GlobeAltIcon } from './icons/GlobeAltIcon';
 
 interface RepositoryCardProps {
   repository: Repository;
-  tasks: Task[];
   onRunTask: (repoId: string, taskId: string) => void;
   onViewLogs: (repoId: string) => void;
   onEditRepo: (repo: Repository) => void;
@@ -23,14 +22,13 @@ interface RepositoryCardProps {
 
 const RepositoryCard: React.FC<RepositoryCardProps> = ({
   repository,
-  tasks,
   onRunTask,
   onViewLogs,
   onEditRepo,
   onDeleteRepo,
   isProcessing,
 }) => {
-  const { id, name, remoteUrl, branch, status, lastUpdated, buildHealth } = repository;
+  const { id, name, remoteUrl, branch, status, lastUpdated, buildHealth, tasks } = repository;
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 

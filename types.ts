@@ -25,6 +25,7 @@ export interface Repository {
   status: RepoStatus;
   lastUpdated: string | null;
   buildHealth: BuildHealth;
+  tasks: Task[];
 }
 
 export enum LogLevel {
@@ -67,7 +68,7 @@ export interface Task {
 
 
 export interface ActiveModal {
-  type: 'logs' | 'repo-form' | 'settings' | 'task-form' | null;
-  repoId?: string | null;
-  taskId?: string | null; // For editing tasks
+  type: 'repo-form' | null;
 }
+
+export type AppView = 'dashboard' | 'settings' | 'info';

@@ -92,13 +92,13 @@ export const useRepositoryManager = () => {
     }
   }, [addLogEntry, updateRepoStatus]);
   
-  const addRepository = (repo: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>) => {
+  const addRepository = (repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>) => {
     const newRepo: Repository = {
-      ...repo,
       id: `repo_${Date.now()}`,
       status: RepoStatus.Idle,
       lastUpdated: null,
       buildHealth: BuildHealth.Unknown,
+      ...repoData
     };
     setRepositories(prev => [...prev, newRepo]);
   };

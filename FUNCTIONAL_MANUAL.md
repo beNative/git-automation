@@ -2,7 +2,15 @@
 
 This manual provides a detailed walkthrough of all the features available in the Git Automation Dashboard.
 
-## 1. The Main Dashboard
+## 1. Navigating the Application
+
+The application is organized into three main views, which you can switch between using the icons in the top-right of the header:
+
+-   **Dashboard (Home Icon):** The main screen where you can see and interact with all your repository cards.
+-   **Settings (Cog Icon):** Where you can configure global application settings.
+-   **Info (Information Icon):** An information hub containing this manual and other useful documentation.
+
+## 2. The Main Dashboard
 
 The dashboard is the central hub of the application. It displays all your configured repositories as individual cards.
 
@@ -22,77 +30,55 @@ Each card gives you an at-a-glance overview of a repository:
 Each card has a set of action buttons:
 
 -   **Run Task (Play Icon & Dropdown):** Executes a custom automation script on this repository.
-    - Clicking the main button runs the first task in your list.
-    - Clicking the dropdown arrow allows you to select any of your created tasks to run.
--   **View Logs (Document Icon):** Opens a modal showing the detailed, real-time logs for the automation process.
--   **Configure (Pencil Icon):** Opens the repository form to edit this repository's configuration.
+    - Clicking the main button runs the first task configured for this repository.
+    - Clicking the dropdown arrow allows you to select any of this repository's tasks to run.
+-   **View Logs (Document Icon):** Opens the resizable log panel at the bottom of the screen to show previous logs for this repository.
+-   **Configure (Pencil Icon):** Opens the repository configuration modal.
 -   **Delete (Trash Icon):** Permanently removes the repository from the dashboard after a confirmation prompt.
 
-## 2. Managing Repositories
+## 3. Managing Repositories and Tasks
+
+Tasks (automation scripts) are configured on a per-repository basis.
 
 ### Adding a New Repository
 
-1.  Click the **"New Repository"** button in the top-right header.
+1.  Click the **"New Repo"** button in the header.
 2.  The "Add New Repository" modal will appear.
-3.  Fill in the form fields:
-    -   **Repository Name:** A friendly name for your dashboard (e.g., "My Project Frontend").
-    -   **Remote URL:** The full HTTPS or SSH URL of the Git repository.
-    -   **Local Clone Path:** The conceptual local directory for the project.
-    -   **Branch:** The name of the branch to sync (e.g., `main`, `develop`).
-    -   **Authentication:**
-        -   `None`: For public repositories.
-        -   `SSH Key Path`: Provide the path to your SSH private key (conceptual).
-        -   `HTTPS Token`: Provide a personal access token (PAT) for authentication over HTTPS.
-4.  Click **"Save Repository"**.
+3.  On the **"General"** tab, fill in the repository's details (Name, URL, etc.).
+4.  Optionally, switch to the **"Tasks"** tab to add automation scripts immediately.
+5.  Click **"Save Repository"**.
 
-### Editing a Repository
+### Editing a Repository and Managing Its Tasks
 
 1.  On the desired repository card, click the **pencil icon**.
-2.  The "Edit Repository" modal will appear with the existing data pre-filled.
-3.  Make your desired changes and click **"Save Repository"**.
+2.  The "Edit Repository" modal will appear. Use the tabs at the top to switch between editing general settings and managing tasks.
 
-### Deleting a Repository
+#### The "Tasks" Tab
+This is where you can create powerful, custom automation scripts for the specific repository you are editing.
 
-1.  On the desired repository card, click the **trash icon**.
-2.  A confirmation dialog will appear.
-3.  Click "OK" to permanently delete the repository from the dashboard. This action cannot be undone.
+1. Click the **"New Task"** button.
+2. A new modal will appear. Give your task a descriptive **name** (e.g., "Build & Deploy to Staging").
+3. Click **"Add Step"** to build your workflow.
+4. **Configure each step:**
+   -   Use the dropdown to select the step **type**:
+       -   **Git Pull:** Pulls the latest changes from the remote.
+       -   **Install Dependencies:** Runs `npm install` or `yarn install`.
+       -   **Run Custom Command:** Allows you to enter any shell command (e.g., `npm run test`).
+5. Continue adding, configuring, and re-ordering steps.
+6. Click **"Save Task"**. This saves the task to the repository configuration form.
+7. Click **"Save Repository"** on the main form to persist your changes.
 
-## 3. Global Settings & Scriptable Tasks
+## 4. The Resizable Log Panel
 
-You can configure application-wide settings by clicking the **cog icon** in the header.
+When you run a task, a log panel will appear at the bottom of the screen.
 
-### General Tab
+-   **Resizing:** Click and drag the top border of the panel to resize it to your desired height.
+-   **Content:** Logs are timestamped and color-coded for readability. The view auto-scrolls to the latest output.
+-   **Closing:** Click the 'X' icon in the top-right of the panel to close it.
+
+## 5. Global Settings View
+
+Click the **cog icon** in the header to access global settings.
 
 -   **Default Package Manager:** Choose between `npm` and `yarn`. The `Install Dependencies` task step will use this selection.
--   **Enable Notifications:** Toggle on/off the toast notifications that appear in the bottom-right corner after a task succeeds or fails.
-
-### Tasks Tab
-
-This is where you can create powerful, custom automation scripts.
-
-#### Creating a New Task
-1. Click the **"New Task"** button.
-2. A modal will appear. Give your task a descriptive **name** (e.g., "Build & Deploy to Staging").
-3. Click **"Add Step"**. A new step is added to the list.
-4. **Configure the step:**
-   -   Use the dropdown to select the step **type**:
-       -   **Git Pull:** Pulls the latest changes from the remote repository.
-       -   **Install Dependencies:** Runs `npm install` or `yarn install` based on your global settings.
-       -   **Run Custom Command:** Allows you to enter any shell command (e.g., `npm run test`, `electron-builder --win`).
-5. Continue adding, configuring, and re-ordering steps using the up/down arrows to build your desired workflow.
-6. Click **"Save Task"**.
-
-#### Managing Tasks
-- **Edit a Task:** Click the pencil icon next to a task in the list to open the editor.
-- **Delete a Task:** Click the trash icon to permanently delete a task.
-
-## 4. Viewing Logs
-
-When you run a task or click the "View Logs" button, a modal appears showing the output from the script.
-
--   Logs are timestamped and color-coded for readability:
-    -   **Cyan:** Commands being executed.
-    -   **Green:** Success messages.
-    -   **Red:** Error messages.
--   The log view scrolls automatically to show the latest output.
--   Click the **"Close"** button or the 'X' in the corner to dismiss the modal.
+-   **Enable Notifications:** Toggle on/off the toast notifications that appear in the bottom-right corner.
