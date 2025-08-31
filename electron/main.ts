@@ -171,6 +171,44 @@ ipcMain.handle('get-project-suggestions', async (event, { repoPath, repoName }: 
       addSuggestion({ label: `Build with Gradle`, value: `${gradlew} build` }, 'Detected Java Tools');
   }
 
+  // 9. Ruby
+  if (await fileExists('Gemfile')) {
+      addSuggestion({ label: `Install Ruby gems`, value: `bundle install` }, 'Detected Ruby Tools');
+  }
+  if (await fileExists('Rakefile')) {
+      addSuggestion({ label: `Run Rake tests`, value: `rake test` }, 'Detected Ruby Tools');
+  }
+  
+  // 10. Rust
+  if (await fileExists('Cargo.toml')) {
+      addSuggestion({ label: `Build Rust project`, value: `cargo build` }, 'Detected Rust Tools');
+      addSuggestion({ label: `Test Rust project`, value: `cargo test` }, 'Detected Rust Tools');
+      addSuggestion({ label: `Run Rust project`, value: `cargo run` }, 'Detected Rust Tools');
+  }
+  
+  // 11. .NET
+  try {
+      const files = await fs.readdir(repoPath);
+      const hasSln = files.some(f => f.endsWith('.sln'));
+      const hasCsproj = files.some(f => f.endsWith('.csproj'));
+      if (hasSln || hasCsproj) {
+          addSuggestion({ label: `Build .NET project`, value: `dotnet build` }, 'Detected .NET Tools');
+          addSuggestion({ label: `Test .NET project`, value: `dotnet test` }, 'Detected .NET Tools');
+          addSuggestion({ label: `Run .NET project`, value: `dotnet run` }, 'Detected .NET Tools');
+      }
+  } catch (e) { /* ignore directory read errors */ }
+
+  // 12. PHP (Composer)
+  if (await fileExists('composer.json')) {
+      addSuggestion({ label: `Install PHP dependencies`, value: `composer install` }, 'Detected PHP Tools');
+      try {
+        const composerJson = JSON.parse(await fs.readFile(path.join(repoPath, 'composer.json'), 'utf-8'));
+        if (composerJson?.scripts?.test) {
+          addSuggestion({ label: `Run Composer tests`, value: `composer test` }, 'Detected PHP Tools');
+        }
+      } catch (e) { /* ignore json parse errors */ }
+  }
+
   return suggestions;
 });
 
