@@ -57,8 +57,16 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
                 <div className="flex items-start">
                     <div className="flex items-center h-5"><input id="notifications" name="notifications" type="checkbox" checked={settings.notifications} onChange={handleChange} className="focus:ring-cyan-500 h-4 w-4 text-cyan-600 border-gray-600 rounded bg-gray-900"/></div>
                     <div className="ml-3 text-sm">
-                    <label htmlFor="notifications" className="font-medium text-gray-300">Enable Notifications</label>
-                    <p className="text-gray-500">Show toast notifications for events like task completion or failure.</p>
+                        <label htmlFor="notifications" className="font-medium text-gray-300">Enable Notifications</label>
+                        <p className="text-gray-500">Show toast notifications for events like task completion or failure.</p>
+                    </div>
+                </div>
+
+                <div className="flex items-start">
+                    <div className="flex items-center h-5"><input id="simulationMode" name="simulationMode" type="checkbox" checked={settings.simulationMode} onChange={handleChange} className="focus:ring-cyan-500 h-4 w-4 text-cyan-600 border-gray-600 rounded bg-gray-900"/></div>
+                    <div className="ml-3 text-sm">
+                        <label htmlFor="simulationMode" className="font-medium text-gray-300">Enable Simulation Mode</label>
+                        <p className="text-gray-500">If enabled, tasks will be simulated and will not affect your local file system. Disable to run real commands.</p>
                     </div>
                 </div>
             </div>

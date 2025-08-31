@@ -46,6 +46,7 @@ export interface GlobalSettings {
   defaultPackageManager: 'npm' | 'yarn';
   defaultBuildCommand: string;
   notifications: boolean;
+  simulationMode: boolean;
 }
 
 export enum TaskStepType {

@@ -38,6 +38,7 @@ const App: React.FC = () => {
       defaultPackageManager: 'npm',
       defaultBuildCommand: 'npm run build',
       notifications: true,
+      simulationMode: true, // Default to true for safety
     };
   });
 
@@ -65,7 +66,7 @@ const App: React.FC = () => {
     setLogPanel(prev => ({ ...prev, isOpen: true, repoId }));
 
     try {
-      await runTask(repoId, taskToRun, settings);
+      await runTask(repo, taskToRun, settings); // Pass the whole repo object
       if (settings.notifications) {
         showToast(`Task '${taskToRun.name}' completed successfully.`, 'success');
       }

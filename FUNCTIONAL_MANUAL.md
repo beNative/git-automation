@@ -44,7 +44,7 @@ Tasks (automation scripts) are configured on a per-repository basis.
 
 1.  Click the **"New Repo"** button in the header.
 2.  The "Add New Repository" modal will appear.
-3.  On the **"General"** tab, fill in the repository's details (Name, URL, etc.).
+3.  On the **"General"** tab, fill in the repository's details (Name, URL, Local Path, etc.). The **Local Path** must be the absolute path to the repository on your computer for real execution to work.
 4.  Optionally, switch to the **"Tasks"** tab to add automation scripts immediately.
 5.  Click **"Save Repository"**.
 
@@ -82,3 +82,6 @@ Click the **cog icon** in the header to access global settings.
 
 -   **Default Package Manager:** Choose between `npm` and `yarn`. The `Install Dependencies` task step will use this selection.
 -   **Enable Notifications:** Toggle on/off the toast notifications that appear in the bottom-right corner.
+-   **Enable Simulation Mode:** This is a critical safety feature.
+    -   When **enabled (default)**, tasks are only simulated. The log panel will show the commands that *would* run, but no changes will be made to your local files.
+    -   When **disabled**, the application will execute real `git`, `npm`, and other shell commands in the specified local repository path. **Disable with caution.**

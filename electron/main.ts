@@ -3,15 +3,20 @@ import path from 'path';
 import fs from 'fs/promises';
 import { platform } from 'os';
 import { autoUpdater } from 'electron-updater';
+import { spawn } from 'child_process';
+import type { Repository, TaskStep, GlobalSettings } from '../types';
+import { TaskStepType, LogLevel } from '../types';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
+let mainWindow: BrowserWindow | null = null;
+
 const createWindow = () => {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     webPreferences: {
@@ -73,6 +78,75 @@ ipcMain.handle('get-doc', async (event, docName: string) => {
     console.error(`Failed to read doc: ${docName}`, error);
     return `# Error\n\nCould not load document: ${docName}.`;
   }
+});
+
+// --- IPC Handler for running real task steps ---
+ipcMain.on('run-task-step', (event, { repo, step, settings }: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {
+    const sendLog = (message: string, level: LogLevel) => {
+        mainWindow?.webContents.send('task-log', { message, level });
+    };
+    const sendEnd = (exitCode: number) => {
+        mainWindow?.webContents.send('task-step-end', exitCode);
+    };
+
+    let command: string;
+    let args: string[];
+
+    switch(step.type) {
+        case TaskStepType.GitPull:
+            command = 'git';
+            args = ['pull'];
+            break;
+        case TaskStepType.InstallDeps:
+            command = settings.defaultPackageManager;
+            args = ['install'];
+            break;
+        case TaskStepType.RunCommand:
+            if (!step.command) {
+                sendLog('Skipping empty command.', LogLevel.Warn);
+                sendEnd(0);
+                return;
+            }
+            // Simple command parsing. This is not robust for complex shell syntax.
+            const parts = step.command.split(' ');
+            command = parts[0];
+            args = parts.slice(1);
+            break;
+        default:
+            sendLog(`Unknown step type: ${step.type}`, LogLevel.Error);
+            sendEnd(1);
+            return;
+    }
+
+    sendLog(`$ ${command} ${args.join(' ')}`, LogLevel.Command);
+    
+    const child = spawn(command, args, {
+        cwd: repo.localPath,
+        shell: true, // Use shell to handle path resolution etc.
+    });
+
+    child.stdout.on('data', (data) => {
+        sendLog(data.toString(), LogLevel.Info);
+    });
+
+    child.stderr.on('data', (data) => {
+        // Some tools (like npm) log progress to stderr, so we treat it as info for now.
+        // A more robust solution would be to check exit code.
+        sendLog(data.toString(), LogLevel.Info);
+    });
+
+    child.on('error', (err) => {
+        sendLog(`Spawn error: ${err.message}`, LogLevel.Error);
+    });
+
+    child.on('close', (code) => {
+        if (code !== 0) {
+            sendLog(`Command exited with code ${code}`, LogLevel.Error);
+        } else {
+            sendLog('Step completed successfully.', LogLevel.Success);
+        }
+        sendEnd(code ?? 1);
+    });
 });
 
 
