@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion } from '../../types';
-import { RepoStatus, BuildHealth, TaskStepType } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository } from '../../types';
+import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { ArrowLeftIcon } from '../icons/ArrowLeftIcon';
@@ -23,7 +23,7 @@ interface RepoEditViewProps {
   repository: Repository | null;
 }
 
-const NEW_REPO_TEMPLATE: Omit<Repository, 'id'> = {
+const NEW_REPO_TEMPLATE: Omit<GitRepository, 'id'> = {
   name: '',
   remoteUrl: '',
   localPath: '',
@@ -35,6 +35,7 @@ const NEW_REPO_TEMPLATE: Omit<Repository, 'id'> = {
   lastUpdated: null,
   buildHealth: BuildHealth.Unknown,
   tasks: [],
+  vcs: VcsType.Git,
 };
 
 const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.ComponentType<{className: string}>; description: string }> = {
@@ -42,6 +43,7 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.GitFetch]: { label: 'Git Fetch', icon: CloudArrowDownIcon, description: 'Fetch updates from remote.' },
   [TaskStepType.GitCheckout]: { label: 'Git Checkout', icon: ArrowRightOnRectangleIcon, description: 'Switch to a specific branch.' },
   [TaskStepType.GitStash]: { label: 'Git Stash', icon: ArchiveBoxIcon, description: 'Stash uncommitted local changes.' },
+  [TaskStepType.SvnUpdate]: { label: 'SVN Update', icon: ArrowDownTrayIcon, description: 'Update working copy to latest revision.' },
   [TaskStepType.InstallDeps]: { label: 'Install Dependencies', icon: CubeTransparentIcon, description: 'Run npm/yarn install.' },
   [TaskStepType.RunTests]: { label: 'Run Tests', icon: BeakerIcon, description: 'Run npm/yarn test.' },
   [TaskStepType.RunCommand]: { label: 'Run Command', icon: CodeBracketIcon, description: 'Execute a custom shell command.' },
@@ -265,6 +267,18 @@ const TaskStepsEditor: React.FC<{
         setIsSuggesting(false);
     }
   };
+  
+  const availableSteps = useMemo(() => {
+    return (Object.keys(STEP_DEFINITIONS) as TaskStepType[]).filter(type => {
+        if (repository?.vcs === VcsType.Git) {
+            return !type.startsWith('SVN_');
+        }
+        if (repository?.vcs === VcsType.Svn) {
+            return !type.startsWith('GIT_');
+        }
+        return true; // Should not happen
+    });
+  }, [repository?.vcs]);
 
   return (
     <div className="space-y-4">
@@ -314,7 +328,7 @@ const TaskStepsEditor: React.FC<{
 
       {isAddingStep && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {(Object.keys(STEP_DEFINITIONS) as TaskStepType[]).map(type => {
+          {availableSteps.map(type => {
             const { label, icon: Icon, description } = STEP_DEFINITIONS[type];
             return (
               <button key={type} type="button" onClick={() => handleAddStep(type)} className="text-left p-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg hover:bg-cyan-500/10 hover:ring-2 ring-cyan-500 transition-all">
@@ -361,6 +375,47 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+  
+  const handleVcsChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newVcs = e.target.value as VcsType;
+    setFormData(prev => {
+        if (prev.vcs === newVcs) return prev;
+
+        const common = {
+            ...( 'id' in prev ? { id: prev.id } : {}),
+            name: prev.name,
+            localPath: prev.localPath,
+            tasks: [], // Reset tasks when VCS changes as steps might become invalid
+            status: RepoStatus.Idle,
+            lastUpdated: null,
+            buildHealth: BuildHealth.Unknown,
+        };
+
+        setSelectedTaskId(null); // Deselect task
+
+        if (newVcs === VcsType.Svn) {
+            return {
+                ...common,
+                vcs: VcsType.Svn,
+                remoteUrl: '',
+                authType: 'none',
+                username: '',
+                password: '',
+            } as SvnRepository | Omit<SvnRepository, 'id'>;
+        } else { // Git
+            return {
+                ...common,
+                vcs: VcsType.Git,
+                remoteUrl: '',
+                branch: 'main',
+                authType: 'none',
+                authToken: '',
+                sshKeyPath: '',
+            } as GitRepository | Omit<GitRepository, 'id'>;
+        }
+    });
+};
+
 
   const handleSave = () => {
     const dataToSave = 'id' in formData ? formData : { ...formData, id: `repo_${Date.now()}` };
@@ -418,14 +473,34 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         {/* Left: General Settings */}
         <aside className="w-1/3 xl:w-1/4 border-r border-gray-200 dark:border-gray-700 p-4 overflow-y-auto space-y-3 bg-white dark:bg-gray-800">
             <h2 className="text-lg font-semibold">General Settings</h2>
+            
+            <div><label htmlFor="vcs" className={formLabelStyle}>Version Control System</label><select name="vcs" id="vcs" value={formData.vcs} onChange={handleVcsChange} className={formInputStyle}><option value="git">Git</option><option value="svn">SVN (Subversion)</option></select></div>
+            
             <p className="text-sm text-yellow-800 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50 p-3 rounded-md"><strong>Security Warning:</strong> Credentials are stored in plaintext. Use with caution.</p>
             <div><label htmlFor="name" className={formLabelStyle}>Repository Name</label><input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className={formInputStyle}/></div>
             <div><label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label><input type="url" name="remoteUrl" id="remoteUrl" value={formData.remoteUrl} onChange={handleChange} required className={formInputStyle}/></div>
-            <div><label htmlFor="localPath" className={formLabelStyle}>Local Clone Path</label><input type="text" name="localPath" id="localPath" value={formData.localPath} onChange={handleChange} required className={formInputStyle}/></div>
-            <div><label htmlFor="branch" className={formLabelStyle}>Branch</label><input type="text" name="branch" id="branch" value={formData.branch} onChange={handleChange} required className={formInputStyle}/></div>
-            <div><label htmlFor="authType" className={formLabelStyle}>Authentication</label><select name="authType" id="authType" value={formData.authType} onChange={handleChange} className={formInputStyle}><option value="none">None</option><option value="ssh">SSH Key Path</option><option value="token">HTTPS Token</option></select></div>
-            {formData.authType === 'ssh' && (<div><label htmlFor="sshKeyPath" className={formLabelStyle}>SSH Key Path</label><input type="text" name="sshKeyPath" id="sshKeyPath" value={formData.sshKeyPath || ''} onChange={handleChange} placeholder="e.g., ~/.ssh/id_rsa" className={formInputStyle}/></div>)}
-            {formData.authType === 'token' && (<div><label htmlFor="authToken" className={formLabelStyle}>HTTPS Token</label><input type="password" name="authToken" id="authToken" value={formData.authToken || ''} onChange={handleChange} placeholder="Enter your personal access token" className={formInputStyle}/></div>)}
+            <div><label htmlFor="localPath" className={formLabelStyle}>Local Path</label><input type="text" name="localPath" id="localPath" value={formData.localPath} onChange={handleChange} required className={formInputStyle}/></div>
+            
+            {formData.vcs === 'git' && (
+              <>
+                <div><label htmlFor="branch" className={formLabelStyle}>Branch</label><input type="text" name="branch" id="branch" value={(formData as GitRepository).branch} onChange={handleChange} required className={formInputStyle}/></div>
+                <div><label htmlFor="authType" className={formLabelStyle}>Authentication</label><select name="authType" id="authType" value={(formData as GitRepository).authType} onChange={handleChange} className={formInputStyle}><option value="none">None</option><option value="ssh">SSH Key Path</option><option value="token">HTTPS Token</option></select></div>
+                {(formData as GitRepository).authType === 'ssh' && (<div><label htmlFor="sshKeyPath" className={formLabelStyle}>SSH Key Path</label><input type="text" name="sshKeyPath" id="sshKeyPath" value={(formData as GitRepository).sshKeyPath || ''} onChange={handleChange} placeholder="e.g., ~/.ssh/id_rsa" className={formInputStyle}/></div>)}
+                {(formData as GitRepository).authType === 'token' && (<div><label htmlFor="authToken" className={formLabelStyle}>HTTPS Token</label><input type="password" name="authToken" id="authToken" value={(formData as GitRepository).authToken || ''} onChange={handleChange} placeholder="Enter your personal access token" className={formInputStyle}/></div>)}
+              </>
+            )}
+
+            {formData.vcs === 'svn' && (
+              <>
+                <div><label htmlFor="authType" className={formLabelStyle}>Authentication</label><select name="authType" id="authType" value={(formData as SvnRepository).authType} onChange={handleChange} className={formInputStyle}><option value="none">None</option><option value="user-pass">Username & Password</option></select></div>
+                {(formData as SvnRepository).authType === 'user-pass' && (
+                  <>
+                    <div><label htmlFor="username" className={formLabelStyle}>Username</label><input type="text" name="username" id="username" value={(formData as SvnRepository).username || ''} onChange={handleChange} className={formInputStyle}/></div>
+                    <div><label htmlFor="password" className={formLabelStyle}>Password</label><input type="password" name="password" id="password" value={(formData as SvnRepository).password || ''} onChange={handleChange} className={formInputStyle}/></div>
+                  </>
+                )}
+              </>
+            )}
         </aside>
 
         {/* Right: Task Editor */}

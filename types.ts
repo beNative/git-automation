@@ -13,20 +13,40 @@ export enum BuildHealth {
   Unknown = 'Unknown',
 }
 
-export interface Repository {
+export enum VcsType {
+  Git = 'git',
+  Svn = 'svn',
+}
+
+export interface BaseRepository {
   id: string;
   name: string;
-  remoteUrl: string;
   localPath: string;
-  branch: string;
-  authType: 'none' | 'ssh' | 'token';
-  authToken?: string; // For HTTPS token
-  sshKeyPath?: string; // Path to SSH key
+  vcs: VcsType;
   status: RepoStatus;
   lastUpdated: string | null;
   buildHealth: BuildHealth;
   tasks: Task[];
 }
+
+export interface GitRepository extends BaseRepository {
+  vcs: VcsType.Git;
+  remoteUrl: string;
+  branch: string;
+  authType: 'none' | 'ssh' | 'token';
+  authToken?: string; // For HTTPS token
+  sshKeyPath?: string; // Path to SSH key
+}
+
+export interface SvnRepository extends BaseRepository {
+  vcs: VcsType.Svn;
+  remoteUrl: string;
+  authType: 'none' | 'user-pass';
+  username?: string;
+  password?: string;
+}
+
+export type Repository = GitRepository | SvnRepository;
 
 export enum LogLevel {
   Info = 'info',
@@ -52,10 +72,14 @@ export interface GlobalSettings {
 }
 
 export enum TaskStepType {
+  // Git
   GitPull = 'GIT_PULL',
   GitFetch = 'GIT_FETCH',
   GitCheckout = 'GIT_CHECKOUT',
   GitStash = 'GIT_STASH',
+  // SVN
+  SvnUpdate = 'SVN_UPDATE',
+  // Common
   InstallDeps = 'INSTALL_DEPS',
   RunTests = 'RUN_TESTS',
   RunCommand = 'RUN_COMMAND',

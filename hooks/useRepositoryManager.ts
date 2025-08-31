@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Repository, LogEntry, Task, GlobalSettings, TaskStep } from '../types';
-import { RepoStatus, BuildHealth, LogLevel, TaskStepType } from '../types';
+import type { Repository, LogEntry, Task, GlobalSettings, TaskStep, GitRepository } from '../types';
+import { RepoStatus, BuildHealth, LogLevel, TaskStepType, VcsType } from '../types';
 
 // --- Simulation logic moved from the now-obsolete automationService ---
 const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -38,9 +38,13 @@ export const useRepositoryManager = () => {
       const savedRepos = localStorage.getItem('repositories');
       if (savedRepos) {
         const parsedRepos: Repository[] = JSON.parse(savedRepos);
-        // Data migration: ensure every repo has a `tasks` array.
+        // Data migration: ensure every repo has a `tasks` array and a `vcs` field.
+        // FIX: Cast the result of the map to Repository[] to resolve a TypeScript error.
+        // The spread operator `...repo` on a discriminated union creates an object that
+        // TypeScript cannot correctly assign back to the `Repository` union type.
         return parsedRepos.map(repo => ({
           ...repo,
+          vcs: repo.vcs || VcsType.Git, // Default to Git for old data
           tasks: (repo.tasks || []).map(task => ({
             ...task,
             variables: task.variables || [], // ensure variables exist
@@ -49,7 +53,7 @@ export const useRepositoryManager = () => {
               enabled: step.enabled ?? true, // ensure enabled exists
             }))
           }))
-        }));
+        })) as Repository[];
       }
       return [];
     } catch (error) {
@@ -128,9 +132,9 @@ export const useRepositoryManager = () => {
             };
           }
 
-          // Check for dirty repo before git pull
-          if (step.type === TaskStepType.GitPull) {
-            const statusResult = await window.electronAPI.checkGitStatus(repo.localPath);
+          // Check for dirty repo before git pull (Git only)
+          if (step.type === TaskStepType.GitPull && repo.vcs === VcsType.Git) {
+            const statusResult = await window.electronAPI.checkVcsStatus(repo);
             if (statusResult.isDirty) {
               addLogEntry(repoId, 'Uncommitted changes detected.', LogLevel.Warn);
               const choice = await onDirty(statusResult.output);
@@ -175,7 +179,7 @@ export const useRepositoryManager = () => {
       lastUpdated: null,
       buildHealth: BuildHealth.Unknown,
       ...repoData
-    };
+    } as Repository;
     setRepositories(prev => [...prev, newRepo]);
   };
   
@@ -223,6 +227,12 @@ const runSimulationStep = async (
             await simulateDelay(1500);
             randomFail(0.1, 'Simulated merge conflict.');
             addLogEntry(repoId, 'Successfully pulled latest changes.', LogLevel.Success);
+            break;
+        case TaskStepType.SvnUpdate:
+            addLogEntry(repoId, `svn update`, LogLevel.Command);
+            await simulateDelay(1500);
+            randomFail(0.1, 'Simulated SVN conflict.');
+            addLogEntry(repoId, 'Successfully updated working copy.', LogLevel.Success);
             break;
         case TaskStepType.GitFetch:
             addLogEntry(repoId, `git fetch`, LogLevel.Command);

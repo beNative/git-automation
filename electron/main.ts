@@ -4,8 +4,8 @@ import fs from 'fs/promises';
 import { platform } from 'os';
 import { autoUpdater } from 'electron-updater';
 import { spawn, exec } from 'child_process';
-import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion } from '../types';
-import { TaskStepType, LogLevel } from '../types';
+import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, SvnRepository } from '../types';
+import { TaskStepType, LogLevel, VcsType } from '../types';
 
 // Fix: Manually declare Node.js globals to resolve type errors when @types/node is not available.
 declare const require: (id: string) => any;
@@ -209,6 +209,18 @@ ipcMain.handle('get-project-suggestions', async (event, { repoPath, repoName }: 
         }
       } catch (e) { /* ignore json parse errors */ }
   }
+  
+  // 13. Delphi (MSBuild)
+  try {
+      const files = await fs.readdir(repoPath);
+      const dprojFile = files.find(f => f.endsWith('.dproj'));
+      if (dprojFile) {
+        addSuggestion({ label: 'Build Delphi project (Release)', value: `msbuild "${dprojFile}" /t:Build /p:Configuration=Release` }, 'Detected Delphi/MSBuild');
+        addSuggestion({ label: 'Clean Delphi project (Release)', value: `msbuild "${dprojFile}" /t:Clean /p:Configuration=Release` }, 'Detected Delphi/MSBuild');
+        addSuggestion({ label: 'Build Delphi project (Debug)', value: `msbuild "${dprojFile}" /t:Build /p:Configuration=Debug` }, 'Detected Delphi/MSBuild');
+      }
+  } catch(e) { /* ignore */ }
+
 
   return suggestions;
 });
@@ -223,9 +235,11 @@ ipcMain.handle('get-project-step-suggestions', async (event, { repoPath, repoNam
         } catch { return false; }
     };
     
-    // Check for .git directory for git-related steps
+    // Check for VCS type
     if (await fileExists('.git')) {
         suggestions.push({ type: TaskStepType.GitPull, enabled: true });
+    } else if (await fileExists('.svn')) {
+        suggestions.push({ type: TaskStepType.SvnUpdate, enabled: true });
     }
 
     // Check for package manager
@@ -248,15 +262,26 @@ ipcMain.handle('get-project-step-suggestions', async (event, { repoPath, repoNam
         suggestions.push({ type: TaskStepType.RunCommand, command: `docker build -t ${imageName} .`, enabled: true });
     }
 
+    // Check for Delphi project
+    try {
+        const files = await fs.readdir(repoPath);
+        const dprojFile = files.find(f => f.endsWith('.dproj'));
+        if (dprojFile) {
+            suggestions.push({ type: TaskStepType.RunCommand, command: `msbuild "${dprojFile}" /t:Build /p:Configuration=Release`, enabled: true });
+        }
+    } catch (e) { /* ignore */ }
+
+
     return suggestions;
 });
 
-// --- IPC handler for checking git status ---
-ipcMain.handle('check-git-status', async (event, repoPath: string): Promise<{ isDirty: boolean; output: string }> => {
+// --- IPC handler for checking git/svn status ---
+ipcMain.handle('check-vcs-status', async (event, repo: Repository): Promise<{ isDirty: boolean; output: string }> => {
+    const command = repo.vcs === VcsType.Git ? 'git status --porcelain' : 'svn status';
     return new Promise((resolve) => {
-        exec('git status --porcelain', { cwd: repoPath }, (error, stdout, stderr) => {
+        exec(command, { cwd: repo.localPath }, (error, stdout, stderr) => {
             if (error) {
-                // If the command fails (e.g., not a git repo), consider it not dirty.
+                // If the command fails, consider it not dirty but return the error.
                 resolve({ isDirty: false, output: stderr });
                 return;
             }
@@ -280,6 +305,7 @@ ipcMain.on('run-task-step', (event, { repo, step, settings }: { repo: Repository
     let args: string[];
 
     switch(step.type) {
+        // Git Steps
         case TaskStepType.GitPull:
             command = 'git';
             args = ['pull'];
@@ -301,6 +327,18 @@ ipcMain.on('run-task-step', (event, { repo, step, settings }: { repo: Repository
             command = 'git';
             args = ['stash'];
             break;
+        // SVN Steps
+        case TaskStepType.SvnUpdate:
+            command = 'svn';
+            args = ['update'];
+            if (repo.vcs === VcsType.Svn && (repo as SvnRepository).authType === 'user-pass') {
+                const svnRepo = repo as SvnRepository;
+                if (svnRepo.username) args.push('--username', svnRepo.username);
+                if (svnRepo.password) args.push('--password', svnRepo.password);
+                args.push('--no-auth-cache');
+            }
+            break;
+        // Common Steps
         case TaskStepType.InstallDeps:
             command = settings.defaultPackageManager;
             args = ['install'];

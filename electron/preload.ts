@@ -12,8 +12,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getProjectSuggestions: (args: { repoPath: string, repoName: string }): Promise<ProjectSuggestion[]> => ipcRenderer.invoke('get-project-suggestions', args),
   getProjectStepSuggestions: (args: { repoPath: string, repoName: string }): Promise<Omit<TaskStep, 'id'>[]> => ipcRenderer.invoke('get-project-step-suggestions', args),
 
-  // Fix: Expose checkGitStatus to the renderer process.
-  checkGitStatus: (repoPath: string): Promise<{ isDirty: boolean; output: string }> => ipcRenderer.invoke('check-git-status', repoPath),
+  // Version Control
+  checkVcsStatus: (repo: Repository): Promise<{ isDirty: boolean; output: string }> => ipcRenderer.invoke('check-vcs-status', repo),
 
   // Real Task Execution
   runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {

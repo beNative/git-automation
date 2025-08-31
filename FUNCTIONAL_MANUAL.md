@@ -20,8 +20,8 @@ Each card gives you an at-a-glance overview of a repository:
 
 -   **Name:** The custom name you assigned to the repository.
 -   **Status:** The current state of the repository (e.g., `Idle`, `Syncing`, `Success`, `Failed`).
--   **Remote URL:** The Git remote URL, which is also a clickable link.
--   **Branch:** The Git branch being tracked.
+-   **Remote URL:** The Git or SVN remote URL, which is also a clickable link.
+-   **Branch/VCS:** The Git branch being tracked, or an indicator for SVN repositories.
 -   **Build Health:** The status of the last build (`Healthy`, `Failing`, `Unknown`).
 -   **Last Updated:** The timestamp of the last time an automation was run.
 
@@ -43,30 +43,30 @@ Tasks (automation scripts) are configured on a per-repository basis.
 ### Adding a New Repository
 
 1.  Click the **"New Repo"** button in the header.
-2.  The "Add New Repository" modal will appear.
-3.  On the **"General"** tab, fill in the repository's details (Name, URL, Local Path, etc.). The **Local Path** must be the absolute path to the repository on your computer for real execution to work.
-4.  Optionally, switch to the **"Tasks"** tab to add automation scripts immediately.
-5.  Click **"Save Repository"**.
+2.  The "Add New Repository" view will appear.
+3.  First, select the **Version Control System** (Git or SVN). The form will update to show relevant fields.
+4.  Fill in the repository's details (Name, URL, Local Path, etc.). The **Local Path** must be the absolute path to the repository on your computer for real execution to work.
+5.  Configure authentication if required (e.g., SSH key for Git, Username/Password for SVN).
+6.  Click **"Save Repository"**.
 
 ### Editing a Repository and Managing Its Tasks
 
 1.  On the desired repository card, click the **pencil icon**.
-2.  The "Edit Repository" modal will appear. Use the tabs at the top to switch between editing general settings and managing tasks.
+2.  The "Edit Repository" view will appear.
+3.  To manage tasks, select a task from the list on the left or click **"New"** to create one.
 
-#### The "Tasks" Tab
+#### Creating and Editing a Task
 This is where you can create powerful, custom automation scripts for the specific repository you are editing.
 
-1. Click the **"New Task"** button.
-2. A new modal will appear. Give your task a descriptive **name** (e.g., "Build & Deploy to Staging").
-3. Click **"Add Step"** to build your workflow.
-4. **Configure each step:**
-   -   Use the dropdown to select the step **type**:
-       -   **Git Pull:** Pulls the latest changes from the remote.
-       -   **Install Dependencies:** Runs `npm install` or `yarn install`.
-       -   **Run Custom Command:** Allows you to enter any shell command (e.g., `npm run test`).
+1. Give your task a descriptive **name** (e.g., "Build & Deploy to Staging").
+2. Click **"Add Step"** to build your workflow. The available steps will depend on whether the repository is Git or SVN.
+3. **Configure each step:**
+   -   **Git Pull:** Pulls the latest changes from the remote.
+   -   **SVN Update:** Updates the working copy to the latest revision from the remote.
+   -   **Install Dependencies:** Runs `npm install` or `yarn install`.
+   -   **Run Custom Command:** Allows you to enter any shell command (e.g., `npm run test` or `msbuild MyProject.dproj`).
 5. Continue adding, configuring, and re-ordering steps.
-6. Click **"Save Task"**. This saves the task to the repository configuration form.
-7. Click **"Save Repository"** on the main form to persist your changes.
+6. Click **"Save Repository"** on the main view to persist all your changes.
 
 ## 4. The Resizable Log Panel
 
@@ -85,4 +85,4 @@ Click the **cog icon** in the header to access global settings.
 -   **Enable Notifications:** Toggle on/off the toast notifications that appear in the bottom-right corner.
 -   **Enable Simulation Mode:** This is a critical safety feature.
     -   When **enabled (default)**, tasks are only simulated. The log panel will show the commands that *would* run, but no changes will be made to your local files.
-    -   When **disabled**, the application will execute real `git`, `npm`, and other shell commands in the specified local repository path. **Disable with caution.**
+    -   When **disabled**, the application will execute real `git`, `svn`, `npm`, and other shell commands in the specified local repository path. **Disable with caution.**

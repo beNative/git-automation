@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { Repository } from '../types';
-import { RepoStatus, BuildHealth } from '../types';
+import type { Repository, GitRepository } from '../types';
+import { RepoStatus, BuildHealth, VcsType } from '../types';
 import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
 import { PlayIcon } from './icons/PlayIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
@@ -9,6 +9,7 @@ import { PencilIcon } from './icons/PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { GitBranchIcon } from './icons/GitBranchIcon';
 import { GlobeAltIcon } from './icons/GlobeAltIcon';
+import { SvnIcon } from './icons/SvnIcon';
 
 
 interface RepositoryCardProps {
@@ -28,7 +29,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onDeleteRepo,
   isProcessing,
 }) => {
-  const { id, name, remoteUrl, branch, status, lastUpdated, buildHealth, tasks } = repository;
+  const { id, name, remoteUrl, status, lastUpdated, buildHealth, tasks, vcs } = repository;
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownOpensUp, setDropdownOpensUp] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -86,8 +87,17 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             <a href={remoteUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">{remoteUrl}</a>
            </div>
            <div className="flex items-center">
-            <GitBranchIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
-            <span>{branch}</span>
+            {vcs === VcsType.Git ? (
+              <>
+                <GitBranchIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
+                <span>{(repository as GitRepository).branch}</span>
+              </>
+            ) : (
+              <>
+                <SvnIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
+                <span>SVN Repository</span>
+              </>
+            )}
            </div>
         </div>
 

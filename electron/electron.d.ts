@@ -11,7 +11,7 @@ export interface IElectronAPI {
   getDoc: (docName: string) => Promise<string>;
   getProjectSuggestions: (args: { repoPath: string, repoName: string }) => Promise<ProjectSuggestion[]>;
   getProjectStepSuggestions: (args: { repoPath: string, repoName: string }) => Promise<Omit<TaskStep, 'id'>[]>;
-  checkGitStatus: (repoPath: string) => Promise<{ isDirty: boolean; output: string }>;
+  checkVcsStatus: (repo: Repository) => Promise<{ isDirty: boolean; output: string }>;
   
   runTaskStep: (args: {
     repo: Repository;
