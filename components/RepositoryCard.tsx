@@ -30,7 +30,9 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
 }) => {
   const { id, name, remoteUrl, branch, status, lastUpdated, buildHealth, tasks } = repository;
   const [isDropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownOpensUp, setDropdownOpensUp] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const runButtonContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -43,6 +45,23 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  const handleDropdownToggle = () => {
+    if (!isDropdownOpen && runButtonContainerRef.current) {
+        const rect = runButtonContainerRef.current.getBoundingClientRect();
+        // A typical dropdown item is ~36px height. Let's say 5 items + padding = ~200px
+        const estimatedDropdownHeight = 200; 
+        const spaceBelow = window.innerHeight - rect.bottom;
+
+        if (spaceBelow < estimatedDropdownHeight && rect.top > estimatedDropdownHeight) {
+            // Not enough space below, but enough space above
+            setDropdownOpensUp(true);
+        } else {
+            setDropdownOpensUp(false);
+        }
+    }
+    setDropdownOpen(prev => !prev);
+  };
 
   const handleRunTask = (taskId: string) => {
     onRunTask(id, taskId);
@@ -86,7 +105,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
           </p>
           <div className="flex justify-around items-center">
             <div className="relative" ref={dropdownRef}>
-              <div className="flex rounded-md shadow-sm">
+              <div className="flex rounded-md shadow-sm" ref={runButtonContainerRef}>
                  <button
                     onClick={() => tasks.length > 0 && handleRunTask(tasks[0].id)}
                     disabled={isProcessing || tasks.length === 0}
@@ -97,7 +116,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                     Run Task
                 </button>
                 <button
-                  onClick={() => setDropdownOpen(prev => !prev)}
+                  onClick={handleDropdownToggle}
                   disabled={isProcessing || tasks.length === 0}
                   className="px-2 py-1.5 text-sm font-medium text-white bg-green-700 rounded-r-md hover:bg-green-800 disabled:bg-gray-600 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
                   aria-haspopup="true"
@@ -108,7 +127,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
               </div>
 
               {isDropdownOpen && (
-                <div className="origin-top-right absolute right-0 top-full mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 focus:outline-none z-20">
+                <div className={`absolute right-0 w-56 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 focus:outline-none z-20 ${ dropdownOpensUp ? 'origin-bottom-right bottom-full mb-2' : 'origin-top-right top-full mt-2' }`}>
                   <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                     {tasks.map(task => (
                        <button
