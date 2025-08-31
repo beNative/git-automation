@@ -91,56 +91,125 @@ ipcMain.handle('get-project-suggestions', async (event, { repoPath, repoName }: 
   const addSuggestion = (suggestion: Omit<ProjectSuggestion, 'group'>, group: string) => {
     suggestions.push({ ...suggestion, group });
   };
+  
+  const fileExists = async (fileName: string) => {
+      try {
+        await fs.access(path.join(repoPath, fileName));
+        return true;
+      } catch {
+        return false;
+      }
+  }
 
   // 1. package.json scripts
-  try {
-    const pkgJsonPath = path.join(repoPath, 'package.json');
-    const fileContent = await fs.readFile(pkgJsonPath, 'utf-8');
-    const pkg = JSON.parse(fileContent);
-    if (pkg && pkg.scripts && typeof pkg.scripts === 'object') {
-      for (const scriptName of Object.keys(pkg.scripts)) {
-        addSuggestion({ label: `npm run ${scriptName}`, value: `npm run ${scriptName}` }, 'Detected NPM Scripts');
-        addSuggestion({ label: `yarn ${scriptName}`, value: `yarn ${scriptName}` }, 'Detected Yarn Scripts');
-      }
-    }
-  } catch (e) { /* ignore */ }
+  if (await fileExists('package.json')) {
+      try {
+        const pkg = JSON.parse(await fs.readFile(path.join(repoPath, 'package.json'), 'utf-8'));
+        if (pkg && pkg.scripts && typeof pkg.scripts === 'object') {
+          for (const scriptName of Object.keys(pkg.scripts)) {
+            addSuggestion({ label: `npm run ${scriptName}`, value: `npm run ${scriptName}` }, 'Detected NPM Scripts');
+            addSuggestion({ label: `yarn ${scriptName}`, value: `yarn ${scriptName}` }, 'Detected Yarn Scripts');
+          }
+        }
+      } catch (e) { /* ignore */ }
+  }
 
-  // 2. Dockerfile
-  try {
-    const dockerfilePath = path.join(repoPath, 'Dockerfile');
-    await fs.access(dockerfilePath);
+  // 2. Docker
+  if (await fileExists('Dockerfile')) {
     const imageName = repoName.toLowerCase().replace(/[^a-z0-9_.-]/g, '-');
     addSuggestion({ label: `Build Docker image '${imageName}'`, value: `docker build -t ${imageName} .` }, 'Detected Docker Commands');
     addSuggestion({ label: `Run Docker image '${imageName}'`, value: `docker run ${imageName}` }, 'Detected Docker Commands');
-  } catch (e) { /* ignore */ }
+  }
 
   // 3. docker-compose.yml
-  try {
-    const composePath = path.join(repoPath, 'docker-compose.yml');
-    await fs.access(composePath);
+  if (await fileExists('docker-compose.yml')) {
     addSuggestion({ label: `Docker Compose Up`, value: `docker-compose up -d` }, 'Detected Docker Compose');
     addSuggestion({ label: `Docker Compose Down`, value: `docker-compose down` }, 'Detected Docker Compose');
-  } catch (e) { /* ignore */ }
+  }
 
   // 4. Makefile
-  try {
-    const makefilePath = path.join(repoPath, 'Makefile');
-    const content = await fs.readFile(makefilePath, 'utf-8');
-    const regex = /^([a-zA-Z0-9/_-]+):/gm;
-    let match;
-    const targets = new Set<string>();
-    while ((match = regex.exec(content)) !== null) {
-      const target = match[1];
-      if (target !== 'PHONY') {
-        targets.add(target);
-      }
-    }
-    for (const target of targets) {
-      addSuggestion({ label: `make ${target}`, value: `make ${target}` }, 'Detected Makefile Targets');
-    }
-  } catch (e) { /* ignore */ }
+  if (await fileExists('Makefile')) {
+      try {
+        const content = await fs.readFile(path.join(repoPath, 'Makefile'), 'utf-8');
+        const regex = /^([a-zA-Z0-9/_-]+):/gm;
+        let match;
+        const targets = new Set<string>();
+        while ((match = regex.exec(content)) !== null) {
+          const target = match[1];
+          if (target && !target.startsWith('.') && target !== 'PHONY') {
+            targets.add(target);
+          }
+        }
+        for (const target of targets) {
+          addSuggestion({ label: `make ${target}`, value: `make ${target}` }, 'Detected Makefile Targets');
+        }
+      } catch (e) { /* ignore */ }
+  }
+  
+  // 5. Python
+  if (await fileExists('requirements.txt')) {
+      addSuggestion({ label: `Install Python dependencies`, value: `pip install -r requirements.txt` }, 'Detected Python Tools');
+  }
+  if (await fileExists('pytest.ini') || await fileExists('pyproject.toml')) {
+      addSuggestion({ label: `Run Python tests`, value: `pytest` }, 'Detected Python Tools');
+  }
+
+  // 6. Go
+  if (await fileExists('go.mod')) {
+      addSuggestion({ label: `Build Go project`, value: `go build ./...` }, 'Detected Go Tools');
+      addSuggestion({ label: `Test Go project`, value: `go test ./...` }, 'Detected Go Tools');
+  }
+
+  // 7. Java (Maven)
+  if (await fileExists('pom.xml')) {
+      addSuggestion({ label: `Build with Maven`, value: `mvn clean install` }, 'Detected Java Tools');
+  }
+  
+  // 8. Java (Gradle)
+  if (await fileExists('build.gradle') || await fileExists('build.gradle.kts')) {
+      const gradlew = await fileExists('gradlew') ? './gradlew' : 'gradle';
+      addSuggestion({ label: `Build with Gradle`, value: `${gradlew} build` }, 'Detected Java Tools');
+  }
 
   return suggestions;
+});
+
+// --- IPC Handler for suggesting a whole workflow ---
+ipcMain.handle('get-project-step-suggestions', async (event, { repoPath, repoName }: { repoPath: string, repoName: string }): Promise<Omit<TaskStep, 'id'>[]> => {
+    const suggestions: Omit<TaskStep, 'id'>[] = [];
+    const fileExists = async (fileName: string) => {
+        try {
+            await fs.access(path.join(repoPath, fileName));
+            return true;
+        } catch { return false; }
+    };
+    
+    // Check for .git directory for git-related steps
+    if (await fileExists('.git')) {
+        suggestions.push({ type: TaskStepType.GitPull, enabled: true });
+    }
+
+    // Check for package manager
+    if (await fileExists('package.json')) {
+        suggestions.push({ type: TaskStepType.InstallDeps, enabled: true });
+        try {
+            const pkg = JSON.parse(await fs.readFile(path.join(repoPath, 'package.json'), 'utf-8'));
+            if (pkg.scripts?.test) {
+                suggestions.push({ type: TaskStepType.RunTests, enabled: true });
+            }
+            if (pkg.scripts?.build) {
+                suggestions.push({ type: TaskStepType.RunCommand, command: 'npm run build', enabled: true });
+            }
+        } catch (e) { /* ignore malformed json */ }
+    }
+    
+    // Check for Dockerfile
+    if (await fileExists('Dockerfile')) {
+        const imageName = repoName.toLowerCase().replace(/[^a-z0-9_.-]/g, '-');
+        suggestions.push({ type: TaskStepType.RunCommand, command: `docker build -t ${imageName} .`, enabled: true });
+    }
+
+    return suggestions;
 });
 
 // --- IPC handler for checking git status ---
