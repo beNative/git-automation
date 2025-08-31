@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - YYYY-MM-DD
+
+### Changed
+- **UI Compactness:** Significantly reduced padding, margins, and component sizes across the application to create a more compact, data-dense interface. This affects the Header, Dashboard, Repository Cards, Configuration Views, Log Panel, and Settings.
+- Updated all documentation to reflect the latest version and features.
+
+### Fixed
+- **Dropdown Visibility:** The "Run Task" dropdown menu on repository cards now dynamically opens upwards when there isn't enough space below, preventing it from being clipped by the viewport.
+- Resolved a TypeScript compilation error in `electron/main.ts` related to missing Node.js global type definitions without modifying the build environment.
+
 ## [1.3.0] - YYYY-MM-DD
 
 ### Added

@@ -31,7 +31,7 @@ Each card has a set of action buttons:
 
 -   **Run Task (Play Icon & Dropdown):** Executes a custom automation script on this repository.
     - Clicking the main button runs the first task configured for this repository.
-    - Clicking the dropdown arrow allows you to select any of this repository's tasks to run.
+    - Clicking the dropdown arrow allows you to select any of this repository's tasks to run. The dropdown menu is smart; it will open upwards if it detects it would be cut off at the bottom of the screen.
 -   **View Logs (Document Icon):** Opens the resizable log panel at the bottom of the screen to show previous logs for this repository.
 -   **Configure (Pencil Icon):** Opens the repository configuration modal.
 -   **Delete (Trash Icon):** Permanently removes the repository from the dashboard after a confirmation prompt.
