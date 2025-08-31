@@ -21,9 +21,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
     };
 
     return (
-        <footer className="h-8 bg-gray-200 dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700 flex items-center justify-between px-4 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0 z-10">
+        <footer className="h-7 bg-gray-200 dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700 flex items-center justify-between px-3 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0 z-10">
             {/* Left Section */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
                 <div className="flex items-center" title="Total Repositories">
                     <GitBranchIcon className="h-4 w-4 mr-1.5" />
                     <span>{repoCount} Repositories</span>
@@ -49,7 +49,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
             </div>
 
             {/* Right Section */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
                 {isSimulationMode && (
                     <div className="flex items-center text-yellow-600 dark:text-yellow-400" title="Simulation mode is active. No real commands will be run.">
                         <BeakerIcon className="h-4 w-4 mr-1.5" />

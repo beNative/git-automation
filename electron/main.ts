@@ -1,6 +1,3 @@
-// Fix: Added a triple-slash directive to reference Node.js types. This resolves errors where TypeScript couldn't find Node.js globals like `require` and `__dirname`.
-/// <reference types="node" />
-
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
@@ -9,6 +6,10 @@ import { autoUpdater } from 'electron-updater';
 import { spawn, exec } from 'child_process';
 import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion } from '../types';
 import { TaskStepType, LogLevel } from '../types';
+
+// Fix: Manually declare Node.js globals to resolve type errors when @types/node is not available.
+declare const require: (id: string) => any;
+declare const __dirname: string;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {

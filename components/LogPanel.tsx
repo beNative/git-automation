@@ -75,16 +75,16 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
     >
       <div 
         onMouseDown={handleMouseDown}
-        className="absolute -top-1 left-0 right-0 h-2 cursor-row-resize flex items-center justify-center group"
+        className="absolute -top-1 left-0 right-0 h-1.5 cursor-row-resize flex items-center justify-center group"
         aria-label="Resize log panel"
         role="separator"
       >
         <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-cyan-500 transition-colors"/>
       </div>
 
-      <div className="h-full flex flex-col pt-2">
-        <header className="flex items-center justify-between px-4 pb-2 flex-shrink-0">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+      <div className="h-full flex flex-col pt-1">
+        <header className="flex items-center justify-between px-4 py-1 flex-shrink-0">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
             Logs: <span className="text-cyan-600 dark:text-cyan-400">{repository?.name || '...'}</span>
           </h2>
           <button
@@ -98,7 +98,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
 
         <main
           ref={logContainerRef}
-          className="flex-grow px-4 pb-4 bg-gray-50 dark:bg-gray-900 overflow-y-auto font-mono text-sm"
+          className="flex-grow px-4 py-2 bg-gray-50 dark:bg-gray-900 overflow-y-auto font-mono text-sm"
           role="log"
         >
           {logs.map((log, index) => (

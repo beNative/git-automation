@@ -196,7 +196,7 @@ const App: React.FC = () => {
     <IconContext.Provider value={settings.iconSet}>
       <div className="flex flex-col h-screen">
         <Header onNewRepo={() => handleEditRepository('new')} activeView={activeView} onSetView={setActiveView} />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto">
           <CurrentView />
         </main>
         

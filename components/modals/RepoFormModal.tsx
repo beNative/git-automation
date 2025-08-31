@@ -58,12 +58,12 @@ const TaskStepItem: React.FC<{
   suggestions: ProjectSuggestion[];
 }> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, suggestions }) => {
   const { label, icon: Icon } = STEP_DEFINITIONS[step.type];
-  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
+  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
   const CUSTOM_COMMAND_VALUE = 'custom_command';
   const isEnabled = step.enabled ?? true;
 
   return (
-    <div className={`bg-white dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-3 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
+    <div className={`bg-white dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Icon className="h-6 w-6 text-cyan-500" />
@@ -123,7 +123,7 @@ const TaskStepItem: React.FC<{
                 value={step.command || ''}
                 onChange={(e) => onStepChange(step.id, { command: e.target.value })}
                 required
-                className={`${formInputStyle} font-mono min-h-[6rem] text-sm`}
+                className={`${formInputStyle} font-mono min-h-[5rem] text-sm`}
                 rows={3}
             />
           </div>
@@ -154,11 +154,11 @@ const TaskVariablesEditor: React.FC<{
     onVariablesChange(variables.filter(v => v.id !== id));
   };
   
-  const formInputStyle = "block w-full bg-gray-100 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
+  const formInputStyle = "block w-full bg-gray-100 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1 px-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
 
   return (
-    <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-2 mb-3">
+    <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2 mb-2">
           <VariableIcon className="h-5 w-5 text-gray-500"/>
           <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Task Variables</h3>
         </div>
@@ -267,19 +267,19 @@ const TaskStepsEditor: React.FC<{
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <input 
         type="text" 
         value={task.name} 
         onChange={e => setTask({ ...task, name: e.target.value })}
         placeholder="Task Name"
-        className="w-full text-lg font-bold bg-transparent border-b-2 border-gray-200 dark:border-gray-700 focus:border-cyan-500 focus:ring-0 pb-1"
+        className="w-full text-lg font-bold bg-transparent border-b-2 border-gray-200 dark:border-gray-700 focus:border-cyan-500 focus:ring-0 pb-0.5"
       />
       
       <TaskVariablesEditor variables={task.variables} onVariablesChange={handleVariablesChange} />
       
       {task.steps.length === 0 && (
-          <div className="text-center py-8 px-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
+          <div className="text-center py-6 px-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
               <CubeTransparentIcon className="mx-auto h-10 w-10 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-800 dark:text-gray-200">This task has no steps.</h3>
               <p className="mt-1 text-xs text-gray-500">Add steps manually or let us suggest a workflow.</p>
@@ -317,7 +317,7 @@ const TaskStepsEditor: React.FC<{
           {(Object.keys(STEP_DEFINITIONS) as TaskStepType[]).map(type => {
             const { label, icon: Icon, description } = STEP_DEFINITIONS[type];
             return (
-              <button key={type} type="button" onClick={() => handleAddStep(type)} className="text-left p-3 bg-gray-100 dark:bg-gray-900/50 rounded-lg hover:bg-cyan-500/10 hover:ring-2 ring-cyan-500 transition-all">
+              <button key={type} type="button" onClick={() => handleAddStep(type)} className="text-left p-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg hover:bg-cyan-500/10 hover:ring-2 ring-cyan-500 transition-all">
                 <div className="flex items-center gap-3">
                   <Icon className="h-6 w-6 text-cyan-500" />
                   <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
@@ -390,7 +390,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   };
 
-  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
+  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
   const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
   
   const selectedTask = useMemo(() => {
@@ -399,8 +399,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   return (
     <div className="h-full flex flex-col bg-gray-100 dark:bg-gray-900 animate-fade-in">
-      <header className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-        <div className="flex items-center gap-4">
+      <header className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <div className="flex items-center gap-3">
           <button onClick={onCancel} className="flex items-center text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
             <ArrowLeftIcon className="h-5 w-5 mr-1"/> Back to Dashboard
           </button>
@@ -416,7 +416,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       
       <div className="flex-1 flex overflow-hidden">
         {/* Left: General Settings */}
-        <aside className="w-1/3 xl:w-1/4 border-r border-gray-200 dark:border-gray-700 p-6 overflow-y-auto space-y-4 bg-white dark:bg-gray-800">
+        <aside className="w-1/3 xl:w-1/4 border-r border-gray-200 dark:border-gray-700 p-4 overflow-y-auto space-y-3 bg-white dark:bg-gray-800">
             <h2 className="text-lg font-semibold">General Settings</h2>
             <p className="text-sm text-yellow-800 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50 p-3 rounded-md"><strong>Security Warning:</strong> Credentials are stored in plaintext. Use with caution.</p>
             <div><label htmlFor="name" className={formLabelStyle}>Repository Name</label><input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className={formInputStyle}/></div>
@@ -430,8 +430,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
         {/* Right: Task Editor */}
         <main className="flex-1 flex overflow-hidden">
-            <aside className="w-1/3 xl:w-1/4 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50">
-                <div className="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+            <aside className="w-1/3 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50">
+                <div className="p-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
                     <h3 className="font-semibold text-gray-800 dark:text-gray-200">Tasks</h3>
                     <button type="button" onClick={handleNewTask} className="flex items-center px-3 py-1 text-sm text-white bg-cyan-600 hover:bg-cyan-700 rounded-md"><PlusIcon className="h-4 w-4 mr-1"/>New</button>
                 </div>
@@ -439,18 +439,18 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                     {(!formData.tasks || formData.tasks.length === 0) && <li className="px-4 py-4 text-center text-gray-500 text-sm">No tasks created.</li>}
                     {formData.tasks?.map(task => (
                         <li key={task.id} className={`${selectedTaskId === task.id ? 'bg-cyan-500/10' : ''}`}>
-                            <button type="button" onClick={() => setSelectedTaskId(task.id)} className="w-full text-left px-4 py-3 group">
+                            <button type="button" onClick={() => setSelectedTaskId(task.id)} className="w-full text-left px-3 py-2 group">
                                 <div className="flex justify-between items-start">
                                     <p className={`font-medium group-hover:text-cyan-600 dark:group-hover:text-cyan-400 ${selectedTaskId === task.id ? 'text-cyan-700 dark:text-cyan-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
                                     <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50" title="Delete Task"><TrashIcon className="h-4 w-4"/></button>
                                 </div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">{task.steps.length} step(s)</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{task.steps.length} step(s)</p>
                             </button>
                         </li>
                     ))}
                 </ul>
             </aside>
-            <div className="flex-1 p-6 overflow-y-auto">
+            <div className="flex-1 p-4 overflow-y-auto">
                 {selectedTask ? (
                     <TaskStepsEditor task={selectedTask} setTask={handleTaskChange} repository={formData as Repository} />
                 ) : (

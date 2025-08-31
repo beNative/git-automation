@@ -115,12 +115,12 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center pt-24 bg-black/50 backdrop-blur-sm" onMouseDown={onClose} role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-40 flex items-start justify-center pt-20 bg-black/50 backdrop-blur-sm" onMouseDown={onClose} role="dialog" aria-modal="true">
       <div 
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[60vh] ring-1 ring-black/5"
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-xl mx-4 flex flex-col max-h-[60vh] ring-1 ring-black/5"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center p-3 border-b border-gray-200 dark:border-gray-700">
             <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-3"/>
             <input
                 type="text"
@@ -143,7 +143,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                             cmd.action();
                             onClose();
                         }}
-                        className={`w-full text-left flex items-center px-4 py-3 transition-colors ${activeIndex === index ? 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}
+                        className={`w-full text-left flex items-center px-3 py-2 transition-colors ${activeIndex === index ? 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}
                     >
                         <span className="mr-4 text-gray-400 dark:text-gray-500">{cmd.icon}</span>
                         <div>

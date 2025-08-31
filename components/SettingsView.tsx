@@ -77,12 +77,12 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
       {/* Right Content Area */}
       <div className="flex-1 flex flex-col">
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
-          <main className="flex-1 p-6 sm:p-8 space-y-8 overflow-y-auto">
+          <main className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto">
             {activeCategory === 'appearance' && (
                 <section>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">Appearance</h2>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Customize the look and feel of the application.</p>
-                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-6">
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Theme</label>
                             <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-xs">
@@ -128,7 +128,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
                 <section>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">Behavior</h2>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure how the application functions.</p>
-                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-6">
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
                         <div>
                             <label htmlFor="defaultPackageManager" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Default Package Manager</label>
                             <select name="defaultPackageManager" id="defaultPackageManager" value={settings.defaultPackageManager} onChange={handleChange} className="mt-1 block w-full max-w-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
