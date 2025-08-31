@@ -1,3 +1,6 @@
+// Fix: Added a triple-slash directive to reference Node.js types. This resolves errors where TypeScript couldn't find Node.js globals like `require` and `__dirname`.
+/// <reference types="node" />
+
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';

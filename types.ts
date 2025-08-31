@@ -66,12 +66,14 @@ export interface TaskStep {
   type: TaskStepType;
   command?: string; // Only for RunCommand
   branch?: string; // Only for GitCheckout
+  enabled?: boolean;
 }
 
 export interface Task {
   id: string;
   name: string;
   steps: TaskStep[];
+  variables?: { id: string; key: string; value: string }[];
 }
 
 

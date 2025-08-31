@@ -11,6 +11,27 @@ const randomFail = (chance: number, message: string) => {
 };
 // ---
 
+// --- Helper function for substituting variables ---
+const substituteVariables = (command: string, variables: Task['variables'] = []): string => {
+  if (!command || !variables || variables.length === 0) {
+    return command;
+  }
+  let result = command;
+  for (const variable of variables) {
+    // Basic substitution: ${KEY}
+    // Also handle case where key is empty to avoid replacing ${}
+    if (variable.key) {
+      // Create a regex to replace all occurrences of ${KEY}
+      const regex = new RegExp(`\\$\\{${variable.key.trim()}\\}`, 'g');
+      result = result.replace(regex, variable.value);
+    }
+  }
+  // Remove any unsubstituted variables to prevent errors
+  result = result.replace(/\${(.*?)}/g, ''); 
+  return result;
+};
+
+
 export const useRepositoryManager = () => {
   const [repositories, setRepositories] = useState<Repository[]>(() => {
     try {
@@ -20,7 +41,14 @@ export const useRepositoryManager = () => {
         // Data migration: ensure every repo has a `tasks` array.
         return parsedRepos.map(repo => ({
           ...repo,
-          tasks: repo.tasks || [],
+          tasks: (repo.tasks || []).map(task => ({
+            ...task,
+            variables: task.variables || [], // ensure variables exist
+            steps: (task.steps || []).map(step => ({
+              ...step,
+              enabled: step.enabled ?? true, // ensure enabled exists
+            }))
+          }))
         }));
       }
       return [];
@@ -81,11 +109,26 @@ export const useRepositoryManager = () => {
       }
 
       for (const step of task.steps) {
+        if (step.enabled === false) {
+          addLogEntry(repoId, `Skipping disabled step: ${step.type}`, LogLevel.Info);
+          continue;
+        }
+
         addLogEntry(repoId, `Executing step: ${step.type}`, LogLevel.Info);
         if (settings.simulationMode) {
-          await runSimulationStep(repoId, step, settings, addLogEntry);
+          await runSimulationStep(repoId, step, settings, addLogEntry, task.variables);
         } else {
-          // Real mode: check for dirty repo before git pull
+          // Real mode
+          let stepToRun = step;
+          // Substitute variables for command steps
+          if (step.type === TaskStepType.RunCommand && step.command) {
+            stepToRun = {
+              ...step,
+              command: substituteVariables(step.command, task.variables),
+            };
+          }
+
+          // Check for dirty repo before git pull
           if (step.type === TaskStepType.GitPull) {
             const statusResult = await window.electronAPI.checkGitStatus(repo.localPath);
             if (statusResult.isDirty) {
@@ -103,7 +146,7 @@ export const useRepositoryManager = () => {
               // if 'force', proceed as normal
             }
           }
-          await runRealStep(repo, step, settings, addLogEntry);
+          await runRealStep(repo, stepToRun, settings, addLogEntry);
         }
       }
 
@@ -171,7 +214,8 @@ const runSimulationStep = async (
   repoId: string, 
   step: TaskStep, 
   settings: GlobalSettings, 
-  addLogEntry: (repoId: string, message: string, level: LogLevel) => void
+  addLogEntry: (repoId: string, message: string, level: LogLevel) => void,
+  variables: Task['variables']
 ) => {
     switch (step.type) {
         case TaskStepType.GitPull:
@@ -212,10 +256,11 @@ const runSimulationStep = async (
             break;
         case TaskStepType.RunCommand:
             if (step.command) {
-                addLogEntry(repoId, step.command, LogLevel.Command);
+                const finalCommand = substituteVariables(step.command, variables);
+                addLogEntry(repoId, finalCommand, LogLevel.Command);
                 await simulateDelay(4000);
-                randomFail(0.15, `Simulated command '${step.command}' failed.`);
-                addLogEntry(repoId, `Command '${step.command}' completed successfully.`, LogLevel.Success);
+                randomFail(0.15, `Simulated command '${finalCommand}' failed.`);
+                addLogEntry(repoId, `Command '${finalCommand}' completed successfully.`, LogLevel.Success);
             } else {
                 addLogEntry(repoId, 'Skipping empty command.', LogLevel.Warn);
             }

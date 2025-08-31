@@ -13,6 +13,8 @@ import { ArchiveBoxIcon } from '../icons/ArchiveBoxIcon';
 import { BeakerIcon } from '../icons/BeakerIcon';
 import { CubeTransparentIcon } from '../icons/CubeTransparentIcon';
 import { CodeBracketIcon } from '../icons/CodeBracketIcon';
+import { VariableIcon } from '../icons/VariableIcon';
+
 
 interface RepoEditViewProps {
   onSave: (repository: Repository) => void;
@@ -57,9 +59,10 @@ const TaskStepItem: React.FC<{
   const { label, icon: Icon } = STEP_DEFINITIONS[step.type];
   const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
   const CUSTOM_COMMAND_VALUE = 'custom_command';
+  const isEnabled = step.enabled ?? true;
 
   return (
-    <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-3">
+    <div className={`bg-white dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-3 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Icon className="h-6 w-6 text-cyan-500" />
@@ -68,7 +71,11 @@ const TaskStepItem: React.FC<{
             <p className="text-xs text-gray-500">Step {index + 1}</p>
           </div>
         </div>
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center space-x-2">
+          <label className="relative inline-flex items-center cursor-pointer" title={isEnabled ? 'Disable Step' : 'Enable Step'}>
+            <input type="checkbox" checked={isEnabled} onChange={(e) => onStepChange(step.id, {enabled: e.target.checked})} className="sr-only peer" />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-cyan-500/50 dark:peer-focus:ring-cyan-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-cyan-600"></div>
+          </label>
           <button type="button" onClick={() => onMoveStep(index, 'up')} disabled={index === 0} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowUpIcon className="h-4 w-4" /></button>
           <button type="button" onClick={() => onMoveStep(index, 'down')} disabled={index === totalSteps - 1} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowDownIcon className="h-4 w-4" /></button>
           <button type="button" onClick={() => onRemoveStep(step.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
@@ -90,6 +97,7 @@ const TaskStepItem: React.FC<{
         }, {} as Record<string, ProjectSuggestion[]>);
         return (
           <div className="space-y-2">
+            <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Command</label>
             <select value={selectValue} onChange={(e) => onStepChange(step.id, { command: e.target.value === CUSTOM_COMMAND_VALUE ? '' : e.target.value })} className={formInputStyle}>
               {Object.entries(groupedSuggestions).map(([groupName, suggestions]) => (
                   <optgroup key={groupName} label={groupName}>
@@ -98,13 +106,80 @@ const TaskStepItem: React.FC<{
               ))}
               <option value={CUSTOM_COMMAND_VALUE}>Custom Command...</option>
             </select>
-            {isCustom && <input type="text" placeholder="e.g., npm run build:win" value={step.command || ''} onChange={(e) => onStepChange(step.id, { command: e.target.value })} required className={formInputStyle} />}
+            {isCustom && (
+                <textarea
+                    placeholder={`e.g., npm run build -- --env=production\nUse \${VAR_NAME} for variables.`}
+                    value={step.command || ''}
+                    onChange={(e) => onStepChange(step.id, { command: e.target.value })}
+                    required
+                    className={`${formInputStyle} font-mono min-h-[6rem] text-sm`}
+                    rows={3}
+                />
+            )}
           </div>
         );
       })()}
     </div>
   );
 };
+
+// Component for managing task-level variables
+const TaskVariablesEditor: React.FC<{
+  variables: Task['variables'];
+  onVariablesChange: (variables: Task['variables']) => void;
+}> = ({ variables = [], onVariablesChange }) => {
+  const handleAddVariable = () => {
+    const newVar = { id: `var_${Date.now()}`, key: '', value: '' };
+    onVariablesChange([...variables, newVar]);
+  };
+
+  const handleUpdateVariable = (id: string, field: 'key' | 'value', fieldValue: string) => {
+    const newVariables = variables.map(v => 
+      v.id === id ? { ...v, [field]: fieldValue } : v
+    );
+    onVariablesChange(newVariables);
+  };
+
+  const handleRemoveVariable = (id: string) => {
+    onVariablesChange(variables.filter(v => v.id !== id));
+  };
+  
+  const formInputStyle = "block w-full bg-gray-100 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
+
+  return (
+    <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2 mb-3">
+          <VariableIcon className="h-5 w-5 text-gray-500"/>
+          <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Task Variables</h3>
+        </div>
+        <div className="space-y-2">
+            {variables.map((variable) => (
+                <div key={variable.id} className="flex items-center space-x-2">
+                    <input 
+                      type="text"
+                      placeholder="KEY"
+                      value={variable.key}
+                      onChange={(e) => handleUpdateVariable(variable.id, 'key', e.target.value)}
+                      className={`${formInputStyle} font-mono uppercase`}
+                    />
+                     <span className="text-gray-400">=</span>
+                    <input 
+                      type="text"
+                      placeholder="VALUE"
+                      value={variable.value}
+                      onChange={(e) => handleUpdateVariable(variable.id, 'value', e.target.value)}
+                      className={formInputStyle}
+                    />
+                    <button type="button" onClick={() => handleRemoveVariable(variable.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
+                </div>
+            ))}
+        </div>
+         <button type="button" onClick={handleAddVariable} className="mt-3 flex items-center text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">
+            <PlusIcon className="h-3 w-3 mr-1"/> Add Variable
+        </button>
+    </div>
+  );
+}
 
 
 // Component for editing the steps of a single task
@@ -127,7 +202,7 @@ const TaskStepsEditor: React.FC<{
   }, [repository?.localPath, repository?.name]);
   
   const handleAddStep = (type: TaskStepType) => {
-    const newStep: TaskStep = { id: `step_${Date.now()}`, type };
+    const newStep: TaskStep = { id: `step_${Date.now()}`, type, enabled: true };
     if (type === TaskStepType.RunCommand) newStep.command = suggestions.length > 0 ? suggestions[0].value : 'npm run build';
     if (type === TaskStepType.GitCheckout) newStep.branch = 'main';
     setTask({ ...task, steps: [...task.steps, newStep] });
@@ -149,9 +224,13 @@ const TaskStepsEditor: React.FC<{
   const handleRemoveStep = (id: string) => {
     setTask({ ...task, steps: task.steps.filter(s => s.id !== id) });
   };
+  
+  const handleVariablesChange = (vars: Task['variables']) => {
+    setTask({ ...task, variables: vars });
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <input 
         type="text" 
         value={task.name} 
@@ -159,6 +238,9 @@ const TaskStepsEditor: React.FC<{
         placeholder="Task Name"
         className="w-full text-lg font-bold bg-transparent border-b-2 border-gray-200 dark:border-gray-700 focus:border-cyan-500 focus:ring-0 pb-1"
       />
+      
+      <TaskVariablesEditor variables={task.variables} onVariablesChange={handleVariablesChange} />
+      
       <div className="space-y-3">
         {task.steps.map((step, index) => (
           <TaskStepItem 
@@ -213,7 +295,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       setFormData(NEW_REPO_TEMPLATE);
       setSelectedTaskId(null);
     }
-  }, [repository]);
+  }, [repository, selectedTaskId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -233,7 +315,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   };
   
   const handleNewTask = () => {
-    const newTask: Task = { id: `task_${Date.now()}`, name: 'New Task', steps: [] };
+    const newTask: Task = { id: `task_${Date.now()}`, name: 'New Task', steps: [], variables: [] };
     setFormData(prev => ({ ...prev, tasks: [...(prev.tasks || []), newTask] }));
     setSelectedTaskId(newTask.id);
   };
