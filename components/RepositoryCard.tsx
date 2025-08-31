@@ -50,7 +50,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   };
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-cyan-500/20 hover:scale-[1.02] ${isDropdownOpen ? 'overflow-visible z-10' : 'overflow-hidden'}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-cyan-500/20 hover:scale-[1.02] ${isDropdownOpen ? 'relative overflow-visible z-10' : 'overflow-hidden'}`}>
       <div className="p-5 flex-grow">
         <div className="flex items-start justify-between">
           <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate">{name}</h3>
