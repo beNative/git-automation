@@ -34,6 +34,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
   const handleThemeChange = (theme: 'light' | 'dark') => {
     setSettings(prev => ({...prev, theme}));
   };
+  
+  const handleIconSetChange = (iconSet: 'heroicons' | 'lucide') => {
+    setSettings(prev => ({...prev, iconSet}));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +47,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
   const handleCancel = () => {
       setSettings(currentSettings);
   };
+
+  const iconSetButtonBase = "flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded transition-colors";
+  const iconSetButtonActive = "bg-white dark:bg-gray-700 shadow text-cyan-700 dark:text-cyan-400";
+  const iconSetButtonInactive = "text-gray-600 dark:text-gray-400 hover:bg-white/50 dark:hover:bg-gray-900/50";
 
   return (
     <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl animate-fade-in">
@@ -68,6 +76,26 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
                             className={`flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded ${settings.theme === 'dark' ? 'bg-gray-700 shadow text-cyan-400' : 'text-gray-400 hover:bg-gray-900/50'}`}
                         >
                             <MoonIcon className="h-5 w-5 mr-2"/> Dark
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Icon Set</label>
+                    <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-xs">
+                         <button
+                            type="button"
+                            onClick={() => handleIconSetChange('heroicons')}
+                            className={`${iconSetButtonBase} ${settings.iconSet === 'heroicons' ? iconSetButtonActive : iconSetButtonInactive}`}
+                        >
+                            Heroicons
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleIconSetChange('lucide')}
+                             className={`${iconSetButtonBase} ${settings.iconSet === 'lucide' ? iconSetButtonActive : iconSetButtonInactive}`}
+                        >
+                            Lucide
                         </button>
                     </div>
                 </div>

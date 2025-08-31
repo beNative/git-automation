@@ -8,6 +8,7 @@ import Toast from './components/Toast';
 import InfoView from './components/InfoView';
 import SettingsView from './components/SettingsView';
 import LogPanel from './components/LogPanel';
+import { IconContext } from './contexts/IconContext';
 
 const App: React.FC = () => {
   const {
@@ -35,13 +36,15 @@ const App: React.FC = () => {
   const [settings, setSettings] = useState<GlobalSettings>(() => {
     try {
       const savedSettings = localStorage.getItem('globalSettings');
-      return savedSettings ? JSON.parse(savedSettings) : {
-        defaultPackageManager: 'npm',
+      const defaults = {
+        defaultPackageManager: 'npm' as 'npm' | 'yarn',
         defaultBuildCommand: 'npm run build',
         notifications: true,
         simulationMode: true,
-        theme: 'dark', // Add default theme
+        theme: 'dark' as 'light' | 'dark',
+        iconSet: 'heroicons' as 'heroicons' | 'lucide',
       };
+      return savedSettings ? { ...defaults, ...JSON.parse(savedSettings) } : defaults;
     } catch (error) {
        return {
         defaultPackageManager: 'npm',
@@ -49,6 +52,7 @@ const App: React.FC = () => {
         notifications: true,
         simulationMode: true,
         theme: 'dark',
+        iconSet: 'heroicons',
       };
     }
   });
@@ -149,36 +153,38 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen font-sans flex flex-col bg-gray-100 dark:bg-gray-900">
-      <Header 
-        onNewRepo={handleOpenNewModal} 
-        activeView={activeView}
-        onSetView={setActiveView}
-      />
-      <main className="p-4 sm:p-6 lg:p-8 flex-grow">
-        {renderView()}
-      </main>
-      
-      {activeModal.type === 'repo-form' && (
-        <RepoFormModal
-          isOpen={true}
-          onClose={closeModal}
-          onSave={handleSaveRepo}
-          repository={repoToEdit}
+    <IconContext.Provider value={settings.iconSet || 'heroicons'}>
+      <div className="min-h-screen font-sans flex flex-col bg-gray-100 dark:bg-gray-900">
+        <Header 
+          onNewRepo={handleOpenNewModal} 
+          activeView={activeView}
+          onSetView={setActiveView}
         />
-      )}
-      
-      <LogPanel
-        isOpen={logPanel.isOpen}
-        onClose={() => setLogPanel(prev => ({...prev, isOpen: false}))}
-        logs={logPanel.repoId ? logs[logPanel.repoId] || [] : []}
-        repository={repositories.find(r => r.id === logPanel.repoId)}
-        height={logPanel.height}
-        setHeight={(height) => setLogPanel(prev => ({...prev, height}))}
-      />
+        <main className="p-4 sm:p-6 lg:p-8 flex-grow">
+          {renderView()}
+        </main>
+        
+        {activeModal.type === 'repo-form' && (
+          <RepoFormModal
+            isOpen={true}
+            onClose={closeModal}
+            onSave={handleSaveRepo}
+            repository={repoToEdit}
+          />
+        )}
+        
+        <LogPanel
+          isOpen={logPanel.isOpen}
+          onClose={() => setLogPanel(prev => ({...prev, isOpen: false}))}
+          logs={logPanel.repoId ? logs[logPanel.repoId] || [] : []}
+          repository={repositories.find(r => r.id === logPanel.repoId)}
+          height={logPanel.height}
+          setHeight={(height) => setLogPanel(prev => ({...prev, height}))}
+        />
 
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-    </div>
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      </div>
+    </IconContext.Provider>
   );
 };
 
