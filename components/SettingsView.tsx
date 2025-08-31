@@ -3,15 +3,17 @@ import type { GlobalSettings } from '../types';
 import { SunIcon } from './icons/SunIcon';
 import { MoonIcon } from './icons/MoonIcon';
 
-
 interface SettingsViewProps {
   onSave: (settings: GlobalSettings) => void;
   currentSettings: GlobalSettings;
 }
 
+type SettingsCategory = 'appearance' | 'behavior';
+
 const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) => {
   const [settings, setSettings] = useState<GlobalSettings>(currentSettings);
   const [isDirty, setIsDirty] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<SettingsCategory>('appearance');
 
   useEffect(() => {
     setSettings(currentSettings);
@@ -48,92 +50,122 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
       setSettings(currentSettings);
   };
 
-  const iconSetButtonBase = "flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded transition-colors";
+  const iconSetButtonBase = "flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md transition-colors";
   const iconSetButtonActive = "bg-white dark:bg-gray-700 shadow text-cyan-700 dark:text-cyan-400";
   const iconSetButtonInactive = "text-gray-600 dark:text-gray-400 hover:bg-white/50 dark:hover:bg-gray-900/50";
+  
+  const navLinkBase = "w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800";
+  const navLinkActive = "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white";
+  const navLinkInactive = "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50";
+
 
   return (
-    <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl animate-fade-in">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Global Settings</h1>
-            <p className="mt-1 text-gray-500 dark:text-gray-400">These settings apply to the entire application.</p>
-        </div>
-        <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-8">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Appearance</label>
-                    <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-xs">
-                        <button
-                            type="button"
-                            onClick={() => handleThemeChange('light')}
-                            className={`flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded ${settings.theme === 'light' ? 'bg-white shadow text-cyan-700' : 'text-gray-600 hover:bg-white/50'}`}
-                        >
-                            <SunIcon className="h-5 w-5 mr-2"/> Light
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => handleThemeChange('dark')}
-                            className={`flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded ${settings.theme === 'dark' ? 'bg-gray-700 shadow text-cyan-400' : 'text-gray-400 hover:bg-gray-900/50'}`}
-                        >
-                            <MoonIcon className="h-5 w-5 mr-2"/> Dark
-                        </button>
-                    </div>
-                </div>
+    <div className="flex h-full bg-white dark:bg-gray-800 rounded-lg shadow-xl animate-fade-in overflow-hidden">
+      {/* Left Navigation Sidebar */}
+      <aside className="w-1/4 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+        <h2 className="px-3 text-lg font-semibold text-gray-900 dark:text-white mb-4">Settings</h2>
+        <nav className="space-y-1">
+            <button onClick={() => setActiveCategory('appearance')} className={`${navLinkBase} ${activeCategory === 'appearance' ? navLinkActive : navLinkInactive}`}>
+              Appearance
+            </button>
+            <button onClick={() => setActiveCategory('behavior')} className={`${navLinkBase} ${activeCategory === 'behavior' ? navLinkActive : navLinkInactive}`}>
+              Behavior
+            </button>
+        </nav>
+      </aside>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Icon Set</label>
-                    <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-xs">
-                         <button
-                            type="button"
-                            onClick={() => handleIconSetChange('heroicons')}
-                            className={`${iconSetButtonBase} ${settings.iconSet === 'heroicons' ? iconSetButtonActive : iconSetButtonInactive}`}
-                        >
-                            Heroicons
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => handleIconSetChange('lucide')}
-                             className={`${iconSetButtonBase} ${settings.iconSet === 'lucide' ? iconSetButtonActive : iconSetButtonInactive}`}
-                        >
-                            Lucide
-                        </button>
+      {/* Right Content Area */}
+      <div className="flex-1 flex flex-col">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
+          <main className="flex-1 p-6 sm:p-8 space-y-8 overflow-y-auto">
+            {activeCategory === 'appearance' && (
+                <section>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Appearance</h2>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Customize the look and feel of the application.</p>
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Theme</label>
+                            <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => handleThemeChange('light')}
+                                    className={`flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md ${settings.theme === 'light' ? 'bg-white shadow text-cyan-700' : 'text-gray-600 hover:bg-white/50'}`}
+                                >
+                                    <SunIcon className="h-5 w-5 mr-2"/> Light
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleThemeChange('dark')}
+                                    className={`flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md ${settings.theme === 'dark' ? 'bg-gray-700 shadow text-cyan-400' : 'text-gray-400 hover:bg-gray-900/50'}`}
+                                >
+                                    <MoonIcon className="h-5 w-5 mr-2"/> Dark
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Icon Set</label>
+                            <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => handleIconSetChange('heroicons')}
+                                    className={`${iconSetButtonBase} ${settings.iconSet === 'heroicons' ? iconSetButtonActive : iconSetButtonInactive}`}
+                                >
+                                    Heroicons
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleIconSetChange('lucide')}
+                                    className={`${iconSetButtonBase} ${settings.iconSet === 'lucide' ? iconSetButtonActive : iconSetButtonInactive}`}
+                                >
+                                    Lucide
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </section>
+            )}
+            {activeCategory === 'behavior' && (
+                <section>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Behavior</h2>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure how the application functions.</p>
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-6">
+                        <div>
+                            <label htmlFor="defaultPackageManager" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Default Package Manager</label>
+                            <select name="defaultPackageManager" id="defaultPackageManager" value={settings.defaultPackageManager} onChange={handleChange} className="mt-1 block w-full max-w-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                                <option value="npm">npm</option>
+                                <option value="yarn">yarn</option>
+                            </select>
+                            <p className="mt-2 text-xs text-gray-500">Used by the "Install Dependencies" step in your repository tasks.</p>
+                        </div>
+                        <div className="flex items-start">
+                            <div className="flex items-center h-5"><input id="notifications" name="notifications" type="checkbox" checked={settings.notifications} onChange={handleChange} className="focus:ring-cyan-500 h-4 w-4 text-cyan-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
+                            <div className="ml-3 text-sm">
+                                <label htmlFor="notifications" className="font-medium text-gray-700 dark:text-gray-300">Enable Notifications</label>
+                                <p className="text-gray-500">Show toast notifications for events like task completion or failure.</p>
+                            </div>
+                        </div>
 
-                <div>
-                    <label htmlFor="defaultPackageManager" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Default Package Manager</label>
-                    <select name="defaultPackageManager" id="defaultPackageManager" value={settings.defaultPackageManager} onChange={handleChange} className="mt-1 block w-full max-w-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
-                    <option value="npm">npm</option>
-                    <option value="yarn">yarn</option>
-                    </select>
-                    <p className="mt-2 text-xs text-gray-500">Used by the "Install Dependencies" step in your repository tasks.</p>
-                </div>
-                
-                <div className="flex items-start">
-                    <div className="flex items-center h-5"><input id="notifications" name="notifications" type="checkbox" checked={settings.notifications} onChange={handleChange} className="focus:ring-cyan-500 h-4 w-4 text-cyan-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
-                    <div className="ml-3 text-sm">
-                        <label htmlFor="notifications" className="font-medium text-gray-700 dark:text-gray-300">Enable Notifications</label>
-                        <p className="text-gray-500">Show toast notifications for events like task completion or failure.</p>
+                        <div className="flex items-start">
+                            <div className="flex items-center h-5"><input id="simulationMode" name="simulationMode" type="checkbox" checked={settings.simulationMode} onChange={handleChange} className="focus:ring-cyan-500 h-4 w-4 text-cyan-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
+                            <div className="ml-3 text-sm">
+                                <label htmlFor="simulationMode" className="font-medium text-gray-700 dark:text-gray-300">Enable Simulation Mode</label>
+                                <p className="text-gray-500">If enabled, tasks will be simulated and will not affect your local file system. Disable to run real commands.</p>
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                <div className="flex items-start">
-                    <div className="flex items-center h-5"><input id="simulationMode" name="simulationMode" type="checkbox" checked={settings.simulationMode} onChange={handleChange} className="focus:ring-cyan-500 h-4 w-4 text-cyan-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
-                    <div className="ml-3 text-sm">
-                        <label htmlFor="simulationMode" className="font-medium text-gray-700 dark:text-gray-300">Enable Simulation Mode</label>
-                        <p className="text-gray-500">If enabled, tasks will be simulated and will not affect your local file system. Disable to run real commands.</p>
-                    </div>
-                </div>
-            </div>
-            <footer className="flex justify-end p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 space-x-3 rounded-b-lg">
-                <button type="button" onClick={handleCancel} disabled={!isDirty} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                    Reset
-                </button>
-                <button type="submit" disabled={!isDirty} className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                    {isDirty ? 'Save Settings' : 'Saved'}
-                </button>
-            </footer>
+                </section>
+            )}
+          </main>
+          <footer className="flex justify-end p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 space-x-3 flex-shrink-0">
+              <button type="button" onClick={handleCancel} disabled={!isDirty} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  Reset
+              </button>
+              <button type="submit" disabled={!isDirty} className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  {isDirty ? 'Save Changes' : 'Saved'}
+              </button>
+          </footer>
         </form>
+      </div>
     </div>
   );
 };

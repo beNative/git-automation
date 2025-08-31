@@ -18,8 +18,38 @@ interface TaskFormModalProps {
 const STEP_TYPE_LABELS: Record<TaskStepType, string> = {
   [TaskStepType.GitPull]: 'Git Pull',
   [TaskStepType.InstallDeps]: 'Install Dependencies',
-  [TaskStepType.RunCommand]: 'Run Custom Command',
+  [TaskStepType.RunCommand]: 'Run Command',
 };
+
+const PREDEFINED_COMMAND_GROUPS = [
+    {
+        label: "NPM Scripts",
+        commands: {
+            'npm run build': 'Build',
+            'npm run start': 'Start',
+            'npm run test': 'Test'
+        }
+    },
+    {
+        label: "Yarn Scripts",
+        commands: {
+            'yarn build': 'Build',
+            'yarn start': 'Start',
+            'yarn test': 'Test'
+        }
+    },
+    {
+        label: "Application",
+        commands: {
+            'electron-builder': 'Package with electron-builder',
+            'electron .': 'Run unpacked with electron'
+        }
+    }
+];
+
+const PREDEFINED_VALUES = PREDEFINED_COMMAND_GROUPS.flatMap(group => Object.keys(group.commands));
+const CUSTOM_COMMAND_VALUE = 'custom_command';
+
 
 const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, task }) => {
   const [name, setName] = useState('');
@@ -63,6 +93,9 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, 
           updatedStep.type = newType;
           if (newType !== TaskStepType.RunCommand) {
             delete updatedStep.command;
+          } else {
+            // Set a default predefined command when switching to RunCommand
+            updatedStep.command = 'npm run build';
           }
         }
         if (newCommand !== undefined) {
@@ -127,7 +160,47 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, 
                       ))}
                     </select>
                     {step.type === TaskStepType.RunCommand && (
-                      <input type="text" placeholder="e.g., npm run build:win" value={step.command || ''} onChange={(e) => handleStepChange(step.id, undefined, e.target.value)} required className={`${formSelectStyle}`} />
+                      (() => {
+                        const isCustom = !PREDEFINED_VALUES.includes(step.command || '');
+                        const selectValue = isCustom ? CUSTOM_COMMAND_VALUE : step.command;
+
+                        return (
+                          <div className="space-y-2">
+                            <select
+                              value={selectValue}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === CUSTOM_COMMAND_VALUE) {
+                                  handleStepChange(step.id, undefined, ''); // Clear command for custom input
+                                } else {
+                                  handleStepChange(step.id, undefined, value);
+                                }
+                              }}
+                              className={formSelectStyle}
+                            >
+                              {PREDEFINED_COMMAND_GROUPS.map(group => (
+                                <optgroup key={group.label} label={group.label}>
+                                  {Object.entries(group.commands).map(([value, label]) => (
+                                    <option key={value} value={value}>{label}</option>
+                                  ))}
+                                </optgroup>
+                              ))}
+                              <option value={CUSTOM_COMMAND_VALUE}>Custom Command...</option>
+                            </select>
+
+                            {isCustom && (
+                              <input
+                                type="text"
+                                placeholder="e.g., npm run build:win"
+                                value={step.command || ''}
+                                onChange={(e) => handleStepChange(step.id, undefined, e.target.value)}
+                                required
+                                className={`${formSelectStyle}`}
+                              />
+                            )}
+                          </div>
+                        );
+                      })()
                     )}
                   </div>
                 ))}
