@@ -33,17 +33,11 @@ export interface GitRepository extends BaseRepository {
   vcs: VcsType.Git;
   remoteUrl: string;
   branch: string;
-  authType: 'none' | 'ssh' | 'token';
-  authToken?: string; // For HTTPS token
-  sshKeyPath?: string; // Path to SSH key
 }
 
 export interface SvnRepository extends BaseRepository {
   vcs: VcsType.Svn;
   remoteUrl: string;
-  authType: 'none' | 'user-pass';
-  username?: string;
-  password?: string;
 }
 
 export type Repository = GitRepository | SvnRepository;

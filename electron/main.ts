@@ -331,12 +331,6 @@ ipcMain.on('run-task-step', (event, { repo, step, settings }: { repo: Repository
         case TaskStepType.SvnUpdate:
             command = 'svn';
             args = ['update'];
-            if (repo.vcs === VcsType.Svn && (repo as SvnRepository).authType === 'user-pass') {
-                const svnRepo = repo as SvnRepository;
-                if (svnRepo.username) args.push('--username', svnRepo.username);
-                if (svnRepo.password) args.push('--password', svnRepo.password);
-                args.push('--no-auth-cache');
-            }
             break;
         // Common Steps
         case TaskStepType.InstallDeps:
