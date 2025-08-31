@@ -14,10 +14,10 @@ interface StatusBarProps {
 const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog }) => {
     const LOG_LEVEL_COLOR_CLASSES: Record<string, string> = {
         info: 'text-gray-400',
-        command: 'text-cyan-400',
-        success: 'text-green-400',
-        error: 'text-red-400',
-        warn: 'text-yellow-400',
+        command: 'text-blue-400',
+        success: 'text-green-500',
+        error: 'text-red-500',
+        warn: 'text-yellow-500',
     };
 
     return (
@@ -31,7 +31,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                 {processingCount > 0 && (
                     <>
                         <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                        <div className="flex items-center text-cyan-600 dark:text-cyan-400" title={`${processingCount} tasks running`}>
+                        <div className="flex items-center text-blue-600 dark:text-blue-400" title={`${processingCount} tasks running`}>
                             <ArrowPathIcon className="h-4 w-4 mr-1.5 animate-spin" />
                             <span>{processingCount} Running</span>
                         </div>

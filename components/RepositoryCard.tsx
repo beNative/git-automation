@@ -38,7 +38,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
 
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-cyan-500/20 hover:scale-[1.02] overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-blue-500/20 hover:scale-[1.02] overflow-hidden">
       <div className="p-4 flex-grow">
         <div className="flex items-start justify-between">
           <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate">{name}</h3>
@@ -52,7 +52,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
         <div className="mt-2 space-y-1.5 text-sm text-gray-500 dark:text-gray-400">
           <div className="flex items-center">
             <GlobeAltIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
-            <a href={remoteUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">{remoteUrl}</a>
+            <a href={remoteUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:text-blue-500 dark:hover:text-blue-400 transition-colors">{remoteUrl}</a>
           </div>
           <div className="flex items-center">
             {vcs === VcsType.Git ? (
@@ -91,7 +91,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
               >
                   <PlayIcon className="h-4 w-4 mr-1.5" />
                   Run Task
-                  {tasks.length > 1 && <span className="ml-1 text-green-200 text-xs">({tasks.length})</span>}
+                  {tasks.length > 1 && <span className="ml-1 text-green-100 text-xs">({tasks.length})</span>}
               </button>
             </div>
 

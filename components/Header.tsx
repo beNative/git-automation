@@ -12,8 +12,8 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => {
-  const navButtonStyle = "p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-cyan-500 transition-colors";
-  const activeNavButtonStyle = "p-2 rounded-full bg-cyan-500 dark:bg-cyan-600 text-white";
+  const navButtonStyle = "p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors";
+  const activeNavButtonStyle = "p-2 rounded-full bg-blue-600 dark:bg-blue-700 text-white";
   const disabledNavButtonStyle = "p-2 rounded-full text-gray-400 dark:text-gray-600 cursor-not-allowed";
 
   const isEditing = activeView === 'edit-repository';
@@ -33,13 +33,13 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
       <div className="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6">
         <div className="flex items-center justify-between h-14">
           <div className="flex items-center">
-            <h1 className="text-xl font-bold text-cyan-600 dark:text-cyan-400">Git Automation</h1>
+            <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">Git Automation</h1>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-2">
             <button
               onClick={handleNewRepo}
               disabled={isEditing}
-              className="flex items-center justify-center px-3 py-1.5 sm:px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-cyan-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center px-3 py-1.5 sm:px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <PlusIcon className="h-5 w-5 mr-0 sm:mr-2" />
               <span className="hidden sm:inline">New Repo</span>

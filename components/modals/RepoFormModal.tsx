@@ -60,7 +60,7 @@ const TaskStepItem: React.FC<{
   suggestions: ProjectSuggestion[];
 }> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, suggestions }) => {
   const { label, icon: Icon } = STEP_DEFINITIONS[step.type];
-  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
+  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
   const CUSTOM_COMMAND_VALUE = 'custom_command';
   const isEnabled = step.enabled ?? true;
 
@@ -68,7 +68,7 @@ const TaskStepItem: React.FC<{
     <div className={`bg-white dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Icon className="h-6 w-6 text-cyan-500" />
+          <Icon className="h-6 w-6 text-blue-500" />
           <div>
             <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
             <p className="text-xs text-gray-500">Step {index + 1}</p>
@@ -77,7 +77,7 @@ const TaskStepItem: React.FC<{
         <div className="flex items-center space-x-2">
           <label className="relative inline-flex items-center cursor-pointer" title={isEnabled ? 'Disable Step' : 'Enable Step'}>
             <input type="checkbox" checked={isEnabled} onChange={(e) => onStepChange(step.id, {enabled: e.target.checked})} className="sr-only peer" />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-cyan-500/50 dark:peer-focus:ring-cyan-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-cyan-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
           </label>
           <button type="button" onClick={() => onMoveStep(index, 'up')} disabled={index === 0} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowUpIcon className="h-4 w-4" /></button>
           <button type="button" onClick={() => onMoveStep(index, 'down')} disabled={index === totalSteps - 1} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowDownIcon className="h-4 w-4" /></button>
@@ -156,7 +156,7 @@ const TaskVariablesEditor: React.FC<{
     onVariablesChange(variables.filter(v => v.id !== id));
   };
   
-  const formInputStyle = "block w-full bg-gray-100 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1 px-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
+  const formInputStyle = "block w-full bg-gray-100 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1 px-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
 
   return (
     <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -186,7 +186,7 @@ const TaskVariablesEditor: React.FC<{
                 </div>
             ))}
         </div>
-         <button type="button" onClick={handleAddVariable} className="mt-3 flex items-center text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">
+         <button type="button" onClick={handleAddVariable} className="mt-3 flex items-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">
             <PlusIcon className="h-3 w-3 mr-1"/> Add Variable
         </button>
     </div>
@@ -287,7 +287,7 @@ const TaskStepsEditor: React.FC<{
         value={task.name} 
         onChange={e => setTask({ ...task, name: e.target.value })}
         placeholder="Task Name"
-        className="w-full text-lg font-bold bg-transparent border-b-2 border-gray-200 dark:border-gray-700 focus:border-cyan-500 focus:ring-0 pb-0.5"
+        className="w-full text-lg font-bold bg-transparent border-b-2 border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-0 pb-0.5"
       />
       
       <TaskVariablesEditor variables={task.variables} onVariablesChange={handleVariablesChange} />
@@ -302,7 +302,7 @@ const TaskStepsEditor: React.FC<{
                       type="button"
                       onClick={handleSuggestSteps}
                       disabled={isSuggesting}
-                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-cyan-500 disabled:opacity-50"
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 disabled:opacity-50"
                   >
                       <SparklesIcon className="-ml-0.5 mr-1.5 h-4 w-4" />
                       {isSuggesting ? 'Analyzing...' : 'Suggest Steps'}
@@ -331,9 +331,9 @@ const TaskStepsEditor: React.FC<{
           {availableSteps.map(type => {
             const { label, icon: Icon, description } = STEP_DEFINITIONS[type];
             return (
-              <button key={type} type="button" onClick={() => handleAddStep(type)} className="text-left p-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg hover:bg-cyan-500/10 hover:ring-2 ring-cyan-500 transition-all">
+              <button key={type} type="button" onClick={() => handleAddStep(type)} className="text-left p-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg hover:bg-blue-500/10 hover:ring-2 ring-blue-500 transition-all">
                 <div className="flex items-center gap-3">
-                  <Icon className="h-6 w-6 text-cyan-500" />
+                  <Icon className="h-6 w-6 text-blue-500" />
                   <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
                 </div>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{description}</p>
@@ -343,7 +343,7 @@ const TaskStepsEditor: React.FC<{
         </div>
       )}
       
-      <button type="button" onClick={() => setIsAddingStep(p => !p)} className="flex items-center text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:underline">
+      <button type="button" onClick={() => setIsAddingStep(p => !p)} className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
         <PlusIcon className="h-4 w-4 mr-1"/> {isAddingStep ? 'Cancel' : 'Add Step'}
       </button>
     </div>
@@ -445,7 +445,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   };
 
-  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
+  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
   const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
   
   const selectedTask = useMemo(() => {
@@ -465,7 +465,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         </div>
         <div className="flex items-center gap-3">
           <button onClick={onCancel} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">Cancel</button>
-          <button onClick={handleSave} className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors">Save Repository</button>
+          <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Save Repository</button>
         </div>
       </header>
       
@@ -508,15 +508,15 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             <aside className="w-1/3 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50">
                 <div className="p-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
                     <h3 className="font-semibold text-gray-800 dark:text-gray-200">Tasks</h3>
-                    <button type="button" onClick={handleNewTask} className="flex items-center px-3 py-1 text-sm text-white bg-cyan-600 hover:bg-cyan-700 rounded-md"><PlusIcon className="h-4 w-4 mr-1"/>New</button>
+                    <button type="button" onClick={handleNewTask} className="flex items-center px-3 py-1 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md"><PlusIcon className="h-4 w-4 mr-1"/>New</button>
                 </div>
                 <ul className="divide-y divide-gray-200 dark:divide-gray-700 overflow-y-auto">
                     {(!formData.tasks || formData.tasks.length === 0) && <li className="px-4 py-4 text-center text-gray-500 text-sm">No tasks created.</li>}
                     {formData.tasks?.map(task => (
-                        <li key={task.id} className={`${selectedTaskId === task.id ? 'bg-cyan-500/10' : ''}`}>
+                        <li key={task.id} className={`${selectedTaskId === task.id ? 'bg-blue-500/10' : ''}`}>
                             <button type="button" onClick={() => setSelectedTaskId(task.id)} className="w-full text-left px-3 py-2 group">
                                 <div className="flex justify-between items-start">
-                                    <p className={`font-medium group-hover:text-cyan-600 dark:group-hover:text-cyan-400 ${selectedTaskId === task.id ? 'text-cyan-700 dark:text-cyan-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
+                                    <p className={`font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 ${selectedTaskId === task.id ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
                                     <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50" title="Delete Task"><TrashIcon className="h-4 w-4"/></button>
                                 </div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{task.steps.length} step(s)</p>

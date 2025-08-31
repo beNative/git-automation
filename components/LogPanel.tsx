@@ -14,10 +14,10 @@ interface LogPanelProps {
 
 const LOG_LEVEL_STYLES: Record<LogLevel, string> = {
   [LogLevel.Info]: 'text-gray-500 dark:text-gray-400',
-  [LogLevel.Command]: 'text-cyan-600 dark:text-cyan-400',
-  [LogLevel.Success]: 'text-green-600 dark:text-green-400',
-  [LogLevel.Error]: 'text-red-600 dark:text-red-400',
-  [LogLevel.Warn]: 'text-yellow-600 dark:text-yellow-400',
+  [LogLevel.Command]: 'text-blue-600 dark:text-blue-400',
+  [LogLevel.Success]: 'text-green-600 dark:text-green-500',
+  [LogLevel.Error]: 'text-red-600 dark:text-red-500',
+  [LogLevel.Warn]: 'text-yellow-500 dark:text-yellow-400',
 };
 
 const MIN_HEIGHT = 100; // Minimum pixel height for the panel
@@ -79,13 +79,13 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
         aria-label="Resize log panel"
         role="separator"
       >
-        <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-cyan-500 transition-colors"/>
+        <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-blue-500 transition-colors"/>
       </div>
 
       <div className="h-full flex flex-col pt-1">
         <header className="flex items-center justify-between px-4 py-1 flex-shrink-0">
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            Logs: <span className="text-cyan-600 dark:text-cyan-400">{repository?.name || '...'}</span>
+            Logs: <span className="text-blue-600 dark:text-blue-400">{repository?.name || '...'}</span>
           </h2>
           <button
             onClick={onClose}

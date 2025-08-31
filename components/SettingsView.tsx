@@ -51,10 +51,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
   };
 
   const iconSetButtonBase = "flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md transition-colors";
-  const iconSetButtonActive = "bg-white dark:bg-gray-700 shadow text-cyan-700 dark:text-cyan-400";
+  const iconSetButtonActive = "bg-white dark:bg-gray-700 shadow text-blue-700 dark:text-blue-400";
   const iconSetButtonInactive = "text-gray-600 dark:text-gray-400 hover:bg-white/50 dark:hover:bg-gray-900/50";
   
-  const navLinkBase = "w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800";
+  const navLinkBase = "w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800";
   const navLinkActive = "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white";
   const navLinkInactive = "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50";
 
@@ -89,14 +89,14 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
                                 <button
                                     type="button"
                                     onClick={() => handleThemeChange('light')}
-                                    className={`flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md ${settings.theme === 'light' ? 'bg-white shadow text-cyan-700' : 'text-gray-600 hover:bg-white/50'}`}
+                                    className={`flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md ${settings.theme === 'light' ? 'bg-white shadow text-blue-700' : 'text-gray-600 hover:bg-white/50'}`}
                                 >
                                     <SunIcon className="h-5 w-5 mr-2"/> Light
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleThemeChange('dark')}
-                                    className={`flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md ${settings.theme === 'dark' ? 'bg-gray-700 shadow text-cyan-400' : 'text-gray-400 hover:bg-gray-900/50'}`}
+                                    className={`flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md ${settings.theme === 'dark' ? 'bg-gray-700 shadow text-blue-400' : 'text-gray-400 hover:bg-gray-900/50'}`}
                                 >
                                     <MoonIcon className="h-5 w-5 mr-2"/> Dark
                                 </button>
@@ -131,14 +131,14 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
                     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
                         <div>
                             <label htmlFor="defaultPackageManager" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Default Package Manager</label>
-                            <select name="defaultPackageManager" id="defaultPackageManager" value={settings.defaultPackageManager} onChange={handleChange} className="mt-1 block w-full max-w-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                            <select name="defaultPackageManager" id="defaultPackageManager" value={settings.defaultPackageManager} onChange={handleChange} className="mt-1 block w-full max-w-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                                 <option value="npm">npm</option>
                                 <option value="yarn">yarn</option>
                             </select>
                             <p className="mt-2 text-xs text-gray-500">Used by the "Install Dependencies" step in your repository tasks.</p>
                         </div>
                         <div className="flex items-start">
-                            <div className="flex items-center h-5"><input id="notifications" name="notifications" type="checkbox" checked={settings.notifications} onChange={handleChange} className="focus:ring-cyan-500 h-4 w-4 text-cyan-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
+                            <div className="flex items-center h-5"><input id="notifications" name="notifications" type="checkbox" checked={settings.notifications} onChange={handleChange} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
                             <div className="ml-3 text-sm">
                                 <label htmlFor="notifications" className="font-medium text-gray-700 dark:text-gray-300">Enable Notifications</label>
                                 <p className="text-gray-500">Show toast notifications for events like task completion or failure.</p>
@@ -146,7 +146,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
                         </div>
 
                         <div className="flex items-start">
-                            <div className="flex items-center h-5"><input id="simulationMode" name="simulationMode" type="checkbox" checked={settings.simulationMode} onChange={handleChange} className="focus:ring-cyan-500 h-4 w-4 text-cyan-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
+                            <div className="flex items-center h-5"><input id="simulationMode" name="simulationMode" type="checkbox" checked={settings.simulationMode} onChange={handleChange} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
                             <div className="ml-3 text-sm">
                                 <label htmlFor="simulationMode" className="font-medium text-gray-700 dark:text-gray-300">Enable Simulation Mode</label>
                                 <p className="text-gray-500">If enabled, tasks will be simulated and will not affect your local file system. Disable to run real commands.</p>
@@ -160,7 +160,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
               <button type="button" onClick={handleCancel} disabled={!isDirty} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                   Reset
               </button>
-              <button type="submit" disabled={!isDirty} className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              <button type="submit" disabled={!isDirty} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                   {isDirty ? 'Save Changes' : 'Saved'}
               </button>
           </footer>

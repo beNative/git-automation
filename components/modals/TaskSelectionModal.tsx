@@ -30,7 +30,7 @@ const TaskSelectionModal: React.FC<TaskSelectionModalProps> = ({ isOpen, reposit
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center">
-            <CubeTransparentIcon className="h-6 w-6 text-cyan-500 mr-3" />
+            <CubeTransparentIcon className="h-6 w-6 text-blue-500 mr-3" />
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100" id="modal-title">
                 Run Task on '{repository.name}'
@@ -49,7 +49,7 @@ const TaskSelectionModal: React.FC<TaskSelectionModalProps> = ({ isOpen, reposit
                     <li key={task.id}>
                         <button
                             onClick={() => onSelect(task.id)}
-                            className="w-full flex items-center text-left p-3 rounded-md bg-gray-50 dark:bg-gray-700/50 hover:bg-cyan-100/50 dark:hover:bg-cyan-900/40 hover:ring-2 ring-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                            className="w-full flex items-center text-left p-3 rounded-md bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-100/50 dark:hover:bg-blue-900/40 hover:ring-2 ring-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                         >
                             <PlayIcon className="h-5 w-5 text-green-500 mr-4 flex-shrink-0" />
                             <div>

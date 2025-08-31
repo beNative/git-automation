@@ -143,7 +143,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                             cmd.action();
                             onClose();
                         }}
-                        className={`w-full text-left flex items-center px-3 py-2 transition-colors ${activeIndex === index ? 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}
+                        className={`w-full text-left flex items-center px-3 py-2 transition-colors ${activeIndex === index ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}
                     >
                         <span className="mr-4 text-gray-400 dark:text-gray-500">{cmd.icon}</span>
                         <div>
