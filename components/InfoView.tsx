@@ -37,41 +37,20 @@ const InfoView: React.FC = () => {
     <ReactMarkdown
         children={content}
         remarkPlugins={[remarkGfm]}
-        components={{
-            h1: ({node, ...props}) => <h1 className="text-3xl font-bold mb-4 border-b border-gray-600 pb-2" {...props} />,
-            h2: ({node, ...props}) => <h2 className="text-2xl font-bold mt-6 mb-3 border-b border-gray-600 pb-2" {...props} />,
-            h3: ({node, ...props}) => <h3 className="text-xl font-bold mt-4 mb-2" {...props} />,
-            p: ({node, ...props}) => <p className="mb-4 leading-relaxed" {...props} />,
-            ul: ({node, ...props}) => <ul className="list-disc list-inside mb-4 pl-4" {...props} />,
-            ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-4 pl-4" {...props} />,
-            li: ({node, ...props}) => <li className="mb-2" {...props} />,
-            code: ({node, inline, ...props}) => {
-                return inline ? (
-                    <code className="bg-gray-700 text-cyan-300 rounded-sm px-1 py-0.5 text-sm" {...props} />
-                ) : (
-                    <pre className="bg-gray-800 rounded-md p-4 overflow-x-auto my-4">
-                        <code className="text-sm" {...props} />
-                    </pre>
-                );
-            },
-            a: ({node, ...props}) => <a className="text-cyan-400 hover:underline" target="_blank" {...props} />,
-            blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-500 pl-4 italic text-gray-400 my-4" {...props} />,
-            strong: ({node, ...props}) => <strong className="font-bold text-gray-200" {...props} />,
-        }}
     />
   ), [content]);
 
   return (
-    <div className="bg-gray-800 rounded-lg shadow-xl w-full mx-auto animate-fade-in">
-        <div className="flex border-b border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full mx-auto animate-fade-in">
+        <div className="flex border-b border-gray-200 dark:border-gray-700">
             {DOCS.map(doc => (
                 <button
                     key={doc.id}
                     onClick={() => setActiveTab(doc.id)}
                     className={`px-4 py-3 text-sm font-medium transition-colors focus:outline-none ${
                         activeTab === doc.id
-                        ? 'border-b-2 border-cyan-500 text-white'
-                        : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200'
+                        ? 'border-b-2 border-cyan-500 text-gray-900 dark:text-white'
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 hover:text-gray-800 dark:hover:text-gray-200'
                     }`}
                 >
                     {doc.title}
@@ -80,9 +59,9 @@ const InfoView: React.FC = () => {
         </div>
         <div className="p-6 sm:p-8 max-h-[calc(100vh-150px)] overflow-y-auto">
             {isLoading ? (
-                <div className="text-center py-10 text-gray-400">Loading document...</div>
+                <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading document...</div>
             ) : (
-                <article className="prose prose-invert max-w-none">
+                <article className="prose prose-gray dark:prose-invert max-w-none">
                     {memoizedMarkdown}
                 </article>
             )}

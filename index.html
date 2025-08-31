@@ -5,7 +5,27 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Git Automation Dashboard</title>
+    <script>
+      // Must be in the <head> to configure Tailwind before it loads.
+      tailwind.config = {
+        darkMode: 'class',
+      }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Must be in the <head> before the <body> to prevent FOUC (Flash of Unstyled Content).
+      try {
+        const settings = localStorage.getItem('globalSettings');
+        if (settings && JSON.parse(settings).theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {
+        // Fallback to light mode if settings are corrupt
+        document.documentElement.classList.remove('dark');
+      }
+    </script>
   <script type="importmap">
 {
   "imports": {
@@ -24,7 +44,7 @@
 }
 </script>
 </head>
-  <body class="bg-gray-900 text-gray-100">
+  <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100">
     <div id="root"></div>
     <script defer src="./renderer.js"></script>
   </body>

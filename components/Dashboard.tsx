@@ -23,9 +23,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   if (repositories.length === 0) {
     return (
       <div className="text-center py-20">
-        <PlusCircleIcon className="mx-auto h-12 w-12 text-gray-500" />
-        <h3 className="mt-2 text-lg font-medium text-gray-300">No repositories added</h3>
-        <p className="mt-1 text-sm text-gray-500">Get started by adding a new repository.</p>
+        <PlusCircleIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+        <h3 className="mt-2 text-lg font-medium text-gray-700 dark:text-gray-300">No repositories added</h3>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding a new repository.</p>
       </div>
     );
   }

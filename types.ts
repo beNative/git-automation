@@ -47,6 +47,7 @@ export interface GlobalSettings {
   defaultBuildCommand: string;
   notifications: boolean;
   simulationMode: boolean;
+  theme: 'light' | 'dark';
 }
 
 export enum TaskStepType {

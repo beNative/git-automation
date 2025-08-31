@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - YYYY-MM-DD
+
+### Added
+- **Light/Dark Mode:** Added a theme switcher in the Settings view to toggle between light and dark modes for the entire application.
+- The user's theme preference is persisted across application restarts.
+- A pre-load script prevents "flash of unstyled content" when opening the app in dark mode.
+
+### Fixed
+- Updated the UI of all components to be fully theme-aware.
+
+### Removed
+- Removed obsolete, unused components (`LogModal.tsx`, `SettingsModal.tsx`) from the codebase to improve maintainability.
+
 ## [1.2.0] - YYYY-MM-DD
 
 ### Added

@@ -13,11 +13,11 @@ interface LogPanelProps {
 }
 
 const LOG_LEVEL_STYLES: Record<LogLevel, string> = {
-  [LogLevel.Info]: 'text-gray-400',
-  [LogLevel.Command]: 'text-cyan-400',
-  [LogLevel.Success]: 'text-green-400',
-  [LogLevel.Error]: 'text-red-400',
-  [LogLevel.Warn]: 'text-yellow-400',
+  [LogLevel.Info]: 'text-gray-500 dark:text-gray-400',
+  [LogLevel.Command]: 'text-cyan-600 dark:text-cyan-400',
+  [LogLevel.Success]: 'text-green-600 dark:text-green-400',
+  [LogLevel.Error]: 'text-red-600 dark:text-red-400',
+  [LogLevel.Warn]: 'text-yellow-600 dark:text-yellow-400',
 };
 
 const MIN_HEIGHT = 100;
@@ -66,7 +66,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
 
   return (
     <div
-      className={`fixed bottom-0 left-0 right-0 z-20 bg-gray-800 shadow-2xl border-t border-gray-700 transition-transform duration-300 ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
+      className={`fixed bottom-0 left-0 right-0 z-20 bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700 transition-transform duration-300 ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
       style={{ height: `${height}px` }}
     >
       <div 
@@ -74,17 +74,17 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
         onMouseDown={handleMouseDown}
         className="absolute top-0 left-0 right-0 h-2 cursor-row-resize flex items-center justify-center group"
       >
-        <div className="w-10 h-1 bg-gray-600 rounded-full group-hover:bg-cyan-500 transition-colors"/>
+        <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-cyan-500 transition-colors"/>
       </div>
 
       <div className="h-full flex flex-col pt-2">
         <header className="flex items-center justify-between px-4 pb-2 flex-shrink-0">
-          <h2 className="text-lg font-semibold text-gray-100">
-            Logs: <span className="text-cyan-400">{repository?.name || '...'}</span>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Logs: <span className="text-cyan-600 dark:text-cyan-400">{repository?.name || '...'}</span>
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           >
             <XIcon className="h-5 w-5" />
           </button>
@@ -92,11 +92,11 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
 
         <main
           ref={logContainerRef}
-          className="flex-grow px-4 pb-4 bg-gray-900 overflow-y-auto font-mono text-sm"
+          className="flex-grow px-4 pb-4 bg-gray-50 dark:bg-gray-900 overflow-y-auto font-mono text-sm"
         >
           {logs.map((log, index) => (
             <div key={index} className={`flex ${LOG_LEVEL_STYLES[log.level]}`}>
-              <span className="flex-shrink-0 mr-4 text-gray-600">{log.timestamp}</span>
+              <span className="flex-shrink-0 mr-4 text-gray-400 dark:text-gray-600">{log.timestamp}</span>
               <p className="whitespace-pre-wrap break-words">
                 {log.level === LogLevel.Command && '$ '}{log.message}
               </p>

@@ -33,14 +33,34 @@ const App: React.FC = () => {
   });
 
   const [settings, setSettings] = useState<GlobalSettings>(() => {
-    const savedSettings = localStorage.getItem('globalSettings');
-    return savedSettings ? JSON.parse(savedSettings) : {
-      defaultPackageManager: 'npm',
-      defaultBuildCommand: 'npm run build',
-      notifications: true,
-      simulationMode: true, // Default to true for safety
-    };
+    try {
+      const savedSettings = localStorage.getItem('globalSettings');
+      return savedSettings ? JSON.parse(savedSettings) : {
+        defaultPackageManager: 'npm',
+        defaultBuildCommand: 'npm run build',
+        notifications: true,
+        simulationMode: true,
+        theme: 'dark', // Add default theme
+      };
+    } catch (error) {
+       return {
+        defaultPackageManager: 'npm',
+        defaultBuildCommand: 'npm run build',
+        notifications: true,
+        simulationMode: true,
+        theme: 'dark',
+      };
+    }
   });
+
+  useEffect(() => {
+    // Apply theme class to the root element
+    if (settings.theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [settings.theme]);
 
   const handleSaveSettings = (newSettings: GlobalSettings) => {
     setSettings(newSettings);
@@ -129,7 +149,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 font-sans flex flex-col">
+    <div className="min-h-screen font-sans flex flex-col bg-gray-100 dark:bg-gray-900">
       <Header 
         onNewRepo={handleOpenNewModal} 
         activeView={activeView}

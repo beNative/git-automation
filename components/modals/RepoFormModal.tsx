@@ -50,17 +50,11 @@ const RepoFormModal: React.FC<RepoFormModalProps> = ({ isOpen, onClose, onSave, 
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // FIX: The original `handleSubmit` function caused a TypeScript error due to an incorrect type assertion.
-  // `repoToSave` was cast to `Repository`, which implies `id` always exists. The subsequent check `!('id' in repoToSave)`
-  // created a contradiction, causing TypeScript to infer the type within the `if` block as `never`.
-  // The function is refactored to use a type guard (`'id' in formData`) to safely handle new vs. existing repositories.
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if ('id' in formData) {
-      // It's an existing repository we are updating.
       onSave(formData);
     } else {
-      // It's a new repository, we need to add an ID.
       const repoToSave: Repository = {
         ...formData,
         id: `repo_${Date.now()}`,
@@ -97,49 +91,52 @@ const RepoFormModal: React.FC<RepoFormModalProps> = ({ isOpen, onClose, onSave, 
   
   if (!isOpen) return null;
 
+  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500";
+  const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
+
   return (
     <>
       <div className="fixed inset-0 z-30 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm">
-        <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh]">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh]">
           <form onSubmit={handleSubmit} className="flex flex-col h-full">
-            <header className="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
-              <h2 className="text-xl font-semibold text-gray-100">
+            <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                 {repository ? 'Edit Repository' : 'Add New Repository'}
               </h2>
-              <button type="button" onClick={onClose} className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-gray-700"><XIcon className="h-6 w-6" /></button>
+              <button type="button" onClick={onClose} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700"><XIcon className="h-6 w-6" /></button>
             </header>
             
-            <div className="border-b border-gray-700 flex-shrink-0">
+            <div className="border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                 <nav className="flex space-x-4 px-6">
-                    <button type="button" onClick={() => setActiveTab('general')} className={`py-3 px-1 text-sm font-medium ${activeTab === 'general' ? 'border-b-2 border-cyan-500 text-white' : 'text-gray-400 hover:text-white'}`}>General</button>
-                    <button type="button" onClick={() => setActiveTab('tasks')} className={`py-3 px-1 text-sm font-medium ${activeTab === 'tasks' ? 'border-b-2 border-cyan-500 text-white' : 'text-gray-400 hover:text-white'}`}>Tasks</button>
+                    <button type="button" onClick={() => setActiveTab('general')} className={`py-3 px-1 text-sm font-medium ${activeTab === 'general' ? 'border-b-2 border-cyan-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>General</button>
+                    <button type="button" onClick={() => setActiveTab('tasks')} className={`py-3 px-1 text-sm font-medium ${activeTab === 'tasks' ? 'border-b-2 border-cyan-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>Tasks</button>
                 </nav>
             </div>
 
             {activeTab === 'general' && (
               <main className="p-6 space-y-4 overflow-y-auto">
-                <p className="text-sm text-yellow-400 bg-yellow-900/50 p-3 rounded-md">
+                <p className="text-sm text-yellow-800 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50 p-3 rounded-md">
                   <strong>Security Warning:</strong> Credentials are stored in plaintext. Use with caution.
                 </p>
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-300">Repository Name</label>
-                  <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"/>
+                  <label htmlFor="name" className={formLabelStyle}>Repository Name</label>
+                  <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className={formInputStyle}/>
                 </div>
                 <div>
-                  <label htmlFor="remoteUrl" className="block text-sm font-medium text-gray-300">Remote URL</label>
-                  <input type="url" name="remoteUrl" id="remoteUrl" value={formData.remoteUrl} onChange={handleChange} required className="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"/>
+                  <label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label>
+                  <input type="url" name="remoteUrl" id="remoteUrl" value={formData.remoteUrl} onChange={handleChange} required className={formInputStyle}/>
                 </div>
                 <div>
-                  <label htmlFor="localPath" className="block text-sm font-medium text-gray-300">Local Clone Path (Conceptual)</label>
-                  <input type="text" name="localPath" id="localPath" value={formData.localPath} onChange={handleChange} required className="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"/>
+                  <label htmlFor="localPath" className={formLabelStyle}>Local Clone Path</label>
+                  <input type="text" name="localPath" id="localPath" value={formData.localPath} onChange={handleChange} required className={formInputStyle}/>
                 </div>
                 <div>
-                  <label htmlFor="branch" className="block text-sm font-medium text-gray-300">Branch</label>
-                  <input type="text" name="branch" id="branch" value={formData.branch} onChange={handleChange} required className="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"/>
+                  <label htmlFor="branch" className={formLabelStyle}>Branch</label>
+                  <input type="text" name="branch" id="branch" value={formData.branch} onChange={handleChange} required className={formInputStyle}/>
                 </div>
                 <div>
-                  <label htmlFor="authType" className="block text-sm font-medium text-gray-300">Authentication</label>
-                  <select name="authType" id="authType" value={formData.authType} onChange={handleChange} className="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                  <label htmlFor="authType" className={formLabelStyle}>Authentication</label>
+                  <select name="authType" id="authType" value={formData.authType} onChange={handleChange} className={formInputStyle}>
                     <option value="none">None</option>
                     <option value="ssh">SSH Key Path</option>
                     <option value="token">HTTPS Token</option>
@@ -147,14 +144,14 @@ const RepoFormModal: React.FC<RepoFormModalProps> = ({ isOpen, onClose, onSave, 
                 </div>
                 {formData.authType === 'ssh' && (
                   <div>
-                    <label htmlFor="sshKeyPath" className="block text-sm font-medium text-gray-300">SSH Key Path</label>
-                    <input type="text" name="sshKeyPath" id="sshKeyPath" value={formData.sshKeyPath} onChange={handleChange} placeholder="e.g., ~/.ssh/id_rsa" className="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"/>
+                    <label htmlFor="sshKeyPath" className={formLabelStyle}>SSH Key Path</label>
+                    <input type="text" name="sshKeyPath" id="sshKeyPath" value={formData.sshKeyPath || ''} onChange={handleChange} placeholder="e.g., ~/.ssh/id_rsa" className={formInputStyle}/>
                   </div>
                 )}
                 {formData.authType === 'token' && (
                   <div>
-                    <label htmlFor="authToken" className="block text-sm font-medium text-gray-300">HTTPS Token</label>
-                    <input type="password" name="authToken" id="authToken" value={formData.authToken} onChange={handleChange} placeholder="Enter your personal access token" className="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"/>
+                    <label htmlFor="authToken" className={formLabelStyle}>HTTPS Token</label>
+                    <input type="password" name="authToken" id="authToken" value={formData.authToken || ''} onChange={handleChange} placeholder="Enter your personal access token" className={formInputStyle}/>
                   </div>
                 )}
               </main>
@@ -163,26 +160,26 @@ const RepoFormModal: React.FC<RepoFormModalProps> = ({ isOpen, onClose, onSave, 
             {activeTab === 'tasks' && (
                <main className="p-6 space-y-4 overflow-y-auto">
                     <div className="flex justify-between items-center">
-                        <p className="text-gray-400 text-sm">Create automation scripts specific to this repository.</p>
-                        <button type="button" onClick={() => handleOpenTaskForm()} className="flex items-center px-3 py-2 text-sm bg-cyan-600 hover:bg-cyan-700 rounded-md">
+                        <p className="text-gray-500 dark:text-gray-400 text-sm">Create automation scripts specific to this repository.</p>
+                        <button type="button" onClick={() => handleOpenTaskForm()} className="flex items-center px-3 py-2 text-sm text-white bg-cyan-600 hover:bg-cyan-700 rounded-md">
                             <PlusIcon className="h-4 w-4 mr-1"/>
                             New Task
                         </button>
                     </div>
-                    <div className="mt-4 border border-gray-700 rounded-lg">
-                        <ul className="divide-y divide-gray-700">
+                    <div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                             {(!formData.tasks || formData.tasks.length === 0) && <li className="px-4 py-4 text-center text-gray-500">No tasks created for this repository.</li>}
                             {formData.tasks?.map(task => (
                                 <li key={task.id} className="px-4 py-3 flex justify-between items-center">
                                     <div>
-                                        <p className="font-medium text-gray-200">{task.name}</p>
-                                        <p className="text-xs text-gray-400">{task.steps.length} step(s)</p>
+                                        <p className="font-medium text-gray-800 dark:text-gray-200">{task.name}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">{task.steps.length} step(s)</p>
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        <button type="button" onClick={() => handleOpenTaskForm(task)} className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full" title="Edit Task">
+                                        <button type="button" onClick={() => handleOpenTaskForm(task)} className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full" title="Edit Task">
                                             <PencilIcon className="h-5 w-5"/>
                                         </button>
-                                        <button type="button" onClick={() => handleDeleteTask(task.id)} className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/50 rounded-full" title="Delete Task">
+                                        <button type="button" onClick={() => handleDeleteTask(task.id)} className="p-2 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full" title="Delete Task">
                                             <TrashIcon className="h-5 w-5"/>
                                         </button>
                                     </div>
@@ -193,8 +190,8 @@ const RepoFormModal: React.FC<RepoFormModalProps> = ({ isOpen, onClose, onSave, 
                 </main>
             )}
 
-            <footer className="flex justify-end p-4 bg-gray-800/50 border-t border-gray-700 space-x-3 flex-shrink-0">
-              <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">Cancel</button>
+            <footer className="flex justify-end p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 space-x-3 flex-shrink-0">
+              <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 transition-colors">Cancel</button>
               <button type="submit" className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors">Save Repository</button>
             </footer>
           </form>

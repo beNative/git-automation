@@ -81,6 +81,7 @@ When you run a task, a log panel will appear at the bottom of the screen.
 Click the **cog icon** in the header to access global settings.
 
 -   **Default Package Manager:** Choose between `npm` and `yarn`. The `Install Dependencies` task step will use this selection.
+-   **Appearance:** Choose between a `Light` and `Dark` theme for the application. Your preference is saved automatically.
 -   **Enable Notifications:** Toggle on/off the toast notifications that appear in the bottom-right corner.
 -   **Enable Simulation Mode:** This is a critical safety feature.
     -   When **enabled (default)**, tasks are only simulated. The log panel will show the commands that *would* run, but no changes will be made to your local files.
