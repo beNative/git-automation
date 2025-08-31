@@ -1,6 +1,3 @@
-// Fix: Add a triple-slash directive to include Node.js type definitions to resolve errors with global variables like 'require' and '__dirname'.
-/// <reference types="node" />
-
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';

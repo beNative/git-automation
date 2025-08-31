@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "commonjs",
-    "lib": ["DOM", "ES2022"],
+    "lib": ["ES2022"],
     "jsx": "react-jsx",
     "strict": true,
     "esModuleInterop": true,
