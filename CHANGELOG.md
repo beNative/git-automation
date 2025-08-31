@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - YYYY-MM-DD
+
+### Added
+- **Scriptable Tasks:** Major new feature allowing users to create, manage, and run custom multi-step automation scripts.
+  - New "Tasks" tab in the Settings modal for creating/editing/deleting tasks.
+  - Task steps include 'Git Pull', 'Install Dependencies', and 'Run Custom Command'.
+  - Repository cards now feature a "Run Task" dropdown to execute any defined task.
+
+### Changed
+- Refactored automation engine to support dynamic task steps instead of a hard-coded workflow.
+- Updated all documentation to reflect the new scriptable tasks feature.
+
 ## [1.0.0] - YYYY-MM-DD
 
 ### Added

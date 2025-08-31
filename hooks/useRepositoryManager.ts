@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Repository, LogEntry } from '../types';
-import { RepoStatus, BuildHealth, LogLevel } from '../types';
+import type { Repository, LogEntry, Task, GlobalSettings } from '../types';
+import { RepoStatus, BuildHealth, LogLevel, TaskStepType } from '../types';
 import { automationService } from '../services/automationService';
 
 export const useRepositoryManager = () => {
@@ -48,30 +48,39 @@ export const useRepositoryManager = () => {
     );
   }, []);
 
-  const runAutomation = useCallback(async (repoId: string, packageManager: 'npm' | 'yarn', buildCommand: string) => {
+  const runTask = useCallback(async (repoId: string, task: Task, settings: GlobalSettings) => {
     setIsProcessing(prev => new Set(prev).add(repoId));
     
     try {
       updateRepoStatus(repoId, RepoStatus.Syncing);
-      addLogEntry(repoId, 'Starting automation process...', LogLevel.Info);
+      addLogEntry(repoId, `Starting task: '${task.name}'...`, LogLevel.Info);
       
       await automationService.simulateClone(repoId, addLogEntry);
-      await automationService.simulatePull(repoId, addLogEntry);
-      
-      const changesDetected = await automationService.simulateInstall(repoId, packageManager, addLogEntry);
-      if (changesDetected) {
-        updateRepoStatus(repoId, RepoStatus.Building);
-        await automationService.simulateBuild(repoId, buildCommand, addLogEntry);
-      }
-      
-      updateRepoStatus(repoId, RepoStatus.Deploying);
-      await automationService.simulateDeploy(repoId, addLogEntry);
 
-      addLogEntry(repoId, 'Automation process completed successfully.', LogLevel.Success);
+      for (const step of task.steps) {
+        addLogEntry(repoId, `Executing step: ${step.type}`, LogLevel.Info);
+        switch (step.type) {
+          case TaskStepType.GitPull:
+            await automationService.simulatePull(repoId, addLogEntry);
+            break;
+          case TaskStepType.InstallDeps:
+            await automationService.simulateInstall(repoId, settings.defaultPackageManager, addLogEntry);
+            break;
+          case TaskStepType.RunCommand:
+            if (step.command) {
+              await automationService.simulateRunCommand(repoId, step.command, addLogEntry);
+            } else {
+              addLogEntry(repoId, 'Skipping empty command.', LogLevel.Warn);
+            }
+            break;
+        }
+      }
+
+      addLogEntry(repoId, `Task '${task.name}' completed successfully.`, LogLevel.Success);
       updateRepoStatus(repoId, RepoStatus.Success, BuildHealth.Healthy);
     } catch (error: any) {
-      addLogEntry(repoId, `Error: ${error.message}`, LogLevel.Error);
-      addLogEntry(repoId, 'Automation process failed.', LogLevel.Error);
+      addLogEntry(repoId, `Error during task '${task.name}': ${error.message}`, LogLevel.Error);
+      addLogEntry(repoId, 'Task failed.', LogLevel.Error);
       updateRepoStatus(repoId, RepoStatus.Failed, BuildHealth.Failing);
       throw error;
     } finally {
@@ -116,7 +125,7 @@ export const useRepositoryManager = () => {
     addRepository, 
     updateRepository, 
     deleteRepository, 
-    runAutomation, 
+    runTask, 
     logs,
     clearLogs,
     isProcessing

@@ -47,7 +47,27 @@ export interface GlobalSettings {
   notifications: boolean;
 }
 
+export enum TaskStepType {
+  GitPull = 'GIT_PULL',
+  InstallDeps = 'INSTALL_DEPS',
+  RunCommand = 'RUN_COMMAND',
+}
+
+export interface TaskStep {
+  id: string;
+  type: TaskStepType;
+  command?: string; // Only for RunCommand
+}
+
+export interface Task {
+  id: string;
+  name: string;
+  steps: TaskStep[];
+}
+
+
 export interface ActiveModal {
-  type: 'logs' | 'repo-form' | 'settings' | null;
+  type: 'logs' | 'repo-form' | 'settings' | 'task-form' | null;
   repoId?: string | null;
+  taskId?: string | null; // For editing tasks
 }

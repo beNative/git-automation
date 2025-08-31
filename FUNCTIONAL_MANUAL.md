@@ -21,7 +21,9 @@ Each card gives you an at-a-glance overview of a repository:
 
 Each card has a set of action buttons:
 
--   **Sync (Play Icon):** Starts the full automation process for this repository (pulls latest changes, installs dependencies, and runs the build script). The button is disabled while the process is running.
+-   **Run Task (Play Icon & Dropdown):** Executes a custom automation script on this repository.
+    - Clicking the main button runs the first task in your list.
+    - Clicking the dropdown arrow allows you to select any of your created tasks to run.
 -   **View Logs (Document Icon):** Opens a modal showing the detailed, real-time logs for the automation process.
 -   **Configure (Pencil Icon):** Opens the repository form to edit this repository's configuration.
 -   **Delete (Trash Icon):** Permanently removes the repository from the dashboard after a confirmation prompt.
@@ -55,19 +57,38 @@ Each card has a set of action buttons:
 2.  A confirmation dialog will appear.
 3.  Click "OK" to permanently delete the repository from the dashboard. This action cannot be undone.
 
-## 3. Global Settings
+## 3. Global Settings & Scriptable Tasks
 
 You can configure application-wide settings by clicking the **cog icon** in the header.
 
--   **Default Package Manager:** Choose between `npm` and `yarn`. When the automation script detects changes in `package.json`, it will use this package manager to install dependencies.
--   **Default Build Command:** The default command to run for the build step (e.g., `npm run build`, `yarn build`).
--   **Enable Notifications:** Toggle on/off the toast notifications that appear in the bottom-right corner after an automation task succeeds or fails.
+### General Tab
 
-Click **"Save Settings"** to apply your changes.
+-   **Default Package Manager:** Choose between `npm` and `yarn`. The `Install Dependencies` task step will use this selection.
+-   **Enable Notifications:** Toggle on/off the toast notifications that appear in the bottom-right corner after a task succeeds or fails.
+
+### Tasks Tab
+
+This is where you can create powerful, custom automation scripts.
+
+#### Creating a New Task
+1. Click the **"New Task"** button.
+2. A modal will appear. Give your task a descriptive **name** (e.g., "Build & Deploy to Staging").
+3. Click **"Add Step"**. A new step is added to the list.
+4. **Configure the step:**
+   -   Use the dropdown to select the step **type**:
+       -   **Git Pull:** Pulls the latest changes from the remote repository.
+       -   **Install Dependencies:** Runs `npm install` or `yarn install` based on your global settings.
+       -   **Run Custom Command:** Allows you to enter any shell command (e.g., `npm run test`, `electron-builder --win`).
+5. Continue adding, configuring, and re-ordering steps using the up/down arrows to build your desired workflow.
+6. Click **"Save Task"**.
+
+#### Managing Tasks
+- **Edit a Task:** Click the pencil icon next to a task in the list to open the editor.
+- **Delete a Task:** Click the trash icon to permanently delete a task.
 
 ## 4. Viewing Logs
 
-When you run an automation or click the "View Logs" button, a modal appears showing the output from the script.
+When you run a task or click the "View Logs" button, a modal appears showing the output from the script.
 
 -   Logs are timestamped and color-coded for readability:
     -   **Cyan:** Commands being executed.

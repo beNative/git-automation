@@ -1,5 +1,4 @@
 import { LogLevel } from '../types';
-import type { LogEntry } from '../types';
 
 type LogCallback = (repoId: string, message: string, level: LogLevel) => void;
 
@@ -24,7 +23,7 @@ const simulateClone = async (repoId: string, log: LogCallback) => {
 };
 
 const simulatePull = async (repoId: string, log: LogCallback) => {
-  log(repoId, `git pull origin main`, LogLevel.Command);
+  log(repoId, `git pull`, LogLevel.Command);
   await simulateDelay(1500);
   randomFail(0.1, 'Merge conflict detected. Please resolve conflicts manually.');
   log(repoId, 'Successfully pulled latest changes.', LogLevel.Success);
@@ -46,25 +45,16 @@ const simulateInstall = async (repoId: string, pm: 'npm' | 'yarn', log: LogCallb
     return false;
 };
 
-const simulateBuild = async (repoId: string, buildCommand: string, log: LogCallback) => {
-    log(repoId, buildCommand, LogLevel.Command);
-    await simulateDelay(5000);
-    randomFail(0.15, 'Build script failed with exit code 1. Check build logs for details.');
-    log(repoId, 'Build completed successfully.', LogLevel.Success);
+const simulateRunCommand = async (repoId: string, command: string, log: LogCallback) => {
+    log(repoId, command, LogLevel.Command);
+    await simulateDelay(4000 + Math.random() * 2000); // variable delay
+    randomFail(0.15, `Command '${command}' failed with exit code 1.`);
+    log(repoId, `Command '${command}' completed successfully.`, LogLevel.Success);
 };
-
-const simulateDeploy = async (repoId: string, log: LogCallback) => {
-    log(repoId, `scp -r ./dist user@server:/var/www/project`, LogLevel.Command);
-    await simulateDelay(2500);
-    randomFail(0.05, 'Deployment failed: SSH connection timed out.');
-    log(repoId, 'Deployment to production successful.', LogLevel.Success);
-};
-
 
 export const automationService = {
   simulateClone,
   simulatePull,
   simulateInstall,
-  simulateBuild,
-  simulateDeploy,
+  simulateRunCommand,
 };

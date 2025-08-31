@@ -1,8 +1,9 @@
-import React from 'react';
-import type { Repository } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import type { Repository, Task } from '../types';
 import { RepoStatus, BuildHealth } from '../types';
 import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
 import { PlayIcon } from './icons/PlayIcon';
+import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { DocumentTextIcon } from './icons/DocumentTextIcon';
 import { PencilIcon } from './icons/PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
@@ -12,7 +13,8 @@ import { GlobeAltIcon } from './icons/GlobeAltIcon';
 
 interface RepositoryCardProps {
   repository: Repository;
-  onRunAutomation: (repoId: string) => void;
+  tasks: Task[];
+  onRunTask: (repoId: string, taskId: string) => void;
   onViewLogs: (repoId: string) => void;
   onEditRepo: (repo: Repository) => void;
   onDeleteRepo: (repoId: string) => void;
@@ -21,13 +23,33 @@ interface RepositoryCardProps {
 
 const RepositoryCard: React.FC<RepositoryCardProps> = ({
   repository,
-  onRunAutomation,
+  tasks,
+  onRunTask,
   onViewLogs,
   onEditRepo,
   onDeleteRepo,
   isProcessing,
 }) => {
   const { id, name, remoteUrl, branch, status, lastUpdated, buildHealth } = repository;
+  const [isDropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleRunTask = (taskId: string) => {
+    onRunTask(id, taskId);
+    setDropdownOpen(false);
+  };
 
   return (
     <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden flex flex-col transition-all duration-300 hover:shadow-cyan-500/20 hover:scale-[1.02]">
@@ -65,15 +87,50 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             Last updated: {lastUpdated ? new Date(lastUpdated).toLocaleString() : 'Never'}
           </p>
           <div className="flex justify-around items-center">
-            <button
-                onClick={() => onRunAutomation(id)}
-                disabled={isProcessing}
-                className="flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                title="Pull & Build"
-            >
-                <PlayIcon className="h-4 w-4 mr-1" />
-                Sync
-            </button>
+            <div className="relative" ref={dropdownRef}>
+              <div className="flex rounded-md shadow-sm">
+                 <button
+                    onClick={() => tasks.length > 0 && handleRunTask(tasks[0].id)}
+                    disabled={isProcessing || tasks.length === 0}
+                    className="flex items-center pl-3 pr-2 py-2 text-sm font-medium text-white bg-green-600 rounded-l-md hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                    title={tasks.length > 0 ? `Run: ${tasks[0].name}` : 'No tasks available'}
+                >
+                    <PlayIcon className="h-4 w-4 mr-1" />
+                    Run Task
+                </button>
+                <button
+                  onClick={() => setDropdownOpen(prev => !prev)}
+                  disabled={isProcessing || tasks.length === 0}
+                  className="px-2 py-2 text-sm font-medium text-white bg-green-700 rounded-r-md hover:bg-green-800 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
+                  aria-haspopup="true"
+                  aria-expanded={isDropdownOpen}
+                >
+                  <ChevronDownIcon className="h-4 w-4" />
+                </button>
+              </div>
+
+              {isDropdownOpen && (
+                <div className="origin-top-right absolute right-0 bottom-full mb-2 w-56 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                  <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                    {tasks.map(task => (
+                       <a
+                        key={task.id}
+                        href="#"
+                        onClick={(e) => { e.preventDefault(); handleRunTask(task.id); }}
+                        className="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600"
+                        role="menuitem"
+                      >
+                        {task.name}
+                      </a>
+                    ))}
+                    {tasks.length === 0 && (
+                       <span className="block px-4 py-2 text-sm text-gray-400">No tasks configured.</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button 
               onClick={() => onViewLogs(id)} 
               className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"

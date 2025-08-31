@@ -30,7 +30,8 @@ The application is split into three main processes, which is standard for Electr
 -   **Entry Point:** `index.tsx`
 -   **Responsibilities:**
     -   Renders the entire user interface using React.
-    -   This is essentially the "frontend" of the application, running in a Chromium-based browser window.
+    -   Manages application state, including repositories, logs, settings, and custom tasks.
+    -   The core application logic for running automation workflows resides in the `useRepositoryManager` custom hook.
     -   It cannot directly access Node.js APIs or the file system for security reasons. All such operations must be requested from the Main process via the Preload script.
 
 ### Preload Script
@@ -47,10 +48,12 @@ The application is split into three main processes, which is standard for Electr
 .
 ├── assets/                 # Icons and other build resources
 ├── components/             # React components
+│   ├── modals/             # Modal dialog components
+│   └── icons/              # SVG icon components
 ├── electron/               # Electron-specific files
 │   ├── main.ts             # Main process entry point
 │   └── preload.ts          # Preload script
-├── hooks/                  # Custom React hooks
+├── hooks/                  # Custom React hooks (useRepositoryManager)
 ├── services/               # Business logic services (e.g., automation simulation)
 ├── CHANGELOG.md            # Version log
 ├── esbuild.config.js       # esbuild configuration file

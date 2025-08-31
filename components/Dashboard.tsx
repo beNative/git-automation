@@ -1,11 +1,12 @@
 import React from 'react';
-import type { Repository } from '../types';
+import type { Repository, Task } from '../types';
 import RepositoryCard from './RepositoryCard';
 import { PlusCircleIcon } from './icons/PlusCircleIcon';
 
 interface DashboardProps {
   repositories: Repository[];
-  onRunAutomation: (repoId: string) => void;
+  tasks: Task[];
+  onRunTask: (repoId: string, taskId: string) => void;
   onViewLogs: (repoId: string) => void;
   onEditRepo: (repo: Repository) => void;
   onDeleteRepo: (repoId: string) => void;
@@ -14,7 +15,8 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({
   repositories,
-  onRunAutomation,
+  tasks,
+  onRunTask,
   onViewLogs,
   onEditRepo,
   onDeleteRepo,
@@ -36,7 +38,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         <RepositoryCard
           key={repo.id}
           repository={repo}
-          onRunAutomation={onRunAutomation}
+          tasks={tasks}
+          onRunTask={onRunTask}
           onViewLogs={onViewLogs}
           onEditRepo={onEditRepo}
           onDeleteRepo={onDeleteRepo}
