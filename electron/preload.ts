@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Smart Scripts
   getPackageScripts: (repoPath: string): Promise<string[]> => ipcRenderer.invoke('get-package-scripts', repoPath),
+  
+  // App Version
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version'),
 
   // Real Task Execution
   runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {

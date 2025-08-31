@@ -39,7 +39,7 @@ export const useRepositoryManager = () => {
   
   const addLogEntry = useCallback((repoId: string, message: string, level: LogLevel) => {
     const newEntry: LogEntry = {
-      timestamp: new Date().toLocaleTimeString(),
+      timestamp: new Date().toISOString(),
       message,
       level,
     };

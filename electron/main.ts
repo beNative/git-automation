@@ -102,6 +102,11 @@ ipcMain.handle('get-package-scripts', async (event, repoPath: string): Promise<s
   }
 });
 
+// --- IPC Handler for getting app version ---
+ipcMain.handle('get-app-version', () => {
+    return app.getVersion();
+});
+
 
 // --- IPC Handler for running real task steps ---
 ipcMain.on('run-task-step', (event, { repo, step, settings }: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {

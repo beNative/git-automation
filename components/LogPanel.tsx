@@ -103,7 +103,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
         >
           {logs.map((log, index) => (
             <div key={index} className={`flex ${LOG_LEVEL_STYLES[log.level]}`}>
-              <span className="flex-shrink-0 mr-4 text-gray-400 dark:text-gray-600">{log.timestamp}</span>
+              <span className="flex-shrink-0 mr-4 text-gray-400 dark:text-gray-600">{new Date(log.timestamp).toLocaleTimeString()}</span>
               <p className="whitespace-pre-wrap break-words">
                 {log.level === LogLevel.Command && '$ '}{log.message}
               </p>

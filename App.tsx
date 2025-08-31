@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
-import type { Repository, GlobalSettings, AppView, Task } from './types';
+import type { Repository, GlobalSettings, AppView, Task, LogEntry } from './types';
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
 import RepoFormModal from './components/modals/RepoFormModal';
@@ -10,6 +10,7 @@ import SettingsView from './components/SettingsView';
 import LogPanel from './components/LogPanel';
 import { IconContext } from './contexts/IconContext';
 import CommandPalette from './components/CommandPalette';
+import StatusBar from './components/StatusBar';
 
 const App: React.FC = () => {
   const {
@@ -58,6 +59,14 @@ const App: React.FC = () => {
       };
     }
   });
+
+  const latestLog = useMemo<LogEntry | null>(() => {
+    const allLogs = Object.values(logs).flat();
+    if (allLogs.length === 0) return null;
+    // Sort by timestamp descending to find the latest
+    return allLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+  }, [logs]);
+
 
   useEffect(() => {
     // Apply theme class to the root element
@@ -180,6 +189,13 @@ const App: React.FC = () => {
         <main className="p-4 sm:p-6 lg:p-8 flex-grow">
           {renderView()}
         </main>
+        
+        <StatusBar
+          repoCount={repositories.length}
+          processingCount={isProcessing.size}
+          isSimulationMode={settings.simulationMode}
+          latestLog={latestLog}
+        />
         
         <CommandPalette
             isOpen={isCommandPaletteOpen}
