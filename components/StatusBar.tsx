@@ -1,23 +1,54 @@
-import React from 'react';
-import type { LogEntry } from '../types';
+import React, { useState, useEffect } from 'react';
+import type { LogEntry, UpdateStatus } from '../types';
 import { GitBranchIcon } from './icons/GitBranchIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
 import { BeakerIcon } from './icons/BeakerIcon';
+import { KeyboardIcon } from './icons/KeyboardIcon';
+import { ClockIcon } from './icons/ClockIcon';
+import { CheckCircleIcon } from './icons/CheckCircleIcon';
+import { CloudArrowDownIcon } from './icons/CloudArrowDownIcon';
+import { ExclamationCircleIcon } from './icons/ExclamationCircleIcon';
 
 interface StatusBarProps {
     repoCount: number;
     processingCount: number;
     isSimulationMode: boolean;
     latestLog: LogEntry | null;
+    appVersion: string;
+    updateStatus: UpdateStatus;
 }
 
-const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog }) => {
+const Clock: React.FC = () => {
+    const [time, setTime] = useState(new Date());
+    useEffect(() => {
+        const timerId = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timerId);
+    }, []);
+    return <>{time.toLocaleTimeString()}</>;
+};
+
+const UpdateStatusIndicator: React.FC<{ status: UpdateStatus }> = ({ status }) => {
+    switch (status) {
+        case 'checking':
+            return <div className="flex items-center" title="Checking for updates..."><ArrowPathIcon className="h-4 w-4 mr-1.5 animate-spin" /> Checking...</div>;
+        case 'up-to-date':
+            return <div className="flex items-center text-green-600 dark:text-green-500" title="Application is up-to-date"><CheckCircleIcon className="h-4 w-4 mr-1.5" /> Up to date</div>;
+        case 'available':
+            return <div className="flex items-center text-blue-600 dark:text-blue-400" title="A new version is available!"><CloudArrowDownIcon className="h-4 w-4 mr-1.5" /> Update available</div>;
+        case 'error':
+            return <div className="flex items-center text-red-600 dark:text-red-500" title="Could not check for updates."><ExclamationCircleIcon className="h-4 w-4 mr-1.5" /> Update failed</div>;
+        default:
+            return null;
+    }
+};
+
+const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog, appVersion, updateStatus }) => {
     const LOG_LEVEL_COLOR_CLASSES: Record<string, string> = {
-        info: 'text-gray-400',
-        command: 'text-blue-400',
-        success: 'text-green-500',
-        error: 'text-red-500',
-        warn: 'text-yellow-500',
+        info: 'text-gray-500 dark:text-gray-400',
+        command: 'text-blue-500 dark:text-blue-400',
+        success: 'text-green-600 dark:text-green-500',
+        error: 'text-red-500 dark:text-red-500',
+        warn: 'text-yellow-500 dark:text-yellow-400',
     };
 
     return (
@@ -31,7 +62,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                 {processingCount > 0 && (
                     <>
                         <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                        <div className="flex items-center text-blue-600 dark:text-blue-400" title={`${processingCount} tasks running`}>
+                        <div className="flex items-center text-blue-500 dark:text-blue-400" title={`${processingCount} tasks running`}>
                             <ArrowPathIcon className="h-4 w-4 mr-1.5 animate-spin" />
                             <span>{processingCount} Running</span>
                         </div>
@@ -43,7 +74,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
             <div className="flex-1 text-center truncate px-4" title={latestLog?.message}>
                 {latestLog && (
                     <span className={LOG_LEVEL_COLOR_CLASSES[latestLog.level] || 'text-gray-400'}>
-                        {latestLog.message}
+                        [{new Date(latestLog.timestamp).toLocaleTimeString()}] {latestLog.message}
                     </span>
                 )}
             </div>
@@ -51,11 +82,25 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
             {/* Right Section */}
             <div className="flex items-center space-x-3">
                 {isSimulationMode && (
-                    <div className="flex items-center text-yellow-600 dark:text-yellow-400" title="Simulation mode is active. No real commands will be run.">
+                    <div className="flex items-center text-yellow-600 dark:text-yellow-500" title="Simulation mode is active. No real commands will be run.">
                         <BeakerIcon className="h-4 w-4 mr-1.5" />
                         <span>Sim Mode</span>
                     </div>
                 )}
+                 <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+                 <div className="flex items-center" title="Command Palette">
+                    <KeyboardIcon className="h-4 w-4 mr-1.5" />
+                    <span>Ctrl+K</span>
+                </div>
+                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+                <UpdateStatusIndicator status={updateStatus} />
+                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+                <span>v{appVersion}</span>
+                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+                <div className="flex items-center" title="Current Time">
+                    <ClockIcon className="h-4 w-4 mr-1.5" />
+                    <Clock />
+                </div>
             </div>
         </footer>
     );

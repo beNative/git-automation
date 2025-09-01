@@ -121,3 +121,5 @@ export type LocalPathState = 'checking' | 'valid' | 'missing' | 'not_a_repo';
 export type Launchable =
   | { type: 'manual'; config: LaunchConfig }
   | { type: 'detected'; path: string };
+  
+export type UpdateStatus = 'checking' | 'up-to-date' | 'available' | 'error';

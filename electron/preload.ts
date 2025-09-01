@@ -1,10 +1,18 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState } from '../types';
+import type { Repository, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, UpdateStatus } from '../types';
 
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
+const updateStatusChannel = 'update-status-changed';
+
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  // App Info
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version'),
+  onUpdateStatusChanged: (callback: (event: IpcRendererEvent, data: { status: UpdateStatus, message?: string }) => void) => {
+    ipcRenderer.on(updateStatusChannel, callback);
+  },
+
   // Documentation
   getDoc: (docName: string): Promise<string> => ipcRenderer.invoke('get-doc', docName),
   

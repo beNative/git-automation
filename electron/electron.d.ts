@@ -1,7 +1,8 @@
 import type { IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState } from '../types';
+import type { Repository, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, UpdateStatus as AppUpdateStatus } from '../types';
 
 export type LocalPathState = AppLocalPathState;
+export type UpdateStatus = AppUpdateStatus;
 
 
 export interface ProjectSuggestion {
@@ -11,6 +12,8 @@ export interface ProjectSuggestion {
 }
 
 export interface IElectronAPI {
+  getAppVersion: () => Promise<string>;
+  onUpdateStatusChanged: (callback: (event: IpcRendererEvent, data: { status: UpdateStatus, message?: string }) => void) => void;
   getDoc: (docName: string) => Promise<string>;
   getProjectSuggestions: (args: { repoPath: string, repoName: string }) => Promise<ProjectSuggestion[]>;
   getProjectStepSuggestions: (args: { repoPath: string, repoName: string }) => Promise<Omit<TaskStep, 'id'>[]>;

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
-import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig } from './types';
+import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, UpdateStatus } from './types';
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
 import RepoEditView from './components/modals/RepoFormModal'; // Repurposed for the new view
@@ -36,6 +36,8 @@ const App: React.FC = () => {
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [localPathStates, setLocalPathStates] = useState<Record<string, LocalPathState>>({});
   const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
+  const [appVersion, setAppVersion] = useState<string>('');
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('checking');
   
   const [logPanel, setLogPanel] = useState({
     isOpen: false,
@@ -87,6 +89,14 @@ const App: React.FC = () => {
       };
     }
   });
+
+  // Effect for app version and update status
+  useEffect(() => {
+    window.electronAPI.getAppVersion().then(setAppVersion);
+    window.electronAPI.onUpdateStatusChanged((_event, { status }) => {
+      setUpdateStatus(status);
+    });
+  }, []);
   
   // Effect to check local paths
   useEffect(() => {
@@ -386,6 +396,8 @@ const App: React.FC = () => {
           processingCount={isProcessing.size} 
           isSimulationMode={settings.simulationMode}
           latestLog={latestLog}
+          appVersion={appVersion}
+          updateStatus={updateStatus}
         />
         
         {logPanel.isOpen && (

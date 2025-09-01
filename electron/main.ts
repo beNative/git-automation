@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import { platform } from 'os';
 import { autoUpdater } from 'electron-updater';
 import { spawn, exec, execFile } from 'child_process';
-import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState } from '../types';
+import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, UpdateStatus } from '../types';
 import { TaskStepType, LogLevel, VcsType } from '../types';
 
 // Fix: Manually declare Node.js globals to resolve type errors when @types/node is not available.
@@ -47,7 +47,9 @@ app.on('ready', () => {
   createWindow();
   
   // Check for updates once the app is ready
-  autoUpdater.checkForUpdatesAndNotify();
+  mainWindow?.webContents.on('did-finish-load', () => {
+    autoUpdater.checkForUpdatesAndNotify();
+  });
 });
 
 // Quit when all windows are closed, except on macOS.
@@ -64,6 +66,12 @@ app.on('activate', () => {
     createWindow();
   }
 });
+
+// --- IPC Handler for fetching app version ---
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion();
+});
+
 
 // --- IPC Handler for fetching documentation ---
 ipcMain.handle('get-doc', async (event, docName: string) => {
@@ -582,20 +590,33 @@ ipcMain.on('run-task-step', (event, { repo, step, settings }: { repo: Repository
 
 
 // --- Auto-updater event listeners ---
+const sendUpdateStatus = (status: UpdateStatus, message?: string) => {
+  mainWindow?.webContents.send('update-status-changed', { status, message });
+};
 
-autoUpdater.on('update-available', () => {
+autoUpdater.on('checking-for-update', () => {
+  sendUpdateStatus('checking');
+});
+
+autoUpdater.on('update-available', (info) => {
+  sendUpdateStatus('available', `Update to v${info.version} available!`);
   dialog.showMessageBox({
     type: 'info',
     title: 'Update Available',
-    message: 'A new version is available. It will be downloaded in the background.',
+    message: `A new version (v${info.version}) is available. It will be downloaded in the background.`,
   });
 });
 
+autoUpdater.on('update-not-available', () => {
+  sendUpdateStatus('up-to-date');
+});
+
 autoUpdater.on('update-downloaded', (info) => {
+  sendUpdateStatus('available', `v${info.version} ready to install`);
   dialog.showMessageBox({
     type: 'info',
     title: 'Update Ready',
-    message: `A new version (${info.version}) has been downloaded. Restart the application to apply the updates.`,
+    message: `A new version (v${info.version}) has been downloaded. Restart the application to apply the updates.`,
     buttons: ['Restart Now', 'Later']
   }).then((buttonIndex) => {
     if (buttonIndex.response === 0) {
@@ -605,6 +626,6 @@ autoUpdater.on('update-downloaded', (info) => {
 });
 
 autoUpdater.on('error', (err) => {
-  // This is a good place to log errors to a file
+  sendUpdateStatus('error', 'Update check failed');
   console.error('Error in auto-updater. ' + err);
 });
