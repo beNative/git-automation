@@ -654,9 +654,11 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   useEffect(() => {
     if (selectedTaskId) {
         const task = formData.tasks?.find(t => t.id === selectedTaskId);
-        logger.debug("Selected task changed", { selectedTaskId, taskName: task?.name });
+        if (task) { // Ensure task exists before logging
+            logger.debug("Selected task changed", { selectedTaskId, taskName: task.name });
+        }
     }
-  }, [selectedTaskId, JSON.stringify(formData.tasks), logger]);
+  }, [selectedTaskId, JSON.stringify(formData.tasks)]);
   
 
   const renderTabContent = () => {
