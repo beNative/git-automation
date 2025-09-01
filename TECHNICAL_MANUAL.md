@@ -21,8 +21,10 @@ The application is split into three main processes, which is standard for Electr
 -   **Responsibilities:**
     -   Manages the application lifecycle (`app` events).
     -   Creates and manages `BrowserWindow` instances (the application's windows).
-    -   Handles native OS interactions (dialogs, menus).
-    -   Listens for and responds to IPC (Inter-Process Communication) events from the renderer process. For example, it handles the `get-doc` event to read documentation files from disk.
+    -   Handles native OS interactions (dialogs, file system access).
+    -   Listens for and responds to IPC (Inter-Process Communication) events. This includes:
+        -   Executing shell commands for task steps.
+        -   Executing real Git/SVN commands for advanced features like checking status, fetching commit history, and managing branches (`get-detailed-vcs-status`, `list-branches`, etc.).
     -   Manages the auto-update process via `electron-updater`.
 
 ### Renderer Process
@@ -30,8 +32,7 @@ The application is split into three main processes, which is standard for Electr
 -   **Entry Point:** `index.tsx` -> `App.tsx`
 -   **Responsibilities:**
     -   Renders the entire user interface using React.
-    -   **State Management:** The root `App.tsx` component manages the entire application state, including the list of repositories (which now contain their own tasks), global settings, the active view (`dashboard`, `settings`, or `info`), and the state of the resizable log panel.
-    -   **Core Logic:** The `useRepositoryManager` custom hook contains the business logic for managing repositories and running automation tasks.
+    -   Holds the majority of the application's client-side business logic.
     -   **Security:** The renderer cannot directly access Node.js APIs. All such operations must be requested from the Main process via the Preload script.
 
 ### Preload Script
@@ -41,19 +42,17 @@ The application is split into three main processes, which is standard for Electr
     -   Acts as a secure bridge between the Renderer and Main processes.
     -   Uses `contextBridge` to expose a safe, limited API (`window.electronAPI`) to the renderer.
 
-## 3. Data Flow for Tasks
+## 3. State Management and Data Flow
 
-A key architectural change is the move from global to repository-specific tasks.
-
-1.  **Storage:** The `repositories` array, which is saved to `localStorage`, is the single source of truth. Each `Repository` object in this array now contains a `tasks: Task[]` property.
-2.  **Management:** Tasks are created, updated, and deleted within the `RepoFormModal`. This modal maintains a temporary copy of the repository object in its state.
-3.  **Saving:** When the user clicks "Save Repository" in the modal, the entire repository object (including the modified `tasks` array) is passed to the `updateRepository` function, which updates the central state in `App.tsx` and persists it to `localStorage`.
+-   **Primary State:** The root `App.tsx` component manages the entire application state, including the list of repositories, global settings, the active view, and the state of modals and panels.
+-   **Persistence:** The `repositories` array and `globalSettings` object are persisted to `localStorage` on any change, acting as the application's simple database.
+-   **VCS State:** `App.tsx` also holds state for `detailedStatuses` and `branchLists` which are fetched periodically and after tasks complete to keep the UI in sync with the file system.
+-   **Parallel Task Execution:** To support running multiple tasks concurrently, a unique `executionId` is generated for each task run. This ID is passed between the renderer and main processes, allowing log output (`task-log`) and completion events (`task-step-end`) to be correctly routed to the appropriate repository and UI components without conflict.
 
 ## 4. Development Workflow
 
 1.  **Installation:** Run `npm install` to install all dependencies.
-2.  **Environment Variables:** Create a `.env` file or export `API_KEY` in your shell for any services that require it.
-3.  **Run in Dev Mode:** `npm start`
+2.  **Run in Dev Mode:** `npm start`
     -   This command uses `concurrently` to run `esbuild` in watch mode and launch the Electron app.
 
 ## 5. Build and Packaging

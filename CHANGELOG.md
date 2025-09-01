@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - YYYY-MM-DD
+
+### Added
+- **Deeper Version Control Integration:**
+  - **Visual Git Status:** Repository cards now show detailed Git status, including how many commits the local branch is ahead or behind its remote, and a summary of modified, added, and deleted files (`+5 ~3 -1`).
+  - **Branch Management:** A new "Branches" tab in the repository configuration view allows users to view, create, delete (local and remote), and merge Git branches.
+  - **Branch Switching:** A dropdown menu has been added to repository cards to quickly view and switch between local and remote branches.
+  - **Commit History Viewer:** A new "History" tab in the repository configuration view displays the 30 most recent commits. A new "History" button on the repository card provides quick access to this information in a modal.
+- **Parallel Task Execution:** Tasks on different repositories can now run concurrently, each in its own process. The UI can handle multiple "processing" states at once.
+
+### Fixed
+- **Branch Switching Ambiguity:** The branch switcher now correctly handles repositories with multiple remotes and branches of the same name by displaying the full remote path (e.g., `origin/main`) and using a more precise `git checkout --track` command.
+
 ## [1.4.0] - YYYY-MM-DD
 
 ### Changed

@@ -12,7 +12,7 @@ The application is organized into three main views, which you can switch between
 
 ## 2. The Main Dashboard
 
-The dashboard is the central hub of the application. It displays all your configured repositories as individual cards.
+The dashboard is the central hub of the application. It displays all your configured repositories as individual cards. You can run tasks on multiple repositories at the same time. Starting a long build on one project won't stop you from running a quick update on another.
 
 ### Repository Card
 
@@ -21,7 +21,8 @@ Each card gives you an at-a-glance overview of a repository:
 -   **Name:** The custom name you assigned to the repository.
 -   **Status:** The current state of the repository (e.g., `Idle`, `Syncing`, `Success`, `Failed`).
 -   **Remote URL:** The Git or SVN remote URL, which is also a clickable link.
--   **Branch/VCS:** The Git branch being tracked, or an indicator for SVN repositories.
+-   **Branch/VCS:** For Git, this is a dropdown menu to view and switch between all local and remote branches. For SVN, it just indicates the VCS type.
+-   **Visual Status:** For Git repos, shows if you are ahead/behind the remote and a summary of changed files (e.g., `+1 ~2` for 1 added, 2 modified).
 -   **Build Health:** The status of the last build (`Healthy`, `Failing`, `Unknown`).
 -   **Last Updated:** The timestamp of the last time an automation was run.
 
@@ -29,11 +30,11 @@ Each card gives you an at-a-glance overview of a repository:
 
 Each card has a set of action buttons:
 
--   **Run Task (Play Icon & Dropdown):** Executes a custom automation script on this repository.
-    - Clicking the main button runs the first task configured for this repository.
-    - Clicking the dropdown arrow allows you to select any of this repository's tasks to run. The dropdown menu is smart; it will open upwards if it detects it would be cut off at the bottom of the screen.
--   **View Logs (Document Icon):** Opens the resizable log panel at the bottom of the screen to show previous logs for this repository.
--   **Configure (Pencil Icon):** Opens the repository configuration modal.
+-   **Task Buttons:** Any task marked with "Show on dashboard" will appear as its own button for one-click execution.
+-   **More Tasks (Play Icon):** If there are more tasks available, this button opens a modal to select any of the repository's tasks to run.
+-   **View Logs (Document Icon):** Opens the resizable log panel to show previous logs for this repository.
+-   **View History (Clock Icon):** Opens a modal displaying the 30 most recent commits for this repository.
+-   **Configure (Pencil Icon):** Opens the repository configuration view.
 -   **Delete (Trash Icon):** Permanently removes the repository from the dashboard after a confirmation prompt.
 
 ## 3. Managing Repositories and Tasks
@@ -44,20 +45,19 @@ Tasks (automation scripts) are configured on a per-repository basis.
 
 1.  Click the **"New Repo"** button in the header.
 2.  The "Add New Repository" view will appear.
-3.  First, select the **Version Control System** (Git or SVN). The form will update to show relevant fields.
-4.  Fill in the repository's details (Name, URL, Local Path, etc.). The **Local Path** must be the absolute path to the repository on your computer for real execution to work.
-5.  Configure authentication if required (e.g., SSH key for Git, Username/Password for SVN).
-6.  Click **"Save Repository"**.
+3.  Fill in the repository's details (Name, URL, Local Path, VCS type, etc.). The **Local Path** must be the absolute path to the repository on your computer for real execution to work.
+4.  Click **"Save Repository"**.
 
-### Editing a Repository and Managing Its Tasks
+### Editing a Repository and Managing Its Features
 
 1.  On the desired repository card, click the **pencil icon**.
-2.  The "Edit Repository" view will appear.
-3.  To manage tasks, select a task from the list on the left or click **"New"** to create one.
+2.  The "Edit Repository" view will appear. For Git repositories, this is a multi-tab interface.
 
-#### Creating and Editing a Task
-This is where you can create powerful, custom automation scripts for the specific repository you are editing.
+#### General Settings
+This is the main panel where you configure the name, path, URL, and launch configurations for the repository.
 
+#### Tasks Tab
+This is where you create powerful, custom automation scripts for the specific repository you are editing.
 1. Give your task a descriptive **name** (e.g., "Build & Deploy to Staging").
 2. Click **"Add Step"** to build your workflow. The available steps will depend on whether the repository is Git or SVN.
 3. **Configure each step:**
@@ -65,8 +65,20 @@ This is where you can create powerful, custom automation scripts for the specifi
    -   **SVN Update:** Updates the working copy to the latest revision from the remote.
    -   **Install Dependencies:** Runs `npm install` or `yarn install`.
    -   **Run Custom Command:** Allows you to enter any shell command (e.g., `npm run test` or `msbuild MyProject.dproj`).
+4.  You can also define **task-specific variables** that can be substituted into your commands (e.g., `${VERSION}`).
 5. Continue adding, configuring, and re-ordering steps.
-6. Click **"Save Repository"** on the main view to persist all your changes.
+
+#### History Tab (Git Only)
+Displays a detailed list of the 30 most recent commits, including the author, date, and full commit message.
+
+#### Branches Tab (Git Only)
+Provides a full interface to manage your Git branches. You can:
+- View all local and remote branches.
+- Create a new branch.
+- Delete local or remote branches.
+- Merge another branch into your current one.
+
+After making any changes, click **"Save Repository"** on the main view to persist them.
 
 ## 4. The Resizable Log Panel
 
@@ -80,9 +92,10 @@ When you run a task, a log panel will appear at the bottom of the screen.
 
 Click the **cog icon** in the header to access global settings.
 
--   **Default Package Manager:** Choose between `npm` and `yarn`. The `Install Dependencies` task step will use this selection.
--   **Appearance:** Choose between a `Light` and `Dark` theme for the application. Your preference is saved automatically.
--   **Enable Notifications:** Toggle on/off the toast notifications that appear in the bottom-right corner.
--   **Enable Simulation Mode:** This is a critical safety feature.
-    -   When **enabled (default)**, tasks are only simulated. The log panel will show the commands that *would* run, but no changes will be made to your local files.
-    -   When **disabled**, the application will execute real `git`, `svn`, `npm`, and other shell commands in the specified local repository path. **Disable with caution.**
+-   **Appearance:** Choose between a `Light` and `Dark` theme, and select from multiple icon sets.
+-   **Behavior:**
+    -   **Default Package Manager:** Choose between `npm` and `yarn`. The `Install Dependencies` task step will use this selection.
+    -   **Enable Notifications:** Toggle on/off the toast notifications.
+    -   **Enable Simulation Mode:** This is a critical safety feature.
+        -   When **enabled (default)**, tasks are only simulated. The log panel will show the commands that *would* run, but no changes will be made to your local files.
+        -   When **disabled**, the application will execute real `git`, `svn`, `npm`, and other shell commands. **Disable with caution.**
