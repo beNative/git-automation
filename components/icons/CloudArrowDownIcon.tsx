@@ -15,10 +15,23 @@ const LucideCloudArrowDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props
   </svg>
 );
 
+const TablerCloudArrowDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+        <path d="M12 13v-7" />
+        <path d="M9 10l3 3l3 -3" />
+        <path d="M7 18a4.6 4.4 0 0 1 0 -9a5 4.5 0 0 1 11 2h1a3.5 3.5 0 0 1 0 7h-1" />
+    </svg>
+);
+
+
 export const CloudArrowDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
     if (iconSet === 'lucide') {
         return <LucideCloudArrowDownIcon {...props} />;
+    }
+    if (iconSet === 'tabler') {
+        return <TablerCloudArrowDownIcon {...props} />;
     }
     return <HeroCloudArrowDownIcon {...props} />;
 };

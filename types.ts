@@ -70,7 +70,7 @@ export interface GlobalSettings {
   notifications: boolean;
   simulationMode: boolean;
   theme: 'light' | 'dark';
-  iconSet: 'heroicons' | 'lucide';
+  iconSet: 'heroicons' | 'lucide' | 'tabler';
 }
 
 export enum TaskStepType {

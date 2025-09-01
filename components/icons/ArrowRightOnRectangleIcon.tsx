@@ -15,10 +15,23 @@ const LucideArrowRightOnRectangleIcon: React.FC<React.SVGProps<SVGSVGElement>> =
   </svg>
 );
 
+const TablerArrowRightOnRectangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+        <path d="M6 3v18" />
+        <path d="M18 6l-6 6l6 6" />
+        <path d="M10 3v18" />
+    </svg>
+);
+
+
 export const ArrowRightOnRectangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
     if (iconSet === 'lucide') {
         return <LucideArrowRightOnRectangleIcon {...props} />;
+    }
+    if (iconSet === 'tabler') {
+        return <TablerArrowRightOnRectangleIcon {...props} />;
     }
     return <HeroArrowRightOnRectangleIcon {...props} />;
 };

@@ -15,10 +15,23 @@ const LucideFolderPlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) =>
   </svg>
 );
 
+const TablerFolderPlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+        <path d="M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v3.5" />
+        <path d="M16 19h6" />
+        <path d="M19 16v6" />
+    </svg>
+);
+
+
 export const FolderPlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
     if (iconSet === 'lucide') {
         return <LucideFolderPlusIcon {...props} />;
+    }
+    if (iconSet === 'tabler') {
+        return <TablerFolderPlusIcon {...props} />;
     }
     return <HeroFolderPlusIcon {...props} />;
 };

@@ -14,10 +14,21 @@ const LucideClockIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   </svg>
 );
 
+const TablerClockIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+        <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+        <path d="M12 7v5l3 3" />
+    </svg>
+);
+
 export const ClockIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
     if (iconSet === 'lucide') {
         return <LucideClockIcon {...props} />;
+    }
+    if (iconSet === 'tabler') {
+        return <TablerClockIcon {...props} />;
     }
     return <HeroClockIcon {...props} />;
 };

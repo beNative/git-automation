@@ -37,7 +37,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
     setSettings(prev => ({...prev, theme}));
   };
   
-  const handleIconSetChange = (iconSet: 'heroicons' | 'lucide') => {
+  const handleIconSetChange = (iconSet: 'heroicons' | 'lucide' | 'tabler') => {
     setSettings(prev => ({...prev, iconSet}));
   };
 
@@ -104,7 +104,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Icon Set</label>
-                            <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-xs">
+                            <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-sm">
                                 <button
                                     type="button"
                                     onClick={() => handleIconSetChange('heroicons')}
@@ -118,6 +118,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
                                     className={`${iconSetButtonBase} ${settings.iconSet === 'lucide' ? iconSetButtonActive : iconSetButtonInactive}`}
                                 >
                                     Lucide
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleIconSetChange('tabler')}
+                                    className={`${iconSetButtonBase} ${settings.iconSet === 'tabler' ? iconSetButtonActive : iconSetButtonInactive}`}
+                                >
+                                    Tabler
                                 </button>
                             </div>
                         </div>
