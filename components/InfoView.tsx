@@ -41,7 +41,7 @@ const InfoView: React.FC = () => {
   ), [content]);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full mx-auto animate-fade-in">
+    <div className="w-full mx-auto animate-fade-in">
         <div className="flex border-b border-gray-200 dark:border-gray-700">
             {DOCS.map(doc => (
                 <button
@@ -57,7 +57,7 @@ const InfoView: React.FC = () => {
                 </button>
             ))}
         </div>
-        <div className="p-6 sm:p-8 max-h-[calc(100vh-150px)] overflow-y-auto">
+        <div className="p-6 sm:p-8">
             {isLoading ? (
                 <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading document...</div>
             ) : (

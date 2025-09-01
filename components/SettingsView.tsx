@@ -60,7 +60,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
 
 
   return (
-    <div className="flex h-full bg-white dark:bg-gray-800 rounded-lg shadow-xl animate-fade-in overflow-hidden">
+    <div className="flex h-full animate-fade-in">
       {/* Left Navigation Sidebar */}
       <aside className="w-1/4 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
         <h2 className="px-3 text-lg font-semibold text-gray-900 dark:text-white mb-4">Settings</h2>
