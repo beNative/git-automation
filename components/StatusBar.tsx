@@ -92,10 +92,16 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                     <KeyboardIcon className="h-4 w-4 mr-1.5" />
                     <span>Ctrl+K</span>
                 </div>
-                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                <UpdateStatusIndicator status={updateStatus} />
-                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                <span>v{appVersion}</span>
+
+                {appVersion && (
+                    <>
+                        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+                        <UpdateStatusIndicator status={updateStatus} />
+                        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+                        <span>v{appVersion}</span>
+                    </>
+                )}
+                
                 <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
                 <div className="flex items-center" title="Current Time">
                     <ClockIcon className="h-4 w-4 mr-1.5" />

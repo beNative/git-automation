@@ -92,10 +92,12 @@ const App: React.FC = () => {
 
   // Effect for app version and update status
   useEffect(() => {
-    window.electronAPI.getAppVersion().then(setAppVersion);
-    window.electronAPI.onUpdateStatusChanged((_event, { status }) => {
-      setUpdateStatus(status);
-    });
+    if (window.electronAPI?.getAppVersion) {
+      window.electronAPI.getAppVersion().then(setAppVersion);
+      window.electronAPI.onUpdateStatusChanged((_event, { status }) => {
+        setUpdateStatus(status);
+      });
+    }
   }, []);
   
   // Effect to check local paths
