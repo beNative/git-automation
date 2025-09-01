@@ -14,7 +14,11 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => {
   const navButtonStyle = "p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors";
-  const activeNavButtonStyle = "p-2 rounded-full bg-blue-600 dark:bg-blue-700 text-white";
+  
+  const activeDashboardStyle = "p-2 rounded-full bg-blue-600 dark:bg-blue-700 text-white";
+  const activeSettingsStyle = "p-2 rounded-full bg-gray-600 dark:bg-gray-700 text-white";
+  const activeInfoStyle = "p-2 rounded-full bg-teal-600 dark:bg-teal-700 text-white";
+  
   const disabledNavButtonStyle = "p-2 rounded-full text-gray-400 dark:text-gray-600 cursor-not-allowed";
 
   const isEditing = activeView === 'edit-repository';
@@ -61,7 +65,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
               {...dashboardTooltip}
               onClick={() => handleSetView('dashboard')}
               disabled={isEditing}
-              className={isEditing ? disabledNavButtonStyle : (activeView === 'dashboard' ? activeNavButtonStyle : navButtonStyle)}
+              className={isEditing ? disabledNavButtonStyle : (activeView === 'dashboard' ? activeDashboardStyle : navButtonStyle)}
               aria-label="Dashboard"
             >
               <HomeIcon className="h-6 w-6" />
@@ -71,7 +75,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
               {...settingsTooltip}
               onClick={() => handleSetView('settings')}
               disabled={isEditing}
-              className={isEditing ? disabledNavButtonStyle : (activeView === 'settings' ? activeNavButtonStyle : navButtonStyle)}
+              className={isEditing ? disabledNavButtonStyle : (activeView === 'settings' ? activeSettingsStyle : navButtonStyle)}
               aria-label="Settings"
             >
               <CogIcon className="h-6 w-6" />
@@ -81,7 +85,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
               {...infoTooltip}
               onClick={() => handleSetView('info')}
               disabled={isEditing}
-              className={isEditing ? disabledNavButtonStyle : (activeView === 'info' ? activeNavButtonStyle : navButtonStyle)}
+              className={isEditing ? disabledNavButtonStyle : (activeView === 'info' ? activeInfoStyle : navButtonStyle)}
               aria-label="Information"
             >
               <InformationCircleIcon className="h-6 w-6" />
