@@ -18,6 +18,7 @@ import { SparklesIcon } from '../icons/SparklesIcon';
 import { DocumentTextIcon } from '../icons/DocumentTextIcon';
 import { GitBranchIcon } from '../icons/GitBranchIcon';
 import { useTooltip } from '../../hooks/useTooltip';
+import { DebugWrapper } from '../DebugWrapper';
 
 
 interface RepoEditViewProps {
@@ -660,7 +661,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             );
         case 'history':
             return (
-                <div className="p-4 overflow-y-auto">
+                <div className="flex-1 p-4 overflow-y-auto">
                     {historyLoading ? (<p className="text-center text-gray-500">Loading history...</p>) : commits.length === 0 ? (
                         <p className="text-center text-gray-500">No commits found.</p>
                     ) : (
@@ -696,7 +697,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             );
         case 'branches':
             return (
-                <div className="p-4 space-y-4">
+                <div className="flex-1 p-4 space-y-4 overflow-y-auto">
                      {branchesLoading ? (<p>Loading branches...</p>) : branchInfo && (
                          <>
                             {/* Create Branch */}
@@ -753,7 +754,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
 
   return (
-    <div className="flex flex-col bg-gray-100 dark:bg-gray-900 animate-fade-in h-full">
+    <DebugWrapper name="RepoEditView Root" className="flex flex-col bg-gray-100 dark:bg-gray-900 animate-fade-in h-full">
       <header className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={onCancel} className="flex items-center text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
@@ -769,9 +770,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         </div>
       </header>
       
-      <div className="flex-1 flex overflow-hidden">
+      <DebugWrapper name="RepoEditView Main Content" className="flex-1 flex overflow-hidden">
         {/* Left: General Settings */}
-        <aside className="w-1/3 xl:w-1/4 border-r border-gray-200 dark:border-gray-700 p-4 overflow-y-auto space-y-3 bg-white dark:bg-gray-800">
+        <DebugWrapper name="General Settings Aside" className="w-1/3 xl:w-1/4 border-r border-gray-200 dark:border-gray-700 p-4 overflow-y-auto space-y-3 bg-white dark:bg-gray-800">
             <h2 className="text-lg font-semibold">General Settings</h2>
             
             <div><label htmlFor="vcs" className={formLabelStyle}>Version Control System</label><select name="vcs" id="vcs" value={formData.vcs} onChange={handleVcsChange} className={formInputStyle}><option value="git">Git</option><option value="svn">SVN (Subversion)</option></select></div>
@@ -825,10 +826,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
               </button>
             </div>
             
-        </aside>
+        </DebugWrapper>
 
         {/* Right: Tabbed View */}
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <DebugWrapper name="Tabbed View Main" className="flex-1 flex flex-col overflow-hidden">
              <div className="flex border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                 <button onClick={() => setActiveTab('tasks')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'tasks' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><CubeTransparentIcon className="h-5 w-5"/>Tasks</button>
                 {isGitRepo && (
@@ -839,9 +840,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 )}
             </div>
             {renderTabContent()}
-        </main>
-      </div>
-    </div>
+        </DebugWrapper>
+      </DebugWrapper>
+    </DebugWrapper>
   );
 };
 

@@ -151,6 +151,14 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
                                 <p className="text-gray-500">If enabled, tasks will be simulated and will not affect your local file system. Disable to run real commands.</p>
                             </div>
                         </div>
+
+                        <div className="flex items-start">
+                            <div className="flex items-center h-5"><input id="debugMode" name="debugMode" type="checkbox" checked={settings.debugMode ?? false} onChange={handleChange} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
+                            <div className="ml-3 text-sm">
+                                <label htmlFor="debugMode" className="font-medium text-gray-700 dark:text-gray-300">Enable UI Debug Mode</label>
+                                <p className="text-gray-500">Displays outlines and rendering information on UI components to help diagnose layout issues.</p>
+                            </div>
+                        </div>
                     </div>
                 </section>
             )}
