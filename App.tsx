@@ -281,11 +281,11 @@ const App: React.FC = () => {
     setActiveView('edit-repository');
   };
 
-  const handleCancelEditRepository = () => {
+  const handleCancelEditRepository = useCallback(() => {
     logger.debug('Closing repository edit view');
     setRepoToEditId(null);
     setActiveView('dashboard');
-  };
+  }, [logger]);
   
   const handleSaveRepo = (repo: Repository) => {
     if (repositories.some(r => r.id === repo.id)) {

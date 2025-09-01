@@ -878,14 +878,24 @@ const getLogFilePath = () => {
   return path.join(logDir, `git-automation-dashboard-log-${timestamp}.log`);
 };
 
+// FIX: Correct a race condition where a new log stream could be created before the old one finished closing.
+// This is done by using the callback version of `logStream.end()` to ensure sequential execution.
 ipcMain.on('log-to-file-init', () => {
+    const initNewStream = () => {
+        const logPath = getLogFilePath();
+        logStream = fsSync.createWriteStream(logPath, { flags: 'a' });
+        logStream.write(`--- Log session started at ${new Date().toISOString()} ---\n`);
+        console.log(`Logging to file: ${logPath}`);
+    };
+
     if (logStream) {
-        logStream.end();
+        logStream.end('--- Previous log session ended ---\n', () => {
+            logStream = null;
+            initNewStream();
+        });
+    } else {
+        initNewStream();
     }
-    const logPath = getLogFilePath();
-    logStream = fsSync.createWriteStream(logPath, { flags: 'a' });
-    logStream.write(`--- Log session started at ${new Date().toISOString()} ---\n`);
-    console.log(`Logging to file: ${logPath}`);
 });
 
 ipcMain.on('log-to-file-close', () => {

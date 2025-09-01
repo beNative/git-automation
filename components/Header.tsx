@@ -22,16 +22,6 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
   const disabledNavButtonStyle = "p-2 rounded-full text-gray-400 dark:text-gray-600 cursor-not-allowed";
 
   const isEditing = activeView === 'edit-repository';
-  
-  const handleSetView = (view: AppView) => {
-    if (isEditing) return;
-    onSetView(view);
-  };
-  
-  const handleNewRepo = () => {
-    if (isEditing) return;
-    onNewRepo();
-  }
 
   const dashboardTooltip = useTooltip('Dashboard');
   const settingsTooltip = useTooltip('Settings');
@@ -48,7 +38,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
             {activeView === 'dashboard' && (
               <>
                 <button
-                  onClick={handleNewRepo}
+                  onClick={onNewRepo}
                   disabled={isEditing}
                   className="flex items-center justify-center px-3 py-1.5 sm:px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -63,7 +53,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
             <button
 // @ts-ignore
               {...dashboardTooltip}
-              onClick={() => handleSetView('dashboard')}
+              onClick={() => onSetView('dashboard')}
               disabled={isEditing}
               className={isEditing ? disabledNavButtonStyle : (activeView === 'dashboard' ? activeDashboardStyle : navButtonStyle)}
               aria-label="Dashboard"
@@ -73,7 +63,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
             <button
 // @ts-ignore
               {...settingsTooltip}
-              onClick={() => handleSetView('settings')}
+              onClick={() => onSetView('settings')}
               disabled={isEditing}
               className={isEditing ? disabledNavButtonStyle : (activeView === 'settings' ? activeSettingsStyle : navButtonStyle)}
               aria-label="Settings"
@@ -83,7 +73,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
             <button
 // @ts-ignore
               {...infoTooltip}
-              onClick={() => handleSetView('info')}
+              onClick={() => onSetView('info')}
               disabled={isEditing}
               className={isEditing ? disabledNavButtonStyle : (activeView === 'info' ? activeInfoStyle : navButtonStyle)}
               aria-label="Information"
