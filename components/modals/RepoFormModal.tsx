@@ -64,10 +64,9 @@ const TaskStepItem: React.FC<{
 }> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, suggestions }) => {
   const logger = useLogger();
   
-  // *** BUG FIX ***: Add a guard clause to prevent crashing on an invalid step type.
   const stepDef = STEP_DEFINITIONS[step.type];
 
-  // *** BUG FIX ***: Log invalid steps inside a useEffect to prevent render loops.
+  // Log invalid steps inside a useEffect to prevent render loops.
   useEffect(() => {
     if (!stepDef) {
         logger.error('Invalid step type encountered in TaskStepItem. This may be due to malformed data.', { step });
@@ -471,7 +470,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, [repository, isGitRepo, setToast]);
   
   useEffect(() => {
-    // *** BUG FIX ***: Logging moved from render body to useEffect.
     logger.debug('RepoEditView props updated. Syncing internal form state.', { hasRepo: !!repository, repoName: repository?.name });
     if (repository) {
       setFormData(repository);
@@ -656,10 +654,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   useEffect(() => {
     if (selectedTaskId) {
         const task = formData.tasks?.find(t => t.id === selectedTaskId);
-        // *** BUG FIX ***: Logging moved from render body to useEffect.
         logger.debug("Selected task changed", { selectedTaskId, taskName: task?.name });
     }
-  }, [selectedTaskId, formData.tasks]);
+  }, [selectedTaskId, JSON.stringify(formData.tasks), logger]);
   
 
   const renderTabContent = () => {
