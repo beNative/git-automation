@@ -19,7 +19,6 @@ import ExecutableSelectionModal from './components/modals/ExecutableSelectionMod
 import { VcsType } from './types';
 import { TooltipProvider } from './contexts/TooltipContext';
 import Tooltip from './components/Tooltip';
-import { DebugContext } from './contexts/DebugContext';
 
 const App: React.FC = () => {
   const {
@@ -96,7 +95,6 @@ const App: React.FC = () => {
         simulationMode: true,
         theme: 'dark' as 'light' | 'dark',
         iconSet: 'heroicons' as 'heroicons' | 'lucide' | 'tabler',
-        debugMode: false,
       };
       return savedSettings ? { ...defaults, ...JSON.parse(savedSettings) } : defaults;
     } catch {
@@ -107,7 +105,6 @@ const App: React.FC = () => {
         simulationMode: true,
         theme: 'dark',
         iconSet: 'heroicons',
-        debugMode: false,
       };
     }
   });
@@ -536,109 +533,107 @@ const App: React.FC = () => {
   return (
     <IconContext.Provider value={settings.iconSet}>
       <TooltipProvider>
-        <DebugContext.Provider value={{ debugMode: !!settings.debugMode }}>
-          <div className="flex flex-col h-screen">
-            <Header onNewRepo={() => handleEditRepository('new')} activeView={activeView} onSetView={setActiveView} />
-            <main className={`flex-1 ${activeView !== 'edit-repository' ? 'overflow-y-auto' : 'overflow-hidden'} ${activeView === 'dashboard' ? 'p-3 sm:p-4 lg:p-6' : ''}`}>
-              <CurrentView />
-            </main>
-            
-            <StatusBar 
-              repoCount={repositories.length} 
-              processingCount={isProcessing.size} 
-              isSimulationMode={settings.simulationMode}
-              latestLog={latestLog}
-              appVersion={appVersion}
-              updateStatus={updateStatus}
+        <div className="flex flex-col h-screen">
+          <Header onNewRepo={() => handleEditRepository('new')} activeView={activeView} onSetView={setActiveView} />
+          <main className={`flex-1 ${activeView !== 'edit-repository' ? 'overflow-y-auto' : 'overflow-hidden'} ${activeView === 'dashboard' ? 'p-3 sm:p-4 lg:p-6' : ''}`}>
+            <CurrentView />
+          </main>
+          
+          <StatusBar 
+            repoCount={repositories.length} 
+            processingCount={isProcessing.size} 
+            isSimulationMode={settings.simulationMode}
+            latestLog={latestLog}
+            appVersion={appVersion}
+            updateStatus={updateStatus}
+          />
+          
+          {logPanel.isOpen && (
+            <LogPanel 
+              isOpen={logPanel.isOpen} 
+              onClose={() => setLogPanel(prev => ({ ...prev, isOpen: false }))}
+              logs={logs[logPanel.repoId || ''] || []}
+              repository={repositories.find(r => r.id === logPanel.repoId)}
+              height={logPanel.height}
+              setHeight={(h) => setLogPanel(p => ({...p, height: h}))}
             />
-            
-            {logPanel.isOpen && (
-              <LogPanel 
-                isOpen={logPanel.isOpen} 
-                onClose={() => setLogPanel(prev => ({ ...prev, isOpen: false }))}
-                logs={logs[logPanel.repoId || ''] || []}
-                repository={repositories.find(r => r.id === logPanel.repoId)}
-                height={logPanel.height}
-                setHeight={(h) => setLogPanel(p => ({...p, height: h}))}
-              />
-            )}
-            
-            {toast && (
-              <Toast
-                message={toast.message}
-                type={toast.type}
-                onClose={() => setToast(null)}
-              />
-            )}
-
-            <DirtyRepoModal
-              isOpen={dirtyRepoModal.isOpen}
-              statusOutput={dirtyRepoModal.statusOutput}
-              onChoose={handleDirtyRepoChoice}
+          )}
+          
+          {toast && (
+            <Toast
+              message={toast.message}
+              type={toast.type}
+              onClose={() => setToast(null)}
             />
+          )}
 
-            <TaskSelectionModal
-              isOpen={taskSelectionModal.isOpen}
-              repository={taskSelectionModal.repo}
-              onClose={() => setTaskSelectionModal({ isOpen: false, repo: null })}
-              onSelect={(taskId) => {
-                if (taskSelectionModal.repo) {
-                  handleRunTask(taskSelectionModal.repo.id, taskId);
-                }
-                setTaskSelectionModal({ isOpen: false, repo: null });
+          <DirtyRepoModal
+            isOpen={dirtyRepoModal.isOpen}
+            statusOutput={dirtyRepoModal.statusOutput}
+            onChoose={handleDirtyRepoChoice}
+          />
+
+          <TaskSelectionModal
+            isOpen={taskSelectionModal.isOpen}
+            repository={taskSelectionModal.repo}
+            onClose={() => setTaskSelectionModal({ isOpen: false, repo: null })}
+            onSelect={(taskId) => {
+              if (taskSelectionModal.repo) {
+                handleRunTask(taskSelectionModal.repo.id, taskId);
+              }
+              setTaskSelectionModal({ isOpen: false, repo: null });
+            }}
+          />
+
+          <LaunchSelectionModal
+            isOpen={launchSelectionModal.isOpen}
+            repository={launchSelectionModal.repo}
+            launchables={launchSelectionModal.launchables}
+            onClose={() => setLaunchSelectionModal({ isOpen: false, repo: null, launchables: [] })}
+            onSelect={(launchable) => {
+              if (launchSelectionModal.repo) {
+                handleRunLaunchable(launchSelectionModal.repo, launchable);
+              }
+              setLaunchSelectionModal({ isOpen: false, repo: null, launchables: [] });
+            }}
+          />
+
+          <ExecutableSelectionModal
+            isOpen={executableSelectionModal.isOpen}
+            repository={executableSelectionModal.repo}
+            launchConfig={executableSelectionModal.launchConfig}
+            executables={executableSelectionModal.executables}
+            onClose={() => setExecutableSelectionModal({ isOpen: false, repo: null, launchConfig: null, executables: [] })}
+            onSelect={(executablePath) => {
+              const { repo } = executableSelectionModal;
+              if (repo) {
+                  clearLogs(repo.id);
+                  setLogPanel({ isOpen: true, repoId: repo.id, height: logPanel.height });
+                  launchExecutable(repo, executablePath);
+              }
+              setExecutableSelectionModal({ isOpen: false, repo: null, launchConfig: null, executables: [] });
+            }}
+          />
+
+          <CommitHistoryModal
+              isOpen={historyModal.isOpen}
+              repository={historyModal.repo}
+              onClose={() => setHistoryModal({ isOpen: false, repo: null })}
+          />
+
+          <CommandPalette 
+              isOpen={isCommandPaletteOpen}
+              onClose={() => setCommandPaletteOpen(false)}
+              repositories={repositories}
+              onSetView={setActiveView}
+              onNewRepo={() => handleEditRepository('new')}
+              onRunTask={(repoId, taskId) => {
+                  handleRunTask(repoId, taskId);
+                  setCommandPaletteOpen(false);
               }}
-            />
-
-            <LaunchSelectionModal
-              isOpen={launchSelectionModal.isOpen}
-              repository={launchSelectionModal.repo}
-              launchables={launchSelectionModal.launchables}
-              onClose={() => setLaunchSelectionModal({ isOpen: false, repo: null, launchables: [] })}
-              onSelect={(launchable) => {
-                if (launchSelectionModal.repo) {
-                  handleRunLaunchable(launchSelectionModal.repo, launchable);
-                }
-                setLaunchSelectionModal({ isOpen: false, repo: null, launchables: [] });
-              }}
-            />
-
-            <ExecutableSelectionModal
-              isOpen={executableSelectionModal.isOpen}
-              repository={executableSelectionModal.repo}
-              launchConfig={executableSelectionModal.launchConfig}
-              executables={executableSelectionModal.executables}
-              onClose={() => setExecutableSelectionModal({ isOpen: false, repo: null, launchConfig: null, executables: [] })}
-              onSelect={(executablePath) => {
-                const { repo } = executableSelectionModal;
-                if (repo) {
-                    clearLogs(repo.id);
-                    setLogPanel({ isOpen: true, repoId: repo.id, height: logPanel.height });
-                    launchExecutable(repo, executablePath);
-                }
-                setExecutableSelectionModal({ isOpen: false, repo: null, launchConfig: null, executables: [] });
-              }}
-            />
-
-            <CommitHistoryModal
-                isOpen={historyModal.isOpen}
-                repository={historyModal.repo}
-                onClose={() => setHistoryModal({ isOpen: false, repo: null })}
-            />
-
-            <CommandPalette 
-                isOpen={isCommandPaletteOpen}
-                onClose={() => setCommandPaletteOpen(false)}
-                repositories={repositories}
-                onSetView={setActiveView}
-                onNewRepo={() => handleEditRepository('new')}
-                onRunTask={(repoId, taskId) => {
-                    handleRunTask(repoId, taskId);
-                    setCommandPaletteOpen(false);
-                }}
-            />
-          </div>
-          <Tooltip />
-        </DebugContext.Provider>
+          />
+        </div>
+        <Tooltip />
       </TooltipProvider>
     </IconContext.Provider>
   );

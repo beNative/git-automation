@@ -1,4 +1,4 @@
-import React, { createContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useState, useCallback, ReactNode, useMemo } from 'react';
 
 interface TooltipPosition {
   x: number;
@@ -9,7 +9,6 @@ interface TooltipState {
   content: ReactNode | null;
   position: TooltipPosition;
   visible: boolean;
-// FIX: The second parameter should be TooltipPosition to match the implementation.
   showTooltip: (content: ReactNode, position: TooltipPosition) => void;
   hideTooltip: () => void;
 }
@@ -39,8 +38,14 @@ export const TooltipProvider: React.FC<{ children: ReactNode }> = ({ children })
     setVisible(false);
   }, []);
 
-// FIX: Removed `as any` as the types for `showTooltip` now match correctly.
-  const value = { content, position, visible, showTooltip, hideTooltip };
+  // Memoize the context value to prevent unnecessary re-renders of consumers
+  const value = useMemo(() => ({ 
+    content, 
+    position, 
+    visible, 
+    showTooltip, 
+    hideTooltip 
+  }), [content, position, visible, showTooltip, hideTooltip]);
 
   return (
     <TooltipContext.Provider value={value}>
