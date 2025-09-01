@@ -824,7 +824,17 @@ const simpleGitCommand = async (repoPath: string, command: string): Promise<{ su
     }
 };
 
-ipcMain.handle('checkout-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `git checkout ${branch}`));
+ipcMain.handle('checkout-branch', (e, repoPath: string, branch: string) => {
+    // If branch contains '/', it's from the remote list e.g. 'origin/main'
+    // If it doesn't, it's from the local list e.g. 'main'
+    if (branch.includes('/')) {
+        // This is for checking out a new local branch tracking a remote one.
+        // `git checkout --track origin/main` creates a local branch 'main' and checks it out.
+        return simpleGitCommand(repoPath, `git checkout --track ${branch}`);
+    }
+    // This is for switching to an existing local branch
+    return simpleGitCommand(repoPath, `git checkout ${branch}`);
+});
 ipcMain.handle('create-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `git checkout -b ${branch}`));
 ipcMain.handle('delete-branch', (e, repoPath: string, branch: string, isRemote: boolean) => {
     if (isRemote) {

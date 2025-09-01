@@ -61,7 +61,13 @@ const BranchSwitcher: React.FC<{
     if (!branchInfo) return null;
 
     const { local, remote, current } = branchInfo;
-    const allBranches = [...new Set([...local, ...remote])];
+    
+    // Don't offer to check out remote branches if a local branch of the same name already exists.
+    const remoteBranchesToOffer = remote.filter(rBranch => {
+        const localEquivalent = rBranch.split('/').slice(1).join('/');
+        return !local.includes(localEquivalent);
+    });
+
 
     return (
         <div className="relative inline-block text-left" ref={wrapperRef}>
@@ -89,18 +95,16 @@ const BranchSwitcher: React.FC<{
                                 {branch}
                             </button>
                         ))}
-                        {remote.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase border-t border-gray-200 dark:border-gray-700">Remote</div>}
-                        {remote.map(branch => {
-                            const localBranchName = branch.split('/').slice(1).join('/');
+                        {remoteBranchesToOffer.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase border-t border-gray-200 dark:border-gray-700">Remote</div>}
+                        {remoteBranchesToOffer.map(branch => {
                              return (
                                 <button
                                     key={`remote-${branch}`}
-                                    onClick={() => { onSwitchBranch(repoId, localBranchName); setIsOpen(false); }}
-                                    disabled={localBranchName === current}
-                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                                    onClick={() => { onSwitchBranch(repoId, branch); setIsOpen(false); }}
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                                     role="menuitem"
                                 >
-                                    {localBranchName}
+                                    {branch}
                                 </button>
                             )
                         })}
