@@ -3,7 +3,7 @@ import type { LogEntry, Repository } from '../types';
 import { LogLevel } from '../types';
 import { XIcon } from './icons/XIcon';
 
-interface LogPanelProps {
+interface TaskLogPanelProps {
   isOpen: boolean;
   onClose: () => void;
   logs: LogEntry[];
@@ -22,7 +22,7 @@ const LOG_LEVEL_STYLES: Record<LogLevel, string> = {
 
 const MIN_HEIGHT = 100; // Minimum pixel height for the panel
 
-const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, height, setHeight }) => {
+const TaskLogPanel: React.FC<TaskLogPanelProps> = ({ isOpen, onClose, logs, repository, height, setHeight }) => {
   const logContainerRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
 
@@ -85,7 +85,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
       <div className="h-full flex flex-col pt-1">
         <header className="flex items-center justify-between px-4 py-1 flex-shrink-0">
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            Logs: <span className="text-blue-600 dark:text-blue-400">{repository?.name || '...'}</span>
+            Task Logs: <span className="text-blue-600 dark:text-blue-400">{repository?.name || '...'}</span>
           </h2>
           <button
             onClick={onClose}
@@ -116,4 +116,4 @@ const LogPanel: React.FC<LogPanelProps> = ({ isOpen, onClose, logs, repository, 
   );
 };
 
-export default LogPanel;
+export default TaskLogPanel;

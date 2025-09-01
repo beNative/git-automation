@@ -7,7 +7,8 @@ import RepoEditView from './components/modals/RepoFormModal'; // Repurposed for 
 import Toast from './components/Toast';
 import InfoView from './components/InfoView';
 import SettingsView from './components/SettingsView';
-import LogPanel from './components/LogPanel';
+import TaskLogPanel from './components/TaskLogPanel';
+import DebugPanel from './components/DebugPanel';
 import { IconContext } from './contexts/IconContext';
 import CommandPalette from './components/CommandPalette';
 import StatusBar from './components/StatusBar';
@@ -19,8 +20,10 @@ import ExecutableSelectionModal from './components/modals/ExecutableSelectionMod
 import { VcsType } from './types';
 import { TooltipProvider } from './contexts/TooltipContext';
 import Tooltip from './components/Tooltip';
+import { useLogger } from './hooks/useLogger';
 
 const App: React.FC = () => {
+  const logger = useLogger();
   const {
     repositories,
     addRepository,
@@ -39,6 +42,7 @@ const App: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [activeView, setActiveView] = useState<AppView>('dashboard');
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [isDebugPanelOpen, setIsDebugPanelOpen] = useState(false);
   const [localPathStates, setLocalPathStates] = useState<Record<string, LocalPathState>>({});
   const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
   const [appVersion, setAppVersion] = useState<string>('');
@@ -48,7 +52,7 @@ const App: React.FC = () => {
   const [detailedStatuses, setDetailedStatuses] = useState<Record<string, DetailedStatus | null>>({});
   const [branchLists, setBranchLists] = useState<Record<string, BranchInfo | null>>({});
   
-  const [logPanel, setLogPanel] = useState({
+  const [taskLogPanel, setTaskLogPanel] = useState({
     isOpen: false,
     repoId: null as string | null,
     height: 300,
@@ -96,9 +100,11 @@ const App: React.FC = () => {
         theme: 'dark' as 'light' | 'dark',
         iconSet: 'heroicons' as 'heroicons' | 'lucide' | 'tabler',
       };
-      return savedSettings ? { ...defaults, ...JSON.parse(savedSettings) } : defaults;
-    } catch {
-      // Fallback to defaults if settings are corrupt
+      const loaded = savedSettings ? { ...defaults, ...JSON.parse(savedSettings) } : defaults;
+      logger.info('Global settings loaded.', loaded);
+      return loaded;
+    } catch (e: any) {
+      logger.error('Failed to load settings from localStorage, falling back to defaults.', { error: e.message });
       return {
         defaultBuildCommand: 'npm run build',
         notifications: true,
@@ -111,9 +117,11 @@ const App: React.FC = () => {
 
   // Effect for app version and update status
   useEffect(() => {
+    logger.debug('App component mounted. Initializing API listeners.');
     if (window.electronAPI?.getAppVersion) {
       window.electronAPI.getAppVersion().then(setAppVersion);
       window.electronAPI.onUpdateStatusChanged((_event, { status }) => {
+        logger.info('Update status changed', { status });
         setUpdateStatus(status);
       });
     }
@@ -126,6 +134,7 @@ const App: React.FC = () => {
             setLocalPathStates({});
             return;
         }
+        logger.debug('Checking local paths for repositories.', { count: repositories.length });
         
         const checkingStates: Record<string, LocalPathState> = {};
         for (const repo of repositories) {
@@ -138,6 +147,7 @@ const App: React.FC = () => {
             finalStates[repo.id] = await window.electronAPI.checkLocalPath(repo.localPath);
         }
         setLocalPathStates(finalStates);
+        logger.info('Local path check complete.', finalStates);
     };
     checkPaths();
   }, [repositories]);
@@ -145,6 +155,7 @@ const App: React.FC = () => {
   // New effect to fetch detailed VCS statuses and branch lists
   useEffect(() => {
     const fetchStatuses = async () => {
+      logger.debug('Fetching detailed VCS statuses and branch lists.');
       const statusPromises = repositories.map(async (repo) => {
         if (localPathStates[repo.id] === 'valid') {
           const status = await window.electronAPI.getDetailedVcsStatus(repo);
@@ -164,6 +175,7 @@ const App: React.FC = () => {
       });
       const branches = await Promise.all(branchPromises);
       setBranchLists(branches.reduce((acc, b) => ({ ...acc, [b.repoId]: b.branches }), {}));
+      logger.info('VCS status and branch fetch complete.');
     };
 
     fetchStatuses();
@@ -173,24 +185,27 @@ const App: React.FC = () => {
   // Effect to detect executables when paths are validated
   useEffect(() => {
     const detectAll = async () => {
+      logger.debug('Detecting executables for valid repositories.');
       const executablesByRepo: Record<string, string[]> = {};
       for (const repo of repositories) {
         if (localPathStates[repo.id] === 'valid' && repo.localPath) {
           try {
             executablesByRepo[repo.id] = await window.electronAPI.detectExecutables(repo.localPath);
-          } catch (error) {
-            console.error(`Failed to detect executables for ${repo.name}:`, error);
+          } catch (error: any) {
+            logger.error(`Failed to detect executables for ${repo.name}:`, { error: error.message });
             executablesByRepo[repo.id] = [];
           }
         }
       }
       setDetectedExecutables(executablesByRepo);
+      logger.info('Executable detection complete.', executablesByRepo);
     };
     detectAll();
   }, [repositories, localPathStates]);
 
   // Effect to apply theme
   useEffect(() => {
+    logger.debug('Applying theme setting.', { theme: settings.theme });
     if (settings.theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -198,12 +213,16 @@ const App: React.FC = () => {
     }
   }, [settings.theme]);
   
-  // Effect for Command Palette
+  // Effect for Command Palette & Debug Panel
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
             e.preventDefault();
             setCommandPaletteOpen(prev => !prev);
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+            e.preventDefault();
+            setIsDebugPanelOpen(prev => !prev);
         }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -213,6 +232,7 @@ const App: React.FC = () => {
   const refreshRepoState = useCallback(async (repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
     if (!repo || localPathStates[repo.id] !== 'valid') return;
+    logger.info('Refreshing repository state', { repoId, name: repo.name });
 
     const status = await window.electronAPI.getDetailedVcsStatus(repo);
     setDetailedStatuses(prev => ({ ...prev, [repoId]: status }));
@@ -222,14 +242,16 @@ const App: React.FC = () => {
         setBranchLists(prev => ({ ...prev, [repoId]: branches }));
         // If the current branch in the state is different from the one on disk, update it
         if (branches.current && repo.branch !== branches.current) {
+            logger.info('Branch changed on disk, updating repository state.', { repoId, old: repo.branch, new: branches.current });
             updateRepository({ ...repo, branch: branches.current });
         }
     }
-  }, [repositories, localPathStates, updateRepository]);
+  }, [repositories, localPathStates, updateRepository, logger]);
 
   const handleSwitchBranch = useCallback(async (repoId: string, branch: string) => {
     const repo = repositories.find(r => r.id === repoId);
     if (!repo || repo.vcs !== VcsType.Git) return;
+    logger.info('Attempting to switch branch', { repoId, branch });
 
     try {
         const result = await window.electronAPI.checkoutBranch(repo.localPath, branch);
@@ -237,34 +259,41 @@ const App: React.FC = () => {
             setToast({ message: `Switched to branch '${branch}'`, type: 'success' });
             await refreshRepoState(repoId);
         } else {
+            logger.error('Failed to switch branch', { repoId, branch, error: result.error });
             setToast({ message: `Failed to switch branch: ${result.error}`, type: 'error' });
         }
     } catch (e: any) {
+        logger.error('An exception occurred while switching branch', { repoId, branch, error: e.message });
         setToast({ message: e.message || 'An error occurred.', type: 'error' });
     }
-  }, [repositories, refreshRepoState]);
+  }, [repositories, refreshRepoState, logger]);
 
   const handleSaveSettings = (newSettings: GlobalSettings) => {
+    logger.info('Saving new global settings.', { newSettings });
     setSettings(newSettings);
     localStorage.setItem('globalSettings', JSON.stringify(newSettings));
     setToast({ message: 'Settings saved successfully!', type: 'success' });
   };
 
   const handleEditRepository = (repoId: string | 'new') => {
+    logger.debug('Opening repository edit view', { repoId });
     setRepoToEditId(repoId);
     setActiveView('edit-repository');
   };
 
   const handleCancelEditRepository = () => {
+    logger.debug('Closing repository edit view');
     setRepoToEditId(null);
     setActiveView('dashboard');
   };
   
   const handleSaveRepo = (repo: Repository) => {
     if (repositories.some(r => r.id === repo.id)) {
+      logger.info('Updating repository', { repoId: repo.id, name: repo.name });
       updateRepository(repo);
       setToast({ message: 'Repository updated!', type: 'success' });
     } else {
+      logger.info('Adding new repository', { name: repo.name });
       addRepository(repo);
       setToast({ message: 'Repository added!', type: 'success' });
     }
@@ -273,6 +302,7 @@ const App: React.FC = () => {
 
   const handleDeleteRepo = (repoId: string) => {
     if (window.confirm('Are you sure you want to delete this repository?')) {
+      logger.warn('Deleting repository', { repoId });
       deleteRepository(repoId);
       setToast({ message: 'Repository deleted.', type: 'error' });
     }
@@ -282,12 +312,14 @@ const App: React.FC = () => {
     const repo = repositories.find(r => r.id === repoId);
     const task = repo?.tasks.find(t => t.id === taskId);
     if (!repo || !task) {
+      logger.error('Could not run task: repository or task not found', { repoId, taskId });
       setToast({ message: 'Repository or task not found.', type: 'error' });
       return;
     }
 
+    logger.info(`Running task '${task.name}' on '${repo.name}'`, { repoId, taskId });
     clearLogs(repoId);
-    setLogPanel({ isOpen: true, repoId, height: logPanel.height });
+    setTaskLogPanel({ isOpen: true, repoId, height: taskLogPanel.height });
     
     const onDirty = (statusOutput: string) => {
       return new Promise<'stash' | 'force' | 'cancel'>((resolve) => {
@@ -299,16 +331,19 @@ const App: React.FC = () => {
       await runTask(repo, task, settings, onDirty);
     } catch (e: any) {
       if (e.message !== 'cancelled') { // Don't show toast for user cancellation
+        logger.error(`Task '${task.name}' failed on '${repo.name}'`, { repoId, taskId, error: e.message });
         setToast({ message: e.message || 'Task failed!', type: 'error' });
       } else {
+        logger.warn(`Task '${task.name}' was cancelled by user.`, { repoId, taskId });
         setToast({ message: 'Task was cancelled.', type: 'info' });
       }
     } finally {
         refreshRepoState(repoId); // Refresh status after task run
     }
-  }, [repositories, settings, runTask, clearLogs, logPanel.height, refreshRepoState]);
+  }, [repositories, settings, runTask, clearLogs, taskLogPanel.height, refreshRepoState, logger]);
 
   const handleDirtyRepoChoice = (choice: 'stash' | 'force' | 'cancel') => {
+    logger.debug('User made a choice on dirty repository modal.', { choice });
     if (dirtyRepoModal.resolve) {
       dirtyRepoModal.resolve(choice);
     }
@@ -323,7 +358,7 @@ const App: React.FC = () => {
   };
 
   const handleViewLogs = (repoId: string) => {
-    setLogPanel({ isOpen: true, repoId, height: logPanel.height });
+    setTaskLogPanel({ isOpen: true, repoId, height: taskLogPanel.height });
   };
   
   const handleViewHistory = useCallback((repoId: string) => {
@@ -334,8 +369,9 @@ const App: React.FC = () => {
   }, [repositories]);
 
   const handleRunLaunchable = useCallback(async (repo: Repository, launchable: Launchable) => {
+      logger.info('Running launchable', { repoId: repo.id, launchable });
       clearLogs(repo.id);
-      setLogPanel({ isOpen: true, repoId: repo.id, height: logPanel.height });
+      setTaskLogPanel({ isOpen: true, repoId: repo.id, height: taskLogPanel.height });
       if (launchable.type === 'manual') {
         if(launchable.config.type === 'command' && launchable.config.command) {
             await launchApplication(repo, launchable.config.command);
@@ -345,24 +381,27 @@ const App: React.FC = () => {
       } else {
         await launchExecutable(repo, launchable.path);
       }
-    }, [launchApplication, launchExecutable, clearLogs, logPanel.height, repositories, detectedExecutables]);
+    }, [launchApplication, launchExecutable, clearLogs, taskLogPanel.height, repositories, detectedExecutables, logger]);
 
   const handleRunLaunchConfig = useCallback(async (repoId: string, configId: string) => {
     const repo = repositories.find(r => r.id === repoId);
     const config = repo?.launchConfigs?.find(lc => lc.id === configId);
     if (!repo || !config) {
+        logger.error('Could not run launch config: not found', { repoId, configId });
         setToast({ message: 'Repository or launch config not found.', type: 'error' });
         return;
     }
 
     if (config.type === 'command' && config.command) {
+        logger.info('Running launch config (command)', { repoId, config });
         clearLogs(repoId);
-        setLogPanel({ isOpen: true, repoId, height: logPanel.height });
+        setTaskLogPanel({ isOpen: true, repoId, height: taskLogPanel.height });
         await launchApplication(repo, config.command);
     } else if (config.type === 'select-executable') {
+        logger.info('Opening executable selection for launch config', { repoId, config });
         handleOpenExecutableSelection(repoId, configId);
     }
-  }, [repositories, launchApplication, clearLogs, logPanel.height, detectedExecutables]);
+  }, [repositories, launchApplication, clearLogs, taskLogPanel.height, detectedExecutables, logger]);
 
   const handleOpenLaunchSelection = useCallback((repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -402,8 +441,9 @@ const App: React.FC = () => {
 
 
   const handleCloneRepo = useCallback(async (repo: Repository) => {
+    logger.info('Cloning repository', { repoId: repo.id, url: repo.remoteUrl });
     clearLogs(repo.id);
-    setLogPanel({ isOpen: true, repoId: repo.id, height: logPanel.height });
+    setTaskLogPanel({ isOpen: true, repoId: repo.id, height: taskLogPanel.height });
     
     try {
         await cloneRepository(repo);
@@ -411,9 +451,10 @@ const App: React.FC = () => {
         const newState = await window.electronAPI.checkLocalPath(repo.localPath);
         setLocalPathStates(prev => ({...prev, [repo.id]: newState}));
     } catch (e: any) {
+        logger.error('Clone failed', { repoId: repo.id, error: e.message });
         setToast({ message: e.message || 'Clone failed!', type: 'error' });
     }
-  }, [cloneRepository, clearLogs, logPanel.height]);
+  }, [cloneRepository, clearLogs, taskLogPanel.height, logger]);
 
   const handleChooseLocationAndClone = useCallback(async (repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -441,9 +482,10 @@ const App: React.FC = () => {
       await handleCloneRepo(updatedRepo);
 
     } catch (e: any) {
+      logger.error('Failed to set up path for cloning', { repoId, error: e.message });
       setToast({ message: e.message || 'Failed to set up repository path.', type: 'error' });
     }
-  }, [repositories, updateRepository, handleCloneRepo]);
+  }, [repositories, updateRepository, handleCloneRepo, logger]);
 
   const handleOpenLocalPath = useCallback(async (path: string) => {
     if (!path) {
@@ -485,6 +527,7 @@ const App: React.FC = () => {
   }, [logs]);
 
   const CurrentView = () => {
+    logger.debug('Rendering current view', { activeView });
     switch (activeView) {
       case 'settings':
         return <SettingsView currentSettings={settings} onSave={handleSaveSettings} />;
@@ -492,6 +535,7 @@ const App: React.FC = () => {
         return <InfoView />;
       case 'edit-repository':
         const repo = repoToEditId === 'new' ? null : repositories.find(r => r.id === repoToEditId) || null;
+        logger.debug('Rendering RepoEditView', { repoToEditId, repoFound: !!repo });
         // The key ensures the component re-mounts when switching between editing different repos
         return <RepoEditView 
           key={repoToEditId} 
@@ -546,18 +590,24 @@ const App: React.FC = () => {
             latestLog={latestLog}
             appVersion={appVersion}
             updateStatus={updateStatus}
+            onToggleDebugPanel={() => setIsDebugPanelOpen(p => !p)}
           />
           
-          {logPanel.isOpen && (
-            <LogPanel 
-              isOpen={logPanel.isOpen} 
-              onClose={() => setLogPanel(prev => ({ ...prev, isOpen: false }))}
-              logs={logs[logPanel.repoId || ''] || []}
-              repository={repositories.find(r => r.id === logPanel.repoId)}
-              height={logPanel.height}
-              setHeight={(h) => setLogPanel(p => ({...p, height: h}))}
+          {taskLogPanel.isOpen && (
+            <TaskLogPanel 
+              isOpen={taskLogPanel.isOpen} 
+              onClose={() => setTaskLogPanel(prev => ({ ...prev, isOpen: false }))}
+              logs={logs[taskLogPanel.repoId || ''] || []}
+              repository={repositories.find(r => r.id === taskLogPanel.repoId)}
+              height={taskLogPanel.height}
+              setHeight={(h) => setTaskLogPanel(p => ({...p, height: h}))}
             />
           )}
+
+          <DebugPanel 
+            isOpen={isDebugPanelOpen}
+            onClose={() => setIsDebugPanelOpen(false)}
+          />
           
           {toast && (
             <Toast
@@ -608,7 +658,7 @@ const App: React.FC = () => {
               const { repo } = executableSelectionModal;
               if (repo) {
                   clearLogs(repo.id);
-                  setLogPanel({ isOpen: true, repoId: repo.id, height: logPanel.height });
+                  setTaskLogPanel({ isOpen: true, repoId: repo.id, height: taskLogPanel.height });
                   launchExecutable(repo, executablePath);
               }
               setExecutableSelectionModal({ isOpen: false, repo: null, launchConfig: null, executables: [] });

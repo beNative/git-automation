@@ -8,6 +8,7 @@ import { ClockIcon } from './icons/ClockIcon';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { CloudArrowDownIcon } from './icons/CloudArrowDownIcon';
 import { ExclamationCircleIcon } from './icons/ExclamationCircleIcon';
+import { BugAntIcon } from './icons/BugAntIcon';
 import { useTooltip } from '../hooks/useTooltip';
 
 interface StatusBarProps {
@@ -17,6 +18,7 @@ interface StatusBarProps {
     latestLog: LogEntry | null;
     appVersion: string;
     updateStatus: UpdateStatus;
+    onToggleDebugPanel: () => void;
 }
 
 const Clock: React.FC = () => {
@@ -56,7 +58,7 @@ const UpdateStatusIndicator: React.FC<{ status: UpdateStatus }> = ({ status }) =
     }
 };
 
-const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog, appVersion, updateStatus }) => {
+const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog, appVersion, updateStatus, onToggleDebugPanel }) => {
     const LOG_LEVEL_COLOR_CLASSES: Record<string, string> = {
         info: 'text-gray-500 dark:text-gray-400',
         command: 'text-blue-500 dark:text-blue-400',
@@ -69,6 +71,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
     const processingTooltip = useTooltip(`${processingCount} tasks running`);
     const simModeTooltip = useTooltip('Simulation mode is active. No real commands will be run.');
     const commandPaletteTooltip = useTooltip('Command Palette (Ctrl+K)');
+    const debugPanelTooltip = useTooltip('Toggle Debug Panel (Ctrl+D)');
     const timeTooltip = useTooltip('Current Time');
     const latestLogTooltip = useTooltip(latestLog?.message || '');
 
@@ -116,6 +119,16 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                         <span>Sim Mode</span>
                     </div>
                 )}
+                 <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+                 <button
+// @ts-ignore
+                    {...debugPanelTooltip}
+                    onClick={onToggleDebugPanel}
+                    className="flex items-center"
+                 >
+                    <BugAntIcon className="h-4 w-4 mr-1.5" />
+                    <span>Debug</span>
+                 </button>
                  <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
                  <div
 // @ts-ignore

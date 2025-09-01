@@ -4,8 +4,10 @@ import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { autoUpdater } from 'electron-updater';
 import { spawn, exec, execFile } from 'child_process';
-import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, UpdateStatus, DetailedStatus, VcsFileStatus, Commit, BranchInfo } from '../types';
+import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, UpdateStatus, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry } from '../types';
 import { TaskStepType, LogLevel, VcsType } from '../types';
+import fsSync from 'fs';
+
 
 // Fix: Manually declare Node.js globals to resolve type errors when @types/node is not available.
 declare const require: (id: string) => any;
@@ -17,6 +19,8 @@ if (require('electron-squirrel-startup')) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let logStream: fsSync.WriteStream | null = null;
+
 
 const createWindow = () => {
   // Create the browser window.
@@ -859,3 +863,38 @@ ipcMain.handle('delete-branch', (e, repoPath: string, branch: string, isRemote: 
     }
 });
 ipcMain.handle('merge-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `git merge ${branch}`));
+
+
+// --- Log to file handlers ---
+const getLogFilePath = () => {
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/:/g, '-').replace(/\..+/, '');
+  const logDir = app.isPackaged ? path.dirname(app.getPath('exe')) : app.getAppPath();
+  return path.join(logDir, `git-automation-dashboard-log-${timestamp}.log`);
+};
+
+ipcMain.on('log-to-file-init', () => {
+    if (logStream) {
+        logStream.end();
+    }
+    const logPath = getLogFilePath();
+    logStream = fsSync.createWriteStream(logPath, { flags: 'a' });
+    logStream.write(`--- Log session started at ${new Date().toISOString()} ---\n`);
+    console.log(`Logging to file: ${logPath}`);
+});
+
+ipcMain.on('log-to-file-close', () => {
+    if (logStream) {
+        logStream.write(`--- Log session ended at ${new Date().toISOString()} ---\n`);
+        logStream.end();
+        logStream = null;
+        console.log('Stopped logging to file.');
+    }
+});
+
+ipcMain.on('log-to-file-write', (event, log: DebugLogEntry) => {
+    if (logStream) {
+        const dataStr = log.data ? `\n\tData: ${JSON.stringify(log.data, null, 2).replace(/\n/g, '\n\t')}` : '';
+        logStream.write(`[${log.timestamp}][${log.level}] ${log.message}${dataStr}\n`);
+    }
+});

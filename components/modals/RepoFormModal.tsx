@@ -17,7 +17,9 @@ import { VariableIcon } from '../icons/VariableIcon';
 import { SparklesIcon } from '../icons/SparklesIcon';
 import { DocumentTextIcon } from '../icons/DocumentTextIcon';
 import { GitBranchIcon } from '../icons/GitBranchIcon';
+import { ExclamationCircleIcon } from '../icons/ExclamationCircleIcon';
 import { useTooltip } from '../../hooks/useTooltip';
+import { useLogger } from '../../hooks/useLogger';
 
 
 interface RepoEditViewProps {
@@ -60,11 +62,33 @@ const TaskStepItem: React.FC<{
   onRemoveStep: (id: string) => void;
   suggestions: ProjectSuggestion[];
 }> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, suggestions }) => {
-  const { label, icon: Icon } = STEP_DEFINITIONS[step.type];
+  const logger = useLogger();
+  
+  // *** BUG FIX ***: Add a guard clause to prevent crashing on an invalid step type.
+  const stepDef = STEP_DEFINITIONS[step.type];
+  if (!stepDef) {
+      logger.error('Invalid step type encountered in TaskStepItem. This may be due to malformed data.', { step });
+      return (
+        <div className="bg-red-50 dark:bg-red-900/40 p-3 rounded-lg border border-red-200 dark:border-red-700 space-y-2 text-red-700 dark:text-red-300">
+            <div className="flex items-center gap-3">
+                <ExclamationCircleIcon className="h-6 w-6"/>
+                <div>
+                    <p className="font-semibold">Invalid Step Type</p>
+                    <p className="text-xs">The step type '{step.type}' is not recognized. This step may be from an older version or corrupted. Please remove it.</p>
+                </div>
+                <button type="button" onClick={() => onRemoveStep(step.id)} className="ml-auto p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
+            </div>
+        </div>
+      );
+  }
+  
+  const { label, icon: Icon } = stepDef;
   const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
   const CUSTOM_COMMAND_VALUE = 'custom_command';
   const isEnabled = step.enabled ?? true;
   const toggleTooltip = useTooltip(isEnabled ? 'Disable Step' : 'Enable Step');
+  
+  logger.debug('Rendering TaskStepItem', { step, index });
 
   return (
     <div className={`bg-white dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
@@ -204,20 +228,27 @@ const TaskStepsEditor: React.FC<{
   setTask: (task: Task) => void;
   repository: Partial<Repository> | null;
 }> = ({ task, setTask, repository }) => {
+  const logger = useLogger();
   const [isAddingStep, setIsAddingStep] = useState(false);
   const [suggestions, setSuggestions] = useState<ProjectSuggestion[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const showOnDashboardTooltip = useTooltip('Show this task as a button on the repository card');
+  
+  logger.debug("Rendering TaskStepsEditor", { taskName: task?.name, repoName: repository?.name });
 
   useEffect(() => {
       if (repository?.localPath && repository.name) {
+        logger.debug("Fetching project suggestions", { path: repository.localPath });
         window.electronAPI.getProjectSuggestions({ repoPath: repository.localPath, repoName: repository.name })
-          .then(s => setSuggestions(s || []))
-          .catch(error => console.warn("Could not load project suggestions:", error));
+          .then(s => {
+            setSuggestions(s || []);
+            logger.info("Project suggestions loaded", { count: s?.length || 0 });
+            })
+          .catch(error => logger.warn("Could not load project suggestions:", { error }));
       } else {
         setSuggestions([]);
       }
-  }, [repository?.localPath, repository?.name]);
+  }, [repository?.localPath, repository?.name, logger]);
   
   const handleAddStep = (type: TaskStepType) => {
     const newStep: TaskStep = { id: `step_${Date.now()}`, type, enabled: true };
@@ -249,7 +280,7 @@ const TaskStepsEditor: React.FC<{
 
   const handleSuggestSteps = async () => {
     if (!repository?.localPath || !repository.name) {
-        console.warn("Cannot suggest steps without a repository path and name.");
+        logger.warn("Cannot suggest steps without a repository path and name.");
         return;
     }
     setIsSuggesting(true);
@@ -267,7 +298,7 @@ const TaskStepsEditor: React.FC<{
             setTask({ ...task, steps: [...task.steps, ...newSteps] });
         }
     } catch (error) {
-        console.error("Failed to get project step suggestions:", error);
+        logger.error("Failed to get project step suggestions:", { error });
     } finally {
         setIsSuggesting(false);
     }
@@ -368,6 +399,7 @@ const TaskStepsEditor: React.FC<{
 
 
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
+  const logger = useLogger();
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(NEW_REPO_TEMPLATE);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'branches'>('tasks');
@@ -435,6 +467,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, [repository, isGitRepo, setToast]);
   
   useEffect(() => {
+    logger.debug('RepoEditView received new props.', { repository });
     if (repository) {
       setFormData(repository);
       if (repository.tasks && repository.tasks.length > 0) {
@@ -450,7 +483,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     setCommits([]);
     setBranchInfo(null);
     setActiveTab('tasks');
-  }, [repository]);
+  }, [repository, logger]);
   
   // Fetch data when a tab becomes active
   useEffect(() => {
@@ -530,10 +563,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
   const handleDeleteTask = (taskId: string) => {
     if (!window.confirm("Are you sure you want to delete this task?")) return;
-    setFormData(prev => ({ ...prev, tasks: (prev.tasks || []).filter(t => t.id !== taskId) }));
+    const newTasks = (formData.tasks || []).filter(t => t.id !== taskId);
+    setFormData(prev => ({ ...prev, tasks: newTasks }));
     if (selectedTaskId === taskId) {
-      const remainingTasks = (formData.tasks || []).filter(t => t.id !== taskId);
-      setSelectedTaskId(remainingTasks.length > 0 ? remainingTasks[0].id : null);
+      setSelectedTaskId(newTasks.length > 0 ? newTasks[0].id : null);
     }
   };
 
@@ -612,8 +645,19 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
 
   const selectedTask = useMemo(() => {
-    return formData.tasks?.find(t => t.id === selectedTaskId) || null;
-  }, [selectedTaskId, formData.tasks]);
+    const task = formData.tasks?.find(t => t.id === selectedTaskId) || null;
+    logger.debug("Selected task memo updated", { selectedTaskId, taskName: task?.name });
+    return task;
+  }, [selectedTaskId, formData.tasks, logger]);
+  
+  useEffect(() => {
+    logger.debug("RepoEditView re-rendered", { 
+        hasRepo: !!repository,
+        formDataName: formData.name,
+        activeTab,
+        selectedTaskId,
+     });
+  });
 
   const renderTabContent = () => {
     if (!repository) {

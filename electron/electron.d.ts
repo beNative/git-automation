@@ -1,5 +1,5 @@
 import type { IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, UpdateStatus as AppUpdateStatus, DetailedStatus, Commit, BranchInfo } from '../types';
+import type { Repository, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, UpdateStatus as AppUpdateStatus, DetailedStatus, Commit, BranchInfo, DebugLogEntry } from '../types';
 
 export type LocalPathState = AppLocalPathState;
 export type UpdateStatus = AppUpdateStatus;
@@ -57,6 +57,11 @@ export interface IElectronAPI {
   removeTaskStepEndListener: (
     callback: (event: IpcRendererEvent, data: { executionId: string; exitCode: number }) => void
   ) => void;
+
+  // Debug Logging
+  logToFileInit: () => void;
+  logToFileClose: () => void;
+  logToFileWrite: (log: DebugLogEntry) => void;
 }
 
 declare global {

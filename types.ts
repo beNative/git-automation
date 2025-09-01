@@ -65,6 +65,23 @@ export interface LogEntry {
   level: LogLevel;
 }
 
+// --- New Debug Logging System Types ---
+export enum DebugLogLevel {
+  DEBUG = 'DEBUG',
+  INFO = 'INFO',
+  WARN = 'WARN',
+  ERROR = 'ERROR',
+}
+
+export interface DebugLogEntry {
+  id: number;
+  timestamp: Date;
+  level: DebugLogLevel;
+  message: string;
+  data?: any;
+}
+
+
 export interface GlobalSettings {
   defaultBuildCommand: string;
   notifications: boolean;
