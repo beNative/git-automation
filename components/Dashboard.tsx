@@ -13,6 +13,7 @@ interface DashboardProps {
   isProcessing: Set<string>;
   localPathStates: Record<string, LocalPathState>;
   onCloneRepo: (repoId: string) => void;
+  onChooseLocationAndClone: (repoId: string) => void;
   onLaunchApp: (repoId: string) => void;
 }
 
@@ -26,6 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   isProcessing,
   localPathStates,
   onCloneRepo,
+  onChooseLocationAndClone,
   onLaunchApp,
 }) => {
   if (repositories.length === 0) {
@@ -52,6 +54,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           isProcessing={isProcessing.has(repo.id)}
           localPathState={localPathStates[repo.id] || 'checking'}
           onCloneRepo={onCloneRepo}
+          onChooseLocationAndClone={onChooseLocationAndClone}
           onLaunchApp={onLaunchApp}
         />
       ))}

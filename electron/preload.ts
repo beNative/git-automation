@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkLocalPath: (path: string): Promise<LocalPathState> => ipcRenderer.invoke('check-local-path', path),
   cloneRepository: (repo: Repository) => ipcRenderer.send('clone-repository', repo),
   launchApplication: (repo: Repository) => ipcRenderer.invoke('launch-application', repo),
+  showDirectoryPicker: (): Promise<{ canceled: boolean, filePaths: string[] }> => ipcRenderer.invoke('show-directory-picker'),
+  pathJoin: (...args: string[]): Promise<string> => ipcRenderer.invoke('path-join', ...args),
 
 
   // Real Task Execution

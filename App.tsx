@@ -209,21 +209,50 @@ const App: React.FC = () => {
     await launchApplication(repo);
   }, [repositories, launchApplication, logPanel.height]);
 
-  const handleCloneRepo = useCallback(async (repoId: string) => {
-    const repo = repositories.find(r => r.id === repoId);
-    if (!repo) return;
-    clearLogs(repoId);
-    setLogPanel({ isOpen: true, repoId, height: logPanel.height });
+  const handleCloneRepo = useCallback(async (repo: Repository) => {
+    clearLogs(repo.id);
+    setLogPanel({ isOpen: true, repoId: repo.id, height: logPanel.height });
     
     try {
         await cloneRepository(repo);
         // After cloning, re-check the path status
         const newState = await window.electronAPI.checkLocalPath(repo.localPath);
-        setLocalPathStates(prev => ({...prev, [repoId]: newState}));
+        setLocalPathStates(prev => ({...prev, [repo.id]: newState}));
     } catch (e: any) {
         setToast({ message: e.message || 'Clone failed!', type: 'error' });
     }
-  }, [repositories, cloneRepository, clearLogs, logPanel.height]);
+  }, [cloneRepository, clearLogs, logPanel.height]);
+
+  const handleChooseLocationAndClone = useCallback(async (repoId: string) => {
+    const repo = repositories.find(r => r.id === repoId);
+    if (!repo) {
+      setToast({ message: 'Repository not found.', type: 'error' });
+      return;
+    }
+
+    try {
+      const result = await window.electronAPI.showDirectoryPicker();
+      if (result.canceled || result.filePaths.length === 0) {
+        setToast({ message: 'Location selection was cancelled.', type: 'info' });
+        return;
+      }
+
+      const parentDir = result.filePaths[0];
+      // Sanitize repo name to be used as a directory name
+      const repoDirName = repo.name.replace(/[^a-zA-Z0-9_.-]/g, '-').toLowerCase();
+      const newLocalPath = await window.electronAPI.pathJoin(parentDir, repoDirName);
+
+      const updatedRepo = { ...repo, localPath: newLocalPath };
+      updateRepository(updatedRepo);
+      
+      // Immediately trigger the clone with the updated repo object
+      await handleCloneRepo(updatedRepo);
+
+    } catch (e: any) {
+      setToast({ message: e.message || 'Failed to set up repository path.', type: 'error' });
+    }
+  }, [repositories, updateRepository, handleCloneRepo]);
+
 
   const latestLog = useMemo(() => {
     const allLogs = Object.values(logs).flat();
@@ -252,7 +281,11 @@ const App: React.FC = () => {
           onDeleteRepo={handleDeleteRepo}
           isProcessing={isProcessing}
           localPathStates={localPathStates}
-          onCloneRepo={handleCloneRepo}
+          onCloneRepo={(repoId) => {
+            const repo = repositories.find(r => r.id === repoId);
+            if (repo) handleCloneRepo(repo);
+          }}
+          onChooseLocationAndClone={handleChooseLocationAndClone}
           onLaunchApp={handleLaunchApp}
         />;
     }

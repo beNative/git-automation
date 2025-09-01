@@ -12,6 +12,7 @@ import { SvnIcon } from './icons/SvnIcon';
 import { ArrowDownTrayIcon } from './icons/ArrowDownTrayIcon';
 import { ExclamationCircleIcon } from './icons/ExclamationCircleIcon';
 import { ArrowTopRightOnSquareIcon } from './icons/ArrowTopRightOnSquareIcon';
+import { FolderPlusIcon } from './icons/FolderPlusIcon';
 
 
 interface RepositoryCardProps {
@@ -24,6 +25,7 @@ interface RepositoryCardProps {
   isProcessing: boolean;
   localPathState: LocalPathState;
   onCloneRepo: (repoId: string) => void;
+  onChooseLocationAndClone: (repoId: string) => void;
   onLaunchApp: (repoId: string) => void;
 }
 
@@ -37,12 +39,15 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   isProcessing,
   localPathState,
   onCloneRepo,
+  onChooseLocationAndClone,
   onLaunchApp,
 }) => {
-  const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, launchCommand, tasks } = repository;
+  const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, launchCommand, tasks, localPath } = repository;
   
   const isPathValid = localPathState === 'valid';
   const isPathMissing = localPathState === 'missing';
+  const isPathSet = localPath && localPath.trim() !== '';
+  const cloneVerb = vcs === VcsType.Svn ? 'Checkout' : 'Clone';
 
   const pinnedTasks = tasks.filter(t => t.showOnDashboard).slice(0, 3); // Show max 3 pinned tasks
 
@@ -103,15 +108,27 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
           <div className="flex justify-between items-center gap-1">
             <div className="flex-1 flex flex-wrap gap-2 items-center">
                {isPathMissing ? (
-                    <button
+                    isPathSet ? (
+                      <button
                         onClick={() => onCloneRepo(id)}
                         disabled={isProcessing}
                         className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                        title={`Clone from ${remoteUrl}`}
-                    >
+                        title={`${cloneVerb} from ${remoteUrl} to ${localPath}`}
+                      >
                         <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
-                        Clone Repo
-                    </button>
+                        {cloneVerb} Repo
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => onChooseLocationAndClone(id)}
+                        disabled={isProcessing}
+                        className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                        title={`Choose location and ${cloneVerb.toLowerCase()}`}
+                      >
+                        <FolderPlusIcon className="h-4 w-4 mr-1.5" />
+                        Setup & {cloneVerb}
+                      </button>
+                    )
                ) : (
                 <>
                   {pinnedTasks.map(task => (

@@ -293,7 +293,7 @@ ipcMain.handle('check-vcs-status', async (event, repo: Repository): Promise<{ is
 
 // --- IPC handler for checking local path ---
 ipcMain.handle('check-local-path', async (event, localPath: string): Promise<LocalPathState> => {
-    if (!localPath) {
+    if (!localPath || localPath.trim() === '') {
         return 'missing';
     }
     try {
@@ -315,6 +315,21 @@ ipcMain.handle('check-local-path', async (event, localPath: string): Promise<Loc
     }
 });
 
+// --- IPC handler for showing directory picker ---
+ipcMain.handle('show-directory-picker', async () => {
+  if (!mainWindow) return { canceled: true, filePaths: [] };
+  return await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: 'Select a parent directory for the repository'
+  });
+});
+
+// --- IPC handler for path joining ---
+ipcMain.handle('path-join', async (event, ...args: string[]) => {
+  return path.join(...args);
+});
+
+
 // --- IPC handler for cloning a repo ---
 ipcMain.on('clone-repository', (event, repo: Repository) => {
     const sendLog = (message: string, level: LogLevel) => {
@@ -324,14 +339,25 @@ ipcMain.on('clone-repository', (event, repo: Repository) => {
         mainWindow?.webContents.send('task-step-end', exitCode);
     };
 
-    if (repo.vcs !== VcsType.Git) {
-        sendLog(`Cloning is only supported for Git repositories. This repository is type '${repo.vcs}'.`, LogLevel.Error);
+    let command: string;
+    let args: string[];
+    let verb = '';
+
+    if (repo.vcs === VcsType.Git) {
+        verb = 'Clone';
+        command = 'git';
+        args = ['clone', repo.remoteUrl, repo.localPath];
+    } else if (repo.vcs === VcsType.Svn) {
+        verb = 'Checkout';
+        command = 'svn';
+        args = ['checkout', repo.remoteUrl, repo.localPath];
+    } else {
+        // Fix: The type of `repo` is `never` here because all members of the `Repository` union are exhausted.
+        // Cast `repo` to access the `vcs` property for logging without a TypeScript error.
+        sendLog(`Cloning/Checking out is not supported for this VCS type: '${(repo as Repository).vcs}'.`, LogLevel.Error);
         sendEnd(1);
         return;
     }
-
-    const command = 'git';
-    const args = ['clone', repo.remoteUrl, repo.localPath];
     
     sendLog(`$ ${command} ${args.join(' ')}`, LogLevel.Command);
     
@@ -348,9 +374,9 @@ ipcMain.on('clone-repository', (event, repo: Repository) => {
         child.on('error', (err) => sendLog(`Spawn error: ${err.message}`, LogLevel.Error));
         child.on('close', (code) => {
             if (code !== 0) {
-                sendLog(`Clone command exited with code ${code}`, LogLevel.Error);
+                sendLog(`${verb} command exited with code ${code}`, LogLevel.Error);
             } else {
-                sendLog('Repository cloned successfully.', LogLevel.Success);
+                sendLog('Repository cloned/checked out successfully.', LogLevel.Success);
             }
             sendEnd(code ?? 1);
         });
