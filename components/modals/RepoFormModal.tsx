@@ -403,11 +403,6 @@ const TaskStepsEditor: React.FC<{
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
   const logger = useLogger();
   
-  // Log 1: Log when the props received by the component change.
-  useEffect(() => {
-    logger.info('RepoEditView props updated.', { hasRepo: !!repository, repoName: repository?.name });
-  }, [repository, logger]);
-  
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(NEW_REPO_TEMPLATE);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'branches'>('tasks');
@@ -474,9 +469,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   }, [repository, isGitRepo, setToast]);
   
-  // Log 2: Log inside the effect that syncs props to internal state.
   useEffect(() => {
-    logger.debug('RepoEditView effect: syncing props to internal form state.', { hasRepo: !!repository });
     if (repository) {
       setFormData(repository);
       if (repository.tasks && repository.tasks.length > 0) {
@@ -492,7 +485,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     setCommits([]);
     setBranchInfo(null);
     setActiveTab('tasks');
-  }, [repository, logger]);
+  }, [repository]);
   
   // Fetch data when a tab becomes active
   useEffect(() => {
@@ -509,17 +502,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   }, [activeTab, fetchHistory, fetchBranches, commits.length, branchInfo]);
   
-  // New useEffect to safely log render-related state, preventing infinite loops.
-  useEffect(() => {
-    const hasId = 'id' in formData;
-    logger.debug('RepoEditView state updated for render.', {
-        activeTab,
-        repoName: formData.name,
-        hasId: hasId,
-    });
-  }, [activeTab, formData.name, 'id' in formData, logger]);
-
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -666,15 +648,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const selectedTask = useMemo(() => {
     return formData.tasks?.find(t => t.id === selectedTaskId) || null;
   }, [selectedTaskId, formData.tasks]);
-  
-  useEffect(() => {
-    if (selectedTaskId) {
-        const task = formData.tasks?.find(t => t.id === selectedTaskId);
-        if (task) { // Ensure task exists before logging
-            logger.debug("Selected task changed", { selectedTaskId, taskName: task.name });
-        }
-    }
-  }, [selectedTaskId, JSON.stringify(formData.tasks)]);
   
 
   const renderTabContent = () => {
