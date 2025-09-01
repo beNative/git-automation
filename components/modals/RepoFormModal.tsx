@@ -280,13 +280,22 @@ const TaskStepsEditor: React.FC<{
 
   return (
     <div className="space-y-4">
-      <input 
-        type="text" 
-        value={task.name} 
-        onChange={e => setTask({ ...task, name: e.target.value })}
-        placeholder="Task Name"
-        className="w-full text-lg font-bold bg-transparent border-b-2 border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-0 pb-0.5"
-      />
+      <div className="flex items-center justify-between gap-4">
+        <input 
+          type="text" 
+          value={task.name} 
+          onChange={e => setTask({ ...task, name: e.target.value })}
+          placeholder="Task Name"
+          className="flex-grow text-lg font-bold bg-transparent border-b-2 border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-0 pb-0.5"
+        />
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Show on card</span>
+          <label className="relative inline-flex items-center cursor-pointer" title="Show this task as a button on the repository card">
+            <input type="checkbox" checked={task.showOnDashboard ?? false} onChange={(e) => setTask({...task, showOnDashboard: e.target.checked})} className="sr-only peer" />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+      </div>
       
       <TaskVariablesEditor variables={task.variables} onVariablesChange={handleVariablesChange} />
       
@@ -423,7 +432,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   };
   
   const handleNewTask = () => {
-    const newTask: Task = { id: `task_${Date.now()}`, name: 'New Task', steps: [], variables: [] };
+    const newTask: Task = { id: `task_${Date.now()}`, name: 'New Task', steps: [], variables: [], showOnDashboard: false };
     const newTasks = [...(formData.tasks || []), newTask];
     setFormData(prev => ({ ...prev, tasks: newTasks }));
     setSelectedTaskId(newTask.id);

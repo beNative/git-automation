@@ -191,15 +191,9 @@ const App: React.FC = () => {
     setDirtyRepoModal({ isOpen: false, repo: null, task: null, statusOutput: '', resolve: null });
   };
 
-  const handleInitiateRunTask = (repoId: string) => {
+  const handleOpenTaskSelection = (repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
-    if (!repo || repo.tasks.length === 0) return;
-
-    if (repo.tasks.length === 1) {
-      // If there's only one task, run it directly
-      handleRunTask(repo.id, repo.tasks[0].id);
-    } else {
-      // If there are multiple tasks, open the selection modal
+    if (repo && repo.tasks.length > 0) {
       setTaskSelectionModal({ isOpen: true, repo });
     }
   };
@@ -251,7 +245,8 @@ const App: React.FC = () => {
       default:
         return <Dashboard 
           repositories={repositories} 
-          onInitiateRunTask={handleInitiateRunTask} 
+          onOpenTaskSelection={handleOpenTaskSelection} 
+          onRunTask={handleRunTask}
           onViewLogs={handleViewLogs}
           onEditRepo={(repoId: string) => handleEditRepository(repoId)}
           onDeleteRepo={handleDeleteRepo}

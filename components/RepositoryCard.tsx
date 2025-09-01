@@ -16,7 +16,8 @@ import { ArrowTopRightOnSquareIcon } from './icons/ArrowTopRightOnSquareIcon';
 
 interface RepositoryCardProps {
   repository: Repository;
-  onInitiateRunTask: (repoId: string) => void;
+  onOpenTaskSelection: (repoId: string) => void;
+  onRunTask: (repoId: string, taskId: string) => void;
   onViewLogs: (repoId: string) => void;
   onEditRepo: (repoId: string) => void;
   onDeleteRepo: (repoId: string) => void;
@@ -28,7 +29,8 @@ interface RepositoryCardProps {
 
 const RepositoryCard: React.FC<RepositoryCardProps> = ({
   repository,
-  onInitiateRunTask,
+  onOpenTaskSelection,
+  onRunTask,
   onViewLogs,
   onEditRepo,
   onDeleteRepo,
@@ -37,17 +39,12 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onCloneRepo,
   onLaunchApp,
 }) => {
-  const { id, name, remoteUrl, status, lastUpdated, buildHealth, tasks, vcs, launchCommand } = repository;
-
-  const getRunButtonTitle = () => {
-    if (tasks.length === 0) return 'No tasks available to run.';
-    if (tasks.length === 1) return `Run Task: ${tasks[0].name}`;
-    return `Select a task to run... (${tasks.length} available)`;
-  };
+  const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, launchCommand, tasks } = repository;
   
   const isPathValid = localPathState === 'valid';
   const isPathMissing = localPathState === 'missing';
 
+  const pinnedTasks = tasks.filter(t => t.showOnDashboard).slice(0, 3); // Show max 3 pinned tasks
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-blue-500/20 hover:scale-[1.02] overflow-hidden">
@@ -103,66 +100,79 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
           <p className="text-xs text-gray-400 dark:text-gray-500 text-center mb-2">
             Last updated: {lastUpdated ? new Date(lastUpdated).toLocaleString() : 'Never'}
           </p>
-          <div className="flex justify-around items-center">
-            {isPathMissing ? (
-                <div className="flex-1 max-w-[150px]">
+          <div className="flex justify-between items-center gap-1">
+            <div className="flex-1 flex flex-wrap gap-2 items-center">
+               {isPathMissing ? (
                     <button
                         onClick={() => onCloneRepo(id)}
                         disabled={isProcessing}
-                        className="w-full flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
                         title={`Clone from ${remoteUrl}`}
                     >
                         <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
                         Clone Repo
                     </button>
-                </div>
-            ) : (
-                <div className="flex-1 max-w-[150px]">
-                    <button
-                        onClick={() => onInitiateRunTask(id)}
-                        disabled={isProcessing || tasks.length === 0 || !isPathValid}
-                        className="w-full flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                        title={!isPathValid ? 'Local path is not valid' : getRunButtonTitle()}
-                    >
-                        <PlayIcon className="h-4 w-4 mr-1.5" />
-                        Run Task
-                        {tasks.length > 1 && <span className="ml-1 text-green-100 text-xs">({tasks.length})</span>}
-                    </button>
-                </div>
-            )}
-            
-            {launchCommand && isPathValid && (
-                <button 
-                  onClick={() => onLaunchApp(id)}
-                  className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
-                  title={`Launch: ${launchCommand}`}
-                  disabled={isProcessing}
-                >
-                  <ArrowTopRightOnSquareIcon className="h-5 w-5" />
-                </button>
-            )}
+               ) : (
+                <>
+                  {pinnedTasks.map(task => (
+                      <button
+                          key={task.id}
+                          onClick={() => onRunTask(id, task.id)}
+                          disabled={isProcessing || !isPathValid}
+                          className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                          title={!isPathValid ? 'Local path is not valid' : `Run Task: ${task.name}`}
+                      >
+                          <PlayIcon className="h-4 w-4 mr-1" />
+                          <span className="truncate">{task.name}</span>
+                      </button>
+                  ))}
+                </>
+               )}
+            </div>
 
-            <button 
-              onClick={() => onViewLogs(id)} 
-              className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-              title="View Logs"
-            >
-              <DocumentTextIcon className="h-5 w-5" />
-            </button>
-            <button 
-              onClick={() => onEditRepo(id)} 
-              className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-              title="Configure Repository"
-            >
-              <PencilIcon className="h-5 w-5" />
-            </button>
-            <button 
-              onClick={() => onDeleteRepo(id)} 
-              className="p-1.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors"
-              title="Delete Repository"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </button>
+            <div className="flex items-center space-x-0.5">
+                {isPathValid && tasks.length > 0 && (
+                  <button 
+                    onClick={() => onOpenTaskSelection(id)}
+                    className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
+                    title="Select a task to run..."
+                    disabled={isProcessing}
+                  >
+                    <PlayIcon className="h-5 w-5" />
+                  </button>
+                )}
+                {launchCommand && isPathValid && (
+                    <button 
+                      onClick={() => onLaunchApp(id)}
+                      className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
+                      title={`Launch: ${launchCommand}`}
+                      disabled={isProcessing}
+                    >
+                      <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+                    </button>
+                )}
+                <button 
+                  onClick={() => onViewLogs(id)} 
+                  className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+                  title="View Logs"
+                >
+                  <DocumentTextIcon className="h-5 w-5" />
+                </button>
+                <button 
+                  onClick={() => onEditRepo(id)} 
+                  className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+                  title="Configure Repository"
+                >
+                  <PencilIcon className="h-5 w-5" />
+                </button>
+                <button 
+                  onClick={() => onDeleteRepo(id)} 
+                  className="p-1.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors"
+                  title="Delete Repository"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+            </div>
         </div>
       </div>
     </div>

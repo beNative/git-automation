@@ -93,6 +93,7 @@ export interface Task {
   name: string;
   steps: TaskStep[];
   variables?: { id: string; key: string; value: string }[];
+  showOnDashboard?: boolean;
 }
 
 

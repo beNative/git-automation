@@ -49,6 +49,7 @@ export const useRepositoryManager = () => {
           tasks: (repo.tasks || []).map(task => ({
             ...task,
             variables: task.variables || [], // ensure variables exist
+            showOnDashboard: task.showOnDashboard ?? false, // ensure showOnDashboard exists
             steps: (task.steps || []).map(step => ({
               ...step,
               enabled: step.enabled ?? true, // ensure enabled exists
