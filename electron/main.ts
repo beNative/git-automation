@@ -777,12 +777,13 @@ ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promi
 
 
 // --- Get Commit History (Git only) ---
-ipcMain.handle('get-commit-history', async (event, repoPath: string): Promise<Commit[]> => {
+ipcMain.handle('get-commit-history', async (event, repoPath: string, skipCount?: number): Promise<Commit[]> => {
     try {
         const SEPARATOR = '_||_';
         const format = `%H${SEPARATOR}%h${SEPARATOR}%an${SEPARATOR}%ar${SEPARATOR}%B`;
+        const skip = skipCount && Number.isInteger(skipCount) && skipCount > 0 ? `--skip=${skipCount}` : '';
         // Use -z to separate commits with a NUL character, as messages can contain newlines
-        const { stdout } = await execAsync(`git log --pretty=format:"${format}" -z -n 30`, { cwd: repoPath });
+        const { stdout } = await execAsync(`git log --pretty=format:"${format}" -z -n 30 ${skip}`, { cwd: repoPath });
         if (!stdout) return [];
         // Split by NUL character, and filter out any empty strings that might result from a trailing NUL
         return stdout.split('\0').filter(line => line.trim() !== '').map(line => {

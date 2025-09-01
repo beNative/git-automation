@@ -375,6 +375,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   // State for History Tab
   const [commits, setCommits] = useState<Commit[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [isMoreHistoryLoading, setIsMoreHistoryLoading] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
 
   // State for Branches Tab
   const [branchInfo, setBranchInfo] = useState<BranchInfo | null>(null);
@@ -388,18 +390,33 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   const isGitRepo = formData.vcs === VcsType.Git;
 
-  const fetchHistory = useCallback(async () => {
+  const fetchHistory = useCallback(async (loadMore = false) => {
     if (!repository || !isGitRepo) return;
-    setHistoryLoading(true);
+    
+    if (loadMore) {
+        setIsMoreHistoryLoading(true);
+    } else {
+        setHistoryLoading(true);
+        setCommits([]); // Clear for initial load/refresh
+    }
+
+    const skipCount = loadMore ? commits.length : 0;
+    
     try {
-        const history = await window.electronAPI.getCommitHistory(repository.localPath);
-        setCommits(history);
+        const newCommits = await window.electronAPI.getCommitHistory(repository.localPath, skipCount);
+        if(loadMore) {
+            setCommits(prev => [...prev, ...newCommits]);
+        } else {
+            setCommits(newCommits);
+        }
+        setHasMoreHistory(newCommits.length === 30);
     } catch (e: any) {
         setToast({ message: `Failed to load history: ${e.message}`, type: 'error' });
     } finally {
         setHistoryLoading(false);
+        setIsMoreHistoryLoading(false);
     }
-  }, [repository, isGitRepo, setToast]);
+  }, [repository, isGitRepo, setToast, commits.length]);
 
   const fetchBranches = useCallback(async () => {
     if (!repository || !isGitRepo) return;
@@ -429,14 +446,26 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       setFormData(NEW_REPO_TEMPLATE);
       setSelectedTaskId(null);
     }
+    // Reset state when repo changes
+    setCommits([]);
+    setBranchInfo(null);
     setActiveTab('tasks');
   }, [repository]);
   
   // Fetch data when a tab becomes active
   useEffect(() => {
-    if (activeTab === 'history') fetchHistory();
-    if (activeTab === 'branches') fetchBranches();
-  }, [activeTab, fetchHistory, fetchBranches]);
+    if (activeTab === 'history') {
+        // Fetch only if it's the first time viewing the tab for this repo
+        if (commits.length === 0) {
+            fetchHistory(false);
+        }
+    }
+    if (activeTab === 'branches') {
+        if (!branchInfo) {
+            fetchBranches();
+        }
+    }
+  }, [activeTab, fetchHistory, fetchBranches, commits.length, branchInfo]);
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -632,20 +661,36 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         case 'history':
             return (
                 <div className="p-4 overflow-y-auto">
-                    {historyLoading ? (<p>Loading history...</p>) : (
-                        <ul className="space-y-3">
-                            {commits.map(commit => (
-                                <li key={commit.hash} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                                    <pre className="font-sans whitespace-pre-wrap text-gray-900 dark:text-gray-100">{commit.message}</pre>
-                                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                        <span>{commit.author}</span>
-                                        <span
-// @ts-ignore
- {...useTooltip(commit.hash)} className="font-mono">{commit.shortHash} &bull; {commit.date}</span>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
+                    {historyLoading ? (<p className="text-center text-gray-500">Loading history...</p>) : commits.length === 0 ? (
+                        <p className="text-center text-gray-500">No commits found.</p>
+                    ) : (
+                        <>
+                            <ul className="space-y-3">
+                                {commits.map(commit => (
+                                    <li key={commit.hash} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                                        <pre className="font-sans whitespace-pre-wrap text-gray-900 dark:text-gray-100">{commit.message}</pre>
+                                        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                            <span>{commit.author}</span>
+                                            <span
+    // @ts-ignore
+     {...useTooltip(commit.hash)} className="font-mono">{commit.shortHash} &bull; {commit.date}</span>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                            {hasMoreHistory && (
+                                <div className="mt-4 text-center">
+                                    <button
+                                    type="button"
+                                    onClick={() => fetchHistory(true)}
+                                    disabled={isMoreHistoryLoading}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 transition-colors"
+                                    >
+                                    {isMoreHistoryLoading ? 'Loading...' : 'Load More'}
+                                    </button>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             );
