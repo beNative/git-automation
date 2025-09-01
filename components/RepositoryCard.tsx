@@ -11,7 +11,7 @@ import { GlobeAltIcon } from './icons/GlobeAltIcon';
 import { SvnIcon } from './icons/SvnIcon';
 import { ArrowDownTrayIcon } from './icons/ArrowDownTrayIcon';
 import { ExclamationCircleIcon } from './icons/ExclamationCircleIcon';
-import { ArrowTopRightOnSquareIcon } from './icons/ArrowTopRightOnSquareIcon';
+import { RocketLaunchIcon } from './icons/RocketLaunchIcon';
 import { FolderPlusIcon } from './icons/FolderPlusIcon';
 
 
@@ -27,7 +27,8 @@ interface RepositoryCardProps {
   detectedExecutables: string[];
   onCloneRepo: (repoId: string) => void;
   onChooseLocationAndClone: (repoId: string) => void;
-  onLaunchApp: (repoId: string) => void;
+  onRunLaunchConfig: (repoId: string, configId: string) => void;
+  onOpenLaunchSelection: (repoId: string) => void;
 }
 
 const RepositoryCard: React.FC<RepositoryCardProps> = ({
@@ -42,18 +43,23 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   detectedExecutables,
   onCloneRepo,
   onChooseLocationAndClone,
-  onLaunchApp,
+  onRunLaunchConfig,
+  onOpenLaunchSelection,
 }) => {
-  const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, launchCommand, tasks, localPath } = repository;
+  const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, tasks, launchConfigs, localPath } = repository;
   
   const isPathValid = localPathState === 'valid';
   const isPathMissing = localPathState === 'missing';
   const isPathSet = localPath && localPath.trim() !== '';
   const cloneVerb = vcs === VcsType.Svn ? 'Checkout' : 'Clone';
 
-  const tasksToShowOnCard = tasks.filter(t => t.showOnDashboard).slice(0, 4);
-  const hasMoreTasks = tasks.length > tasksToShowOnCard.length;
-  const hasLaunchOptions = (launchCommand && launchCommand.trim() !== '') || (detectedExecutables && detectedExecutables.length > 0);
+  const tasksToShowOnCard = (tasks || []).filter(t => t.showOnDashboard).slice(0, 4);
+  const hasMoreTasks = (tasks || []).length > tasksToShowOnCard.length;
+
+  const launchConfigsToShowOnCard = (launchConfigs || []).filter(lc => lc.showOnDashboard).slice(0, 4);
+  const unpinnedLaunchConfigs = (launchConfigs || []).filter(lc => !lc.showOnDashboard);
+  const hasMoreLaunchOptions = unpinnedLaunchConfigs.length > 0 || (detectedExecutables && detectedExecutables.length > 0);
+
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-blue-500/20 hover:scale-[1.02] overflow-hidden">
@@ -147,6 +153,18 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                           <span className="truncate">{task.name}</span>
                       </button>
                   ))}
+                  {launchConfigsToShowOnCard.map(config => (
+                      <button
+                          key={config.id}
+                          onClick={() => onRunLaunchConfig(id, config.id)}
+                          disabled={isProcessing || !isPathValid}
+                          className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                          title={!isPathValid ? 'Local path is not valid' : `Launch: ${config.name}`}
+                      >
+                          <RocketLaunchIcon className="h-4 w-4 mr-1" />
+                          <span className="truncate">{config.name}</span>
+                      </button>
+                  ))}
                 </>
                )}
             </div>
@@ -162,14 +180,14 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                     <PlayIcon className="h-5 w-5" />
                   </button>
                 )}
-                {hasLaunchOptions && isPathValid && (
+                {isPathValid && hasMoreLaunchOptions && (
                     <button 
-                      onClick={() => onLaunchApp(id)}
+                      onClick={() => onOpenLaunchSelection(id)}
                       className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
-                      title="Launch..."
+                      title="More launch options..."
                       disabled={isProcessing}
                     >
-                      <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+                      <RocketLaunchIcon className="h-5 w-5" />
                     </button>
                 )}
                 <button 

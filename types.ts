@@ -18,6 +18,13 @@ export enum VcsType {
   Svn = 'svn',
 }
 
+export interface LaunchConfig {
+  id: string;
+  name: string;
+  command: string;
+  showOnDashboard?: boolean;
+}
+
 export interface BaseRepository {
   id: string;
   name: string;
@@ -27,7 +34,7 @@ export interface BaseRepository {
   lastUpdated: string | null;
   buildHealth: BuildHealth;
   tasks: Task[];
-  launchCommand?: string;
+  launchConfigs?: LaunchConfig[];
 }
 
 export interface GitRepository extends BaseRepository {
@@ -111,6 +118,6 @@ export interface ProjectSuggestion {
 
 export type LocalPathState = 'checking' | 'valid' | 'missing' | 'not_a_repo';
 
-export type Launchable = 
-  | { type: 'manual'; command: string; }
-  | { type: 'detected'; path: string; };
+export type Launchable =
+  | { type: 'manual'; config: LaunchConfig }
+  | { type: 'detected'; path: string };

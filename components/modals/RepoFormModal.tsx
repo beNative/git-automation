@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -33,7 +33,7 @@ const NEW_REPO_TEMPLATE: Omit<GitRepository, 'id'> = {
   buildHealth: BuildHealth.Unknown,
   tasks: [],
   vcs: VcsType.Git,
-  launchCommand: '',
+  launchConfigs: [],
 };
 
 const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.ComponentType<{className: string}>; description: string }> = {
@@ -392,8 +392,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             ...( 'id' in prev ? { id: prev.id } : {}),
             name: prev.name,
             localPath: prev.localPath,
-            launchCommand: prev.launchCommand,
             tasks: [], // Reset tasks when VCS changes as steps might become invalid
+            launchConfigs: prev.launchConfigs || [], // Keep launch configs
             status: RepoStatus.Idle,
             lastUpdated: null,
             buildHealth: BuildHealth.Unknown,
@@ -447,6 +447,25 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   };
 
+  const handleAddLaunchConfig = () => {
+    const newConfig: LaunchConfig = { id: `lc_${Date.now()}`, name: 'New Launch', command: '', showOnDashboard: false };
+    setFormData(prev => ({...prev, launchConfigs: [...(prev.launchConfigs || []), newConfig]}));
+  };
+
+  const handleUpdateLaunchConfig = (id: string, field: keyof LaunchConfig, value: string | boolean) => {
+    setFormData(prev => ({
+        ...prev,
+        launchConfigs: (prev.launchConfigs || []).map(lc => lc.id === id ? {...lc, [field]: value} : lc)
+    }));
+  };
+
+  const handleRemoveLaunchConfig = (id: string) => {
+    setFormData(prev => ({
+        ...prev,
+        launchConfigs: (prev.launchConfigs || []).filter(lc => lc.id !== id)
+    }));
+  };
+
   const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
   const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
   
@@ -481,13 +500,34 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             <div><label htmlFor="name" className={formLabelStyle}>Repository Name</label><input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className={formInputStyle}/></div>
             <div><label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label><input type="url" name="remoteUrl" id="remoteUrl" value={formData.remoteUrl} onChange={handleChange} required className={formInputStyle}/></div>
             <div><label htmlFor="localPath" className={formLabelStyle}>Local Path</label><input type="text" name="localPath" id="localPath" value={formData.localPath} onChange={handleChange} required className={formInputStyle}/></div>
-            <div><label htmlFor="launchCommand" className={formLabelStyle}>Launch Command (Optional)</label><input type="text" name="launchCommand" id="launchCommand" value={formData.launchCommand || ''} onChange={handleChange} placeholder="e.g., code . or npm start" className={formInputStyle}/></div>
             
             {formData.vcs === 'git' && (
               <>
                 <div><label htmlFor="branch" className={formLabelStyle}>Branch</label><input type="text" name="branch" id="branch" value={(formData as GitRepository).branch} onChange={handleChange} required className={formInputStyle}/></div>
               </>
             )}
+
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+              <h2 className="text-lg font-semibold">Launch Configurations</h2>
+              <div className="space-y-2 mt-2">
+                {(formData.launchConfigs || []).map(config => (
+                  <div key={config.id} className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border dark:border-gray-700 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input type="text" placeholder="Name" value={config.name} onChange={e => handleUpdateLaunchConfig(config.id, 'name', e.target.value)} className={`${formInputStyle} flex-grow mt-0`} />
+                      <button type="button" onClick={() => handleRemoveLaunchConfig(config.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0"><TrashIcon className="h-4 w-4"/></button>
+                    </div>
+                    <input type="text" placeholder="e.g., code . or npm start" value={config.command} onChange={e => handleUpdateLaunchConfig(config.id, 'command', e.target.value)} className={`${formInputStyle} font-mono mt-0`} />
+                    <div className="flex items-center">
+                      <input id={`show-${config.id}`} type="checkbox" checked={config.showOnDashboard} onChange={e => handleUpdateLaunchConfig(config.id, 'showOnDashboard', e.target.checked)} className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                      <label htmlFor={`show-${config.id}`} className="ml-2 text-sm text-gray-600 dark:text-gray-400">Show on card</label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={handleAddLaunchConfig} className="mt-3 flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                <PlusIcon className="h-4 w-4 mr-1"/> Add Launch Config
+              </button>
+            </div>
             
         </aside>
 

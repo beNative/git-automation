@@ -15,7 +15,8 @@ interface DashboardProps {
   detectedExecutables: Record<string, string[]>;
   onCloneRepo: (repoId: string) => void;
   onChooseLocationAndClone: (repoId: string) => void;
-  onLaunchApp: (repoId: string) => void;
+  onRunLaunchConfig: (repoId: string, configId: string) => void;
+  onOpenLaunchSelection: (repoId: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -30,7 +31,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   detectedExecutables,
   onCloneRepo,
   onChooseLocationAndClone,
-  onLaunchApp,
+  onRunLaunchConfig,
+  onOpenLaunchSelection,
 }) => {
   if (repositories.length === 0) {
     return (
@@ -58,7 +60,8 @@ const Dashboard: React.FC<DashboardProps> = ({
           detectedExecutables={detectedExecutables[repo.id] || []}
           onCloneRepo={onCloneRepo}
           onChooseLocationAndClone={onChooseLocationAndClone}
-          onLaunchApp={onLaunchApp}
+          onRunLaunchConfig={onRunLaunchConfig}
+          onOpenLaunchSelection={onOpenLaunchSelection}
         />
       ))}
     </div>

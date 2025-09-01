@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
-import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable } from './types';
+import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig } from './types';
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
 import RepoEditView from './components/modals/RepoFormModal'; // Repurposed for the new view
@@ -235,36 +235,43 @@ const App: React.FC = () => {
       clearLogs(repo.id);
       setLogPanel({ isOpen: true, repoId: repo.id, height: logPanel.height });
       if (launchable.type === 'manual') {
-        await launchApplication(repo);
+        await launchApplication(repo, launchable.config.command);
       } else {
         await launchExecutable(repo, launchable.path);
       }
     }, [launchApplication, launchExecutable, clearLogs, logPanel.height]);
 
-  const handleInitiateLaunch = useCallback(async (repoId: string) => {
+  const handleRunLaunchConfig = useCallback(async (repoId: string, configId: string) => {
+    const repo = repositories.find(r => r.id === repoId);
+    const config = repo?.launchConfigs?.find(lc => lc.id === configId);
+    if (!repo || !config) {
+        setToast({ message: 'Repository or launch config not found.', type: 'error' });
+        return;
+    }
+    clearLogs(repoId);
+    setLogPanel({ isOpen: true, repoId, height: logPanel.height });
+    await launchApplication(repo, config.command);
+  }, [repositories, launchApplication, clearLogs, logPanel.height]);
+
+  const handleOpenLaunchSelection = useCallback((repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
     if (!repo) return;
     
-    const launchables: Launchable[] = [];
-    if (repo.launchCommand) {
-      launchables.push({ type: 'manual', command: repo.launchCommand });
-    }
+    const unpinnedConfigs = (repo.launchConfigs || []).filter(lc => !lc.showOnDashboard);
     const detected = detectedExecutables[repo.id] || [];
-    detected.forEach(path => {
-      launchables.push({ type: 'detected', path });
-    });
 
-    if (launchables.length === 0) {
-      setToast({ message: 'No launch commands or executables found.', type: 'info' });
-      return;
-    }
-    
-    if (launchables.length === 1) {
-      await handleRunLaunchable(repo, launchables[0]);
+    const launchables: Launchable[] = [
+        ...unpinnedConfigs.map(config => ({ type: 'manual' as const, config })),
+        ...detected.map(path => ({ type: 'detected' as const, path }))
+    ];
+
+    if (launchables.length > 0) {
+        setLaunchSelectionModal({ isOpen: true, repo, launchables });
     } else {
-      setLaunchSelectionModal({ isOpen: true, repo, launchables });
+        setToast({ message: 'No other launch options found.', type: 'info' });
     }
-  }, [repositories, detectedExecutables, handleRunLaunchable]);
+  }, [repositories, detectedExecutables]);
+
 
   const handleCloneRepo = useCallback(async (repo: Repository) => {
     clearLogs(repo.id);
@@ -344,7 +351,8 @@ const App: React.FC = () => {
             if (repo) handleCloneRepo(repo);
           }}
           onChooseLocationAndClone={handleChooseLocationAndClone}
-          onLaunchApp={handleInitiateLaunch}
+          onRunLaunchConfig={handleRunLaunchConfig}
+          onOpenLaunchSelection={handleOpenLaunchSelection}
         />;
     }
   };

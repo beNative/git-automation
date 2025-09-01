@@ -3,7 +3,7 @@ import type { Repository, Launchable } from '../../types';
 import { CubeIcon } from '../icons/CubeIcon';
 import { CodeBracketIcon } from '../icons/CodeBracketIcon';
 import { XIcon } from '../icons/XIcon';
-import { ArrowTopRightOnSquareIcon } from '../icons/ArrowTopRightOnSquareIcon';
+import { RocketLaunchIcon } from '../icons/RocketLaunchIcon';
 
 interface LaunchSelectionModalProps {
   isOpen: boolean;
@@ -32,7 +32,7 @@ const LaunchSelectionModal: React.FC<LaunchSelectionModalProps> = ({ isOpen, rep
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center">
-            <ArrowTopRightOnSquareIcon className="h-6 w-6 text-blue-500 mr-3" />
+            <RocketLaunchIcon className="h-6 w-6 text-blue-500 mr-3" />
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100" id="modal-title">
                 Launch from '{repository.name}'
@@ -50,8 +50,9 @@ const LaunchSelectionModal: React.FC<LaunchSelectionModalProps> = ({ isOpen, rep
                 {launchables.map((launchable, index) => {
                     const isManual = launchable.type === 'manual';
                     const Icon = isManual ? CodeBracketIcon : CubeIcon;
-                    const title = isManual ? launchable.command : launchable.path;
-                    const description = isManual ? 'Manual Command' : 'Detected Executable';
+                    const title = isManual ? launchable.config.name : launchable.path;
+                    const description = isManual ? launchable.config.command : 'Detected Executable';
+                    const titleClass = isManual ? 'font-semibold text-gray-800 dark:text-gray-200' : 'font-mono text-sm text-gray-800 dark:text-gray-200';
 
                     return (
                         <li key={index}>
@@ -61,8 +62,8 @@ const LaunchSelectionModal: React.FC<LaunchSelectionModalProps> = ({ isOpen, rep
                             >
                                 <Icon className="h-6 w-6 text-gray-500 dark:text-gray-400 mr-4 flex-shrink-0" />
                                 <div className="flex-grow overflow-hidden">
-                                    <p className="font-semibold text-gray-800 dark:text-gray-200 truncate font-mono text-sm" title={title}>{title}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
+                                    <p className={`${titleClass} truncate`} title={title}>{title}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate" title={description}>{description}</p>
                                 </div>
                             </button>
                         </li>

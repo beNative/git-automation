@@ -38,24 +38,36 @@ export const useRepositoryManager = () => {
       const savedRepos = localStorage.getItem('repositories');
       if (savedRepos) {
         const parsedRepos: Repository[] = JSON.parse(savedRepos);
-        // Data migration: ensure every repo has a `tasks` array and a `vcs` field.
-        // FIX: Cast the result of the map to Repository[] to resolve a TypeScript error.
-        // The spread operator `...repo` on a discriminated union creates an object that
-        // TypeScript cannot correctly assign back to the `Repository` union type.
-        return parsedRepos.map(repo => ({
-          ...repo,
-          vcs: repo.vcs || VcsType.Git, // Default to Git for old data
-          launchCommand: repo.launchCommand || '',
-          tasks: (repo.tasks || []).map(task => ({
-            ...task,
-            variables: task.variables || [], // ensure variables exist
-            showOnDashboard: task.showOnDashboard ?? false, // ensure showOnDashboard exists
-            steps: (task.steps || []).map(step => ({
-              ...step,
-              enabled: step.enabled ?? true, // ensure enabled exists
+        
+        return parsedRepos.map(repo => {
+          const migratedRepo: any = {
+            ...repo,
+            vcs: repo.vcs || VcsType.Git, // Default to Git for old data
+            tasks: (repo.tasks || []).map(task => ({
+              ...task,
+              variables: task.variables || [],
+              showOnDashboard: task.showOnDashboard ?? false,
+              steps: (task.steps || []).map(step => ({
+                ...step,
+                enabled: step.enabled ?? true,
+              }))
             }))
-          }))
-        })) as Repository[];
+          };
+
+          // Migration for launchCommand -> launchConfigs
+          if (migratedRepo.launchCommand && !migratedRepo.launchConfigs) {
+            migratedRepo.launchConfigs = [{
+              id: `lc_${Date.now()}`,
+              name: 'Default Launch',
+              command: migratedRepo.launchCommand,
+              showOnDashboard: true,
+            }];
+          }
+          delete migratedRepo.launchCommand;
+          migratedRepo.launchConfigs = migratedRepo.launchConfigs || [];
+
+          return migratedRepo as Repository;
+        });
       }
       return [];
     } catch (error) {
@@ -200,13 +212,13 @@ export const useRepositoryManager = () => {
     }
   }, [addLogEntry, updateRepoStatus]);
 
-  const launchApplication = useCallback(async (repo: Repository) => {
+  const launchApplication = useCallback(async (repo: Repository, command: string) => {
       const { id: repoId } = repo;
-      if (!repo.launchCommand) return;
+      if (!command) return;
       
-      addLogEntry(repoId, `Executing launch command: '${repo.launchCommand}'...`, LogLevel.Command);
+      addLogEntry(repoId, `Executing launch command: '${command}'...`, LogLevel.Command);
       try {
-        const result = await window.electronAPI.launchApplication(repo);
+        const result = await window.electronAPI.launchApplication({ repo, command });
         if (result.success) {
             addLogEntry(repoId, `Launch command executed.`, LogLevel.Success);
             if (result.output) addLogEntry(repoId, result.output, LogLevel.Info);

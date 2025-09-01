@@ -441,13 +441,13 @@ ipcMain.on('clone-repository', (event, repo: Repository) => {
 });
 
 // --- IPC handler for launching an application (manual command) ---
-ipcMain.handle('launch-application', async (event, repo: Repository): Promise<{ success: boolean; output: string }> => {
-    if (!repo.launchCommand) {
-        return { success: false, output: 'No launch command configured.' };
+ipcMain.handle('launch-application', async (event, { repo, command }: { repo: Repository, command: string }): Promise<{ success: boolean; output: string }> => {
+    if (!command) {
+        return { success: false, output: 'No launch command provided.' };
     }
 
     return new Promise((resolve) => {
-        exec(repo.launchCommand, { cwd: repo.localPath }, (error, stdout, stderr) => {
+        exec(command, { cwd: repo.localPath }, (error, stdout, stderr) => {
             if (error) {
                 resolve({ success: false, output: stderr || error.message });
                 return;
