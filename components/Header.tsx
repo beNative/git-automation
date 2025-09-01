@@ -35,16 +35,20 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
             <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">Git Automation</h1>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-2">
-            <button
-              onClick={handleNewRepo}
-              disabled={isEditing}
-              className="flex items-center justify-center px-3 py-1.5 sm:px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <PlusIcon className="h-5 w-5 mr-0 sm:mr-2" />
-              <span className="hidden sm:inline">New Repo</span>
-            </button>
-            
-            <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
+            {activeView === 'dashboard' && (
+              <>
+                <button
+                  onClick={handleNewRepo}
+                  disabled={isEditing}
+                  className="flex items-center justify-center px-3 py-1.5 sm:px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <PlusIcon className="h-5 w-5 mr-0 sm:mr-2" />
+                  <span className="hidden sm:inline">New Repo</span>
+                </button>
+                
+                <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
+              </>
+            )}
 
             <button
               onClick={() => handleSetView('dashboard')}

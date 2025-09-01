@@ -49,7 +49,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(22rem,1fr))]">
       {repositories.map(repo => (
         <RepositoryCard
           key={repo.id}
