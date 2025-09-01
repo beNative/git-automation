@@ -344,6 +344,23 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleOpenTerminal = useCallback(async (path: string) => {
+    if (!path) {
+      setToast({ message: 'Local path is not configured.', type: 'info' });
+      return;
+    }
+    try {
+      const result = await window.electronAPI.openTerminal(path);
+      if (result.success) {
+        setToast({ message: 'Terminal opened successfully.', type: 'success' });
+      } else {
+        setToast({ message: result.error || 'Failed to open terminal.', type: 'error' });
+      }
+    } catch (e: any) {
+      setToast({ message: e.message || 'An error occurred while opening the terminal.', type: 'error' });
+    }
+  }, []);
+
 
   const latestLog = useMemo(() => {
     const allLogs = Object.values(logs).flat();
@@ -381,6 +398,7 @@ const App: React.FC = () => {
           onRunLaunchConfig={handleRunLaunchConfig}
           onOpenLaunchSelection={handleOpenLaunchSelection}
           onOpenLocalPath={handleOpenLocalPath}
+          onOpenTerminal={handleOpenTerminal}
         />;
     }
   };

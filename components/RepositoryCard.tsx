@@ -14,6 +14,7 @@ import { ExclamationCircleIcon } from './icons/ExclamationCircleIcon';
 import { LightningBoltIcon } from './icons/LightningBoltIcon';
 import { FolderPlusIcon } from './icons/FolderPlusIcon';
 import { FolderIcon } from './icons/FolderIcon';
+import { TerminalIcon } from './icons/TerminalIcon';
 
 
 interface RepositoryCardProps {
@@ -31,6 +32,7 @@ interface RepositoryCardProps {
   onRunLaunchConfig: (repoId: string, configId: string) => void;
   onOpenLaunchSelection: (repoId: string) => void;
   onOpenLocalPath: (path: string) => void;
+  onOpenTerminal: (path: string) => void;
 }
 
 const RepositoryCard: React.FC<RepositoryCardProps> = ({
@@ -48,6 +50,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onRunLaunchConfig,
   onOpenLaunchSelection,
   onOpenLocalPath,
+  onOpenTerminal,
 }) => {
   const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, tasks, launchConfigs, localPath } = repository;
   
@@ -205,6 +208,14 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                       <LightningBoltIcon className="h-5 w-5" />
                     </button>
                 )}
+                <button
+                  onClick={() => onOpenTerminal(localPath)}
+                  disabled={!isPathValid}
+                  className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={!isPathValid ? "Local path must be valid to open terminal" : "Open in Terminal"}
+                >
+                  <TerminalIcon className="h-5 w-5" />
+                </button>
                 <button 
                   onClick={() => onViewLogs(id)} 
                   className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"

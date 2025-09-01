@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   detectExecutables: (repoPath: string): Promise<string[]> => ipcRenderer.invoke('detect-executables', repoPath),
   launchExecutable: (args: { repoPath: string, executablePath: string }): Promise<{ success: boolean, output: string }> => ipcRenderer.invoke('launch-executable', args),
   openLocalPath: (path: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('open-local-path', path),
+  openTerminal: (path: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('open-terminal', path),
 
 
   // Real Task Execution

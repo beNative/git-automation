@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import path, { dirname } from 'path';
 import fs from 'fs/promises';
-import { platform } from 'os';
+import os, { platform } from 'os';
 import { autoUpdater } from 'electron-updater';
 import { spawn, exec, execFile } from 'child_process';
 import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, UpdateStatus } from '../types';
@@ -344,6 +344,76 @@ ipcMain.handle('open-local-path', async (event, localPath: string) => {
     return { success: true };
   } catch (error: any) {
     console.error(`Failed to open path: ${localPath}`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+// --- IPC handler for opening a terminal ---
+ipcMain.handle('open-terminal', async (event, localPath: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const currentPlatform = os.platform();
+
+    // Find Python virtual environment activation script
+    const venvPaths = currentPlatform === 'win32'
+      ? ['venv\\Scripts\\activate.bat', '.venv\\Scripts\\activate.bat']
+      : ['venv/bin/activate', '.venv/bin/activate'];
+
+    let venvActivationCmd = '';
+    for (const p of venvPaths) {
+      try {
+        const fullVenvPath = path.join(localPath, p);
+        await fs.access(fullVenvPath); // Throws if it doesn't exist
+        if (currentPlatform === 'win32') {
+          venvActivationCmd = ` && "${fullVenvPath}"`;
+        } else {
+          // For bash/zsh etc., we need to source it in a new interactive shell
+          venvActivationCmd = ` && source "${fullVenvPath}" && exec $SHELL`;
+        }
+        break; // Stop after finding the first one
+      } catch (e) { /* File not found, continue checking */ }
+    }
+
+    if (currentPlatform === 'win32') {
+      const command = `start cmd.exe /K "cd /d "${localPath}"${venvActivationCmd}"`;
+      exec(command);
+      return { success: true };
+    } else if (currentPlatform === 'darwin') { // macOS
+      const cdCmd = `cd "${localPath}"`;
+      const script = venvActivationCmd ? `${cdCmd}${venvActivationCmd}` : cdCmd;
+      const escapedScript = script.replace(/"/g, '\\"');
+      const command = `tell application "Terminal" to do script "${escapedScript}" activate`;
+      exec(`osascript -e '${command}'`);
+      return { success: true };
+    } else { // Linux
+      const cdCmd = `cd "${localPath}"`;
+      const finalShellCommand = `${cdCmd}${venvActivationCmd || ' && exec $SHELL'}`;
+      
+      const tryTerminal = (cmd: string, args: string[]) => {
+        return new Promise<void>((resolve, reject) => {
+          const term = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+          term.on('error', reject);
+          term.unref();
+          // Assume success if spawn doesn't throw synchronously or emit an immediate error.
+          resolve();
+        });
+      };
+
+      try {
+        await tryTerminal('x-terminal-emulator', ['-e', `bash -c "${finalShellCommand}"`]);
+        return { success: true };
+      } catch (e) {
+        console.warn("x-terminal-emulator failed, trying gnome-terminal", e);
+        try {
+          await tryTerminal('gnome-terminal', [`--`, 'bash', `-c`, finalShellCommand]);
+          return { success: true };
+        } catch (e2) {
+          console.error("gnome-terminal also failed", e2);
+          return { success: false, error: "Could not find a supported terminal. Tried 'x-terminal-emulator' and 'gnome-terminal'." };
+        }
+      }
+    }
+  } catch (error: any) {
+    console.error('Failed to prepare terminal command:', error);
     return { success: false, error: error.message };
   }
 });
