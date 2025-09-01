@@ -470,7 +470,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, [repository, isGitRepo, setToast]);
   
   useEffect(() => {
-    logger.debug('RepoEditView props updated. Syncing internal form state.', { hasRepo: !!repository, repoName: repository?.name });
     if (repository) {
       setFormData(repository);
       if (repository.tasks && repository.tasks.length > 0) {
