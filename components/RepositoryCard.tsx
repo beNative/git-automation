@@ -161,7 +161,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                           key={task.id}
                           onClick={() => onRunTask(id, task.id)}
                           disabled={isProcessing || !isPathValid}
-                          className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                          className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
                           title={!isPathValid ? 'Local path is not valid' : `Run Task: ${task.name}`}
                       >
                           <PlayIcon className="h-4 w-4 mr-1" />
@@ -188,7 +188,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 {isPathValid && hasMoreTasks && (
                   <button 
                     onClick={() => onOpenTaskSelection(id)}
-                    className="p-1.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors disabled:opacity-50"
+                    className="p-1.5 text-green-500 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-full transition-colors disabled:opacity-50"
                     title="Select a task to run..."
                     disabled={isProcessing}
                   >
