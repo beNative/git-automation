@@ -535,7 +535,7 @@ const App: React.FC = () => {
       <TooltipProvider>
         <div className="flex flex-col h-screen">
           <Header onNewRepo={() => handleEditRepository('new')} activeView={activeView} onSetView={setActiveView} />
-          <main className={`flex-1 overflow-y-auto ${activeView === 'dashboard' ? 'p-3 sm:p-4 lg:p-6' : ''}`}>
+          <main className={`flex-1 ${activeView !== 'edit-repository' ? 'overflow-y-auto' : 'overflow-hidden'} ${activeView === 'dashboard' ? 'p-3 sm:p-4 lg:p-6' : ''}`}>
             <CurrentView />
           </main>
           
