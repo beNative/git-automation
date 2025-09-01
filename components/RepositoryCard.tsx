@@ -11,7 +11,7 @@ import { GlobeAltIcon } from './icons/GlobeAltIcon';
 import { SvnIcon } from './icons/SvnIcon';
 import { ArrowDownTrayIcon } from './icons/ArrowDownTrayIcon';
 import { ExclamationCircleIcon } from './icons/ExclamationCircleIcon';
-import { RocketLaunchIcon } from './icons/RocketLaunchIcon';
+import { LightningBoltIcon } from './icons/LightningBoltIcon';
 import { FolderPlusIcon } from './icons/FolderPlusIcon';
 import { FolderIcon } from './icons/FolderIcon';
 
@@ -173,10 +173,10 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                           key={config.id}
                           onClick={() => onRunLaunchConfig(id, config.id)}
                           disabled={isProcessing || !isPathValid}
-                          className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                          className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
                           title={!isPathValid ? 'Local path is not valid' : `Launch: ${config.name}`}
                       >
-                          <RocketLaunchIcon className="h-4 w-4 mr-1" />
+                          <LightningBoltIcon className="h-4 w-4 mr-1" />
                           <span className="truncate">{config.name}</span>
                       </button>
                   ))}
@@ -202,7 +202,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                       title="More launch options..."
                       disabled={isProcessing}
                     >
-                      <RocketLaunchIcon className="h-5 w-5" />
+                      <LightningBoltIcon className="h-5 w-5" />
                     </button>
                 )}
                 <button 

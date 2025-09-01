@@ -3,7 +3,7 @@ import type { Repository, Launchable } from '../../types';
 import { CubeIcon } from '../icons/CubeIcon';
 import { CodeBracketIcon } from '../icons/CodeBracketIcon';
 import { XIcon } from '../icons/XIcon';
-import { RocketLaunchIcon } from '../icons/RocketLaunchIcon';
+import { LightningBoltIcon } from '../icons/LightningBoltIcon';
 
 interface LaunchSelectionModalProps {
   isOpen: boolean;
@@ -32,7 +32,7 @@ const LaunchSelectionModal: React.FC<LaunchSelectionModalProps> = ({ isOpen, rep
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center">
-            <RocketLaunchIcon className="h-6 w-6 text-blue-500 mr-3" />
+            <LightningBoltIcon className="h-6 w-6 text-blue-500 mr-3" />
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100" id="modal-title">
                 Launch from '{repository.name}'
