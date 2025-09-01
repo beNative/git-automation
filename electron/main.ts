@@ -58,6 +58,11 @@ app.on('ready', () => {
 
 // Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', () => {
+  if (logStream) {
+    logStream.write(`--- Log session ended by app quit at ${new Date().toISOString()} ---\n`);
+    logStream.end();
+    logStream = null;
+  }
   if (platform() !== 'darwin') {
     app.quit();
   }
@@ -885,8 +890,8 @@ ipcMain.on('log-to-file-init', () => {
 
 ipcMain.on('log-to-file-close', () => {
     if (logStream) {
-        logStream.write(`--- Log session ended at ${new Date().toISOString()} ---\n`);
-        logStream.end();
+// Bug Fix: Pass the final message to stream.end() to prevent a race condition where the stream closes before the final write completes.
+        logStream.end(`--- Log session ended at ${new Date().toISOString()} ---\n`);
         logStream = null;
         console.log('Stopped logging to file.');
     }
@@ -895,6 +900,6 @@ ipcMain.on('log-to-file-close', () => {
 ipcMain.on('log-to-file-write', (event, log: DebugLogEntry) => {
     if (logStream) {
         const dataStr = log.data ? `\n\tData: ${JSON.stringify(log.data, null, 2).replace(/\n/g, '\n\t')}` : '';
-        logStream.write(`[${log.timestamp}][${log.level}] ${log.message}${dataStr}\n`);
+        logStream.write(`[${new Date(log.timestamp).toISOString()}][${log.level}] ${log.message}${dataStr}\n`);
     }
 });

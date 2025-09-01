@@ -37,15 +37,37 @@ export const LoggerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [filters, setFilters] = useState<LogFilters>(initialState.filters);
   const [isSavingToFile, setIsSavingToFile] = useState(false);
   const isSavingToFileRef = useRef(isSavingToFile);
+  
+  // Ref to track previous state to avoid running effect on mount
+  const prevIsSavingToFile = useRef<boolean | undefined>();
+
 
   useEffect(() => {
     isSavingToFileRef.current = isSavingToFile;
-    if (isSavingToFile) {
-        window.electronAPI.logToFileInit();
-    } else {
-        window.electronAPI.logToFileClose();
+    
+    // Only send IPC messages when the state actually changes from its previous state.
+    // This avoids running on initial mount. `prevIsSavingToFile.current` is initially undefined.
+    if (prevIsSavingToFile.current !== undefined && prevIsSavingToFile.current !== isSavingToFile) {
+        if (isSavingToFile) {
+            window.electronAPI?.logToFileInit();
+        } else {
+            window.electronAPI?.logToFileClose();
+        }
     }
+    prevIsSavingToFile.current = isSavingToFile;
+
   }, [isSavingToFile]);
+
+  // Effect for cleanup when the provider unmounts (e.g., app closes)
+  useEffect(() => {
+    return () => {
+      // If we were saving to file when the app closes, tell the main process to close the stream.
+      if (isSavingToFileRef.current) {
+        window.electronAPI?.logToFileClose();
+      }
+    };
+  }, []); // Empty array ensures this only runs on mount and unmount
+
 
   const addLog = useCallback((level: DebugLogLevel, message: string, data?: any) => {
     const newLog: DebugLogEntry = {
@@ -58,7 +80,7 @@ export const LoggerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setLogs(prev => [...prev.slice(-499), newLog]); // Keep max 500 logs in memory
 
     if (isSavingToFileRef.current) {
-        window.electronAPI.logToFileWrite(newLog);
+        window.electronAPI?.logToFileWrite(newLog);
     }
   }, []);
 
