@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
-import type { Repository, GlobalSettings, AppView, Task, LogEntry } from './types';
+import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState } from './types';
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
 import RepoEditView from './components/modals/RepoFormModal'; // Repurposed for the new view
@@ -21,6 +21,8 @@ const App: React.FC = () => {
     updateRepository,
     deleteRepository,
     runTask,
+    cloneRepository,
+    launchApplication,
     logs,
     clearLogs,
     isProcessing,
@@ -30,6 +32,7 @@ const App: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [activeView, setActiveView] = useState<AppView>('dashboard');
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [localPathStates, setLocalPathStates] = useState<Record<string, LocalPathState>>({});
   
   const [logPanel, setLogPanel] = useState({
     isOpen: false,
@@ -75,6 +78,29 @@ const App: React.FC = () => {
     }
   });
   
+  // Effect to check local paths
+  useEffect(() => {
+    const checkPaths = async () => {
+        if (repositories.length === 0) {
+            setLocalPathStates({});
+            return;
+        }
+        
+        const checkingStates: Record<string, LocalPathState> = {};
+        for (const repo of repositories) {
+            checkingStates[repo.id] = 'checking';
+        }
+        setLocalPathStates(checkingStates);
+
+        const finalStates: Record<string, LocalPathState> = {};
+        for (const repo of repositories) {
+            finalStates[repo.id] = await window.electronAPI.checkLocalPath(repo.localPath);
+        }
+        setLocalPathStates(finalStates);
+    };
+    checkPaths();
+  }, [repositories]);
+
   // Effect to apply theme
   useEffect(() => {
     if (settings.theme === 'dark') {
@@ -182,6 +208,29 @@ const App: React.FC = () => {
     setLogPanel({ isOpen: true, repoId, height: logPanel.height });
   };
   
+  const handleLaunchApp = useCallback(async (repoId: string) => {
+    const repo = repositories.find(r => r.id === repoId);
+    if (!repo) return;
+    setLogPanel({ isOpen: true, repoId, height: logPanel.height });
+    await launchApplication(repo);
+  }, [repositories, launchApplication, logPanel.height]);
+
+  const handleCloneRepo = useCallback(async (repoId: string) => {
+    const repo = repositories.find(r => r.id === repoId);
+    if (!repo) return;
+    clearLogs(repoId);
+    setLogPanel({ isOpen: true, repoId, height: logPanel.height });
+    
+    try {
+        await cloneRepository(repo);
+        // After cloning, re-check the path status
+        const newState = await window.electronAPI.checkLocalPath(repo.localPath);
+        setLocalPathStates(prev => ({...prev, [repoId]: newState}));
+    } catch (e: any) {
+        setToast({ message: e.message || 'Clone failed!', type: 'error' });
+    }
+  }, [repositories, cloneRepository, clearLogs, logPanel.height]);
+
   const latestLog = useMemo(() => {
     const allLogs = Object.values(logs).flat();
     if (allLogs.length === 0) return null;
@@ -207,6 +256,9 @@ const App: React.FC = () => {
           onEditRepo={(repoId: string) => handleEditRepository(repoId)}
           onDeleteRepo={handleDeleteRepo}
           isProcessing={isProcessing}
+          localPathStates={localPathStates}
+          onCloneRepo={handleCloneRepo}
+          onLaunchApp={handleLaunchApp}
         />;
     }
   };

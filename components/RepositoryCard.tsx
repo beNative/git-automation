@@ -1,6 +1,6 @@
 import React from 'react';
-import type { Repository, GitRepository } from '../types';
-import { RepoStatus, BuildHealth, VcsType } from '../types';
+import type { Repository, GitRepository, LocalPathState } from '../types';
+import { VcsType } from '../types';
 import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
 import { PlayIcon } from './icons/PlayIcon';
 import { DocumentTextIcon } from './icons/DocumentTextIcon';
@@ -9,6 +9,9 @@ import { TrashIcon } from './icons/TrashIcon';
 import { GitBranchIcon } from './icons/GitBranchIcon';
 import { GlobeAltIcon } from './icons/GlobeAltIcon';
 import { SvnIcon } from './icons/SvnIcon';
+import { ArrowDownTrayIcon } from './icons/ArrowDownTrayIcon';
+import { ExclamationCircleIcon } from './icons/ExclamationCircleIcon';
+import { ArrowTopRightOnSquareIcon } from './icons/ArrowTopRightOnSquareIcon';
 
 
 interface RepositoryCardProps {
@@ -18,6 +21,9 @@ interface RepositoryCardProps {
   onEditRepo: (repoId: string) => void;
   onDeleteRepo: (repoId: string) => void;
   isProcessing: boolean;
+  localPathState: LocalPathState;
+  onCloneRepo: (repoId: string) => void;
+  onLaunchApp: (repoId: string) => void;
 }
 
 const RepositoryCard: React.FC<RepositoryCardProps> = ({
@@ -27,14 +33,20 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onEditRepo,
   onDeleteRepo,
   isProcessing,
+  localPathState,
+  onCloneRepo,
+  onLaunchApp,
 }) => {
-  const { id, name, remoteUrl, status, lastUpdated, buildHealth, tasks, vcs } = repository;
+  const { id, name, remoteUrl, status, lastUpdated, buildHealth, tasks, vcs, launchCommand } = repository;
 
   const getRunButtonTitle = () => {
     if (tasks.length === 0) return 'No tasks available to run.';
     if (tasks.length === 1) return `Run Task: ${tasks[0].name}`;
     return `Select a task to run... (${tasks.length} available)`;
   };
+  
+  const isPathValid = localPathState === 'valid';
+  const isPathMissing = localPathState === 'missing';
 
 
   return (
@@ -48,6 +60,16 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             {status}
           </div>
         </div>
+        
+        {localPathState === 'not_a_repo' && (
+            <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/40 rounded-md text-xs text-yellow-700 dark:text-yellow-300 flex items-center">
+                <ExclamationCircleIcon className="h-4 w-4 mr-2 flex-shrink-0"/>
+                <span className="truncate">Local path exists but is not a valid repository.</span>
+            </div>
+        )}
+        {localPathState === 'checking' && (
+             <div className="mt-2 text-xs text-gray-400 italic">Checking local path...</div>
+        )}
 
         <div className="mt-2 space-y-1.5 text-sm text-gray-500 dark:text-gray-400">
           <div className="flex items-center">
@@ -82,18 +104,43 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             Last updated: {lastUpdated ? new Date(lastUpdated).toLocaleString() : 'Never'}
           </p>
           <div className="flex justify-around items-center">
-            <div className="flex-1 max-w-[150px]">
-              <button
-                  onClick={() => onInitiateRunTask(id)}
-                  disabled={isProcessing || tasks.length === 0}
-                  className="w-full flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                  title={getRunButtonTitle()}
-              >
-                  <PlayIcon className="h-4 w-4 mr-1.5" />
-                  Run Task
-                  {tasks.length > 1 && <span className="ml-1 text-green-100 text-xs">({tasks.length})</span>}
-              </button>
-            </div>
+            {isPathMissing ? (
+                <div className="flex-1 max-w-[150px]">
+                    <button
+                        onClick={() => onCloneRepo(id)}
+                        disabled={isProcessing}
+                        className="w-full flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                        title={`Clone from ${remoteUrl}`}
+                    >
+                        <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
+                        Clone Repo
+                    </button>
+                </div>
+            ) : (
+                <div className="flex-1 max-w-[150px]">
+                    <button
+                        onClick={() => onInitiateRunTask(id)}
+                        disabled={isProcessing || tasks.length === 0 || !isPathValid}
+                        className="w-full flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                        title={!isPathValid ? 'Local path is not valid' : getRunButtonTitle()}
+                    >
+                        <PlayIcon className="h-4 w-4 mr-1.5" />
+                        Run Task
+                        {tasks.length > 1 && <span className="ml-1 text-green-100 text-xs">({tasks.length})</span>}
+                    </button>
+                </div>
+            )}
+            
+            {launchCommand && isPathValid && (
+                <button 
+                  onClick={() => onLaunchApp(id)}
+                  className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
+                  title={`Launch: ${launchCommand}`}
+                  disabled={isProcessing}
+                >
+                  <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+                </button>
+            )}
 
             <button 
               onClick={() => onViewLogs(id)} 

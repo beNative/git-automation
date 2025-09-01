@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Repository } from '../types';
+import type { Repository, LocalPathState } from '../types';
 import RepositoryCard from './RepositoryCard';
 import { PlusCircleIcon } from './icons/PlusCircleIcon';
 
@@ -10,6 +10,9 @@ interface DashboardProps {
   onEditRepo: (repoId: string) => void;
   onDeleteRepo: (repoId: string) => void;
   isProcessing: Set<string>;
+  localPathStates: Record<string, LocalPathState>;
+  onCloneRepo: (repoId: string) => void;
+  onLaunchApp: (repoId: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -18,7 +21,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   onViewLogs,
   onEditRepo,
   onDeleteRepo,
-  isProcessing
+  isProcessing,
+  localPathStates,
+  onCloneRepo,
+  onLaunchApp,
 }) => {
   if (repositories.length === 0) {
     return (
@@ -41,6 +47,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           onEditRepo={onEditRepo}
           onDeleteRepo={onDeleteRepo}
           isProcessing={isProcessing.has(repo.id)}
+          localPathState={localPathStates[repo.id] || 'checking'}
+          onCloneRepo={onCloneRepo}
+          onLaunchApp={onLaunchApp}
         />
       ))}
     </div>

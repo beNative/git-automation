@@ -33,6 +33,7 @@ const NEW_REPO_TEMPLATE: Omit<GitRepository, 'id'> = {
   buildHealth: BuildHealth.Unknown,
   tasks: [],
   vcs: VcsType.Git,
+  launchCommand: '',
 };
 
 const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.ComponentType<{className: string}>; description: string }> = {
@@ -382,6 +383,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             ...( 'id' in prev ? { id: prev.id } : {}),
             name: prev.name,
             localPath: prev.localPath,
+            launchCommand: prev.launchCommand,
             tasks: [], // Reset tasks when VCS changes as steps might become invalid
             status: RepoStatus.Idle,
             lastUpdated: null,
@@ -470,6 +472,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             <div><label htmlFor="name" className={formLabelStyle}>Repository Name</label><input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className={formInputStyle}/></div>
             <div><label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label><input type="url" name="remoteUrl" id="remoteUrl" value={formData.remoteUrl} onChange={handleChange} required className={formInputStyle}/></div>
             <div><label htmlFor="localPath" className={formLabelStyle}>Local Path</label><input type="text" name="localPath" id="localPath" value={formData.localPath} onChange={handleChange} required className={formInputStyle}/></div>
+            <div><label htmlFor="launchCommand" className={formLabelStyle}>Launch Command (Optional)</label><input type="text" name="launchCommand" id="launchCommand" value={formData.launchCommand || ''} onChange={handleChange} placeholder="e.g., code . or npm start" className={formInputStyle}/></div>
             
             {formData.vcs === 'git' && (
               <>

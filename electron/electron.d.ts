@@ -1,5 +1,8 @@
 import type { IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel } from '../types';
+import type { Repository, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState } from '../types';
+
+export type LocalPathState = AppLocalPathState;
+
 
 export interface ProjectSuggestion {
   label: string;
@@ -12,6 +15,10 @@ export interface IElectronAPI {
   getProjectSuggestions: (args: { repoPath: string, repoName: string }) => Promise<ProjectSuggestion[]>;
   getProjectStepSuggestions: (args: { repoPath: string, repoName: string }) => Promise<Omit<TaskStep, 'id'>[]>;
   checkVcsStatus: (repo: Repository) => Promise<{ isDirty: boolean; output: string }>;
+
+  checkLocalPath: (path: string) => Promise<LocalPathState>;
+  cloneRepository: (repo: Repository) => void;
+  launchApplication: (repo: Repository) => Promise<{ success: boolean; output: string }>;
   
   runTaskStep: (args: {
     repo: Repository;

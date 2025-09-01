@@ -1,10 +1,10 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
-import path from 'path';
+import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import { platform } from 'os';
 import { autoUpdater } from 'electron-updater';
 import { spawn, exec } from 'child_process';
-import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, SvnRepository } from '../types';
+import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState } from '../types';
 import { TaskStepType, LogLevel, VcsType } from '../types';
 
 // Fix: Manually declare Node.js globals to resolve type errors when @types/node is not available.
@@ -291,6 +291,91 @@ ipcMain.handle('check-vcs-status', async (event, repo: Repository): Promise<{ is
     });
 });
 
+// --- IPC handler for checking local path ---
+ipcMain.handle('check-local-path', async (event, localPath: string): Promise<LocalPathState> => {
+    if (!localPath) {
+        return 'missing';
+    }
+    try {
+        await fs.access(localPath);
+        // Path exists, now check if it's a repo
+        try {
+            const gitStat = await fs.stat(path.join(localPath, '.git'));
+            if (gitStat.isDirectory()) return 'valid';
+        } catch (e) { /* not a git repo, check svn */ }
+        
+        try {
+            const svnStat = await fs.stat(path.join(localPath, '.svn'));
+            if (svnStat.isDirectory()) return 'valid';
+        } catch (e) { /* not an svn repo */ }
+
+        return 'not_a_repo';
+    } catch (error) {
+        return 'missing';
+    }
+});
+
+// --- IPC handler for cloning a repo ---
+ipcMain.on('clone-repository', (event, repo: Repository) => {
+    const sendLog = (message: string, level: LogLevel) => {
+        mainWindow?.webContents.send('task-log', { message, level });
+    };
+    const sendEnd = (exitCode: number) => {
+        mainWindow?.webContents.send('task-step-end', exitCode);
+    };
+
+    if (repo.vcs !== VcsType.Git) {
+        sendLog(`Cloning is only supported for Git repositories. This repository is type '${repo.vcs}'.`, LogLevel.Error);
+        sendEnd(1);
+        return;
+    }
+
+    const command = 'git';
+    const args = ['clone', repo.remoteUrl, repo.localPath];
+    
+    sendLog(`$ ${command} ${args.join(' ')}`, LogLevel.Command);
+    
+    const parentDir = dirname(repo.localPath);
+
+    fs.mkdir(parentDir, { recursive: true }).then(() => {
+        const child = spawn(command, args, {
+            cwd: parentDir,
+            shell: true,
+        });
+
+        child.stdout.on('data', (data) => sendLog(data.toString(), LogLevel.Info));
+        child.stderr.on('data', (data) => sendLog(data.toString(), LogLevel.Info));
+        child.on('error', (err) => sendLog(`Spawn error: ${err.message}`, LogLevel.Error));
+        child.on('close', (code) => {
+            if (code !== 0) {
+                sendLog(`Clone command exited with code ${code}`, LogLevel.Error);
+            } else {
+                sendLog('Repository cloned successfully.', LogLevel.Success);
+            }
+            sendEnd(code ?? 1);
+        });
+    }).catch(err => {
+        sendLog(`Failed to create parent directory '${parentDir}': ${err.message}`, LogLevel.Error);
+        sendEnd(1);
+    });
+});
+
+// --- IPC handler for launching an application ---
+ipcMain.handle('launch-application', async (event, repo: Repository): Promise<{ success: boolean; output: string }> => {
+    if (!repo.launchCommand) {
+        return { success: false, output: 'No launch command configured.' };
+    }
+
+    return new Promise((resolve) => {
+        exec(repo.launchCommand, { cwd: repo.localPath }, (error, stdout, stderr) => {
+            if (error) {
+                resolve({ success: false, output: stderr || error.message });
+                return;
+            }
+            resolve({ success: true, output: stdout });
+        });
+    });
+});
 
 // --- IPC Handler for running real task steps ---
 ipcMain.on('run-task-step', (event, { repo, step, settings }: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {

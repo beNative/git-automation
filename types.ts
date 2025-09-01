@@ -27,6 +27,7 @@ export interface BaseRepository {
   lastUpdated: string | null;
   buildHealth: BuildHealth;
   tasks: Task[];
+  launchCommand?: string;
 }
 
 export interface GitRepository extends BaseRepository {
@@ -106,3 +107,5 @@ export interface ProjectSuggestion {
   value: string;
   group: string;
 }
+
+export type LocalPathState = 'checking' | 'valid' | 'missing' | 'not_a_repo';

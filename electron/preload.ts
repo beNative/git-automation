@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion } from '../types';
+import type { Repository, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState } from '../types';
 
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
@@ -14,6 +14,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Version Control
   checkVcsStatus: (repo: Repository): Promise<{ isDirty: boolean; output: string }> => ipcRenderer.invoke('check-vcs-status', repo),
+
+  // Local Path and Actions
+  checkLocalPath: (path: string): Promise<LocalPathState> => ipcRenderer.invoke('check-local-path', path),
+  cloneRepository: (repo: Repository) => ipcRenderer.send('clone-repository', repo),
+  launchApplication: (repo: Repository) => ipcRenderer.invoke('launch-application', repo),
+
 
   // Real Task Execution
   runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {

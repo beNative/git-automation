@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Repository, LogEntry, Task, GlobalSettings, TaskStep, GitRepository } from '../types';
+import type { Repository, LogEntry, Task, GlobalSettings, TaskStep } from '../types';
 import { RepoStatus, BuildHealth, LogLevel, TaskStepType, VcsType } from '../types';
 
 // --- Simulation logic moved from the now-obsolete automationService ---
@@ -45,6 +45,7 @@ export const useRepositoryManager = () => {
         return parsedRepos.map(repo => ({
           ...repo,
           vcs: repo.vcs || VcsType.Git, // Default to Git for old data
+          launchCommand: repo.launchCommand || '',
           tasks: (repo.tasks || []).map(task => ({
             ...task,
             variables: task.variables || [], // ensure variables exist
@@ -171,6 +172,51 @@ export const useRepositoryManager = () => {
       });
     }
   }, [addLogEntry, updateRepoStatus]);
+
+  const cloneRepository = useCallback(async (repo: Repository) => {
+    const { id: repoId } = repo;
+    setIsProcessing(prev => new Set(prev).add(repoId));
+    
+    try {
+      updateRepoStatus(repoId, RepoStatus.Syncing);
+      addLogEntry(repoId, `Cloning repository from '${repo.remoteUrl}'...`, LogLevel.Info);
+      
+      await runClone(repo, addLogEntry);
+
+      addLogEntry(repoId, `Repository cloned successfully.`, LogLevel.Success);
+      updateRepoStatus(repoId, RepoStatus.Success, BuildHealth.Healthy);
+    } catch (error: any) {
+      const errorMessage = error.message || 'An unknown error occurred.';
+      addLogEntry(repoId, `Error during clone: ${errorMessage}`, LogLevel.Error);
+      updateRepoStatus(repoId, RepoStatus.Failed, BuildHealth.Failing);
+      throw error;
+    } finally {
+      setIsProcessing(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(repoId);
+        return newSet;
+      });
+    }
+  }, [addLogEntry, updateRepoStatus]);
+
+  const launchApplication = useCallback(async (repo: Repository) => {
+      const { id: repoId } = repo;
+      if (!repo.launchCommand) return;
+      
+      addLogEntry(repoId, `Executing launch command: '${repo.launchCommand}'...`, LogLevel.Command);
+      try {
+        const result = await window.electronAPI.launchApplication(repo);
+        if (result.success) {
+            addLogEntry(repoId, `Launch command executed.`, LogLevel.Success);
+            if (result.output) addLogEntry(repoId, result.output, LogLevel.Info);
+        } else {
+            addLogEntry(repoId, `Launch command failed:`, LogLevel.Error);
+            if (result.output) addLogEntry(repoId, result.output, LogLevel.Error);
+        }
+      } catch (e: any) {
+        addLogEntry(repoId, `Failed to invoke launch command: ${e.message}`, LogLevel.Error);
+      }
+  }, [addLogEntry]);
   
   const addRepository = (repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>) => {
     const newRepo: Repository = {
@@ -206,6 +252,8 @@ export const useRepositoryManager = () => {
     updateRepository, 
     deleteRepository, 
     runTask, 
+    cloneRepository,
+    launchApplication,
     logs,
     clearLogs,
     isProcessing
@@ -308,5 +356,35 @@ const runRealStep = (
     });
 
     window.electronAPI.runTaskStep({ repo, step, settings });
+  });
+};
+
+// --- Helper function for running clone via IPC ---
+const runClone = (
+    repo: Repository,
+    addLogEntry: (repoId: string, message: string, level: LogLevel) => void
+) => {
+  return new Promise<void>((resolve, reject) => {
+    const { id: repoId } = repo;
+
+    const cleanupListeners = () => {
+      window.electronAPI.removeTaskListeners();
+    };
+    
+    window.electronAPI.onTaskLog((_event, logData) => {
+        const { message, level } = logData;
+        addLogEntry(repoId, message, level);
+    });
+    
+    window.electronAPI.onTaskStepEnd((_event, exitCode) => {
+        cleanupListeners();
+        if (exitCode === 0) {
+            resolve();
+        } else {
+            reject(new Error(`Clone failed with exit code ${exitCode}. See logs for details.`));
+        }
+    });
+
+    window.electronAPI.cloneRepository(repo);
   });
 };
