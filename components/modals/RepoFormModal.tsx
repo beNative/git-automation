@@ -661,7 +661,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
 
   const renderTabContent = () => {
-    if (!repository) {
+    // FIX: Check for 'id' in the formData state to determine if the repo is saved,
+    // instead of relying on the initial `repository` prop.
+    if (!('id' in formData)) {
         return <div className="p-4 text-center text-gray-500">Please save the repository to access advanced features.</div>
     }
     switch(activeTab) {
