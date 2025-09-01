@@ -51,7 +51,8 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const isPathSet = localPath && localPath.trim() !== '';
   const cloneVerb = vcs === VcsType.Svn ? 'Checkout' : 'Clone';
 
-  const pinnedTasks = tasks.filter(t => t.showOnDashboard).slice(0, 3); // Show max 3 pinned tasks
+  const tasksToShowOnCard = tasks.filter(t => t.showOnDashboard).slice(0, 4);
+  const hasMoreTasks = tasks.length > tasksToShowOnCard.length;
   const hasLaunchOptions = (launchCommand && launchCommand.trim() !== '') || (detectedExecutables && detectedExecutables.length > 0);
 
   return (
@@ -134,7 +135,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                     )
                ) : (
                 <>
-                  {pinnedTasks.map(task => (
+                  {tasksToShowOnCard.map(task => (
                       <button
                           key={task.id}
                           onClick={() => onRunTask(id, task.id)}
@@ -151,7 +152,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             </div>
 
             <div className="flex items-center space-x-0.5">
-                {isPathValid && tasks.length > 0 && (
+                {isPathValid && hasMoreTasks && (
                   <button 
                     onClick={() => onOpenTaskSelection(id)}
                     className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
