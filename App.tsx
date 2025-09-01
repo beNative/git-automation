@@ -527,7 +527,6 @@ const App: React.FC = () => {
   }, [logs]);
 
   const CurrentView = () => {
-    logger.debug('Rendering current view', { activeView });
     switch (activeView) {
       case 'settings':
         return <SettingsView currentSettings={settings} onSave={handleSaveSettings} />;
@@ -535,7 +534,6 @@ const App: React.FC = () => {
         return <InfoView />;
       case 'edit-repository':
         const repo = repoToEditId === 'new' ? null : repositories.find(r => r.id === repoToEditId) || null;
-        logger.debug('Rendering RepoEditView', { repoToEditId, repoFound: !!repo });
         // The key ensures the component re-mounts when switching between editing different repos
         return <RepoEditView 
           key={repoToEditId} 

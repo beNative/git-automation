@@ -890,10 +890,12 @@ ipcMain.on('log-to-file-init', () => {
 
 ipcMain.on('log-to-file-close', () => {
     if (logStream) {
-// Bug Fix: Pass the final message to stream.end() to prevent a race condition where the stream closes before the final write completes.
-        logStream.end(`--- Log session ended at ${new Date().toISOString()} ---\n`);
-        logStream = null;
-        console.log('Stopped logging to file.');
+        // FIX: Use the end() callback to prevent a race condition where the stream
+        // is nulled out before it has finished writing and closing.
+        logStream.end(`--- Log session ended at ${new Date().toISOString()} ---\n`, () => {
+            logStream = null;
+            console.log('Stopped logging to file.');
+        });
     }
 });
 

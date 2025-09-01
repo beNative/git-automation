@@ -87,8 +87,6 @@ const TaskStepItem: React.FC<{
   const CUSTOM_COMMAND_VALUE = 'custom_command';
   const isEnabled = step.enabled ?? true;
   const toggleTooltip = useTooltip(isEnabled ? 'Disable Step' : 'Enable Step');
-  
-  logger.debug('Rendering TaskStepItem', { step, index });
 
   return (
     <div className={`bg-white dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
@@ -234,8 +232,6 @@ const TaskStepsEditor: React.FC<{
   const [isSuggesting, setIsSuggesting] = useState(false);
   const showOnDashboardTooltip = useTooltip('Show this task as a button on the repository card');
   
-  logger.debug("Rendering TaskStepsEditor", { taskName: task?.name, repoName: repository?.name });
-
   useEffect(() => {
       if (repository?.localPath && repository.name) {
         logger.debug("Fetching project suggestions", { path: repository.localPath });
@@ -467,7 +463,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, [repository, isGitRepo, setToast]);
   
   useEffect(() => {
-    logger.debug('RepoEditView received new props.', { repository });
+    logger.debug('RepoEditView received new props.', { hasRepo: !!repository });
     if (repository) {
       setFormData(repository);
       if (repository.tasks && repository.tasks.length > 0) {
@@ -483,7 +479,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     setCommits([]);
     setBranchInfo(null);
     setActiveTab('tasks');
-  }, [repository, logger]);
+  }, [repository]);
   
   // Fetch data when a tab becomes active
   useEffect(() => {
@@ -645,19 +641,15 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
 
   const selectedTask = useMemo(() => {
-    const task = formData.tasks?.find(t => t.id === selectedTaskId) || null;
-    logger.debug("Selected task memo updated", { selectedTaskId, taskName: task?.name });
-    return task;
-  }, [selectedTaskId, formData.tasks, logger]);
-  
+    return formData.tasks?.find(t => t.id === selectedTaskId) || null;
+  }, [selectedTaskId, formData.tasks]);
+
   useEffect(() => {
-    logger.debug("RepoEditView re-rendered", { 
-        hasRepo: !!repository,
-        formDataName: formData.name,
-        activeTab,
-        selectedTaskId,
-     });
-  });
+    if (selectedTask) {
+        logger.debug("Selected task changed", { selectedTaskId, taskName: selectedTask.name });
+    }
+  }, [selectedTask, selectedTaskId, logger]);
+  
 
   const renderTabContent = () => {
     if (!repository) {
