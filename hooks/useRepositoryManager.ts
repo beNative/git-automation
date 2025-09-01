@@ -116,6 +116,7 @@ export const useRepositoryManager = () => {
     settings: GlobalSettings,
     onDirty: (statusOutput: string) => Promise<'stash' | 'force' | 'cancel'>
   ) => {
+    const executionId = `exec_${repo.id}_${task.id}_${Date.now()}`;
     const { id: repoId } = repo;
     setIsProcessing(prev => new Set(prev).add(repoId));
     
@@ -159,12 +160,13 @@ export const useRepositoryManager = () => {
                  throw new Error('cancelled'); // Special error to suppress toast
               } else if (choice === 'stash') {
                 addLogEntry(repoId, 'Stashing changes...', LogLevel.Info);
-                await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash}, settings, addLogEntry);
+                const stashExecutionId = `${executionId}_stash`;
+                await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash}, settings, addLogEntry, stashExecutionId);
               }
               // if 'force', proceed as normal
             }
           }
-          await runRealStep(repo, stepToRun, settings, addLogEntry);
+          await runRealStep(repo, stepToRun, settings, addLogEntry, executionId);
         }
       }
 
@@ -187,6 +189,7 @@ export const useRepositoryManager = () => {
   }, [addLogEntry, updateRepoStatus]);
 
   const cloneRepository = useCallback(async (repo: Repository) => {
+    const executionId = `clone_${repo.id}_${Date.now()}`;
     const { id: repoId } = repo;
     setIsProcessing(prev => new Set(prev).add(repoId));
     
@@ -194,7 +197,7 @@ export const useRepositoryManager = () => {
       updateRepoStatus(repoId, RepoStatus.Syncing);
       addLogEntry(repoId, `Cloning repository from '${repo.remoteUrl}'...`, LogLevel.Info);
       
-      await runClone(repo, addLogEntry);
+      await runClone(repo, addLogEntry, executionId);
 
       addLogEntry(repoId, `Repository cloned successfully.`, LogLevel.Success);
       updateRepoStatus(repoId, RepoStatus.Success, BuildHealth.Healthy);
@@ -363,59 +366,68 @@ const runRealStep = (
     repo: Repository,
     step: TaskStep,
     settings: GlobalSettings,
-    addLogEntry: (repoId: string, message: string, level: LogLevel) => void
+    addLogEntry: (repoId: string, message: string, level: LogLevel) => void,
+    executionId: string
 ) => {
   return new Promise<void>((resolve, reject) => {
     const { id: repoId } = repo;
 
-    const cleanupListeners = () => {
-      window.electronAPI.removeTaskListeners();
+    const handleLog = (_event: any, logData: { executionId: string, message: string, level: LogLevel }) => {
+        if (logData.executionId === executionId) {
+            addLogEntry(repoId, logData.message, logData.level);
+        }
     };
     
-    window.electronAPI.onTaskLog((_event, logData) => {
-        const { message, level } = logData;
-        addLogEntry(repoId, message, level);
-    });
-    
-    window.electronAPI.onTaskStepEnd((_event, exitCode) => {
-        cleanupListeners();
-        if (exitCode === 0) {
-            resolve();
-        } else {
-            reject(new Error(`Step failed with exit code ${exitCode}. See logs for details.`));
-        }
-    });
+    const handleEnd = (_event: any, endData: { executionId: string, exitCode: number }) => {
+        if (endData.executionId === executionId) {
+            window.electronAPI.removeTaskLogListener(handleLog);
+            window.electronAPI.removeTaskStepEndListener(handleEnd);
 
-    window.electronAPI.runTaskStep({ repo, step, settings });
+            if (endData.exitCode === 0) {
+                resolve();
+            } else {
+                reject(new Error(`Step failed with exit code ${endData.exitCode}. See logs for details.`));
+            }
+        }
+    };
+    
+    window.electronAPI.onTaskLog(handleLog);
+    window.electronAPI.onTaskStepEnd(handleEnd);
+
+    window.electronAPI.runTaskStep({ repo, step, settings, executionId });
   });
 };
 
 // --- Helper function for running clone via IPC ---
 const runClone = (
     repo: Repository,
-    addLogEntry: (repoId: string, message: string, level: LogLevel) => void
+    addLogEntry: (repoId: string, message: string, level: LogLevel) => void,
+    executionId: string
 ) => {
   return new Promise<void>((resolve, reject) => {
     const { id: repoId } = repo;
 
-    const cleanupListeners = () => {
-      window.electronAPI.removeTaskListeners();
+    const handleLog = (_event: any, logData: { executionId: string, message: string, level: LogLevel }) => {
+        if (logData.executionId === executionId) {
+            addLogEntry(repoId, logData.message, logData.level);
+        }
     };
     
-    window.electronAPI.onTaskLog((_event, logData) => {
-        const { message, level } = logData;
-        addLogEntry(repoId, message, level);
-    });
-    
-    window.electronAPI.onTaskStepEnd((_event, exitCode) => {
-        cleanupListeners();
-        if (exitCode === 0) {
-            resolve();
-        } else {
-            reject(new Error(`Clone failed with exit code ${exitCode}. See logs for details.`));
+    const handleEnd = (_event: any, endData: { executionId: string, exitCode: number }) => {
+        if (endData.executionId === executionId) {
+            window.electronAPI.removeTaskLogListener(handleLog);
+            window.electronAPI.removeTaskStepEndListener(handleEnd);
+            if (endData.exitCode === 0) {
+                resolve();
+            } else {
+                reject(new Error(`Clone failed with exit code ${endData.exitCode}. See logs for details.`));
+            }
         }
-    });
+    };
 
-    window.electronAPI.cloneRepository(repo);
+    window.electronAPI.onTaskLog(handleLog);
+    window.electronAPI.onTaskStepEnd(handleEnd);
+
+    window.electronAPI.cloneRepository({ repo, executionId });
   });
 };

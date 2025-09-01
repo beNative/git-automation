@@ -474,12 +474,12 @@ ipcMain.handle('detect-executables', async (event, repoPath: string): Promise<st
 
 
 // --- IPC handler for cloning a repo ---
-ipcMain.on('clone-repository', (event, repo: Repository) => {
+ipcMain.on('clone-repository', (event, { repo, executionId }: { repo: Repository, executionId: string }) => {
     const sendLog = (message: string, level: LogLevel) => {
-        mainWindow?.webContents.send('task-log', { message, level });
+        mainWindow?.webContents.send('task-log', { executionId, message, level });
     };
     const sendEnd = (exitCode: number) => {
-        mainWindow?.webContents.send('task-step-end', exitCode);
+        mainWindow?.webContents.send('task-step-end', { executionId, exitCode });
     };
 
     let command: string;
@@ -562,12 +562,12 @@ ipcMain.handle('launch-executable', async (event, { repoPath, executablePath }: 
 });
 
 // --- IPC Handler for running real task steps ---
-ipcMain.on('run-task-step', (event, { repo, step, settings }: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {
+ipcMain.on('run-task-step', (event, { repo, step, settings, executionId }: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; }) => {
     const sendLog = (message: string, level: LogLevel) => {
-        mainWindow?.webContents.send('task-log', { message, level });
+        mainWindow?.webContents.send('task-log', { executionId, message, level });
     };
     const sendEnd = (exitCode: number) => {
-        mainWindow?.webContents.send('task-step-end', exitCode);
+        mainWindow?.webContents.send('task-step-end', { executionId, exitCode });
     };
 
     let command: string;

@@ -28,7 +28,7 @@ export interface IElectronAPI {
 
 
   checkLocalPath: (path: string) => Promise<LocalPathState>;
-  cloneRepository: (repo: Repository) => void;
+  cloneRepository: (args: { repo: Repository, executionId: string }) => void;
   launchApplication: (args: { repo: Repository, command: string }) => Promise<{ success: boolean; output: string }>;
   showDirectoryPicker: () => Promise<{ canceled: boolean, filePaths: string[] }>;
   pathJoin: (...args: string[]) => Promise<string>;
@@ -41,17 +41,22 @@ export interface IElectronAPI {
     repo: Repository;
     step: TaskStep;
     settings: GlobalSettings;
+    executionId: string;
   }) => void;
 
   onTaskLog: (
-    callback: (event: IpcRendererEvent, data: { message: string; level: LogLevel }) => void
+    callback: (event: IpcRendererEvent, data: { executionId: string; message: string; level: LogLevel }) => void
+  ) => void;
+  removeTaskLogListener: (
+    callback: (event: IpcRendererEvent, data: { executionId: string; message: string; level: LogLevel }) => void
   ) => void;
   
   onTaskStepEnd: (
-    callback: (event: IpcRendererEvent, exitCode: number) => void
+    callback: (event: IpcRendererEvent, data: { executionId: string; exitCode: number }) => void
   ) => void;
-
-  removeTaskListeners: () => void;
+  removeTaskStepEndListener: (
+    callback: (event: IpcRendererEvent, data: { executionId: string; exitCode: number }) => void
+  ) => void;
 }
 
 declare global {

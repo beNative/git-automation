@@ -32,7 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Local Path and Actions
   checkLocalPath: (path: string): Promise<LocalPathState> => ipcRenderer.invoke('check-local-path', path),
-  cloneRepository: (repo: Repository) => ipcRenderer.send('clone-repository', repo),
+  cloneRepository: (args: { repo: Repository, executionId: string }) => ipcRenderer.send('clone-repository', args),
   launchApplication: (args: { repo: Repository, command: string }) => ipcRenderer.invoke('launch-application', args),
   showDirectoryPicker: (): Promise<{ canceled: boolean, filePaths: string[] }> => ipcRenderer.invoke('show-directory-picker'),
   pathJoin: (...args: string[]): Promise<string> => ipcRenderer.invoke('path-join', ...args),
@@ -43,20 +43,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
   // Real Task Execution
-  runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; }) => {
+  runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; }) => {
     ipcRenderer.send('run-task-step', args);
   },
 
-  onTaskLog: (callback: (event: IpcRendererEvent, data: {message: string, level: LogLevel}) => void) => {
+  onTaskLog: (callback: (event: IpcRendererEvent, data: { executionId: string, message: string, level: LogLevel}) => void) => {
     ipcRenderer.on(taskLogChannel, callback);
   },
-
-  onTaskStepEnd: (callback: (event: IpcRendererEvent, exitCode: number) => void) => {
-    ipcRenderer.on(taskStepEndChannel, callback);
+  removeTaskLogListener: (callback: (event: IpcRendererEvent, data: { executionId: string, message: string, level: LogLevel}) => void) => {
+    ipcRenderer.removeListener(taskLogChannel, callback);
   },
 
-  removeTaskListeners: () => {
-    ipcRenderer.removeAllListeners(taskLogChannel);
-    ipcRenderer.removeAllListeners(taskStepEndChannel);
+  onTaskStepEnd: (callback: (event: IpcRendererEvent, data: { executionId: string, exitCode: number }) => void) => {
+    ipcRenderer.on(taskStepEndChannel, callback);
+  },
+  removeTaskStepEndListener: (callback: (event: IpcRendererEvent, data: { executionId: string, exitCode: number }) => void) => {
+    ipcRenderer.removeListener(taskStepEndChannel, callback);
   }
 });
