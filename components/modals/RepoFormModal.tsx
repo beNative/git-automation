@@ -403,7 +403,6 @@ const TaskStepsEditor: React.FC<{
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
   const logger = useLogger();
   
-  // --- LOGGING ---
   // Log 1: Log when the props received by the component change.
   useEffect(() => {
     logger.info('RepoEditView props updated.', { hasRepo: !!repository, repoName: repository?.name });
@@ -475,8 +474,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   }, [repository, isGitRepo, setToast]);
   
+  // Log 2: Log inside the effect that syncs props to internal state.
   useEffect(() => {
-    // Log 2: Log inside the effect that syncs props to internal state.
     logger.debug('RepoEditView effect: syncing props to internal form state.', { hasRepo: !!repository });
     if (repository) {
       setFormData(repository);
@@ -509,6 +508,16 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         }
     }
   }, [activeTab, fetchHistory, fetchBranches, commits.length, branchInfo]);
+  
+  // New useEffect to safely log render-related state, preventing infinite loops.
+  useEffect(() => {
+    const hasId = 'id' in formData;
+    logger.debug('RepoEditView state updated for render.', {
+        activeTab,
+        repoName: formData.name,
+        hasId: hasId,
+    });
+  }, [activeTab, formData.name, 'id' in formData, logger]);
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -669,9 +678,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
 
   const renderTabContent = () => {
-    // Log 3: Log state at the start of the render function for tabs.
-    logger.debug('Rendering tab content', { activeTab, hasId: 'id' in formData, formDataName: formData.name });
-
     // FIX: Check for 'id' in the formData state to determine if the repo is saved,
     // instead of relying on the initial `repository` prop.
     if (!('id' in formData)) {
@@ -808,9 +814,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         default: return null;
     }
   }
-  
-  // Log 4: Log state just before the final render.
-  logger.debug('RepoEditView preparing to render layout.', { repoName: formData.name });
 
   return (
     <div className="flex flex-col bg-gray-100 dark:bg-gray-900 animate-fade-in h-full">
