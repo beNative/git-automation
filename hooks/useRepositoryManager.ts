@@ -36,6 +36,10 @@ export const useRepositoryManager = () => {
   const [repositories, setRepositories] = useState<Repository[]>(() => {
     try {
       const savedRepos = localStorage.getItem('repositories');
+      const savedSettings = localStorage.getItem('globalSettings');
+      const oldSettings = savedSettings ? JSON.parse(savedSettings) : {};
+      const pkgManager = oldSettings.defaultPackageManager || 'npm';
+
       if (savedRepos) {
         const parsedRepos: Repository[] = JSON.parse(savedRepos);
         
@@ -47,10 +51,16 @@ export const useRepositoryManager = () => {
               ...task,
               variables: task.variables || [],
               showOnDashboard: task.showOnDashboard ?? false,
-              steps: (task.steps || []).map(step => ({
-                ...step,
-                enabled: step.enabled ?? true,
-              }))
+              steps: (task.steps || []).map(step => {
+                // One-time migration for old step types
+                if ((step.type as any) === 'INSTALL_DEPS') {
+                  return { ...step, type: TaskStepType.RunCommand, command: `${pkgManager} install` };
+                }
+                if ((step.type as any) === 'RUN_TESTS') {
+                    return { ...step, type: TaskStepType.RunCommand, command: `${pkgManager} test` };
+                }
+                return { ...step, enabled: step.enabled ?? true };
+              })
             }))
           };
 
@@ -59,12 +69,17 @@ export const useRepositoryManager = () => {
             migratedRepo.launchConfigs = [{
               id: `lc_${Date.now()}`,
               name: 'Default Launch',
+              type: 'command',
               command: migratedRepo.launchCommand,
               showOnDashboard: true,
             }];
           }
           delete migratedRepo.launchCommand;
-          migratedRepo.launchConfigs = migratedRepo.launchConfigs || [];
+          // Ensure launch configs exist and have the new 'type' field
+          migratedRepo.launchConfigs = (migratedRepo.launchConfigs || []).map((lc: any) => ({
+            type: 'command', // Default old configs to 'command'
+            ...lc,
+          }));
 
           return migratedRepo as Repository;
         });
@@ -331,20 +346,6 @@ const runSimulationStep = async (
             addLogEntry(repoId, `git stash`, LogLevel.Command);
             await simulateDelay(500);
             addLogEntry(repoId, 'Successfully stashed changes.', LogLevel.Success);
-            break;
-        case TaskStepType.InstallDeps:
-            const command = settings.defaultPackageManager === 'npm' ? 'npm install' : 'yarn install';
-            addLogEntry(repoId, command, LogLevel.Command);
-            await simulateDelay(3000);
-            randomFail(0.1, 'Simulated dependency installation failed.');
-            addLogEntry(repoId, 'Dependencies installed successfully.', LogLevel.Success);
-            break;
-        case TaskStepType.RunTests:
-            const testCommand = settings.defaultPackageManager === 'npm' ? 'npm test' : 'yarn test';
-            addLogEntry(repoId, testCommand, LogLevel.Command);
-            await simulateDelay(5000);
-            randomFail(0.2, 'Simulated tests failed.');
-            addLogEntry(repoId, 'Tests passed successfully.', LogLevel.Success);
             break;
         case TaskStepType.RunCommand:
             if (step.command) {

@@ -46,8 +46,6 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.GitCheckout]: { label: 'Git Checkout', icon: ArrowRightOnRectangleIcon, description: 'Switch to a specific branch.' },
   [TaskStepType.GitStash]: { label: 'Git Stash', icon: ArchiveBoxIcon, description: 'Stash uncommitted local changes.' },
   [TaskStepType.SvnUpdate]: { label: 'SVN Update', icon: ArrowDownTrayIcon, description: 'Update working copy to latest revision.' },
-  [TaskStepType.InstallDeps]: { label: 'Install Dependencies', icon: CubeTransparentIcon, description: 'Run npm/yarn install.' },
-  [TaskStepType.RunTests]: { label: 'Run Tests', icon: BeakerIcon, description: 'Run npm/yarn test.' },
   [TaskStepType.RunCommand]: { label: 'Run Command', icon: CodeBracketIcon, description: 'Execute a custom shell command.' },
 };
 
@@ -504,14 +502,24 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   };
 
   const handleAddLaunchConfig = () => {
-    const newConfig: LaunchConfig = { id: `lc_${Date.now()}`, name: 'New Launch', command: '', showOnDashboard: false };
+    const newConfig: LaunchConfig = { id: `lc_${Date.now()}`, name: 'New Launch', type: 'command', command: '', showOnDashboard: false };
     setFormData(prev => ({...prev, launchConfigs: [...(prev.launchConfigs || []), newConfig]}));
   };
 
   const handleUpdateLaunchConfig = (id: string, field: keyof LaunchConfig, value: string | boolean) => {
     setFormData(prev => ({
         ...prev,
-        launchConfigs: (prev.launchConfigs || []).map(lc => lc.id === id ? {...lc, [field]: value} : lc)
+        launchConfigs: (prev.launchConfigs || []).map(lc => {
+          if (lc.id === id) {
+            const updated = {...lc, [field]: value};
+            // When changing type, reset the other type's data
+            if (field === 'type') {
+                if (value === 'command') delete updated.command;
+            }
+            return updated;
+          }
+          return lc;
+        })
     }));
   };
 
@@ -731,7 +739,16 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                       <input type="text" placeholder="Name" value={config.name} onChange={e => handleUpdateLaunchConfig(config.id, 'name', e.target.value)} className={`${formInputStyle} flex-grow mt-0`} />
                       <button type="button" onClick={() => handleRemoveLaunchConfig(config.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0"><TrashIcon className="h-4 w-4"/></button>
                     </div>
-                    <input type="text" placeholder="e.g., code . or npm start" value={config.command} onChange={e => handleUpdateLaunchConfig(config.id, 'command', e.target.value)} className={`${formInputStyle} font-mono mt-0`} />
+                    
+                    <select value={config.type} onChange={e => handleUpdateLaunchConfig(config.id, 'type', e.target.value)} className={`${formInputStyle} mt-0`}>
+                      <option value="command">Run a Command</option>
+                      <option value="select-executable">Select an Executable</option>
+                    </select>
+
+                    {config.type === 'command' && (
+                      <input type="text" placeholder="e.g., code . or npm start" value={config.command || ''} onChange={e => handleUpdateLaunchConfig(config.id, 'command', e.target.value)} className={`${formInputStyle} font-mono mt-0`} />
+                    )}
+
                     <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600 dark:text-gray-400">Show on card</span>
                         <label className="relative inline-flex items-center cursor-pointer">

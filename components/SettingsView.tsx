@@ -136,14 +136,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">Behavior</h2>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure how the application functions.</p>
                     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
-                        <div>
-                            <label htmlFor="defaultPackageManager" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Default Package Manager</label>
-                            <select name="defaultPackageManager" id="defaultPackageManager" value={settings.defaultPackageManager} onChange={handleChange} className="mt-1 block w-full max-w-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                <option value="npm">npm</option>
-                                <option value="yarn">yarn</option>
-                            </select>
-                            <p className="mt-2 text-xs text-gray-500">Used by the "Install Dependencies" step in your repository tasks.</p>
-                        </div>
                         <div className="flex items-start">
                             <div className="flex items-center h-5"><input id="notifications" name="notifications" type="checkbox" checked={settings.notifications} onChange={handleChange} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
                             <div className="ml-3 text-sm">

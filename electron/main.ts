@@ -114,6 +114,9 @@ ipcMain.handle('get-project-suggestions', async (event, { repoPath, repoName }: 
   if (await fileExists('package.json')) {
       try {
         const pkg = JSON.parse(await fs.readFile(path.join(repoPath, 'package.json'), 'utf-8'));
+        addSuggestion({ label: 'npm install', value: 'npm install'}, 'Detected NPM Scripts');
+        addSuggestion({ label: 'yarn install', value: 'yarn install'}, 'Detected Yarn Scripts');
+
         if (pkg && pkg.scripts && typeof pkg.scripts === 'object') {
           for (const scriptName of Object.keys(pkg.scripts)) {
             addSuggestion({ label: `npm run ${scriptName}`, value: `npm run ${scriptName}` }, 'Detected NPM Scripts');
@@ -252,14 +255,19 @@ ipcMain.handle('get-project-step-suggestions', async (event, { repoPath, repoNam
 
     // Check for package manager
     if (await fileExists('package.json')) {
-        suggestions.push({ type: TaskStepType.InstallDeps, enabled: true });
+        const yarnLockExists = await fileExists('yarn.lock');
+        const command = yarnLockExists ? 'yarn install' : 'npm install';
+        const testCommand = yarnLockExists ? 'yarn test' : 'npm test';
+
+        suggestions.push({ type: TaskStepType.RunCommand, command, enabled: true });
         try {
             const pkg = JSON.parse(await fs.readFile(path.join(repoPath, 'package.json'), 'utf-8'));
             if (pkg.scripts?.test) {
-                suggestions.push({ type: TaskStepType.RunTests, enabled: true });
+                suggestions.push({ type: TaskStepType.RunCommand, command: testCommand, enabled: true });
             }
             if (pkg.scripts?.build) {
-                suggestions.push({ type: TaskStepType.RunCommand, command: 'npm run build', enabled: true });
+                const buildCommand = yarnLockExists ? 'yarn build' : 'npm run build';
+                suggestions.push({ type: TaskStepType.RunCommand, command: buildCommand, enabled: true });
             }
         } catch (e) { /* ignore malformed json */ }
     }
@@ -602,14 +610,6 @@ ipcMain.on('run-task-step', (event, { repo, step, settings, executionId }: { rep
             args = ['update'];
             break;
         // Common Steps
-        case TaskStepType.InstallDeps:
-            command = settings.defaultPackageManager;
-            args = ['install'];
-            break;
-        case TaskStepType.RunTests:
-            command = settings.defaultPackageManager;
-            args = ['test'];
-            break;
         case TaskStepType.RunCommand:
             if (!step.command) {
                 sendLog('Skipping empty command.', LogLevel.Warn);

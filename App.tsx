@@ -15,6 +15,7 @@ import DirtyRepoModal from './components/modals/DirtyRepoModal';
 import TaskSelectionModal from './components/modals/TaskSelectionModal';
 import LaunchSelectionModal from './components/modals/LaunchSelectionModal';
 import CommitHistoryModal from './components/modals/CommitHistoryModal';
+import ExecutableSelectionModal from './components/modals/ExecutableSelectionModal';
 import { VcsType } from './types';
 
 const App: React.FC = () => {
@@ -70,6 +71,13 @@ const App: React.FC = () => {
     launchables: Launchable[];
   }>({ isOpen: false, repo: null, launchables: [] });
 
+  const [executableSelectionModal, setExecutableSelectionModal] = useState<{
+    isOpen: boolean;
+    repo: Repository | null;
+    launchConfig: LaunchConfig | null;
+    executables: string[];
+  }>({ isOpen: false, repo: null, launchConfig: null, executables: [] });
+
   const [historyModal, setHistoryModal] = useState<{
     isOpen: boolean;
     repo: Repository | null;
@@ -80,7 +88,6 @@ const App: React.FC = () => {
     try {
       const savedSettings = localStorage.getItem('globalSettings');
       const defaults = {
-        defaultPackageManager: 'npm' as 'npm' | 'yarn',
         defaultBuildCommand: 'npm run build',
         notifications: true,
         simulationMode: true,
@@ -91,7 +98,6 @@ const App: React.FC = () => {
     } catch {
       // Fallback to defaults if settings are corrupt
       return {
-        defaultPackageManager: 'npm',
         defaultBuildCommand: 'npm run build',
         notifications: true,
         simulationMode: true,
@@ -329,11 +335,15 @@ const App: React.FC = () => {
       clearLogs(repo.id);
       setLogPanel({ isOpen: true, repoId: repo.id, height: logPanel.height });
       if (launchable.type === 'manual') {
-        await launchApplication(repo, launchable.config.command);
+        if(launchable.config.type === 'command' && launchable.config.command) {
+            await launchApplication(repo, launchable.config.command);
+        } else if (launchable.config.type === 'select-executable') {
+            handleOpenExecutableSelection(repo.id, launchable.config.id);
+        }
       } else {
         await launchExecutable(repo, launchable.path);
       }
-    }, [launchApplication, launchExecutable, clearLogs, logPanel.height]);
+    }, [launchApplication, launchExecutable, clearLogs, logPanel.height, repositories, detectedExecutables]);
 
   const handleRunLaunchConfig = useCallback(async (repoId: string, configId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -342,10 +352,15 @@ const App: React.FC = () => {
         setToast({ message: 'Repository or launch config not found.', type: 'error' });
         return;
     }
-    clearLogs(repoId);
-    setLogPanel({ isOpen: true, repoId, height: logPanel.height });
-    await launchApplication(repo, config.command);
-  }, [repositories, launchApplication, clearLogs, logPanel.height]);
+
+    if (config.type === 'command' && config.command) {
+        clearLogs(repoId);
+        setLogPanel({ isOpen: true, repoId, height: logPanel.height });
+        await launchApplication(repo, config.command);
+    } else if (config.type === 'select-executable') {
+        handleOpenExecutableSelection(repoId, configId);
+    }
+  }, [repositories, launchApplication, clearLogs, logPanel.height, detectedExecutables]);
 
   const handleOpenLaunchSelection = useCallback((repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -365,6 +380,23 @@ const App: React.FC = () => {
         setToast({ message: 'No other launch options found.', type: 'info' });
     }
   }, [repositories, detectedExecutables]);
+
+  const handleOpenExecutableSelection = (repoId: string, configId: string) => {
+    const repo = repositories.find(r => r.id === repoId);
+    const config = repo?.launchConfigs?.find(lc => lc.id === configId);
+    const executables = detectedExecutables[repoId] || [];
+
+    if (repo && config && executables.length > 0) {
+      setExecutableSelectionModal({
+        isOpen: true,
+        repo,
+        launchConfig: config,
+        executables
+      });
+    } else {
+      setToast({ message: 'No executables detected in release/dist/build folders.', type: 'info' });
+    }
+  };
 
 
   const handleCloneRepo = useCallback(async (repo: Repository) => {
@@ -560,6 +592,23 @@ const App: React.FC = () => {
               handleRunLaunchable(launchSelectionModal.repo, launchable);
             }
             setLaunchSelectionModal({ isOpen: false, repo: null, launchables: [] });
+          }}
+        />
+
+        <ExecutableSelectionModal
+          isOpen={executableSelectionModal.isOpen}
+          repository={executableSelectionModal.repo}
+          launchConfig={executableSelectionModal.launchConfig}
+          executables={executableSelectionModal.executables}
+          onClose={() => setExecutableSelectionModal({ isOpen: false, repo: null, launchConfig: null, executables: [] })}
+          onSelect={(executablePath) => {
+            const { repo } = executableSelectionModal;
+            if (repo) {
+                clearLogs(repo.id);
+                setLogPanel({ isOpen: true, repoId: repo.id, height: logPanel.height });
+                launchExecutable(repo, executablePath);
+            }
+            setExecutableSelectionModal({ isOpen: false, repo: null, launchConfig: null, executables: [] });
           }}
         />
 

@@ -21,7 +21,8 @@ export enum VcsType {
 export interface LaunchConfig {
   id: string;
   name: string;
-  command: string;
+  type: 'command' | 'select-executable';
+  command?: string; // Only for 'command' type
   showOnDashboard?: boolean;
 }
 
@@ -65,7 +66,6 @@ export interface LogEntry {
 }
 
 export interface GlobalSettings {
-  defaultPackageManager: 'npm' | 'yarn';
   defaultBuildCommand: string;
   notifications: boolean;
   simulationMode: boolean;
@@ -82,8 +82,6 @@ export enum TaskStepType {
   // SVN
   SvnUpdate = 'SVN_UPDATE',
   // Common
-  InstallDeps = 'INSTALL_DEPS',
-  RunTests = 'RUN_TESTS',
   RunCommand = 'RUN_COMMAND',
 }
 
