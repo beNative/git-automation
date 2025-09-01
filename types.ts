@@ -110,3 +110,7 @@ export interface ProjectSuggestion {
 }
 
 export type LocalPathState = 'checking' | 'valid' | 'missing' | 'not_a_repo';
+
+export type Launchable = 
+  | { type: 'manual'; command: string; }
+  | { type: 'detected'; path: string; };

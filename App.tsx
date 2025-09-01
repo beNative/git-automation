@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
-import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState } from './types';
+import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable } from './types';
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
 import RepoEditView from './components/modals/RepoFormModal'; // Repurposed for the new view
@@ -13,6 +13,7 @@ import CommandPalette from './components/CommandPalette';
 import StatusBar from './components/StatusBar';
 import DirtyRepoModal from './components/modals/DirtyRepoModal';
 import TaskSelectionModal from './components/modals/TaskSelectionModal';
+import LaunchSelectionModal from './components/modals/LaunchSelectionModal';
 
 const App: React.FC = () => {
   const {
@@ -23,6 +24,7 @@ const App: React.FC = () => {
     runTask,
     cloneRepository,
     launchApplication,
+    launchExecutable,
     logs,
     clearLogs,
     isProcessing,
@@ -33,6 +35,7 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<AppView>('dashboard');
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [localPathStates, setLocalPathStates] = useState<Record<string, LocalPathState>>({});
+  const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
   
   const [logPanel, setLogPanel] = useState({
     isOpen: false,
@@ -52,6 +55,13 @@ const App: React.FC = () => {
     isOpen: boolean;
     repo: Repository | null;
   }>({ isOpen: false, repo: null });
+
+  const [launchSelectionModal, setLaunchSelectionModal] = useState<{
+    isOpen: boolean;
+    repo: Repository | null;
+    launchables: Launchable[];
+  }>({ isOpen: false, repo: null, launchables: [] });
+
 
   const [settings, setSettings] = useState<GlobalSettings>(() => {
     try {
@@ -100,6 +110,25 @@ const App: React.FC = () => {
     };
     checkPaths();
   }, [repositories]);
+
+  // Effect to detect executables when paths are validated
+  useEffect(() => {
+    const detectAll = async () => {
+      const executablesByRepo: Record<string, string[]> = {};
+      for (const repo of repositories) {
+        if (localPathStates[repo.id] === 'valid' && repo.localPath) {
+          try {
+            executablesByRepo[repo.id] = await window.electronAPI.detectExecutables(repo.localPath);
+          } catch (error) {
+            console.error(`Failed to detect executables for ${repo.name}:`, error);
+            executablesByRepo[repo.id] = [];
+          }
+        }
+      }
+      setDetectedExecutables(executablesByRepo);
+    };
+    detectAll();
+  }, [repositories, localPathStates]);
 
   // Effect to apply theme
   useEffect(() => {
@@ -202,12 +231,40 @@ const App: React.FC = () => {
     setLogPanel({ isOpen: true, repoId, height: logPanel.height });
   };
   
-  const handleLaunchApp = useCallback(async (repoId: string) => {
+  const handleRunLaunchable = useCallback(async (repo: Repository, launchable: Launchable) => {
+      clearLogs(repo.id);
+      setLogPanel({ isOpen: true, repoId: repo.id, height: logPanel.height });
+      if (launchable.type === 'manual') {
+        await launchApplication(repo);
+      } else {
+        await launchExecutable(repo, launchable.path);
+      }
+    }, [launchApplication, launchExecutable, clearLogs, logPanel.height]);
+
+  const handleInitiateLaunch = useCallback(async (repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
     if (!repo) return;
-    setLogPanel({ isOpen: true, repoId, height: logPanel.height });
-    await launchApplication(repo);
-  }, [repositories, launchApplication, logPanel.height]);
+    
+    const launchables: Launchable[] = [];
+    if (repo.launchCommand) {
+      launchables.push({ type: 'manual', command: repo.launchCommand });
+    }
+    const detected = detectedExecutables[repo.id] || [];
+    detected.forEach(path => {
+      launchables.push({ type: 'detected', path });
+    });
+
+    if (launchables.length === 0) {
+      setToast({ message: 'No launch commands or executables found.', type: 'info' });
+      return;
+    }
+    
+    if (launchables.length === 1) {
+      await handleRunLaunchable(repo, launchables[0]);
+    } else {
+      setLaunchSelectionModal({ isOpen: true, repo, launchables });
+    }
+  }, [repositories, detectedExecutables, handleRunLaunchable]);
 
   const handleCloneRepo = useCallback(async (repo: Repository) => {
     clearLogs(repo.id);
@@ -281,12 +338,13 @@ const App: React.FC = () => {
           onDeleteRepo={handleDeleteRepo}
           isProcessing={isProcessing}
           localPathStates={localPathStates}
+          detectedExecutables={detectedExecutables}
           onCloneRepo={(repoId) => {
             const repo = repositories.find(r => r.id === repoId);
             if (repo) handleCloneRepo(repo);
           }}
           onChooseLocationAndClone={handleChooseLocationAndClone}
-          onLaunchApp={handleLaunchApp}
+          onLaunchApp={handleInitiateLaunch}
         />;
     }
   };
@@ -340,6 +398,19 @@ const App: React.FC = () => {
               handleRunTask(taskSelectionModal.repo.id, taskId);
             }
             setTaskSelectionModal({ isOpen: false, repo: null });
+          }}
+        />
+
+        <LaunchSelectionModal
+          isOpen={launchSelectionModal.isOpen}
+          repository={launchSelectionModal.repo}
+          launchables={launchSelectionModal.launchables}
+          onClose={() => setLaunchSelectionModal({ isOpen: false, repo: null, launchables: [] })}
+          onSelect={(launchable) => {
+            if (launchSelectionModal.repo) {
+              handleRunLaunchable(launchSelectionModal.repo, launchable);
+            }
+            setLaunchSelectionModal({ isOpen: false, repo: null, launchables: [] });
           }}
         />
 

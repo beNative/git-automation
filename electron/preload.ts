@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   launchApplication: (repo: Repository) => ipcRenderer.invoke('launch-application', repo),
   showDirectoryPicker: (): Promise<{ canceled: boolean, filePaths: string[] }> => ipcRenderer.invoke('show-directory-picker'),
   pathJoin: (...args: string[]): Promise<string> => ipcRenderer.invoke('path-join', ...args),
+  detectExecutables: (repoPath: string): Promise<string[]> => ipcRenderer.invoke('detect-executables', repoPath),
+  launchExecutable: (args: { repoPath: string, executablePath: string }): Promise<{ success: boolean, output: string }> => ipcRenderer.invoke('launch-executable', args),
 
 
   // Real Task Execution

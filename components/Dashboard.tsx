@@ -12,6 +12,7 @@ interface DashboardProps {
   onDeleteRepo: (repoId: string) => void;
   isProcessing: Set<string>;
   localPathStates: Record<string, LocalPathState>;
+  detectedExecutables: Record<string, string[]>;
   onCloneRepo: (repoId: string) => void;
   onChooseLocationAndClone: (repoId: string) => void;
   onLaunchApp: (repoId: string) => void;
@@ -26,6 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onDeleteRepo,
   isProcessing,
   localPathStates,
+  detectedExecutables,
   onCloneRepo,
   onChooseLocationAndClone,
   onLaunchApp,
@@ -53,6 +55,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           onDeleteRepo={onDeleteRepo}
           isProcessing={isProcessing.has(repo.id)}
           localPathState={localPathStates[repo.id] || 'checking'}
+          detectedExecutables={detectedExecutables[repo.id] || []}
           onCloneRepo={onCloneRepo}
           onChooseLocationAndClone={onChooseLocationAndClone}
           onLaunchApp={onLaunchApp}

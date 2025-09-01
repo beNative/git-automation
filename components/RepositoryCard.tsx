@@ -24,6 +24,7 @@ interface RepositoryCardProps {
   onDeleteRepo: (repoId: string) => void;
   isProcessing: boolean;
   localPathState: LocalPathState;
+  detectedExecutables: string[];
   onCloneRepo: (repoId: string) => void;
   onChooseLocationAndClone: (repoId: string) => void;
   onLaunchApp: (repoId: string) => void;
@@ -38,6 +39,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onDeleteRepo,
   isProcessing,
   localPathState,
+  detectedExecutables,
   onCloneRepo,
   onChooseLocationAndClone,
   onLaunchApp,
@@ -50,6 +52,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const cloneVerb = vcs === VcsType.Svn ? 'Checkout' : 'Clone';
 
   const pinnedTasks = tasks.filter(t => t.showOnDashboard).slice(0, 3); // Show max 3 pinned tasks
+  const hasLaunchOptions = (launchCommand && launchCommand.trim() !== '') || (detectedExecutables && detectedExecutables.length > 0);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-blue-500/20 hover:scale-[1.02] overflow-hidden">
@@ -158,11 +161,11 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                     <PlayIcon className="h-5 w-5" />
                   </button>
                 )}
-                {launchCommand && isPathValid && (
+                {hasLaunchOptions && isPathValid && (
                     <button 
                       onClick={() => onLaunchApp(id)}
                       className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
-                      title={`Launch: ${launchCommand}`}
+                      title="Launch..."
                       disabled={isProcessing}
                     >
                       <ArrowTopRightOnSquareIcon className="h-5 w-5" />

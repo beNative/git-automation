@@ -218,6 +218,23 @@ export const useRepositoryManager = () => {
         addLogEntry(repoId, `Failed to invoke launch command: ${e.message}`, LogLevel.Error);
       }
   }, [addLogEntry]);
+
+  const launchExecutable = useCallback(async (repo: Repository, executablePath: string) => {
+      const { id: repoId } = repo;
+      addLogEntry(repoId, `Executing detected executable: '${executablePath}'...`, LogLevel.Command);
+      try {
+        const result = await window.electronAPI.launchExecutable({ repoPath: repo.localPath, executablePath });
+        if (result.success) {
+            addLogEntry(repoId, `Executable ran successfully.`, LogLevel.Success);
+            if (result.output) addLogEntry(repoId, result.output, LogLevel.Info);
+        } else {
+            addLogEntry(repoId, `Executable failed:`, LogLevel.Error);
+            if (result.output) addLogEntry(repoId, result.output, LogLevel.Error);
+        }
+      } catch (e: any) {
+        addLogEntry(repoId, `Failed to launch executable: ${e.message}`, LogLevel.Error);
+      }
+  }, [addLogEntry]);
   
   const addRepository = (repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>) => {
     const newRepo: Repository = {
@@ -255,6 +272,7 @@ export const useRepositoryManager = () => {
     runTask, 
     cloneRepository,
     launchApplication,
+    launchExecutable,
     logs,
     clearLogs,
     isProcessing

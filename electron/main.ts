@@ -3,7 +3,7 @@ import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import { platform } from 'os';
 import { autoUpdater } from 'electron-updater';
-import { spawn, exec } from 'child_process';
+import { spawn, exec, execFile } from 'child_process';
 import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState } from '../types';
 import { TaskStepType, LogLevel, VcsType } from '../types';
 
@@ -329,6 +329,60 @@ ipcMain.handle('path-join', async (event, ...args: string[]) => {
   return path.join(...args);
 });
 
+// --- Helper function to check if a file is executable ---
+const isExecutable = async (filePath: string) => {
+  if (platform() === 'win32') {
+    return /\.(exe|bat|cmd)$/i.test(filePath);
+  }
+  try {
+    const stats = await fs.stat(filePath);
+    // Check if user, group, or others have execute permission bit set and it's a file
+    return (stats.mode & 0o111) !== 0 && stats.isFile();
+  } catch {
+    return false;
+  }
+};
+
+// --- Recursive helper to find executables in a directory ---
+const findExecutables = async (dir: string, repoRoot: string, depth = 0, maxDepth = 2): Promise<string[]> => {
+  if (depth > maxDepth) return [];
+  
+  let results: string[] = [];
+  try {
+    const files = await fs.readdir(dir, { withFileTypes: true });
+
+    for (const file of files) {
+      const fullPath = path.join(dir, file.name);
+      if (file.isDirectory()) {
+        results = results.concat(await findExecutables(fullPath, repoRoot, depth + 1, maxDepth));
+      } else if (file.isFile() && await isExecutable(fullPath)) {
+        results.push(path.relative(repoRoot, fullPath));
+      }
+    }
+  } catch (e) {
+    // Ignore errors for directories that don't exist, e.g. permission denied
+  }
+  return results;
+};
+
+
+// --- IPC handler for detecting executables ---
+ipcMain.handle('detect-executables', async (event, repoPath: string): Promise<string[]> => {
+  if (!repoPath) return [];
+
+  const searchDirs = ['dist', 'release', 'build', 'out', 'bin'];
+  let allExecutables: string[] = [];
+  
+  for (const dir of searchDirs) {
+    const fullSearchPath = path.join(repoPath, dir);
+    const executables = await findExecutables(fullSearchPath, repoPath);
+    allExecutables = allExecutables.concat(executables);
+  }
+
+  // Use a Set to remove duplicates that might arise from symlinks, etc.
+  return [...new Set(allExecutables)];
+});
+
 
 // --- IPC handler for cloning a repo ---
 ipcMain.on('clone-repository', (event, repo: Repository) => {
@@ -386,7 +440,7 @@ ipcMain.on('clone-repository', (event, repo: Repository) => {
     });
 });
 
-// --- IPC handler for launching an application ---
+// --- IPC handler for launching an application (manual command) ---
 ipcMain.handle('launch-application', async (event, repo: Repository): Promise<{ success: boolean; output: string }> => {
     if (!repo.launchCommand) {
         return { success: false, output: 'No launch command configured.' };
@@ -394,6 +448,21 @@ ipcMain.handle('launch-application', async (event, repo: Repository): Promise<{ 
 
     return new Promise((resolve) => {
         exec(repo.launchCommand, { cwd: repo.localPath }, (error, stdout, stderr) => {
+            if (error) {
+                resolve({ success: false, output: stderr || error.message });
+                return;
+            }
+            resolve({ success: true, output: stdout });
+        });
+    });
+});
+
+// --- IPC handler for launching a detected executable ---
+ipcMain.handle('launch-executable', async (event, { repoPath, executablePath }: { repoPath: string, executablePath: string }): Promise<{ success: boolean; output: string }> => {
+    const fullPath = path.join(repoPath, executablePath);
+    
+    return new Promise((resolve) => {
+        execFile(fullPath, { cwd: repoPath }, (error, stdout, stderr) => {
             if (error) {
                 resolve({ success: false, output: stderr || error.message });
                 return;

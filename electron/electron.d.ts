@@ -21,6 +21,8 @@ export interface IElectronAPI {
   launchApplication: (repo: Repository) => Promise<{ success: boolean; output: string }>;
   showDirectoryPicker: () => Promise<{ canceled: boolean, filePaths: string[] }>;
   pathJoin: (...args: string[]) => Promise<string>;
+  detectExecutables: (repoPath: string) => Promise<string[]>;
+  launchExecutable: (args: { repoPath: string, executablePath: string }) => Promise<{ success: boolean; output: string }>;
   
   runTaskStep: (args: {
     repo: Repository;
