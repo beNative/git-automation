@@ -13,7 +13,6 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => {
   const navButtonStyle = "p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors";
-  const activeNavButtonStyle = "p-2 rounded-full bg-blue-600 dark:bg-blue-700 text-white";
   const disabledNavButtonStyle = "p-2 rounded-full text-gray-400 dark:text-gray-600 cursor-not-allowed";
 
   const isEditing = activeView === 'edit-repository';
@@ -50,7 +49,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
             <button
               onClick={() => handleSetView('dashboard')}
               disabled={isEditing}
-              className={isEditing ? disabledNavButtonStyle : (activeView === 'dashboard' ? activeNavButtonStyle : navButtonStyle)}
+              className={isEditing ? disabledNavButtonStyle : (activeView === 'dashboard' ? 'p-2 rounded-full bg-red-600 dark:bg-red-700 text-white' : navButtonStyle)}
               aria-label="Dashboard"
               title="Dashboard"
             >
@@ -59,7 +58,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
             <button
               onClick={() => handleSetView('settings')}
               disabled={isEditing}
-              className={isEditing ? disabledNavButtonStyle : (activeView === 'settings' ? activeNavButtonStyle : navButtonStyle)}
+              className={isEditing ? disabledNavButtonStyle : (activeView === 'settings' ? 'p-2 rounded-full bg-green-600 dark:bg-green-700 text-white' : navButtonStyle)}
               aria-label="Settings"
               title="Settings"
             >
@@ -68,7 +67,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
             <button
               onClick={() => handleSetView('info')}
               disabled={isEditing}
-              className={isEditing ? disabledNavButtonStyle : (activeView === 'info' ? activeNavButtonStyle : navButtonStyle)}
+              className={isEditing ? disabledNavButtonStyle : (activeView === 'info' ? 'p-2 rounded-full bg-blue-600 dark:bg-blue-700 text-white' : navButtonStyle)}
               aria-label="Information"
               title="Information"
             >
