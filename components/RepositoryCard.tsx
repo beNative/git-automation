@@ -17,6 +17,7 @@ import { FolderIcon } from './icons/FolderIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
 import { StatusIndicator } from './StatusIndicator';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { ClockIcon } from './icons/ClockIcon';
 
 
 interface RepositoryCardProps {
@@ -24,6 +25,7 @@ interface RepositoryCardProps {
   onOpenTaskSelection: (repoId: string) => void;
   onRunTask: (repoId: string, taskId: string) => void;
   onViewLogs: (repoId: string) => void;
+  onViewHistory: (repoId: string) => void;
   onEditRepo: (repoId: string) => void;
   onDeleteRepo: (repoId: string) => void;
   isProcessing: boolean;
@@ -121,6 +123,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onOpenTaskSelection,
   onRunTask,
   onViewLogs,
+  onViewHistory,
   onEditRepo,
   onDeleteRepo,
   isProcessing,
@@ -300,6 +303,14 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                   title={!isPathValid ? "Local path must be valid to open terminal" : "Open in Terminal"}
                 >
                   <TerminalIcon className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => onViewHistory(id)}
+                  disabled={!isPathValid}
+                  className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
+                  title={!isPathValid ? "Local path must be valid to view history" : "View Commit History"}
+                >
+                  <ClockIcon className="h-5 w-5" />
                 </button>
                 <button 
                   onClick={() => onViewLogs(id)} 

@@ -14,6 +14,7 @@ import StatusBar from './components/StatusBar';
 import DirtyRepoModal from './components/modals/DirtyRepoModal';
 import TaskSelectionModal from './components/modals/TaskSelectionModal';
 import LaunchSelectionModal from './components/modals/LaunchSelectionModal';
+import CommitHistoryModal from './components/modals/CommitHistoryModal';
 import { VcsType } from './types';
 
 const App: React.FC = () => {
@@ -68,6 +69,11 @@ const App: React.FC = () => {
     repo: Repository | null;
     launchables: Launchable[];
   }>({ isOpen: false, repo: null, launchables: [] });
+
+  const [historyModal, setHistoryModal] = useState<{
+    isOpen: boolean;
+    repo: Repository | null;
+  }>({ isOpen: false, repo: null });
 
 
   const [settings, setSettings] = useState<GlobalSettings>(() => {
@@ -312,6 +318,13 @@ const App: React.FC = () => {
     setLogPanel({ isOpen: true, repoId, height: logPanel.height });
   };
   
+  const handleViewHistory = useCallback((repoId: string) => {
+    const repo = repositories.find(r => r.id === repoId);
+    if (repo) {
+        setHistoryModal({ isOpen: true, repo });
+    }
+  }, [repositories]);
+
   const handleRunLaunchable = useCallback(async (repo: Repository, launchable: Launchable) => {
       clearLogs(repo.id);
       setLogPanel({ isOpen: true, repoId: repo.id, height: logPanel.height });
@@ -461,6 +474,7 @@ const App: React.FC = () => {
           onOpenTaskSelection={handleOpenTaskSelection} 
           onRunTask={handleRunTask}
           onViewLogs={handleViewLogs}
+          onViewHistory={handleViewHistory}
           onEditRepo={(repoId: string) => handleEditRepository(repoId)}
           onDeleteRepo={handleDeleteRepo}
           isProcessing={isProcessing}
@@ -547,6 +561,12 @@ const App: React.FC = () => {
             }
             setLaunchSelectionModal({ isOpen: false, repo: null, launchables: [] });
           }}
+        />
+
+        <CommitHistoryModal
+            isOpen={historyModal.isOpen}
+            repository={historyModal.repo}
+            onClose={() => setHistoryModal({ isOpen: false, repo: null })}
         />
 
         <CommandPalette 

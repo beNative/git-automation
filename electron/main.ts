@@ -709,6 +709,8 @@ const execAsync = (command: string, options: { cwd: string }): Promise<{ stdout:
   return new Promise((resolve, reject) => {
     exec(command, options, (error, stdout, stderr) => {
       if (error) {
+        // For git log, even if there's an error (e.g. empty repo), we might get stderr but no actual error object.
+        // We reject only on a true error object.
         return reject(error);
       }
       resolve({ stdout, stderr });
@@ -777,13 +779,24 @@ ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promi
 // --- Get Commit History (Git only) ---
 ipcMain.handle('get-commit-history', async (event, repoPath: string): Promise<Commit[]> => {
     try {
-        const { stdout } = await execAsync('git log --pretty=format:"%H|%h|%an|%ar|%s" -n 30', { cwd: repoPath });
+        const SEPARATOR = '_||_';
+        const format = `%H${SEPARATOR}%h${SEPARATOR}%an${SEPARATOR}%ar${SEPARATOR}%B`;
+        // Use -z to separate commits with a NUL character, as messages can contain newlines
+        const { stdout } = await execAsync(`git log --pretty=format:"${format}" -z -n 30`, { cwd: repoPath });
         if (!stdout) return [];
-        return stdout.split('\n').map(line => {
-            const [hash, shortHash, author, date, message] = line.split('|');
-            return { hash, shortHash, author, date, message };
+        // Split by NUL character, and filter out any empty strings that might result from a trailing NUL
+        return stdout.split('\0').filter(line => line.trim() !== '').map(line => {
+            const parts = line.split(SEPARATOR);
+            const hash = parts[0];
+            const shortHash = parts[1];
+            const author = parts[2];
+            const date = parts[3];
+            // The rest of the parts form the message.
+            const message = parts.slice(4).join(SEPARATOR);
+            return { hash, shortHash, author, date, message: message || '' };
         });
     } catch (e) {
+        console.error(`Failed to get commit history for ${repoPath}:`, e);
         return [];
     }
 });

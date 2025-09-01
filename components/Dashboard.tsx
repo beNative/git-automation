@@ -8,6 +8,7 @@ interface DashboardProps {
   onOpenTaskSelection: (repoId: string) => void;
   onRunTask: (repoId: string, taskId: string) => void;
   onViewLogs: (repoId: string) => void;
+  onViewHistory: (repoId: string) => void;
   onEditRepo: (repoId: string) => void;
   onDeleteRepo: (repoId: string) => void;
   isProcessing: Set<string>;
@@ -29,6 +30,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onOpenTaskSelection,
   onRunTask,
   onViewLogs,
+  onViewHistory,
   onEditRepo,
   onDeleteRepo,
   isProcessing,
@@ -63,6 +65,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           onOpenTaskSelection={onOpenTaskSelection}
           onRunTask={onRunTask}
           onViewLogs={onViewLogs}
+          onViewHistory={onViewHistory}
           onEditRepo={onEditRepo}
           onDeleteRepo={onDeleteRepo}
           isProcessing={isProcessing.has(repo.id)}

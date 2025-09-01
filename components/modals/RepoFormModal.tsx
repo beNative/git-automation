@@ -614,13 +614,13 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             );
         case 'history':
             return (
-                <div className="p-4">
+                <div className="p-4 overflow-y-auto">
                     {historyLoading ? (<p>Loading history...</p>) : (
                         <ul className="space-y-3">
                             {commits.map(commit => (
                                 <li key={commit.hash} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                                    <p className="font-semibold text-gray-900 dark:text-gray-100">{commit.message}</p>
-                                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    <pre className="font-sans whitespace-pre-wrap font-semibold text-gray-900 dark:text-gray-100">{commit.message}</pre>
+                                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                                         <span>{commit.author}</span>
                                         <span title={commit.hash} className="font-mono">{commit.shortHash} &bull; {commit.date}</span>
                                     </div>
