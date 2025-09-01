@@ -17,6 +17,7 @@ import { VariableIcon } from '../icons/VariableIcon';
 import { SparklesIcon } from '../icons/SparklesIcon';
 import { DocumentTextIcon } from '../icons/DocumentTextIcon';
 import { GitBranchIcon } from '../icons/GitBranchIcon';
+import { useTooltip } from '../../hooks/useTooltip';
 
 
 interface RepoEditViewProps {
@@ -63,6 +64,7 @@ const TaskStepItem: React.FC<{
   const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
   const CUSTOM_COMMAND_VALUE = 'custom_command';
   const isEnabled = step.enabled ?? true;
+  const toggleTooltip = useTooltip(isEnabled ? 'Disable Step' : 'Enable Step');
 
   return (
     <div className={`bg-white dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
@@ -75,7 +77,9 @@ const TaskStepItem: React.FC<{
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <label className="relative inline-flex items-center cursor-pointer" title={isEnabled ? 'Disable Step' : 'Enable Step'}>
+          <label
+// @ts-ignore
+ {...toggleTooltip} className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" checked={isEnabled} onChange={(e) => onStepChange(step.id, {enabled: e.target.checked})} className="sr-only peer" />
             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
           </label>
@@ -203,6 +207,7 @@ const TaskStepsEditor: React.FC<{
   const [isAddingStep, setIsAddingStep] = useState(false);
   const [suggestions, setSuggestions] = useState<ProjectSuggestion[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const showOnDashboardTooltip = useTooltip('Show this task as a button on the repository card');
 
   useEffect(() => {
       if (repository?.localPath && repository.name) {
@@ -292,7 +297,9 @@ const TaskStepsEditor: React.FC<{
         />
         <div className="flex items-center space-x-2 flex-shrink-0">
           <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Show on card</span>
-          <label className="relative inline-flex items-center cursor-pointer" title="Show this task as a button on the repository card">
+          <label
+// @ts-ignore
+ {...showOnDashboardTooltip} className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" checked={task.showOnDashboard ?? false} onChange={(e) => setTask({...task, showOnDashboard: e.target.checked})} className="sr-only peer" />
             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
           </label>
@@ -599,7 +606,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                     <button type="button" onClick={() => setSelectedTaskId(task.id)} className="w-full text-left px-3 py-2 group">
                                         <div className="flex justify-between items-start">
                                             <p className={`font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 ${selectedTaskId === task.id ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
-                                            <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50" title="Delete Task"><TrashIcon className="h-4 w-4"/></button>
+                                            <button
+// @ts-ignore
+ {...useTooltip('Delete Task')} type="button" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50"><TrashIcon className="h-4 w-4"/></button>
                                         </div>
                                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{task.steps.length} step(s)</p>
                                     </button>
@@ -630,7 +639,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                     <pre className="font-sans whitespace-pre-wrap text-gray-900 dark:text-gray-100">{commit.message}</pre>
                                     <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                                         <span>{commit.author}</span>
-                                        <span title={commit.hash} className="font-mono">{commit.shortHash} &bull; {commit.date}</span>
+                                        <span
+// @ts-ignore
+ {...useTooltip(commit.hash)} className="font-mono">{commit.shortHash} &bull; {commit.date}</span>
                                     </div>
                                 </li>
                             ))}

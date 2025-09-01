@@ -18,6 +18,7 @@ import { TerminalIcon } from './icons/TerminalIcon';
 import { StatusIndicator } from './StatusIndicator';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { ClockIcon } from './icons/ClockIcon';
+import { useTooltip } from '../hooks/useTooltip';
 
 
 interface RepositoryCardProps {
@@ -153,6 +154,16 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const unpinnedLaunchConfigs = (launchConfigs || []).filter(lc => !lc.showOnDashboard);
   const hasMoreLaunchOptions = unpinnedLaunchConfigs.length > 0 || (detectedExecutables && detectedExecutables.length > 0);
 
+  // Tooltips
+  const localPathTooltip = useTooltip(`Open: ${localPath}`);
+  const moreTasksTooltip = useTooltip('Select a task to run...');
+  const moreLaunchTooltip = useTooltip('More launch options...');
+  const terminalTooltip = useTooltip(!isPathValid ? "Local path must be valid to open terminal" : "Open in Terminal");
+  const historyTooltip = useTooltip(!isPathValid ? "Local path must be valid to view history" : "View Commit History");
+  const logsTooltip = useTooltip('View Logs');
+  const configureTooltip = useTooltip('Configure Repository');
+  const deleteTooltip = useTooltip('Delete Repository');
+
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-blue-500/20 hover:scale-[1.02] overflow-hidden">
@@ -184,10 +195,11 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
           {isPathSet && (
             <div className="flex items-center">
                 <FolderIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                <button 
+                <button
+// @ts-ignore
+                    {...localPathTooltip}
                     onClick={() => onOpenLocalPath(localPath)} 
                     className="truncate text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors focus:outline-none"
-                    title={`Open: ${localPath}`}
                 >
                     {localPath}
                 </button>
@@ -226,20 +238,22 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                {isPathMissing ? (
                     isPathSet ? (
                       <button
+// @ts-ignore
+                        {...useTooltip(`${cloneVerb} from ${remoteUrl} to ${localPath}`)}
                         onClick={() => onCloneRepo(id)}
                         disabled={isProcessing}
                         className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                        title={`${cloneVerb} from ${remoteUrl} to ${localPath}`}
                       >
                         <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
                         {cloneVerb} Repo
                       </button>
                     ) : (
                       <button
+// @ts-ignore
+                        {...useTooltip(`Choose location and ${cloneVerb.toLowerCase()}`)}
                         onClick={() => onChooseLocationAndClone(id)}
                         disabled={isProcessing}
                         className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                        title={`Choose location and ${cloneVerb.toLowerCase()}`}
                       >
                         <FolderPlusIcon className="h-4 w-4 mr-1.5" />
                         Setup & {cloneVerb}
@@ -249,11 +263,12 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 <>
                   {tasksToShowOnCard.map(task => (
                       <button
+// @ts-ignore
+                          {...useTooltip(!isPathValid ? 'Local path is not valid' : `Run Task: ${task.name}`)}
                           key={task.id}
                           onClick={() => onRunTask(id, task.id)}
                           disabled={isProcessing || !isPathValid}
                           className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                          title={!isPathValid ? 'Local path is not valid' : `Run Task: ${task.name}`}
                       >
                           <PlayIcon className="h-4 w-4 mr-1" />
                           <span className="truncate">{task.name}</span>
@@ -261,11 +276,12 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                   ))}
                   {launchConfigsToShowOnCard.map(config => (
                       <button
+// @ts-ignore
+                          {...useTooltip(!isPathValid ? 'Local path is not valid' : `Launch: ${config.name}`)}
                           key={config.id}
                           onClick={() => onRunLaunchConfig(id, config.id)}
                           disabled={isProcessing || !isPathValid}
                           className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                          title={!isPathValid ? 'Local path is not valid' : `Launch: ${config.name}`}
                       >
                           <LightningBoltIcon className="h-4 w-4 mr-1" />
                           <span className="truncate">{config.name}</span>
@@ -277,59 +293,66 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
 
             <div className="flex items-center space-x-0.5">
                 {isPathValid && hasMoreTasks && (
-                  <button 
+                  <button
+// @ts-ignore
+                    {...moreTasksTooltip}
                     onClick={() => onOpenTaskSelection(id)}
                     className="p-1.5 text-green-500 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-full transition-colors disabled:opacity-50"
-                    title="Select a task to run..."
                     disabled={isProcessing}
                   >
                     <PlayIcon className="h-5 w-5" />
                   </button>
                 )}
                 {isPathValid && hasMoreLaunchOptions && (
-                    <button 
+                    <button
+// @ts-ignore
+                      {...moreLaunchTooltip}
                       onClick={() => onOpenLaunchSelection(id)}
                       className="p-1.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors disabled:opacity-50"
-                      title="More launch options..."
                       disabled={isProcessing}
                     >
                       <LightningBoltIcon className="h-5 w-5" />
                     </button>
                 )}
                 <button
+// @ts-ignore
+                  {...terminalTooltip}
                   onClick={() => onOpenTerminal(localPath)}
                   disabled={!isPathValid}
                   className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={!isPathValid ? "Local path must be valid to open terminal" : "Open in Terminal"}
                 >
                   <TerminalIcon className="h-5 w-5" />
                 </button>
                 <button
+// @ts-ignore
+                  {...historyTooltip}
                   onClick={() => onViewHistory(id)}
                   disabled={!isPathValid}
                   className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
-                  title={!isPathValid ? "Local path must be valid to view history" : "View Commit History"}
                 >
                   <ClockIcon className="h-5 w-5" />
                 </button>
-                <button 
+                <button
+// @ts-ignore
+                  {...logsTooltip}
                   onClick={() => onViewLogs(id)} 
                   className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-                  title="View Logs"
                 >
                   <DocumentTextIcon className="h-5 w-5" />
                 </button>
-                <button 
+                <button
+// @ts-ignore
+                  {...configureTooltip}
                   onClick={() => onEditRepo(id)} 
                   className="p-1.5 text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-full transition-colors"
-                  title="Configure Repository"
                 >
                   <PencilIcon className="h-5 w-5" />
                 </button>
-                <button 
+                <button
+// @ts-ignore
+                  {...deleteTooltip}
                   onClick={() => onDeleteRepo(id)} 
                   className="p-1.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors"
-                  title="Delete Repository"
                 >
                   <TrashIcon className="h-5 w-5" />
                 </button>

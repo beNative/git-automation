@@ -8,6 +8,7 @@ import { ClockIcon } from './icons/ClockIcon';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { CloudArrowDownIcon } from './icons/CloudArrowDownIcon';
 import { ExclamationCircleIcon } from './icons/ExclamationCircleIcon';
+import { useTooltip } from '../hooks/useTooltip';
 
 interface StatusBarProps {
     repoCount: number;
@@ -28,15 +29,28 @@ const Clock: React.FC = () => {
 };
 
 const UpdateStatusIndicator: React.FC<{ status: UpdateStatus }> = ({ status }) => {
+    const checkingTooltip = useTooltip('Checking for updates...');
+    const upToDateTooltip = useTooltip('Application is up-to-date');
+    const availableTooltip = useTooltip('A new version is available!');
+    const errorTooltip = useTooltip('Could not check for updates.');
+
     switch (status) {
         case 'checking':
-            return <div className="flex items-center" title="Checking for updates..."><ArrowPathIcon className="h-4 w-4 mr-1.5 animate-spin" /> Checking...</div>;
+            return <div
+// @ts-ignore
+ {...checkingTooltip} className="flex items-center"><ArrowPathIcon className="h-4 w-4 mr-1.5 animate-spin" /> Checking...</div>;
         case 'up-to-date':
-            return <div className="flex items-center text-green-600 dark:text-green-500" title="Application is up-to-date"><CheckCircleIcon className="h-4 w-4 mr-1.5" /> Up to date</div>;
+            return <div
+// @ts-ignore
+ {...upToDateTooltip} className="flex items-center text-green-600 dark:text-green-500"><CheckCircleIcon className="h-4 w-4 mr-1.5" /> Up to date</div>;
         case 'available':
-            return <div className="flex items-center text-blue-600 dark:text-blue-400" title="A new version is available!"><CloudArrowDownIcon className="h-4 w-4 mr-1.5" /> Update available</div>;
+            return <div
+// @ts-ignore
+ {...availableTooltip} className="flex items-center text-blue-600 dark:text-blue-400"><CloudArrowDownIcon className="h-4 w-4 mr-1.5" /> Update available</div>;
         case 'error':
-            return <div className="flex items-center text-red-600 dark:text-red-500" title="Could not check for updates."><ExclamationCircleIcon className="h-4 w-4 mr-1.5" /> Update failed</div>;
+            return <div
+// @ts-ignore
+ {...errorTooltip} className="flex items-center text-red-600 dark:text-red-500"><ExclamationCircleIcon className="h-4 w-4 mr-1.5" /> Update failed</div>;
         default:
             return null;
     }
@@ -51,18 +65,29 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
         warn: 'text-yellow-500 dark:text-yellow-400',
     };
 
+    const repoCountTooltip = useTooltip('Total Repositories');
+    const processingTooltip = useTooltip(`${processingCount} tasks running`);
+    const simModeTooltip = useTooltip('Simulation mode is active. No real commands will be run.');
+    const commandPaletteTooltip = useTooltip('Command Palette (Ctrl+K)');
+    const timeTooltip = useTooltip('Current Time');
+    const latestLogTooltip = useTooltip(latestLog?.message || '');
+
     return (
         <footer className="h-7 bg-gray-200 dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700 flex items-center justify-between px-3 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0 z-10">
             {/* Left Section */}
             <div className="flex items-center space-x-3">
-                <div className="flex items-center" title="Total Repositories">
+                <div
+// @ts-ignore
+ {...repoCountTooltip} className="flex items-center">
                     <GitBranchIcon className="h-4 w-4 mr-1.5" />
                     <span>{repoCount} Repositories</span>
                 </div>
                 {processingCount > 0 && (
                     <>
                         <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                        <div className="flex items-center text-blue-500 dark:text-blue-400" title={`${processingCount} tasks running`}>
+                        <div
+// @ts-ignore
+ {...processingTooltip} className="flex items-center text-blue-500 dark:text-blue-400">
                             <ArrowPathIcon className="h-4 w-4 mr-1.5 animate-spin" />
                             <span>{processingCount} Running</span>
                         </div>
@@ -71,7 +96,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
             </div>
             
             {/* Center Section */}
-            <div className="flex-1 text-center truncate px-4" title={latestLog?.message}>
+            <div
+// @ts-ignore
+ {...latestLogTooltip} className="flex-1 text-center truncate px-4">
                 {latestLog && (
                     <span className={LOG_LEVEL_COLOR_CLASSES[latestLog.level] || 'text-gray-400'}>
                         [{new Date(latestLog.timestamp).toLocaleTimeString()}] {latestLog.message}
@@ -82,13 +109,17 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
             {/* Right Section */}
             <div className="flex items-center space-x-3">
                 {isSimulationMode && (
-                    <div className="flex items-center text-yellow-600 dark:text-yellow-500" title="Simulation mode is active. No real commands will be run.">
+                    <div
+// @ts-ignore
+ {...simModeTooltip} className="flex items-center text-yellow-600 dark:text-yellow-500">
                         <BeakerIcon className="h-4 w-4 mr-1.5" />
                         <span>Sim Mode</span>
                     </div>
                 )}
                  <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                 <div className="flex items-center" title="Command Palette">
+                 <div
+// @ts-ignore
+ {...commandPaletteTooltip} className="flex items-center">
                     <KeyboardIcon className="h-4 w-4 mr-1.5" />
                     <span>Ctrl+K</span>
                 </div>
@@ -103,7 +134,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                 )}
                 
                 <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                <div className="flex items-center" title="Current Time">
+                <div
+// @ts-ignore
+ {...timeTooltip} className="flex items-center">
                     <ClockIcon className="h-4 w-4 mr-1.5" />
                     <Clock />
                 </div>

@@ -4,6 +4,7 @@ import { PlusIcon } from './icons/PlusIcon';
 import { CogIcon } from './icons/CogIcon';
 import { InformationCircleIcon } from './icons/InformationCircleIcon';
 import { HomeIcon } from './icons/HomeIcon';
+import { useTooltip } from '../hooks/useTooltip';
 
 interface HeaderProps {
   onNewRepo: () => void;
@@ -26,6 +27,10 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
     if (isEditing) return;
     onNewRepo();
   }
+
+  const dashboardTooltip = useTooltip('Dashboard');
+  const settingsTooltip = useTooltip('Settings');
+  const infoTooltip = useTooltip('Information');
 
   return (
     <header className="bg-gray-200/80 dark:bg-gray-800/80 backdrop-blur-sm sticky top-0 z-20 shadow-md">
@@ -51,29 +56,32 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
             )}
 
             <button
+// @ts-ignore
+              {...dashboardTooltip}
               onClick={() => handleSetView('dashboard')}
               disabled={isEditing}
               className={isEditing ? disabledNavButtonStyle : (activeView === 'dashboard' ? 'p-2 rounded-full bg-red-600 dark:bg-red-700 text-white' : navButtonStyle)}
               aria-label="Dashboard"
-              title="Dashboard"
             >
               <HomeIcon className="h-6 w-6" />
             </button>
             <button
+// @ts-ignore
+              {...settingsTooltip}
               onClick={() => handleSetView('settings')}
               disabled={isEditing}
               className={isEditing ? disabledNavButtonStyle : (activeView === 'settings' ? 'p-2 rounded-full bg-green-600 dark:bg-green-700 text-white' : navButtonStyle)}
               aria-label="Settings"
-              title="Settings"
             >
               <CogIcon className="h-6 w-6" />
             </button>
             <button
+// @ts-ignore
+              {...infoTooltip}
               onClick={() => handleSetView('info')}
               disabled={isEditing}
               className={isEditing ? disabledNavButtonStyle : (activeView === 'info' ? 'p-2 rounded-full bg-blue-600 dark:bg-blue-700 text-white' : navButtonStyle)}
               aria-label="Information"
-              title="Information"
             >
               <InformationCircleIcon className="h-6 w-6" />
             </button>
