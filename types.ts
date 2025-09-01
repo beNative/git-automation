@@ -26,7 +26,7 @@ export interface LaunchConfig {
 }
 
 export interface BaseRepository {
-  id: string;
+  id:string;
   name: string;
   localPath: string;
   vcs: VcsType;
@@ -123,3 +123,40 @@ export type Launchable =
   | { type: 'detected'; path: string };
   
 export type UpdateStatus = 'checking' | 'up-to-date' | 'available' | 'error';
+
+// --- New VCS Integration Types ---
+
+export interface VcsFileStatus {
+  added: number;
+  modified: number;
+  deleted: number;
+  conflicted: number;
+  untracked: number;
+  renamed: number;
+}
+
+export interface GitBranchInfo {
+  ahead: number;
+  behind: number;
+  tracking: string;
+}
+
+export interface DetailedStatus {
+  files: VcsFileStatus;
+  branchInfo?: GitBranchInfo;
+  isDirty: boolean;
+}
+
+export interface Commit {
+  hash: string;
+  shortHash: string;
+  author: string;
+  date: string;
+  message: string;
+}
+
+export interface BranchInfo {
+    local: string[];
+    remote: string[];
+    current: string | null;
+}

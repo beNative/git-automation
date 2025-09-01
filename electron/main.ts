@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { autoUpdater } from 'electron-updater';
 import { spawn, exec, execFile } from 'child_process';
-import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, UpdateStatus } from '../types';
+import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, UpdateStatus, DetailedStatus, VcsFileStatus, Commit, BranchInfo } from '../types';
 import { TaskStepType, LogLevel, VcsType } from '../types';
 
 // Fix: Manually declare Node.js globals to resolve type errors when @types/node is not available.
@@ -699,3 +699,139 @@ autoUpdater.on('error', (err) => {
   sendUpdateStatus('error', 'Update check failed');
   console.error('Error in auto-updater. ' + err);
 });
+
+
+// =================================================================
+// --- NEW IPC Handlers for Deep VCS Integration ---
+// =================================================================
+
+const execAsync = (command: string, options: { cwd: string }): Promise<{ stdout: string, stderr: string }> => {
+  return new Promise((resolve, reject) => {
+    exec(command, options, (error, stdout, stderr) => {
+      if (error) {
+        return reject(error);
+      }
+      resolve({ stdout, stderr });
+    });
+  });
+};
+
+// --- Get Detailed Status ---
+ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promise<DetailedStatus | null> => {
+  try {
+    if (repo.vcs === VcsType.Git) {
+      const { stdout } = await execAsync('git status --porcelain=v2 --branch', { cwd: repo.localPath });
+      const files: VcsFileStatus = { added: 0, modified: 0, deleted: 0, conflicted: 0, untracked: 0, renamed: 0 };
+      let branchInfo: DetailedStatus['branchInfo'] = undefined;
+      let isDirty = false;
+
+      for (const line of stdout.split('\n')) {
+        if (line.startsWith('# branch.ab')) {
+          const match = line.match(/\+([0-9]+) -([0-9]+)/);
+          if (match) {
+            branchInfo = { ...(branchInfo || { ahead:0, behind: 0, tracking: '' }), ahead: parseInt(match[1]), behind: parseInt(match[2]) };
+          }
+        } else if (line.startsWith('# branch.upstream')) {
+          branchInfo = { ...(branchInfo || { ahead:0, behind: 0, tracking: '' }), tracking: line.substring(18) };
+        } else if (line.startsWith('1 ')) { // Changed files (staged/unstaged)
+          isDirty = true;
+          const xy = line.substring(2, 4);
+          if (xy[1] === 'A') files.added++;
+          if (xy[1] === 'M') files.modified++;
+          if (xy[1] === 'D') files.deleted++;
+        } else if (line.startsWith('2 ')) { // Renamed files
+          isDirty = true;
+          files.renamed++;
+        } else if (line.startsWith('u ')) { // Unmerged
+          isDirty = true;
+          files.conflicted++;
+        } else if (line.startsWith('? ')) { // Untracked
+          isDirty = true;
+          files.untracked++;
+        }
+      }
+      return { files, branchInfo, isDirty };
+    } else if (repo.vcs === VcsType.Svn) {
+      const { stdout } = await execAsync('svn status', { cwd: repo.localPath });
+      const files: VcsFileStatus = { added: 0, modified: 0, deleted: 0, conflicted: 0, untracked: 0, renamed: 0 };
+      if (stdout.trim().length === 0) return { files, isDirty: false };
+
+      for (const line of stdout.split('\n')) {
+        const status = line.trim().charAt(0);
+        if (status === 'A') files.added++;
+        else if (status === 'M') files.modified++;
+        else if (status === 'D') files.deleted++;
+        else if (status === 'C') files.conflicted++;
+        else if (status === '?') files.untracked++;
+      }
+      return { files, isDirty: true };
+    }
+    return null;
+  } catch (error) {
+    console.error(`Error getting detailed status for ${repo.name}:`, error);
+    return null;
+  }
+});
+
+
+// --- Get Commit History (Git only) ---
+ipcMain.handle('get-commit-history', async (event, repoPath: string): Promise<Commit[]> => {
+    try {
+        const { stdout } = await execAsync('git log --pretty=format:"%H|%h|%an|%ar|%s" -n 30', { cwd: repoPath });
+        if (!stdout) return [];
+        return stdout.split('\n').map(line => {
+            const [hash, shortHash, author, date, message] = line.split('|');
+            return { hash, shortHash, author, date, message };
+        });
+    } catch (e) {
+        return [];
+    }
+});
+
+
+// --- List Branches (Git only) ---
+ipcMain.handle('list-branches', async (event, repoPath: string): Promise<BranchInfo> => {
+    try {
+        const { stdout } = await execAsync('git branch -a', { cwd: repoPath });
+        const branches: BranchInfo = { local: [], remote: [], current: null };
+        stdout.split('\n').forEach(line => {
+            line = line.trim();
+            if (!line) return;
+            const isCurrent = line.startsWith('* ');
+            const branchName = isCurrent ? line.substring(2) : line;
+            if (isCurrent) branches.current = branchName;
+
+            if (branchName.startsWith('remotes/')) {
+                 if (!branchName.includes('->')) {
+                    branches.remote.push(branchName.substring(8));
+                }
+            } else {
+                branches.local.push(branchName);
+            }
+        });
+        return branches;
+    } catch (e) {
+        return { local: [], remote: [], current: null };
+    }
+});
+
+const simpleGitCommand = async (repoPath: string, command: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+        await execAsync(command, { cwd: repoPath });
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.stderr || e.message };
+    }
+};
+
+ipcMain.handle('checkout-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `git checkout ${branch}`));
+ipcMain.handle('create-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `git checkout -b ${branch}`));
+ipcMain.handle('delete-branch', (e, repoPath: string, branch: string, isRemote: boolean) => {
+    if (isRemote) {
+        const remoteName = 'origin'; // This is a simplification
+        return simpleGitCommand(repoPath, `git push ${remoteName} --delete ${branch}`);
+    } else {
+        return simpleGitCommand(repoPath, `git branch -d ${branch}`);
+    }
+});
+ipcMain.handle('merge-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `git merge ${branch}`));

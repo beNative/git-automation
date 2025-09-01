@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig } from '../../types';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, Commit, BranchInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -15,12 +15,16 @@ import { CubeTransparentIcon } from '../icons/CubeTransparentIcon';
 import { CodeBracketIcon } from '../icons/CodeBracketIcon';
 import { VariableIcon } from '../icons/VariableIcon';
 import { SparklesIcon } from '../icons/SparklesIcon';
+import { DocumentTextIcon } from '../icons/DocumentTextIcon';
+import { GitBranchIcon } from '../icons/GitBranchIcon';
 
 
 interface RepoEditViewProps {
   onSave: (repository: Repository) => void;
   onCancel: () => void;
   repository: Repository | null;
+  onRefreshState: (repoId: string) => Promise<void>;
+  setToast: (toast: { message: string; type: 'success' | 'error' | 'info' } | null) => void;
 }
 
 const NEW_REPO_TEMPLATE: Omit<GitRepository, 'id'> = {
@@ -358,25 +362,77 @@ const TaskStepsEditor: React.FC<{
 };
 
 
-const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository }) => {
+const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(NEW_REPO_TEMPLATE);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'branches'>('tasks');
+  
+  // State for History Tab
+  const [commits, setCommits] = useState<Commit[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
+  // State for Branches Tab
+  const [branchInfo, setBranchInfo] = useState<BranchInfo | null>(null);
+  const [branchesLoading, setBranchesLoading] = useState(false);
+  const [newBranchName, setNewBranchName] = useState('');
+  const [branchToMerge, setBranchToMerge] = useState('');
+
+
+  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
+  const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
+
+  const isGitRepo = formData.vcs === VcsType.Git;
+
+  const fetchHistory = useCallback(async () => {
+    if (!repository || !isGitRepo) return;
+    setHistoryLoading(true);
+    try {
+        const history = await window.electronAPI.getCommitHistory(repository.localPath);
+        setCommits(history);
+    } catch (e: any) {
+        setToast({ message: `Failed to load history: ${e.message}`, type: 'error' });
+    } finally {
+        setHistoryLoading(false);
+    }
+  }, [repository, isGitRepo, setToast]);
+
+  const fetchBranches = useCallback(async () => {
+    if (!repository || !isGitRepo) return;
+    setBranchesLoading(true);
+    try {
+        const branches = await window.electronAPI.listBranches(repository.localPath);
+        setBranchInfo(branches);
+        if (branches.current) {
+            setBranchToMerge(branches.current);
+        }
+    } catch (e: any) {
+        setToast({ message: `Failed to load branches: ${e.message}`, type: 'error' });
+    } finally {
+        setBranchesLoading(false);
+    }
+  }, [repository, isGitRepo, setToast]);
+  
   useEffect(() => {
     if (repository) {
       setFormData(repository);
-      // When the repository prop changes, always reset the selected task.
       if (repository.tasks && repository.tasks.length > 0) {
         setSelectedTaskId(repository.tasks[0].id);
       } else {
         setSelectedTaskId(null);
       }
     } else {
-      // This is for creating a new repository.
       setFormData(NEW_REPO_TEMPLATE);
       setSelectedTaskId(null);
     }
+    setActiveTab('tasks');
   }, [repository]);
+  
+  // Fetch data when a tab becomes active
+  useEffect(() => {
+    if (activeTab === 'history') fetchHistory();
+    if (activeTab === 'branches') fetchBranches();
+  }, [activeTab, fetchHistory, fetchBranches]);
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -465,13 +521,172 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         launchConfigs: (prev.launchConfigs || []).filter(lc => lc.id !== id)
     }));
   };
-
-  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
-  const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
   
+  const handleCreateBranch = async () => {
+    if (!repository || !newBranchName.trim()) return;
+    const result = await window.electronAPI.createBranch(repository.localPath, newBranchName.trim());
+    if (result.success) {
+        setToast({ message: `Branch '${newBranchName.trim()}' created`, type: 'success' });
+        setNewBranchName('');
+        fetchBranches();
+        onRefreshState(repository.id);
+    } else {
+        setToast({ message: `Error: ${result.error}`, type: 'error' });
+    }
+  };
+  
+  const handleDeleteBranch = async (branchName: string, isRemote: boolean) => {
+    if (!repository || !window.confirm(`Are you sure you want to delete ${isRemote ? 'remote' : 'local'} branch '${branchName}'?`)) return;
+    const result = await window.electronAPI.deleteBranch(repository.localPath, branchName, isRemote);
+    if (result.success) {
+        setToast({ message: `Branch '${branchName}' deleted`, type: 'success' });
+        fetchBranches();
+        onRefreshState(repository.id);
+    } else {
+        setToast({ message: `Error: ${result.error}`, type: 'error' });
+    }
+  };
+
+  const handleMergeBranch = async () => {
+      if (!repository || !branchToMerge) return;
+      const currentBranch = branchInfo?.current;
+      if (!currentBranch || branchToMerge === currentBranch) {
+        setToast({ message: 'Cannot merge a branch into itself.', type: 'info' });
+        return;
+      }
+      if (!window.confirm(`Are you sure you want to merge '${branchToMerge}' into '${currentBranch}'?`)) return;
+      
+      const result = await window.electronAPI.mergeBranch(repository.localPath, branchToMerge);
+      if (result.success) {
+          setToast({ message: `Successfully merged '${branchToMerge}' into '${currentBranch}'`, type: 'success' });
+          fetchBranches();
+          onRefreshState(repository.id);
+      } else {
+          setToast({ message: `Merge failed: ${result.error}`, type: 'error' });
+      }
+  };
+
+
   const selectedTask = useMemo(() => {
     return formData.tasks?.find(t => t.id === selectedTaskId) || null;
   }, [selectedTaskId, formData.tasks]);
+
+  const renderTabContent = () => {
+    if (!repository) {
+        return <div className="p-4 text-center text-gray-500">Please save the repository to access advanced features.</div>
+    }
+    switch(activeTab) {
+        case 'tasks':
+            return (
+                <div className="flex-1 flex overflow-hidden">
+                    <aside className="w-1/3 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50">
+                        <div className="p-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+                            <h3 className="font-semibold text-gray-800 dark:text-gray-200">Tasks</h3>
+                            <button type="button" onClick={handleNewTask} className="flex items-center px-3 py-1 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md"><PlusIcon className="h-4 w-4 mr-1"/>New</button>
+                        </div>
+                        <ul className="divide-y divide-gray-200 dark:divide-gray-700 overflow-y-auto">
+                            {(!formData.tasks || formData.tasks.length === 0) && <li className="px-4 py-4 text-center text-gray-500 text-sm">No tasks created.</li>}
+                            {formData.tasks?.map(task => (
+                                <li key={task.id} className={`${selectedTaskId === task.id ? 'bg-blue-500/10' : ''}`}>
+                                    <button type="button" onClick={() => setSelectedTaskId(task.id)} className="w-full text-left px-3 py-2 group">
+                                        <div className="flex justify-between items-start">
+                                            <p className={`font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 ${selectedTaskId === task.id ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50" title="Delete Task"><TrashIcon className="h-4 w-4"/></button>
+                                        </div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{task.steps.length} step(s)</p>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </aside>
+                    <div className="flex-1 p-4 overflow-y-auto">
+                        {selectedTask ? (
+                            <TaskStepsEditor task={selectedTask} setTask={handleTaskChange} repository={formData as Repository} />
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-center text-gray-500">
+                                <CubeTransparentIcon className="h-12 w-12 text-gray-400"/>
+                                <h3 className="mt-2 text-lg font-medium">No Task Selected</h3>
+                                <p className="mt-1 text-sm">Select a task from the list, or create a new one to begin.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        case 'history':
+            return (
+                <div className="p-4">
+                    {historyLoading ? (<p>Loading history...</p>) : (
+                        <ul className="space-y-3">
+                            {commits.map(commit => (
+                                <li key={commit.hash} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                                    <p className="font-semibold text-gray-900 dark:text-gray-100">{commit.message}</p>
+                                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        <span>{commit.author}</span>
+                                        <span title={commit.hash} className="font-mono">{commit.shortHash} &bull; {commit.date}</span>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            );
+        case 'branches':
+            return (
+                <div className="p-4 space-y-4">
+                     {branchesLoading ? (<p>Loading branches...</p>) : branchInfo && (
+                         <>
+                            {/* Create Branch */}
+                            <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <h3 className="font-semibold">Create New Branch</h3>
+                                <div className="flex items-center space-x-2 mt-2">
+                                    <input type="text" value={newBranchName} onChange={e => setNewBranchName(e.target.value)} placeholder="new-feature-branch" className={`${formInputStyle} mt-0`} />
+                                    <button type="button" onClick={handleCreateBranch} className="px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md">Create</button>
+                                </div>
+                            </div>
+                            {/* Merge Branch */}
+                            <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <h3 className="font-semibold">Merge Branch</h3>
+                                <p className="text-xs text-gray-500">Merge a branch into the current branch ({branchInfo.current})</p>
+                                <div className="flex items-center space-x-2 mt-2">
+                                    <select value={branchToMerge} onChange={e => setBranchToMerge(e.target.value)} className={`${formInputStyle} mt-0`}>
+                                        {branchInfo.local.map(b => <option key={b} value={b}>{b}</option>)}
+                                    </select>
+                                    <button type="button" onClick={handleMergeBranch} className="px-3 py-1.5 text-sm text-white bg-green-600 hover:bg-green-700 rounded-md">Merge</button>
+                                </div>
+                            </div>
+                             {/* Branch Lists */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <h3 className="font-semibold mb-2">Local Branches</h3>
+                                    <ul className="space-y-1">
+                                        {branchInfo.local.map(b => (
+                                            <li key={b} className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-900/50 rounded-md">
+                                                <span className={`${b === branchInfo.current ? 'font-bold text-blue-600 dark:text-blue-400' : ''}`}>{b}</span>
+                                                {b !== branchInfo.current && <button onClick={() => handleDeleteBranch(b, false)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold mb-2">Remote Branches</h3>
+                                    <ul className="space-y-1">
+                                        {branchInfo.remote.map(b => (
+                                            <li key={b} className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-900/50 rounded-md">
+                                                <span>{b}</span>
+                                                <button onClick={() => handleDeleteBranch(b, true)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                         </>
+                     )}
+                </div>
+            );
+        default: return null;
+    }
+  }
+  
 
   return (
     <div className="h-full flex flex-col bg-gray-100 dark:bg-gray-900 animate-fade-in">
@@ -503,7 +718,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             
             {formData.vcs === 'git' && (
               <>
-                <div><label htmlFor="branch" className={formLabelStyle}>Branch</label><input type="text" name="branch" id="branch" value={(formData as GitRepository).branch} onChange={handleChange} required className={formInputStyle}/></div>
+                <div><label htmlFor="branch" className={formLabelStyle}>Default Branch</label><input type="text" name="branch" id="branch" value={(formData as GitRepository).branch} onChange={handleChange} required className={formInputStyle}/></div>
               </>
             )}
 
@@ -539,39 +754,18 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             
         </aside>
 
-        {/* Right: Task Editor */}
-        <main className="flex-1 flex overflow-hidden">
-            <aside className="w-1/3 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50">
-                <div className="p-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-                    <h3 className="font-semibold text-gray-800 dark:text-gray-200">Tasks</h3>
-                    <button type="button" onClick={handleNewTask} className="flex items-center px-3 py-1 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md"><PlusIcon className="h-4 w-4 mr-1"/>New</button>
-                </div>
-                <ul className="divide-y divide-gray-200 dark:divide-gray-700 overflow-y-auto">
-                    {(!formData.tasks || formData.tasks.length === 0) && <li className="px-4 py-4 text-center text-gray-500 text-sm">No tasks created.</li>}
-                    {formData.tasks?.map(task => (
-                        <li key={task.id} className={`${selectedTaskId === task.id ? 'bg-blue-500/10' : ''}`}>
-                            <button type="button" onClick={() => setSelectedTaskId(task.id)} className="w-full text-left px-3 py-2 group">
-                                <div className="flex justify-between items-start">
-                                    <p className={`font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 ${selectedTaskId === task.id ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50" title="Delete Task"><TrashIcon className="h-4 w-4"/></button>
-                                </div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{task.steps.length} step(s)</p>
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            </aside>
-            <div className="flex-1 p-4 overflow-y-auto">
-                {selectedTask ? (
-                    <TaskStepsEditor task={selectedTask} setTask={handleTaskChange} repository={formData as Repository} />
-                ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center text-gray-500">
-                        <CubeTransparentIcon className="h-12 w-12 text-gray-400"/>
-                        <h3 className="mt-2 text-lg font-medium">No Task Selected</h3>
-                        <p className="mt-1 text-sm">Select a task from the list, or create a new one to begin.</p>
-                    </div>
+        {/* Right: Tabbed View */}
+        <main className="flex-1 flex flex-col overflow-hidden">
+             <div className="flex border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+                <button onClick={() => setActiveTab('tasks')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'tasks' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><CubeTransparentIcon className="h-5 w-5"/>Tasks</button>
+                {isGitRepo && (
+                    <>
+                        <button onClick={() => setActiveTab('history')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'history' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><DocumentTextIcon className="h-5 w-5"/>History</button>
+                        <button onClick={() => setActiveTab('branches')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'branches' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><GitBranchIcon className="h-5 w-5"/>Branches</button>
+                    </>
                 )}
             </div>
+            {renderTabContent()}
         </main>
       </div>
     </div>

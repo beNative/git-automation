@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
-import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, UpdateStatus } from './types';
+import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, UpdateStatus, DetailedStatus, BranchInfo } from './types';
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
 import RepoEditView from './components/modals/RepoFormModal'; // Repurposed for the new view
@@ -14,6 +14,7 @@ import StatusBar from './components/StatusBar';
 import DirtyRepoModal from './components/modals/DirtyRepoModal';
 import TaskSelectionModal from './components/modals/TaskSelectionModal';
 import LaunchSelectionModal from './components/modals/LaunchSelectionModal';
+import { VcsType } from './types';
 
 const App: React.FC = () => {
   const {
@@ -38,6 +39,10 @@ const App: React.FC = () => {
   const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
   const [appVersion, setAppVersion] = useState<string>('');
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('checking');
+
+  // New states for deeper VCS integration
+  const [detailedStatuses, setDetailedStatuses] = useState<Record<string, DetailedStatus | null>>({});
+  const [branchLists, setBranchLists] = useState<Record<string, BranchInfo | null>>({});
   
   const [logPanel, setLogPanel] = useState({
     isOpen: false,
@@ -122,6 +127,34 @@ const App: React.FC = () => {
     };
     checkPaths();
   }, [repositories]);
+  
+  // New effect to fetch detailed VCS statuses and branch lists
+  useEffect(() => {
+    const fetchStatuses = async () => {
+      const statusPromises = repositories.map(async (repo) => {
+        if (localPathStates[repo.id] === 'valid') {
+          const status = await window.electronAPI.getDetailedVcsStatus(repo);
+          return { repoId: repo.id, status };
+        }
+        return { repoId: repo.id, status: null };
+      });
+      const statuses = await Promise.all(statusPromises);
+      setDetailedStatuses(statuses.reduce((acc, s) => ({ ...acc, [s.repoId]: s.status }), {}));
+      
+      const branchPromises = repositories.map(async (repo) => {
+        if (localPathStates[repo.id] === 'valid' && repo.vcs === VcsType.Git) {
+          const branches = await window.electronAPI.listBranches(repo.localPath);
+          return { repoId: repo.id, branches };
+        }
+        return { repoId: repo.id, branches: null };
+      });
+      const branches = await Promise.all(branchPromises);
+      setBranchLists(branches.reduce((acc, b) => ({ ...acc, [b.repoId]: b.branches }), {}));
+    };
+
+    fetchStatuses();
+  }, [repositories, localPathStates]);
+
 
   // Effect to detect executables when paths are validated
   useEffect(() => {
@@ -162,6 +195,40 @@ const App: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  const refreshRepoState = useCallback(async (repoId: string) => {
+    const repo = repositories.find(r => r.id === repoId);
+    if (!repo || localPathStates[repo.id] !== 'valid') return;
+
+    const status = await window.electronAPI.getDetailedVcsStatus(repo);
+    setDetailedStatuses(prev => ({ ...prev, [repoId]: status }));
+
+    if (repo.vcs === VcsType.Git) {
+        const branches = await window.electronAPI.listBranches(repo.localPath);
+        setBranchLists(prev => ({ ...prev, [repoId]: branches }));
+        // If the current branch in the state is different from the one on disk, update it
+        if (branches.current && repo.branch !== branches.current) {
+            updateRepository({ ...repo, branch: branches.current });
+        }
+    }
+  }, [repositories, localPathStates, updateRepository]);
+
+  const handleSwitchBranch = useCallback(async (repoId: string, branch: string) => {
+    const repo = repositories.find(r => r.id === repoId);
+    if (!repo || repo.vcs !== VcsType.Git) return;
+
+    try {
+        const result = await window.electronAPI.checkoutBranch(repo.localPath, branch);
+        if (result.success) {
+            setToast({ message: `Switched to branch '${branch}'`, type: 'success' });
+            await refreshRepoState(repoId);
+        } else {
+            setToast({ message: `Failed to switch branch: ${result.error}`, type: 'error' });
+        }
+    } catch (e: any) {
+        setToast({ message: e.message || 'An error occurred.', type: 'error' });
+    }
+  }, [repositories, refreshRepoState]);
 
   const handleSaveSettings = (newSettings: GlobalSettings) => {
     setSettings(newSettings);
@@ -222,8 +289,10 @@ const App: React.FC = () => {
       } else {
         setToast({ message: 'Task was cancelled.', type: 'info' });
       }
+    } finally {
+        refreshRepoState(repoId); // Refresh status after task run
     }
-  }, [repositories, settings, runTask, clearLogs, logPanel.height]);
+  }, [repositories, settings, runTask, clearLogs, logPanel.height, refreshRepoState]);
 
   const handleDirtyRepoChoice = (choice: 'stash' | 'force' | 'cancel') => {
     if (dirtyRepoModal.resolve) {
@@ -377,7 +446,14 @@ const App: React.FC = () => {
       case 'edit-repository':
         const repo = repoToEditId === 'new' ? null : repositories.find(r => r.id === repoToEditId) || null;
         // The key ensures the component re-mounts when switching between editing different repos
-        return <RepoEditView key={repoToEditId} repository={repo} onSave={handleSaveRepo} onCancel={handleCancelEditRepository} />;
+        return <RepoEditView 
+          key={repoToEditId} 
+          repository={repo} 
+          onSave={handleSaveRepo} 
+          onCancel={handleCancelEditRepository}
+          onRefreshState={refreshRepoState}
+          setToast={setToast}
+        />;
       case 'dashboard':
       default:
         return <Dashboard 
@@ -390,6 +466,9 @@ const App: React.FC = () => {
           isProcessing={isProcessing}
           localPathStates={localPathStates}
           detectedExecutables={detectedExecutables}
+          detailedStatuses={detailedStatuses}
+          branchLists={branchLists}
+          onSwitchBranch={handleSwitchBranch}
           onCloneRepo={(repoId) => {
             const repo = repositories.find(r => r.id === repoId);
             if (repo) handleCloneRepo(repo);

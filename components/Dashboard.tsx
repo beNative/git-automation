@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Repository, LocalPathState } from '../types';
+import type { Repository, LocalPathState, DetailedStatus, BranchInfo } from '../types';
 import RepositoryCard from './RepositoryCard';
 import { PlusCircleIcon } from './icons/PlusCircleIcon';
 
@@ -13,6 +13,9 @@ interface DashboardProps {
   isProcessing: Set<string>;
   localPathStates: Record<string, LocalPathState>;
   detectedExecutables: Record<string, string[]>;
+  detailedStatuses: Record<string, DetailedStatus | null>;
+  branchLists: Record<string, BranchInfo | null>;
+  onSwitchBranch: (repoId: string, branch: string) => void;
   onCloneRepo: (repoId: string) => void;
   onChooseLocationAndClone: (repoId: string) => void;
   onRunLaunchConfig: (repoId: string, configId: string) => void;
@@ -31,6 +34,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   isProcessing,
   localPathStates,
   detectedExecutables,
+  detailedStatuses,
+  branchLists,
+  onSwitchBranch,
   onCloneRepo,
   onChooseLocationAndClone,
   onRunLaunchConfig,
@@ -61,6 +67,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           onDeleteRepo={onDeleteRepo}
           isProcessing={isProcessing.has(repo.id)}
           localPathState={localPathStates[repo.id] || 'checking'}
+          detailedStatus={detailedStatuses[repo.id] || null}
+          branchInfo={branchLists[repo.id] || null}
+          onSwitchBranch={onSwitchBranch}
           detectedExecutables={detectedExecutables[repo.id] || []}
           onCloneRepo={onCloneRepo}
           onChooseLocationAndClone={onChooseLocationAndClone}

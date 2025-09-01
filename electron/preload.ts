@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, UpdateStatus } from '../types';
+import type { Repository, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, UpdateStatus, DetailedStatus, Commit, BranchInfo } from '../types';
 
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
@@ -22,6 +22,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Version Control
   checkVcsStatus: (repo: Repository): Promise<{ isDirty: boolean; output: string }> => ipcRenderer.invoke('check-vcs-status', repo),
+  getDetailedVcsStatus: (repo: Repository): Promise<DetailedStatus | null> => ipcRenderer.invoke('get-detailed-vcs-status', repo),
+  getCommitHistory: (repoPath: string): Promise<Commit[]> => ipcRenderer.invoke('get-commit-history', repoPath),
+  listBranches: (repoPath: string): Promise<BranchInfo> => ipcRenderer.invoke('list-branches', repoPath),
+  checkoutBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('checkout-branch', repoPath, branch),
+  createBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('create-branch', repoPath, branch),
+  deleteBranch: (repoPath: string, branch: string, isRemote: boolean): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('delete-branch', repoPath, branch, isRemote),
+  mergeBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('merge-branch', repoPath, branch),
 
   // Local Path and Actions
   checkLocalPath: (path: string): Promise<LocalPathState> => ipcRenderer.invoke('check-local-path', path),

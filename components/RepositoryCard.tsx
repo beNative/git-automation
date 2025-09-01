@@ -1,5 +1,5 @@
-import React from 'react';
-import type { Repository, GitRepository, LocalPathState } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo } from '../types';
 import { VcsType } from '../types';
 import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
 import { PlayIcon } from './icons/PlayIcon';
@@ -15,6 +15,8 @@ import { LightningBoltIcon } from './icons/LightningBoltIcon';
 import { FolderPlusIcon } from './icons/FolderPlusIcon';
 import { FolderIcon } from './icons/FolderIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
+import { StatusIndicator } from './StatusIndicator';
+import { ChevronDownIcon } from './icons/ChevronDownIcon';
 
 
 interface RepositoryCardProps {
@@ -26,6 +28,9 @@ interface RepositoryCardProps {
   onDeleteRepo: (repoId: string) => void;
   isProcessing: boolean;
   localPathState: LocalPathState;
+  detailedStatus: DetailedStatus | null;
+  branchInfo: BranchInfo | null;
+  onSwitchBranch: (repoId: string, branch: string) => void;
   detectedExecutables: string[];
   onCloneRepo: (repoId: string) => void;
   onChooseLocationAndClone: (repoId: string) => void;
@@ -34,6 +39,78 @@ interface RepositoryCardProps {
   onOpenLocalPath: (path: string) => void;
   onOpenTerminal: (path: string) => void;
 }
+
+const BranchSwitcher: React.FC<{
+  repoId: string,
+  branchInfo: BranchInfo | null,
+  onSwitchBranch: (repoId: string, branch: string) => void
+}> = ({ repoId, branchInfo, onSwitchBranch }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [wrapperRef]);
+
+    if (!branchInfo) return null;
+
+    const { local, remote, current } = branchInfo;
+    const allBranches = [...new Set([...local, ...remote])];
+
+    return (
+        <div className="relative inline-block text-left" ref={wrapperRef}>
+            <button
+                type="button"
+                className="inline-flex items-center justify-center w-full rounded-md"
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <span className="truncate max-w-[150px] sm:max-w-[200px]">{current}</span>
+                <ChevronDownIcon className="ml-1 -mr-1 h-4 w-4" />
+            </button>
+
+            {isOpen && (
+                <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                    <div className="py-1 max-h-60 overflow-y-auto" role="menu" aria-orientation="vertical">
+                        {local.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Local</div>}
+                        {local.map(branch => (
+                            <button
+                                key={`local-${branch}`}
+                                onClick={() => { onSwitchBranch(repoId, branch); setIsOpen(false); }}
+                                disabled={branch === current}
+                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                                role="menuitem"
+                            >
+                                {branch}
+                            </button>
+                        ))}
+                        {remote.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase border-t border-gray-200 dark:border-gray-700">Remote</div>}
+                        {remote.map(branch => {
+                            const localBranchName = branch.split('/').slice(1).join('/');
+                             return (
+                                <button
+                                    key={`remote-${branch}`}
+                                    onClick={() => { onSwitchBranch(repoId, localBranchName); setIsOpen(false); }}
+                                    disabled={localBranchName === current}
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                                    role="menuitem"
+                                >
+                                    {localBranchName}
+                                </button>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 const RepositoryCard: React.FC<RepositoryCardProps> = ({
   repository,
@@ -44,6 +121,9 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onDeleteRepo,
   isProcessing,
   localPathState,
+  detailedStatus,
+  branchInfo,
+  onSwitchBranch,
   detectedExecutables,
   onCloneRepo,
   onChooseLocationAndClone,
@@ -110,7 +190,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             {vcs === VcsType.Git ? (
               <>
                 <GitBranchIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
-                <span>{(repository as GitRepository).branch}</span>
+                <BranchSwitcher repoId={id} branchInfo={branchInfo} onSwitchBranch={onSwitchBranch} />
               </>
             ) : (
               <>
@@ -119,6 +199,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
               </>
             )}
           </div>
+          {isPathValid && detailedStatus && <StatusIndicator status={detailedStatus} />}
         </div>
 
         <div className="mt-3 flex items-center justify-between text-sm">
