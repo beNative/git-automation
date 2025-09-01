@@ -71,28 +71,30 @@ const BranchSwitcher: React.FC<{
         return !local.includes(localEquivalent);
     });
 
+    const otherLocalBranches = local.filter(b => b !== current);
+    const hasOptions = otherLocalBranches.length > 0 || remoteBranchesToOffer.length > 0;
 
     return (
         <div className="relative inline-block text-left" ref={wrapperRef}>
             <button
                 type="button"
-                className="inline-flex items-center justify-center w-full rounded-md"
-                onClick={() => setIsOpen(!isOpen)}
+                className="inline-flex items-center justify-center w-full rounded-md disabled:cursor-not-allowed"
+                onClick={() => hasOptions && setIsOpen(!isOpen)}
+                disabled={!hasOptions}
             >
                 <span className="truncate max-w-[150px] sm:max-w-[200px]">{current}</span>
-                <ChevronDownIcon className="ml-1 -mr-1 h-4 w-4" />
+                <ChevronDownIcon className={`ml-1 -mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {isOpen && (
+            {isOpen && hasOptions && (
                 <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
                     <div className="py-1 max-h-60 overflow-y-auto" role="menu" aria-orientation="vertical">
-                        {local.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Local</div>}
-                        {local.map(branch => (
+                        {otherLocalBranches.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Local</div>}
+                        {otherLocalBranches.map(branch => (
                             <button
                                 key={`local-${branch}`}
                                 onClick={() => { onSwitchBranch(repoId, branch); setIsOpen(false); }}
-                                disabled={branch === current}
-                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                                 role="menuitem"
                             >
                                 {branch}
