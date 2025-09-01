@@ -39,7 +39,8 @@ export const LoggerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const isSavingToFileRef = useRef(isSavingToFile);
   
   // Ref to track previous state to avoid running effect on mount
-  const prevIsSavingToFile = useRef<boolean | undefined>();
+  // FIX: Explicitly provide an initial value to useRef to satisfy the linter/compiler rule that expects at least one argument.
+  const prevIsSavingToFile = useRef<boolean | undefined>(undefined);
 
 
   useEffect(() => {

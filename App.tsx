@@ -101,10 +101,11 @@ const App: React.FC = () => {
         iconSet: 'heroicons' as 'heroicons' | 'lucide' | 'tabler',
       };
       const loaded = savedSettings ? { ...defaults, ...JSON.parse(savedSettings) } : defaults;
-      logger.info('Global settings loaded.', loaded);
+      // Cannot use logger here as it's not initialized yet.
+      // console.log('Global settings loaded.', loaded);
       return loaded;
     } catch (e: any) {
-      logger.error('Failed to load settings from localStorage, falling back to defaults.', { error: e.message });
+      console.error('Failed to load settings from localStorage, falling back to defaults.', { error: e.message });
       return {
         defaultBuildCommand: 'npm run build',
         notifications: true,
@@ -276,13 +277,13 @@ const App: React.FC = () => {
   };
 
   const handleEditRepository = (repoId: string | 'new') => {
-    logger.debug('Opening repository edit view', { repoId });
+    logger.info('Changing view to edit-repository', { repoId });
     setRepoToEditId(repoId);
     setActiveView('edit-repository');
   };
 
   const handleCancelEditRepository = useCallback(() => {
-    logger.debug('Closing repository edit view');
+    logger.info('Changing view to dashboard');
     setRepoToEditId(null);
     setActiveView('dashboard');
   }, [logger]);
@@ -526,6 +527,24 @@ const App: React.FC = () => {
     return allLogs.reduce((latest, current) => new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest);
   }, [logs]);
 
+  // *** BUG FIX ***: Memoize the repository object passed to the edit view.
+  // This prevents the object from being re-created on every render of App.tsx,
+  // which was causing an infinite re-render loop in the edit view.
+  const repositoryToEdit = useMemo(() => {
+    if (repoToEditId === 'new' || !repoToEditId) {
+        return null;
+    }
+    return repositories.find(r => r.id === repoToEditId) || null;
+  }, [repoToEditId, repositories]);
+
+  // *** BUG FIX ***: Moved logging of view changes into a useEffect hook.
+  // This prevents the logger (which updates state) from being called during a render,
+  // which was causing an infinite render loop.
+  useEffect(() => {
+    logger.debug(`App view changed to: ${activeView}`, { view: activeView, repoToEditId });
+  }, [activeView, repoToEditId, logger]);
+
+
   const CurrentView = () => {
     switch (activeView) {
       case 'settings':
@@ -533,11 +552,10 @@ const App: React.FC = () => {
       case 'info':
         return <InfoView />;
       case 'edit-repository':
-        const repo = repoToEditId === 'new' ? null : repositories.find(r => r.id === repoToEditId) || null;
         // The key ensures the component re-mounts when switching between editing different repos
         return <RepoEditView 
           key={repoToEditId} 
-          repository={repo} 
+          repository={repositoryToEdit} 
           onSave={handleSaveRepo} 
           onCancel={handleCancelEditRepository}
           onRefreshState={refreshRepoState}

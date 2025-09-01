@@ -66,8 +66,15 @@ const TaskStepItem: React.FC<{
   
   // *** BUG FIX ***: Add a guard clause to prevent crashing on an invalid step type.
   const stepDef = STEP_DEFINITIONS[step.type];
+
+  // *** BUG FIX ***: Log invalid steps inside a useEffect to prevent render loops.
+  useEffect(() => {
+    if (!stepDef) {
+        logger.error('Invalid step type encountered in TaskStepItem. This may be due to malformed data.', { step });
+    }
+  }, [step, stepDef, logger]);
+  
   if (!stepDef) {
-      logger.error('Invalid step type encountered in TaskStepItem. This may be due to malformed data.', { step });
       return (
         <div className="bg-red-50 dark:bg-red-900/40 p-3 rounded-lg border border-red-200 dark:border-red-700 space-y-2 text-red-700 dark:text-red-300">
             <div className="flex items-center gap-3">
@@ -396,6 +403,7 @@ const TaskStepsEditor: React.FC<{
 
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
   const logger = useLogger();
+  
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(NEW_REPO_TEMPLATE);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'branches'>('tasks');
@@ -463,7 +471,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, [repository, isGitRepo, setToast]);
   
   useEffect(() => {
-    logger.debug('RepoEditView received new props.', { hasRepo: !!repository });
+    // *** BUG FIX ***: Logging moved from render body to useEffect.
+    logger.debug('RepoEditView props updated. Syncing internal form state.', { hasRepo: !!repository, repoName: repository?.name });
     if (repository) {
       setFormData(repository);
       if (repository.tasks && repository.tasks.length > 0) {
@@ -643,12 +652,14 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const selectedTask = useMemo(() => {
     return formData.tasks?.find(t => t.id === selectedTaskId) || null;
   }, [selectedTaskId, formData.tasks]);
-
+  
   useEffect(() => {
-    if (selectedTask) {
-        logger.debug("Selected task changed", { selectedTaskId, taskName: selectedTask.name });
+    if (selectedTaskId) {
+        const task = formData.tasks?.find(t => t.id === selectedTaskId);
+        // *** BUG FIX ***: Logging moved from render body to useEffect.
+        logger.debug("Selected task changed", { selectedTaskId, taskName: task?.name });
     }
-  }, [selectedTask, selectedTaskId, logger]);
+  }, [selectedTaskId, formData.tasks]);
   
 
   const renderTabContent = () => {
