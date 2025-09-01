@@ -23,6 +23,7 @@ export interface IElectronAPI {
   pathJoin: (...args: string[]) => Promise<string>;
   detectExecutables: (repoPath: string) => Promise<string[]>;
   launchExecutable: (args: { repoPath: string, executablePath: string }) => Promise<{ success: boolean; output: string }>;
+  openLocalPath: (path: string) => Promise<{ success: boolean; error?: string }>;
   
   runTaskStep: (args: {
     repo: Repository;

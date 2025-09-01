@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import { platform } from 'os';
@@ -327,6 +327,17 @@ ipcMain.handle('show-directory-picker', async () => {
 // --- IPC handler for path joining ---
 ipcMain.handle('path-join', async (event, ...args: string[]) => {
   return path.join(...args);
+});
+
+// --- IPC handler for opening local path ---
+ipcMain.handle('open-local-path', async (event, localPath: string) => {
+  try {
+    await shell.openPath(localPath);
+    return { success: true };
+  } catch (error: any) {
+    console.error(`Failed to open path: ${localPath}`, error);
+    return { success: false, error: error.message };
+  }
 });
 
 // --- Helper function to check if a file is executable ---

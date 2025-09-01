@@ -13,6 +13,7 @@ import { ArrowDownTrayIcon } from './icons/ArrowDownTrayIcon';
 import { ExclamationCircleIcon } from './icons/ExclamationCircleIcon';
 import { RocketLaunchIcon } from './icons/RocketLaunchIcon';
 import { FolderPlusIcon } from './icons/FolderPlusIcon';
+import { FolderIcon } from './icons/FolderIcon';
 
 
 interface RepositoryCardProps {
@@ -29,6 +30,7 @@ interface RepositoryCardProps {
   onChooseLocationAndClone: (repoId: string) => void;
   onRunLaunchConfig: (repoId: string, configId: string) => void;
   onOpenLaunchSelection: (repoId: string) => void;
+  onOpenLocalPath: (path: string) => void;
 }
 
 const RepositoryCard: React.FC<RepositoryCardProps> = ({
@@ -45,6 +47,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onChooseLocationAndClone,
   onRunLaunchConfig,
   onOpenLaunchSelection,
+  onOpenLocalPath,
 }) => {
   const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, tasks, launchConfigs, localPath } = repository;
   
@@ -88,6 +91,18 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             <GlobeAltIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
             <a href={remoteUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:text-blue-500 dark:hover:text-blue-400 transition-colors">{remoteUrl}</a>
           </div>
+          {isPathSet && (
+            <div className="flex items-center">
+                <FolderIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                <button 
+                    onClick={() => onOpenLocalPath(localPath)} 
+                    className="truncate text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors focus:outline-none"
+                    title={`Open: ${localPath}`}
+                >
+                    {localPath}
+                </button>
+            </div>
+          )}
           <div className="flex items-center">
             {vcs === VcsType.Git ? (
               <>

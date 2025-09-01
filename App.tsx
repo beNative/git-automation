@@ -317,6 +317,21 @@ const App: React.FC = () => {
     }
   }, [repositories, updateRepository, handleCloneRepo]);
 
+  const handleOpenLocalPath = useCallback(async (path: string) => {
+    if (!path) {
+      setToast({ message: 'Local path is not configured.', type: 'info' });
+      return;
+    }
+    try {
+      const result = await window.electronAPI.openLocalPath(path);
+      if (!result.success) {
+        setToast({ message: result.error || 'Failed to open the local folder.', type: 'error' });
+      }
+    } catch (e: any) {
+      setToast({ message: e.message || 'An error occurred while trying to open the folder.', type: 'error' });
+    }
+  }, []);
+
 
   const latestLog = useMemo(() => {
     const allLogs = Object.values(logs).flat();
@@ -353,6 +368,7 @@ const App: React.FC = () => {
           onChooseLocationAndClone={handleChooseLocationAndClone}
           onRunLaunchConfig={handleRunLaunchConfig}
           onOpenLaunchSelection={handleOpenLaunchSelection}
+          onOpenLocalPath={handleOpenLocalPath}
         />;
     }
   };

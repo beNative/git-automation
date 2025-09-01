@@ -17,6 +17,7 @@ interface DashboardProps {
   onChooseLocationAndClone: (repoId: string) => void;
   onRunLaunchConfig: (repoId: string, configId: string) => void;
   onOpenLaunchSelection: (repoId: string) => void;
+  onOpenLocalPath: (path: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -33,6 +34,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onChooseLocationAndClone,
   onRunLaunchConfig,
   onOpenLaunchSelection,
+  onOpenLocalPath,
 }) => {
   if (repositories.length === 0) {
     return (
@@ -62,6 +64,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           onChooseLocationAndClone={onChooseLocationAndClone}
           onRunLaunchConfig={onRunLaunchConfig}
           onOpenLaunchSelection={onOpenLaunchSelection}
+          onOpenLocalPath={onOpenLocalPath}
         />
       ))}
     </div>
