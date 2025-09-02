@@ -102,6 +102,38 @@ function copyStaticFiles() {
     }
 }
 
+// --- Create production package.json for electron-builder ---
+function createProdPackageJson() {
+    const rootPackageJson = require('./package.json');
+    const prodPackageJson = {
+        name: rootPackageJson.name,
+        version: rootPackageJson.version,
+        description: rootPackageJson.description,
+        main: 'main.js',
+        author: rootPackageJson.author,
+        license: rootPackageJson.license,
+        dependencies: {}
+    };
+
+    const mainExternals = ['@google/genai', 'electron-squirrel-startup'];
+    for (const dep of mainExternals) {
+        if (rootPackageJson.dependencies[dep]) {
+            prodPackageJson.dependencies[dep] = rootPackageJson.dependencies[dep];
+        } else {
+             console.warn(`[createProdPackageJson] Dependency '${dep}' not found in root package.json`);
+        }
+    }
+    
+    try {
+        fs.writeFileSync(path.join(distPath, 'package.json'), JSON.stringify(prodPackageJson, null, 2));
+        if (isWatch) {
+            console.log('Created production package.json in dist/');
+        }
+    } catch (e) {
+        console.error('Failed to create production package.json:', e);
+    }
+}
+
 
 // --- Build Logic ---
 async function build() {
@@ -113,6 +145,7 @@ async function build() {
             const preloadContext = await esbuild.context(preloadConfig);
             
             copyStaticFiles(); // Initial copy
+            createProdPackageJson(); // Initial create
             
             // Simple file watcher for static files
             fs.watch('index.html', () => copyStaticFiles());
@@ -120,6 +153,7 @@ async function build() {
             fs.watch('FUNCTIONAL_MANUAL.md', () => copyStaticFiles());
             fs.watch('TECHNICAL_MANUAL.md', () => copyStaticFiles());
             fs.watch('CHANGELOG.md', () => copyStaticFiles());
+            fs.watch('package.json', () => createProdPackageJson());
 
             await rendererContext.watch();
             await mainContext.watch();
@@ -131,6 +165,7 @@ async function build() {
             await esbuild.build(mainConfig);
             await esbuild.build(preloadConfig);
             copyStaticFiles();
+            createProdPackageJson();
             console.log('Build successful.');
         }
     } catch (e) {

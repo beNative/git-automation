@@ -36,6 +36,7 @@
     "appId": "com.example.gitautomationdashboard",
     "productName": "Git Automation Dashboard",
     "directories": {
+      "app": "dist",
       "buildResources": "assets",
       "output": "release"
     },
@@ -44,9 +45,6 @@
         "from": "dist/docs",
         "to": "docs"
       }
-    ],
-    "asarUnpack": [
-      "**/node_modules/@google/genai/**/*"
     ],
     "win": {
       "target": "nsis"
