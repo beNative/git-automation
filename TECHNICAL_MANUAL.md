@@ -9,7 +9,6 @@ This document provides a technical overview of the Git Automation Dashboard appl
 -   **Styling:** Tailwind CSS (via a CDN for simplicity in this version).
 -   **Bundler:** esbuild (for fast and efficient bundling of main, renderer, and preload scripts).
 -   **Packager:** electron-builder (for creating distributable installers and packages).
--   **Auto-Updates:** electron-updater.
 
 ## 2. Project Architecture
 
@@ -25,7 +24,6 @@ The application is split into three main processes, which is standard for Electr
     -   Listens for and responds to IPC (Inter-Process Communication) events. This includes:
         -   Executing shell commands for task steps.
         -   Executing real Git/SVN commands for advanced features like checking status, fetching commit history, and managing branches (`get-detailed-vcs-status`, `list-branches`, etc.).
-    -   Manages the auto-update process via `electron-updater`.
 
 ### Renderer Process
 
@@ -63,13 +61,10 @@ The application is split into three main processes, which is standard for Electr
     2.  `electron-builder` then packages the application based on the configuration in `package.json`.
     3.  The final output is placed in the `release/` directory.
 
-## 6. Publishing and Auto-Updates
+## 6. Publishing a Release
 
-To publish a new version:
+To publish a new version for manual download:
 
-1.  **Configure `package.json`:** Set the `build.publish.owner` and `build.publish.repo` fields to your GitHub repository.
-2.  **Create a GitHub Token:** Generate a Personal Access Token with `repo` scope.
-3.  **Set Environment Variable:** Export the token as `GH_TOKEN`.
-4.  **Increment Version:** Bump the `version` in `package.json`.
-5.  **Run Pack:** Execute `npm run pack`.
-6.  **Publish Release:** Go to your repository's "Releases" page on GitHub and publish the new draft.
+1.  **Increment Version:** Bump the `version` in `package.json`.
+2.  **Run Pack:** Execute `npm run pack`. This will generate the installers in the `release/` folder.
+3.  **Publish Release:** Go to your repository's "Releases" page on GitHub, create a new release, and upload the generated installer files.

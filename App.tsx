@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
-import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, UpdateStatus, DetailedStatus, BranchInfo } from './types';
+import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo } from './types';
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
 import RepoEditView from './components/modals/RepoFormModal'; // Repurposed for the new view
@@ -48,7 +48,6 @@ const App: React.FC = () => {
   const [localPathStates, setLocalPathStates] = useState<Record<string, LocalPathState>>({});
   const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
   const [appVersion, setAppVersion] = useState<string>('');
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('checking');
 
   // New states for deeper VCS integration
   const [detailedStatuses, setDetailedStatuses] = useState<Record<string, DetailedStatus | null>>({});
@@ -91,15 +90,11 @@ const App: React.FC = () => {
     repo: Repository | null;
   }>({ isOpen: false, repo: null });
 
-  // Effect for app version and update status
+  // Effect for app version
   useEffect(() => {
     logger.debug('App component mounted. Initializing API listeners.');
     if (window.electronAPI?.getAppVersion) {
       window.electronAPI.getAppVersion().then(setAppVersion);
-      window.electronAPI.onUpdateStatusChanged((_event, { status }) => {
-        logger.info('Update status changed', { status });
-        setUpdateStatus(status);
-      });
     }
   }, []);
   
@@ -608,7 +603,6 @@ const App: React.FC = () => {
             isSimulationMode={settings.simulationMode}
             latestLog={latestLog}
             appVersion={appVersion}
-            updateStatus={updateStatus}
             onToggleDebugPanel={() => setIsDebugPanelOpen(p => !p)}
           />
           

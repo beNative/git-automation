@@ -138,8 +138,6 @@ export type Launchable =
   | { type: 'manual'; config: LaunchConfig }
   | { type: 'detected'; path: string };
   
-export type UpdateStatus = 'checking' | 'up-to-date' | 'available' | 'error';
-
 // --- New VCS Integration Types ---
 
 export interface VcsFileStatus {

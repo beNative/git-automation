@@ -15,7 +15,6 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Easy Configuration:** Add new repositories and configure them through a simple, unified form.
 -   **Global Settings:** Customize the default package manager (`npm` or `yarn`), theme, and more.
 -   **Cross-Platform:** Works on Windows, macOS, and Linux.
--   **Automatic Updates:** The application automatically checks for new versions and prompts you to install them.
 
 ## Quick Start
 

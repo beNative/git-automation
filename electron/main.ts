@@ -2,9 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
-import { autoUpdater } from 'electron-updater';
 import { spawn, exec, execFile } from 'child_process';
-import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, UpdateStatus, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry } from '../types';
+import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry } from '../types';
 import { TaskStepType, LogLevel, VcsType } from '../types';
 import fsSync from 'fs';
 
@@ -54,11 +53,6 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 app.on('ready', () => {
   createWindow();
-  
-  // Check for updates once the app is ready
-  mainWindow?.webContents.on('did-finish-load', () => {
-    autoUpdater.checkForUpdatesAndNotify();
-  });
 });
 
 // Quit when all windows are closed, except on macOS.
@@ -733,49 +727,6 @@ ipcMain.on('run-task-step', (event, { repo, step, settings, executionId }: { rep
         sendEnd(code ?? 1);
     });
 });
-
-
-// --- Auto-updater event listeners ---
-const sendUpdateStatus = (status: UpdateStatus, message?: string) => {
-  mainWindow?.webContents.send('update-status-changed', { status, message });
-};
-
-autoUpdater.on('checking-for-update', () => {
-  sendUpdateStatus('checking');
-});
-
-autoUpdater.on('update-available', (info) => {
-  sendUpdateStatus('available', `Update to v${info.version} available!`);
-  dialog.showMessageBox({
-    type: 'info',
-    title: 'Update Available',
-    message: `A new version (v${info.version}) is available. It will be downloaded in the background.`,
-  });
-});
-
-autoUpdater.on('update-not-available', () => {
-  sendUpdateStatus('up-to-date');
-});
-
-autoUpdater.on('update-downloaded', (info) => {
-  sendUpdateStatus('available', `v${info.version} ready to install`);
-  dialog.showMessageBox({
-    type: 'info',
-    title: 'Update Ready',
-    message: `A new version (v${info.version}) has been downloaded. Restart the application to apply the updates.`,
-    buttons: ['Restart Now', 'Later']
-  }).then((buttonIndex) => {
-    if (buttonIndex.response === 0) {
-      autoUpdater.quitAndInstall();
-    }
-  });
-});
-
-autoUpdater.on('error', (err) => {
-  sendUpdateStatus('error', 'Update check failed');
-  console.error('Error in auto-updater. ' + err);
-});
-
 
 // =================================================================
 // --- NEW IPC Handlers for Deep VCS Integration ---

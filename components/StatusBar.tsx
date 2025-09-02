@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import type { LogEntry, UpdateStatus } from '../types';
+import type { LogEntry } from '../types';
 import { GitBranchIcon } from './icons/GitBranchIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
 import { BeakerIcon } from './icons/BeakerIcon';
 import { KeyboardIcon } from './icons/KeyboardIcon';
 import { ClockIcon } from './icons/ClockIcon';
-import { CheckCircleIcon } from './icons/CheckCircleIcon';
-import { CloudArrowDownIcon } from './icons/CloudArrowDownIcon';
-import { ExclamationCircleIcon } from './icons/ExclamationCircleIcon';
 import { BugAntIcon } from './icons/BugAntIcon';
 import { useTooltip } from '../hooks/useTooltip';
 
@@ -17,7 +14,6 @@ interface StatusBarProps {
     isSimulationMode: boolean;
     latestLog: LogEntry | null;
     appVersion: string;
-    updateStatus: UpdateStatus;
     onToggleDebugPanel: () => void;
 }
 
@@ -30,35 +26,7 @@ const Clock: React.FC = () => {
     return <>{time.toLocaleTimeString()}</>;
 };
 
-const UpdateStatusIndicator: React.FC<{ status: UpdateStatus }> = ({ status }) => {
-    const checkingTooltip = useTooltip('Checking for updates...');
-    const upToDateTooltip = useTooltip('Application is up-to-date');
-    const availableTooltip = useTooltip('A new version is available!');
-    const errorTooltip = useTooltip('Could not check for updates.');
-
-    switch (status) {
-        case 'checking':
-            return <div
-// @ts-ignore
- {...checkingTooltip} className="flex items-center"><ArrowPathIcon className="h-4 w-4 mr-1.5 animate-spin" /> Checking...</div>;
-        case 'up-to-date':
-            return <div
-// @ts-ignore
- {...upToDateTooltip} className="flex items-center text-green-600 dark:text-green-500"><CheckCircleIcon className="h-4 w-4 mr-1.5" /> Up to date</div>;
-        case 'available':
-            return <div
-// @ts-ignore
- {...availableTooltip} className="flex items-center text-blue-600 dark:text-blue-400"><CloudArrowDownIcon className="h-4 w-4 mr-1.5" /> Update available</div>;
-        case 'error':
-            return <div
-// @ts-ignore
- {...errorTooltip} className="flex items-center text-red-600 dark:text-red-500"><ExclamationCircleIcon className="h-4 w-4 mr-1.5" /> Update failed</div>;
-        default:
-            return null;
-    }
-};
-
-const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog, appVersion, updateStatus, onToggleDebugPanel }) => {
+const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog, appVersion, onToggleDebugPanel }) => {
     const LOG_LEVEL_COLOR_CLASSES: Record<string, string> = {
         info: 'text-gray-500 dark:text-gray-400',
         command: 'text-blue-500 dark:text-blue-400',
@@ -139,8 +107,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
 
                 {appVersion && (
                     <>
-                        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                        <UpdateStatusIndicator status={updateStatus} />
                         <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
                         <span>v{appVersion}</span>
                     </>
