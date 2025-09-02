@@ -45,8 +45,8 @@
         "to": "docs"
       }
     ],
-    "externals": [
-      "@google/genai"
+    "asarUnpack": [
+      "**/node_modules/@google/genai/**/*"
     ],
     "win": {
       "target": "nsis"
