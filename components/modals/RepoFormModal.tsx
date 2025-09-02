@@ -71,7 +71,7 @@ const TaskStepItem: React.FC<{
     if (!stepDef) {
         logger.error('Invalid step type encountered in TaskStepItem. This may be due to malformed data.', { step });
     }
-  }, [step.id, step.type, stepDef, logger]);
+  }, [step.id, step.type]);
   
   if (!stepDef) {
       return (
@@ -703,6 +703,17 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const selectedTask = useMemo(() => {
     return formData.tasks?.find(t => t.id === selectedTaskId) || null;
   }, [selectedTaskId, formData.tasks]);
+
+  // FIX: Memoize a subset of the repository data. This creates a stable object
+  // reference to pass down, preventing the TaskStepsEditor's useEffect hook
+  // from re-running unnecessarily when the parent re-renders due to logging.
+  const repositoryForTaskEditor = useMemo(() => {
+    return {
+        localPath: formData.localPath,
+        name: formData.name,
+        vcs: formData.vcs,
+    };
+  }, [formData.localPath, formData.name, formData.vcs]);
   
 
   const renderTabContent = () => {
@@ -735,7 +746,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                     </aside>
                     <div className="flex-1 p-4 overflow-y-auto">
                         {selectedTask ? (
-                            <TaskStepsEditor task={selectedTask} setTask={handleTaskChange} repository={formData as Repository} />
+                            <TaskStepsEditor task={selectedTask} setTask={handleTaskChange} repository={repositoryForTaskEditor} />
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-center text-gray-500">
                                 <CubeTransparentIcon className="h-12 w-12 text-gray-400"/>
