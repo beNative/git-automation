@@ -45,6 +45,9 @@
         "to": "docs"
       }
     ],
+    "externals": [
+      "@google/genai"
+    ],
     "win": {
       "target": "nsis"
     },

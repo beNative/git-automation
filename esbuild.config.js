@@ -39,7 +39,7 @@ const mainConfig = {
     format: 'cjs',
     sourcemap: !isProd,
     minify: isProd,
-    external: ['electron', 'electron-squirrel-startup'], // Exclude electron and other built-ins, but bundle genai
+    external: ['electron', 'electron-squirrel-startup', '@google/genai'], // Exclude electron, built-ins, and genai from bundle
     define: {
         'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
         // API_KEY is needed in main process for AI features
