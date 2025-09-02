@@ -489,14 +489,46 @@ ipcMain.handle('detect-executables', async (event, repoPath: string): Promise<st
   return [...new Set(allExecutables)];
 });
 
+// --- Helper for processing stream output line-by-line ---
+const createLineLogger = (
+  executionId: string,
+  level: LogLevel,
+  sender: (channel: string, ...args: any[]) => void
+) => {
+  let buffer = '';
+  const process = (chunk: Buffer) => {
+    buffer += chunk.toString();
+    let eolIndex;
+    while ((eolIndex = buffer.indexOf('\n')) >= 0) {
+      // Also trim carriage returns
+      const line = buffer.substring(0, eolIndex).trim();
+      if (line) {
+        sender('task-log', { executionId, message: line, level });
+      }
+      buffer = buffer.substring(eolIndex + 1);
+    }
+  };
+  const flush = () => {
+    const line = buffer.trim();
+    if (line) {
+      sender('task-log', { executionId, message: line, level });
+    }
+    buffer = '';
+  };
+  return { process, flush };
+};
+
 
 // --- IPC handler for cloning a repo ---
 ipcMain.on('clone-repository', (event, { repo, executionId }: { repo: Repository, executionId: string }) => {
+    const sender = mainWindow?.webContents.send.bind(mainWindow.webContents);
+    if (!sender) return;
+
     const sendLog = (message: string, level: LogLevel) => {
-        mainWindow?.webContents.send('task-log', { executionId, message, level });
+        sender('task-log', { executionId, message, level });
     };
     const sendEnd = (exitCode: number) => {
-        mainWindow?.webContents.send('task-step-end', { executionId, exitCode });
+        sender('task-step-end', { executionId, exitCode });
     };
 
     let command: string;
@@ -529,10 +561,15 @@ ipcMain.on('clone-repository', (event, { repo, executionId }: { repo: Repository
             shell: true,
         });
 
-        child.stdout.on('data', (data) => sendLog(data.toString(), LogLevel.Info));
-        child.stderr.on('data', (data) => sendLog(data.toString(), LogLevel.Info));
+        const stdoutLogger = createLineLogger(executionId, LogLevel.Info, sender);
+        const stderrLogger = createLineLogger(executionId, LogLevel.Info, sender);
+
+        child.stdout.on('data', stdoutLogger.process);
+        child.stderr.on('data', stderrLogger.process);
         child.on('error', (err) => sendLog(`Spawn error: ${err.message}`, LogLevel.Error));
         child.on('close', (code) => {
+            stdoutLogger.flush();
+            stderrLogger.flush();
             if (code !== 0) {
                 sendLog(`${verb} command exited with code ${code}`, LogLevel.Error);
             } else {
@@ -580,11 +617,14 @@ ipcMain.handle('launch-executable', async (event, { repoPath, executablePath }: 
 
 // --- IPC Handler for running real task steps ---
 ipcMain.on('run-task-step', (event, { repo, step, settings, executionId }: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; }) => {
+    const sender = mainWindow?.webContents.send.bind(mainWindow.webContents);
+    if (!sender) return;
+
     const sendLog = (message: string, level: LogLevel) => {
-        mainWindow?.webContents.send('task-log', { executionId, message, level });
+        sender('task-log', { executionId, message, level });
     };
     const sendEnd = (exitCode: number) => {
-        mainWindow?.webContents.send('task-step-end', { executionId, exitCode });
+        sender('task-step-end', { executionId, exitCode });
     };
 
     let command: string;
@@ -643,21 +683,19 @@ ipcMain.on('run-task-step', (event, { repo, step, settings, executionId }: { rep
         shell: true, // Use shell to handle path resolution etc.
     });
 
-    child.stdout.on('data', (data) => {
-        sendLog(data.toString(), LogLevel.Info);
-    });
+    const stdoutLogger = createLineLogger(executionId, LogLevel.Info, sender);
+    const stderrLogger = createLineLogger(executionId, LogLevel.Info, sender);
 
-    child.stderr.on('data', (data) => {
-        // Some tools (like npm) log progress to stderr, so we treat it as info for now.
-        // A more robust solution would be to check exit code.
-        sendLog(data.toString(), LogLevel.Info);
-    });
+    child.stdout.on('data', stdoutLogger.process);
+    child.stderr.on('data', stderrLogger.process);
 
     child.on('error', (err) => {
         sendLog(`Spawn error: ${err.message}`, LogLevel.Error);
     });
 
     child.on('close', (code) => {
+        stdoutLogger.flush();
+        stderrLogger.flush();
         if (code !== 0) {
             sendLog(`Command exited with code ${code}`, LogLevel.Error);
         } else {
