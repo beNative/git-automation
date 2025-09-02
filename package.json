@@ -37,7 +37,6 @@
     "productName": "Git Automation Dashboard",
     "files": [
       "dist/",
-      "node_modules/",
       "package.json"
     ],
     "directories": {
