@@ -30,10 +30,10 @@ const TablerGitBranchIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => 
 
 export const GitBranchIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideGitBranchIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerGitBranchIcon {...props} />;
     }
     return <HeroGitBranchIcon {...props} />;

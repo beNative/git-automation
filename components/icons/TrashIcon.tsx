@@ -29,10 +29,10 @@ const TablerTrashIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const TrashIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideTrashIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerTrashIcon {...props} />;
     }
     return <HeroTrashIcon {...props} />;

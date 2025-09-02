@@ -30,10 +30,10 @@ const TablerDocumentTextIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) 
 
 export const DocumentTextIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideDocumentTextIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerDocumentTextIcon {...props} />;
     }
     return <HeroDocumentTextIcon {...props} />;

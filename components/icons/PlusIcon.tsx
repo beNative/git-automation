@@ -24,10 +24,10 @@ const TablerPlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const PlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucidePlusIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerPlusIcon {...props} />;
     }
     return <HeroPlusIcon {...props} />;

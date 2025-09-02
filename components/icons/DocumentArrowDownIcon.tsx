@@ -30,10 +30,10 @@ const TablerDocumentArrowDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (pr
 
 export const DocumentArrowDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideDocumentArrowDownIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerDocumentArrowDownIcon {...props} />;
     }
     return <HeroDocumentArrowDownIcon {...props} />;

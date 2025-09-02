@@ -27,10 +27,10 @@ const TablerExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (
 
 export const ExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideExclamationTriangleIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerExclamationTriangleIcon {...props} />;
     }
     return <HeroExclamationTriangleIcon {...props} />;

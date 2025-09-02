@@ -22,10 +22,10 @@ const TablerMoonIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const MoonIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideMoonIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerMoonIcon {...props} />;
     }
     return <HeroMoonIcon {...props} />;

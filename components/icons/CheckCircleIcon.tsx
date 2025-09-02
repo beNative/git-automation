@@ -24,10 +24,10 @@ const TablerCheckCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) =
 
 export const CheckCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideCheckCircleIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerCheckCircleIcon {...props} />;
     }
     return <HeroCheckCircleIcon {...props} />;

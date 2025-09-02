@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { GlobalSettings } from '../types';
 import { SunIcon } from './icons/SunIcon';
 import { MoonIcon } from './icons/MoonIcon';
+import type { IconSet } from '../contexts/IconContext';
 
 interface SettingsViewProps {
   onSave: (settings: GlobalSettings) => void;
@@ -37,7 +38,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
     setSettings(prev => ({...prev, theme}));
   };
   
-  const handleIconSetChange = (iconSet: 'heroicons' | 'lucide' | 'tabler') => {
+  const handleIconSetChange = (iconSet: IconSet) => {
     setSettings(prev => ({...prev, iconSet}));
   };
 
@@ -104,7 +105,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Icon Set</label>
-                            <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-sm">
+                            <div className="mt-2 grid grid-cols-3 gap-2 rounded-md bg-gray-200 dark:bg-gray-900 p-2 max-w-md">
                                 <button
                                     type="button"
                                     onClick={() => handleIconSetChange('heroicons')}
@@ -125,6 +126,27 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings }) 
                                     className={`${iconSetButtonBase} ${settings.iconSet === 'tabler' ? iconSetButtonActive : iconSetButtonInactive}`}
                                 >
                                     Tabler
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleIconSetChange('feather')}
+                                    className={`${iconSetButtonBase} ${settings.iconSet === 'feather' ? iconSetButtonActive : iconSetButtonInactive}`}
+                                >
+                                    Feather
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleIconSetChange('remix')}
+                                    className={`${iconSetButtonBase} ${settings.iconSet === 'remix' ? iconSetButtonActive : iconSetButtonInactive}`}
+                                >
+                                    Remix
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleIconSetChange('phosphor')}
+                                    className={`${iconSetButtonBase} ${settings.iconSet === 'phosphor' ? iconSetButtonActive : iconSetButtonInactive}`}
+                                >
+                                    Phosphor
                                 </button>
                             </div>
                         </div>

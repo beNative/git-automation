@@ -47,10 +47,10 @@ const TablerBugAntIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const BugAntIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideBugAntIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerBugAntIcon {...props} />;
     }
     return <HeroBugAntIcon {...props} />;

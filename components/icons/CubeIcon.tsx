@@ -30,10 +30,10 @@ const TablerCubeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const CubeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideCubeIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerCubeIcon {...props} />;
     }
     return <HeroCubeIcon {...props} />;

@@ -29,10 +29,10 @@ const TablerVariableIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const VariableIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideVariableIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerVariableIcon {...props} />;
     }
     // Using AdjustmentsHorizontalIcon as a fallback

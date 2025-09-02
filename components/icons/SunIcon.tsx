@@ -31,10 +31,10 @@ const TablerSunIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const SunIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideSunIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerSunIcon {...props} />;
     }
     return <HeroSunIcon {...props} />;

@@ -33,10 +33,10 @@ const HeroV2CommandLineIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) =
 
 export const TerminalIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideTerminalIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerTerminalIcon {...props} />;
     }
     return <HeroV2CommandLineIcon {...props} />;

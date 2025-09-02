@@ -27,10 +27,10 @@ const TablerExclamationCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (pr
 
 export const ExclamationCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideExclamationCircleIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerExclamationCircleIcon {...props} />;
     }
     return <HeroExclamationCircleIcon {...props} />;

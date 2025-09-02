@@ -24,10 +24,10 @@ const TablerPencilIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const PencilIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucidePencilIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerPencilIcon {...props} />;
     }
     return <HeroPencilIcon {...props} />;

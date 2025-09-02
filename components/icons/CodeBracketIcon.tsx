@@ -27,10 +27,10 @@ const TablerCodeBracketIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) =
 
 export const CodeBracketIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideCodeBracketIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerCodeBracketIcon {...props} />;
     }
     return <HeroCodeBracketIcon {...props} />;

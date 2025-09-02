@@ -29,10 +29,10 @@ const TablerGlobeAltIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const GlobeAltIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideGlobeAltIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerGlobeAltIcon {...props} />;
     }
     return <HeroGlobeAltIcon {...props} />;

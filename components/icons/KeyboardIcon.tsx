@@ -3,7 +3,7 @@ import { IconContext } from '../../contexts/IconContext';
 
 const HeroKeyboardIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5.25v13.5m-3-13.5h15M3.75 5.25c0-1.036.84-1.875 1.875-1.875h13.5c1.036 0 1.875.84 1.875 1.875v13.5c0 1.036-.84 1.875-1.875 1.875h-13.5A1.875 1.875 0 013.75 18.75V5.25zM12 18.75v-6.75a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75v6.75" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5.25v13.5m-3-13.5h15M3.75 5.25c0-1.036.84-1.875 1.875-1.875h13.5c1.036 0 1.875.84 1.875 1.875v13.5c0 1.036-.84 1.875-1.875-1.875h-13.5A1.875 1.875 0 013.75 18.75V5.25zM12 18.75v-6.75a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75v6.75" />
   </svg>
 );
 
@@ -38,10 +38,10 @@ const TablerKeyboardIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const KeyboardIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideKeyboardIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerKeyboardIcon {...props} />;
     }
     return <HeroKeyboardIcon {...props} />;

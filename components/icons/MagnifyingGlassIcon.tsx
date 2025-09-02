@@ -24,10 +24,10 @@ const TablerMagnifyingGlassIcon: React.FC<React.SVGProps<SVGSVGElement>> = (prop
 
 export const MagnifyingGlassIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideMagnifyingGlassIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerMagnifyingGlassIcon {...props} />;
     }
     return <HeroMagnifyingGlassIcon {...props} />;

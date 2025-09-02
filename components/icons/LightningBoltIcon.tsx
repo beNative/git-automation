@@ -22,10 +22,10 @@ const TablerLightningBoltIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props)
 
 export const LightningBoltIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideLightningBoltIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerLightningBoltIcon {...props} />;
     }
     return <HeroLightningBoltIcon {...props} />;

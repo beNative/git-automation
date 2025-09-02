@@ -27,10 +27,10 @@ const TablerFolderPlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) =>
 
 export const FolderPlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideFolderPlusIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerFolderPlusIcon {...props} />;
     }
     return <HeroFolderPlusIcon {...props} />;

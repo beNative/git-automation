@@ -30,10 +30,10 @@ const TablerSparklesIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const SparklesIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
+    if (iconSet === 'lucide' || iconSet === 'feather') {
         return <LucideSparklesIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
+    if (iconSet === 'tabler' || iconSet === 'remix') {
         return <TablerSparklesIcon {...props} />;
     }
     return <HeroSparklesIcon {...props} />;
