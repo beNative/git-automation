@@ -35,10 +35,6 @@
   "build": {
     "appId": "com.example.gitautomationdashboard",
     "productName": "Git Automation Dashboard",
-    "files": [
-      "dist/",
-      "package.json"
-    ],
     "directories": {
       "buildResources": "assets",
       "output": "release"
