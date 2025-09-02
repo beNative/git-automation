@@ -500,16 +500,30 @@ const createLineLogger = (
     buffer += chunk.toString();
     let eolIndex;
     while ((eolIndex = buffer.indexOf('\n')) >= 0) {
-      // Also trim carriage returns
-      const line = buffer.substring(0, eolIndex).trim();
+      let line = buffer.substring(0, eolIndex);
+      buffer = buffer.substring(eolIndex + 1);
+
+      // Handle multiple carriage returns in a single chunk (e.g., for progress bars).
+      // We only want the content after the last carriage return.
+      const crIndex = line.lastIndexOf('\r');
+      if (crIndex !== -1) {
+        line = line.substring(crIndex + 1);
+      }
+      
+      line = line.trim();
       if (line) {
         sender('task-log', { executionId, message: line, level });
       }
-      buffer = buffer.substring(eolIndex + 1);
     }
   };
   const flush = () => {
-    const line = buffer.trim();
+    // Also apply the carriage return logic on flush for any remaining buffer content.
+    let line = buffer;
+    const crIndex = line.lastIndexOf('\r');
+    if (crIndex !== -1) {
+      line = line.substring(crIndex + 1);
+    }
+    line = line.trim();
     if (line) {
       sender('task-log', { executionId, message: line, level });
     }
