@@ -399,6 +399,42 @@ const TaskStepsEditor: React.FC<{
   );
 };
 
+interface TaskListItemProps {
+  task: Task;
+  isSelected: boolean;
+  onSelect: (taskId: string) => void;
+  onDelete: (taskId: string) => void;
+}
+
+const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect, onDelete }) => {
+  const deleteTooltip = useTooltip('Delete Task');
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete(task.id);
+  };
+
+  return (
+    <li className={isSelected ? 'bg-blue-500/10' : ''}>
+      <button type="button" onClick={() => onSelect(task.id)} className="w-full text-left px-3 py-2 group">
+        <div className="flex justify-between items-start">
+          <p className={`font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
+          <button
+            // @ts-ignore
+            {...deleteTooltip}
+            type="button"
+            onClick={handleDelete}
+            className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50"
+          >
+            <TrashIcon className="h-4 w-4"/>
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{task.steps.length} step(s)</p>
+      </button>
+    </li>
+  );
+};
+
 
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
   const logger = useLogger();
@@ -668,17 +704,13 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                         <ul className="divide-y divide-gray-200 dark:divide-gray-700 overflow-y-auto">
                             {(!formData.tasks || formData.tasks.length === 0) && <li className="px-4 py-4 text-center text-gray-500 text-sm">No tasks created.</li>}
                             {formData.tasks?.map(task => (
-                                <li key={task.id} className={`${selectedTaskId === task.id ? 'bg-blue-500/10' : ''}`}>
-                                    <button type="button" onClick={() => setSelectedTaskId(task.id)} className="w-full text-left px-3 py-2 group">
-                                        <div className="flex justify-between items-start">
-                                            <p className={`font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 ${selectedTaskId === task.id ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
-                                            <button
-// @ts-ignore
- {...useTooltip('Delete Task')} type="button" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50"><TrashIcon className="h-4 w-4"/></button>
-                                        </div>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{task.steps.length} step(s)</p>
-                                    </button>
-                                </li>
+                                <TaskListItem
+                                    key={task.id}
+                                    task={task}
+                                    isSelected={selectedTaskId === task.id}
+                                    onSelect={setSelectedTaskId}
+                                    onDelete={handleDeleteTask}
+                                />
                             ))}
                         </ul>
                     </aside>
