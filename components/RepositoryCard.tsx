@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo } from '../types';
+import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig } from '../types';
 import { VcsType } from '../types';
 import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
 import { PlayIcon } from './icons/PlayIcon';
@@ -118,6 +118,92 @@ const BranchSwitcher: React.FC<{
             )}
         </div>
     );
+};
+
+// --- Sub-components to fix Rules of Hooks violations ---
+
+const CloneToPathButton: React.FC<{
+  cloneVerb: string;
+  remoteUrl: string;
+  localPath: string;
+  isProcessing: boolean;
+  onClone: () => void;
+}> = ({ cloneVerb, remoteUrl, localPath, isProcessing, onClone }) => {
+  const tooltip = useTooltip(`${cloneVerb} from ${remoteUrl} to ${localPath}`);
+  return (
+    <button
+      // @ts-ignore
+      {...tooltip}
+      onClick={onClone}
+      disabled={isProcessing}
+      className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+    >
+      <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
+      {cloneVerb} Repo
+    </button>
+  );
+};
+
+const ChooseLocationButton: React.FC<{
+  cloneVerb: string;
+  isProcessing: boolean;
+  onChooseLocation: () => void;
+}> = ({ cloneVerb, isProcessing, onChooseLocation }) => {
+  const tooltip = useTooltip(`Choose location and ${cloneVerb.toLowerCase()}`);
+  return (
+    <button
+      // @ts-ignore
+      {...tooltip}
+      onClick={onChooseLocation}
+      disabled={isProcessing}
+      className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+    >
+      <FolderPlusIcon className="h-4 w-4 mr-1.5" />
+      Setup & {cloneVerb}
+    </button>
+  );
+};
+
+const TaskButton: React.FC<{
+  task: Task;
+  isPathValid: boolean;
+  isProcessing: boolean;
+  onRunTask: () => void;
+}> = ({ task, isPathValid, isProcessing, onRunTask }) => {
+  const tooltip = useTooltip(!isPathValid ? 'Local path is not valid' : `Run Task: ${task.name}`);
+  return (
+    <button
+      // @ts-ignore
+      {...tooltip}
+      onClick={onRunTask}
+      disabled={isProcessing || !isPathValid}
+      className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+    >
+      <PlayIcon className="h-4 w-4 mr-1" />
+      <span className="truncate">{task.name}</span>
+    </button>
+  );
+};
+
+const LaunchConfigButton: React.FC<{
+  config: LaunchConfig;
+  isPathValid: boolean;
+  isProcessing: boolean;
+  onRunLaunchConfig: () => void;
+}> = ({ config, isPathValid, isProcessing, onRunLaunchConfig }) => {
+  const tooltip = useTooltip(!isPathValid ? 'Local path is not valid' : `Launch: ${config.name}`);
+  return (
+    <button
+      // @ts-ignore
+      {...tooltip}
+      onClick={onRunLaunchConfig}
+      disabled={isProcessing || !isPathValid}
+      className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+    >
+      <LightningBoltIcon className="h-4 w-4 mr-1" />
+      <span className="truncate">{config.name}</span>
+    </button>
+  );
 };
 
 
@@ -239,55 +325,39 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             <div className="flex-1 flex flex-wrap gap-2 items-center">
                {isPathMissing ? (
                     isPathSet ? (
-                      <button
-// @ts-ignore
-                        {...useTooltip(`${cloneVerb} from ${remoteUrl} to ${localPath}`)}
-                        onClick={() => onCloneRepo(id)}
-                        disabled={isProcessing}
-                        className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
-                        {cloneVerb} Repo
-                      </button>
+                        <CloneToPathButton
+                            cloneVerb={cloneVerb}
+                            remoteUrl={remoteUrl}
+                            localPath={localPath}
+                            isProcessing={isProcessing}
+                            onClone={() => onCloneRepo(id)}
+                        />
                     ) : (
-                      <button
-// @ts-ignore
-                        {...useTooltip(`Choose location and ${cloneVerb.toLowerCase()}`)}
-                        onClick={() => onChooseLocationAndClone(id)}
-                        disabled={isProcessing}
-                        className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <FolderPlusIcon className="h-4 w-4 mr-1.5" />
-                        Setup & {cloneVerb}
-                      </button>
+                        <ChooseLocationButton
+                            cloneVerb={cloneVerb}
+                            isProcessing={isProcessing}
+                            onChooseLocation={() => onChooseLocationAndClone(id)}
+                        />
                     )
                ) : (
                 <>
                   {tasksToShowOnCard.map(task => (
-                      <button
-// @ts-ignore
-                          {...useTooltip(!isPathValid ? 'Local path is not valid' : `Run Task: ${task.name}`)}
+                      <TaskButton
                           key={task.id}
-                          onClick={() => onRunTask(id, task.id)}
-                          disabled={isProcessing || !isPathValid}
-                          className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                      >
-                          <PlayIcon className="h-4 w-4 mr-1" />
-                          <span className="truncate">{task.name}</span>
-                      </button>
+                          task={task}
+                          isPathValid={isPathValid}
+                          isProcessing={isProcessing}
+                          onRunTask={() => onRunTask(id, task.id)}
+                      />
                   ))}
                   {launchConfigsToShowOnCard.map(config => (
-                      <button
-// @ts-ignore
-                          {...useTooltip(!isPathValid ? 'Local path is not valid' : `Launch: ${config.name}`)}
+                      <LaunchConfigButton
                           key={config.id}
-                          onClick={() => onRunLaunchConfig(id, config.id)}
-                          disabled={isProcessing || !isPathValid}
-                          className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                      >
-                          <LightningBoltIcon className="h-4 w-4 mr-1" />
-                          <span className="truncate">{config.name}</span>
-                      </button>
+                          config={config}
+                          isPathValid={isPathValid}
+                          isProcessing={isProcessing}
+                          onRunLaunchConfig={() => onRunLaunchConfig(id, config.id)}
+                      />
                   ))}
                 </>
                )}
