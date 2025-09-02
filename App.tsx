@@ -520,6 +520,33 @@ const App: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeView, repoToEditId]);
 
+  // *** BUG FIX ***: The main content area was not correctly handling overflow in all views,
+  // which could cause it to expand and push the status bar off-screen. This memoized value
+  // calculates the correct classes for the `<main>` container based on the active view,
+  // ensuring it is always properly constrained.
+  const mainContentClass = useMemo(() => {
+    // `min-h-0` is a crucial fix for flexbox columns. It allows the `flex-1` element
+    // to shrink properly, preventing its content from forcing it to expand. This ensures
+    // that the `StatusBar` below it is not pushed out of the viewport.
+    const baseClasses = "flex-1 flex flex-col min-h-0";
+
+    switch (activeView) {
+      case 'dashboard':
+        // The dashboard is a grid of cards, so the main container itself should scroll.
+        return `${baseClasses} p-3 sm:p-4 lg:p-6 overflow-y-auto`;
+      case 'info':
+        // The info view renders markdown which can be long, so its container needs to scroll.
+        return `${baseClasses} overflow-y-auto`;
+      case 'settings':
+      case 'edit-repository':
+        // These views are full-height and manage their own internal scrolling. The main
+        // container should act as a fixed, non-scrolling frame for them.
+        return `${baseClasses} overflow-hidden`;
+      default:
+        return baseClasses;
+    }
+  }, [activeView]);
+
 
   const CurrentView = () => {
     switch (activeView) {
@@ -571,7 +598,7 @@ const App: React.FC = () => {
       <TooltipProvider>
         <div className="flex flex-col h-screen">
           <Header onNewRepo={() => handleEditRepository('new')} activeView={activeView} onSetView={setActiveView} />
-          <main className={`flex-1 flex flex-col ${activeView === 'dashboard' ? 'p-3 sm:p-4 lg:p-6 overflow-y-auto' : ''}`}>
+          <main className={mainContentClass}>
             <CurrentView />
           </main>
           
