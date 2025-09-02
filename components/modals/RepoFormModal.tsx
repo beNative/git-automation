@@ -295,12 +295,15 @@ const TaskStepsEditor: React.FC<{
         if (suggestedStepTemplates && suggestedStepTemplates.length > 0) {
             const newSteps: TaskStep[] = suggestedStepTemplates.map((s, i) => ({
                 ...(s as Omit<TaskStep, 'id'>),
-                id: `step_${Date.now()}_${i}`,
+                id: `step_ai_${Date.now()}_${i}`,
+                enabled: true,
             }));
             setTask({ ...task, steps: [...task.steps, ...newSteps] });
+        } else {
+          logger.info("AI returned no step suggestions for this project.");
         }
     } catch (error) {
-        logger.error("Failed to get project step suggestions:", { error });
+        logger.error("Failed to get AI project step suggestions:", { error });
     } finally {
         setIsSuggesting(false);
     }
@@ -354,7 +357,7 @@ const TaskStepsEditor: React.FC<{
                       className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 disabled:opacity-50"
                   >
                       <SparklesIcon className="-ml-0.5 mr-1.5 h-4 w-4" />
-                      {isSuggesting ? 'Analyzing...' : 'Suggest Steps'}
+                      {isSuggesting ? 'Analyzing with AI...' : 'Suggest with AI'}
                   </button>
               </div>
           </div>

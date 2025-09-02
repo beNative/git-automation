@@ -42,6 +42,8 @@ const mainConfig = {
     external: ['electron', 'electron-squirrel-startup'], // Exclude electron from the bundle
     define: {
         'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
+        // API_KEY is needed in main process for AI features
+        'process.env.API_KEY': JSON.stringify(process.env.API_KEY || null)
     },
 };
 

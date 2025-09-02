@@ -3,6 +3,7 @@ import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
+import { GoogleGenAI, Type } from '@google/genai';
 import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry } from '../types';
 import { TaskStepType, LogLevel, VcsType } from '../types';
 import fsSync from 'fs';
@@ -245,58 +246,95 @@ ipcMain.handle('get-project-suggestions', async (event, { repoPath, repoName }: 
 });
 
 // --- IPC Handler for suggesting a whole workflow ---
-ipcMain.handle('get-project-step-suggestions', async (event, { repoPath, repoName }: { repoPath: string, repoName: string }): Promise<Omit<TaskStep, 'id'>[]> => {
-    const suggestions: Omit<TaskStep, 'id'>[] = [];
+ipcMain.handle('get-project-step-suggestions', async (event, { repoPath }: { repoPath: string }): Promise<Omit<TaskStep, 'id'>[]> => {
+    if (!process.env.API_KEY) {
+        console.error('API_KEY environment variable not set. Cannot use AI features.');
+        throw new Error('AI Suggestion Failed: API_KEY is not configured in the main process.');
+    }
+
     const fileExists = async (fileName: string) => {
         try {
             await fs.access(path.join(repoPath, fileName));
             return true;
         } catch { return false; }
     };
-    
-    // Check for VCS type
-    if (await fileExists('.git')) {
-        suggestions.push({ type: TaskStepType.GitPull, enabled: true });
-    } else if (await fileExists('.svn')) {
-        suggestions.push({ type: TaskStepType.SvnUpdate, enabled: true });
-    }
 
-    // Check for package manager
-    if (await fileExists('package.json')) {
-        const yarnLockExists = await fileExists('yarn.lock');
-        const command = yarnLockExists ? 'yarn install' : 'npm install';
-        const testCommand = yarnLockExists ? 'yarn test' : 'npm test';
+    let fileContent = '';
+    let fileType = '';
 
-        suggestions.push({ type: TaskStepType.RunCommand, command, enabled: true });
-        try {
-            const pkg = JSON.parse(await fs.readFile(path.join(repoPath, 'package.json'), 'utf-8'));
-            if (pkg.scripts?.test) {
-                suggestions.push({ type: TaskStepType.RunCommand, command: testCommand, enabled: true });
-            }
-            if (pkg.scripts?.build) {
-                const buildCommand = yarnLockExists ? 'yarn build' : 'npm run build';
-                suggestions.push({ type: TaskStepType.RunCommand, command: buildCommand, enabled: true });
-            }
-        } catch (e) { /* ignore malformed json */ }
-    }
-    
-    // Check for Dockerfile
-    if (await fileExists('Dockerfile')) {
-        const imageName = repoName.toLowerCase().replace(/[^a-z0-9_.-]/g, '-');
-        suggestions.push({ type: TaskStepType.RunCommand, command: `docker build -t ${imageName} .`, enabled: true });
-    }
-
-    // Check for Delphi project
     try {
-        const files = await fs.readdir(repoPath);
-        const dprojFile = files.find(f => f.endsWith('.dproj'));
-        if (dprojFile) {
-            suggestions.push({ type: TaskStepType.RunCommand, command: `msbuild "${dprojFile}" /t:Build /p:Configuration=Release`, enabled: true });
+        if (await fileExists('package.json')) {
+            const pkgRaw = await fs.readFile(path.join(repoPath, 'package.json'), 'utf-8');
+            const pkg = JSON.parse(pkgRaw);
+            if (pkg.scripts) {
+                fileContent = JSON.stringify(pkg.scripts, null, 2);
+                fileType = 'package.json scripts';
+            }
+        } else if (await fileExists('Makefile')) {
+            fileContent = await fs.readFile(path.join(repoPath, 'Makefile'), 'utf-8');
+            fileType = 'Makefile';
+        } else if (await fileExists('docker-compose.yml')) {
+            fileContent = await fs.readFile(path.join(repoPath, 'docker-compose.yml'), 'utf-8');
+            fileType = 'docker-compose.yml';
         }
-    } catch (e) { /* ignore */ }
 
+        if (!fileContent) {
+            console.log('No suitable project file found for AI suggestion.');
+            return [];
+        }
 
-    return suggestions;
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        
+        const prompt = `Based on the following '${fileType}' content, suggest a logical sequence of 'Run Command' steps for a standard build-and-test workflow. Only include the most common and essential steps (e.g., install, build, test).
+
+File Content:
+\`\`\`
+${fileContent}
+\`\`\`
+`;
+        
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            type: {
+                                type: Type.STRING,
+                                description: "The type of the task step. Must be 'RUN_COMMAND'.",
+                                enum: [TaskStepType.RunCommand],
+                            },
+                            command: {
+                                type: Type.STRING,
+                                description: "The shell command to execute.",
+                            },
+                        },
+                        required: ["type", "command"],
+                    },
+                },
+            },
+        });
+        
+        const jsonText = response.text.trim();
+        if (!jsonText) {
+            console.warn('AI suggestion returned an empty response.');
+            return [];
+        }
+        
+        const suggestedSteps = JSON.parse(jsonText);
+        return suggestedSteps as Omit<TaskStep, 'id'>[];
+
+    } catch (error) {
+        console.error("Failed to get AI project step suggestions:", error);
+        if (error instanceof Error) {
+            throw new Error(`AI suggestion failed: ${error.message}`);
+        }
+        throw new Error('An unknown error occurred during AI suggestion.');
+    }
 });
 
 // --- IPC handler for checking git/svn status ---
