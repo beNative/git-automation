@@ -498,16 +498,20 @@ const createLineLogger = (
   let buffer = '';
   const process = (chunk: Buffer) => {
     buffer += chunk.toString();
-    let eolIndex;
-    while ((eolIndex = buffer.indexOf('\n')) >= 0) {
-      let line = buffer.substring(0, eolIndex);
-      buffer = buffer.substring(eolIndex + 1);
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
 
-      // Handle multiple carriage returns in a single chunk (e.g., for progress bars).
-      // We only want the content after the last carriage return.
-      const crIndex = line.lastIndexOf('\r');
-      if (crIndex !== -1) {
-        line = line.substring(crIndex + 1);
+    for (let line of lines) {
+      // If line ends with \r (from \r\n), strip it
+      if (line.endsWith('\r')) {
+        line = line.slice(0, -1);
+      }
+
+      // Handle embedded \r for progress bars. We only want the content
+      // after the last carriage return in a given line.
+      const lastCrIndex = line.lastIndexOf('\r');
+      if (lastCrIndex !== -1) {
+        line = line.substring(lastCrIndex + 1);
       }
       
       line = line.trim();
@@ -517,15 +521,21 @@ const createLineLogger = (
     }
   };
   const flush = () => {
-    // Also apply the carriage return logic on flush for any remaining buffer content.
+    // Process any remaining data in the buffer
     let line = buffer;
-    const crIndex = line.lastIndexOf('\r');
-    if (crIndex !== -1) {
-      line = line.substring(crIndex + 1);
-    }
-    line = line.trim();
     if (line) {
-      sender('task-log', { executionId, message: line, level });
+        // Also apply the same logic on the final flush
+        if (line.endsWith('\r')) {
+            line = line.slice(0, -1);
+        }
+        const lastCrIndex = line.lastIndexOf('\r');
+        if (lastCrIndex !== -1) {
+            line = line.substring(lastCrIndex + 1);
+        }
+        line = line.trim();
+        if(line) {
+            sender('task-log', { executionId, message: line, level });
+        }
     }
     buffer = '';
   };
