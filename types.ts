@@ -88,6 +88,7 @@ export interface GlobalSettings {
   simulationMode: boolean;
   theme: 'light' | 'dark';
   iconSet: 'heroicons' | 'lucide' | 'tabler';
+  debugLogging: boolean;
 }
 
 export enum TaskStepType {

@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { LoggerProvider } from './contexts/LoggerContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -11,8 +12,10 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <LoggerProvider>
-      <App />
-    </LoggerProvider>
+    <SettingsProvider>
+      <LoggerProvider>
+        <App />
+      </LoggerProvider>
+    </SettingsProvider>
   </React.StrictMode>
 );

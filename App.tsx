@@ -21,9 +21,11 @@ import { VcsType } from './types';
 import { TooltipProvider } from './contexts/TooltipContext';
 import Tooltip from './components/Tooltip';
 import { useLogger } from './hooks/useLogger';
+import { useSettings } from './contexts/SettingsContext';
 
 const App: React.FC = () => {
   const logger = useLogger();
+  const { settings, saveSettings } = useSettings();
   const {
     repositories,
     addRepository,
@@ -88,33 +90,6 @@ const App: React.FC = () => {
     isOpen: boolean;
     repo: Repository | null;
   }>({ isOpen: false, repo: null });
-
-
-  const [settings, setSettings] = useState<GlobalSettings>(() => {
-    try {
-      const savedSettings = localStorage.getItem('globalSettings');
-      const defaults: GlobalSettings = {
-        defaultBuildCommand: 'npm run build',
-        notifications: true,
-        simulationMode: true,
-        theme: 'dark' as 'light' | 'dark',
-        iconSet: 'heroicons' as 'heroicons' | 'lucide' | 'tabler',
-      };
-      const loaded = savedSettings ? { ...defaults, ...JSON.parse(savedSettings) } : defaults;
-      // Cannot use logger here as it's not initialized yet.
-      // console.log('Global settings loaded.', loaded);
-      return loaded;
-    } catch (e: any) {
-      console.error('Failed to load settings from localStorage, falling back to defaults.', { error: e.message });
-      return {
-        defaultBuildCommand: 'npm run build',
-        notifications: true,
-        simulationMode: true,
-        theme: 'dark',
-        iconSet: 'heroicons',
-      };
-    }
-  });
 
   // Effect for app version and update status
   useEffect(() => {
@@ -271,8 +246,7 @@ const App: React.FC = () => {
 
   const handleSaveSettings = (newSettings: GlobalSettings) => {
     logger.info('Saving new global settings.', { newSettings });
-    setSettings(newSettings);
-    localStorage.setItem('globalSettings', JSON.stringify(newSettings));
+    saveSettings(newSettings);
     setToast({ message: 'Settings saved successfully!', type: 'success' });
   };
 
@@ -627,7 +601,7 @@ const App: React.FC = () => {
             onClose={() => setIsDebugPanelOpen(false)}
           />
           
-          {toast && (
+          {toast && settings.notifications && (
             <Toast
               message={toast.message}
               type={toast.type}

@@ -1,5 +1,6 @@
 import React, { createContext, useState, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
 import type { DebugLogEntry, DebugLogLevel } from '../types';
+import { useSettings } from './SettingsContext';
 
 type LogFilters = Record<DebugLogLevel, boolean>;
 
@@ -33,13 +34,13 @@ export const LoggerContext = createContext<LoggerContextState>(initialState);
 let logIdCounter = 0;
 
 export const LoggerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { settings } = useSettings();
   const [logs, setLogs] = useState<DebugLogEntry[]>([]);
   const [filters, setFilters] = useState<LogFilters>(initialState.filters);
   const [isSavingToFile, setIsSavingToFile] = useState(false);
   const isSavingToFileRef = useRef(isSavingToFile);
   
   // Ref to track previous state to avoid running effect on mount
-  // FIX: Explicitly provide an initial value to useRef to satisfy the linter/compiler rule that expects at least one argument.
   const prevIsSavingToFile = useRef<boolean | undefined>(undefined);
 
 
@@ -71,6 +72,11 @@ export const LoggerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
 
   const addLog = useCallback((level: DebugLogLevel, message: string, data?: any) => {
+    // If debug logging is disabled in settings, do nothing.
+    if (!settings.debugLogging) {
+      return;
+    }
+
     const newLog: DebugLogEntry = {
       id: logIdCounter++,
       timestamp: new Date(),
@@ -83,7 +89,7 @@ export const LoggerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (isSavingToFileRef.current) {
         window.electronAPI?.logToFileWrite(newLog);
     }
-  }, []);
+  }, [settings.debugLogging]);
 
   const clearLogs = useCallback(() => {
     setLogs([]);
