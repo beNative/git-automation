@@ -71,7 +71,7 @@ const TaskStepItem: React.FC<{
     if (!stepDef) {
         logger.error('Invalid step type encountered in TaskStepItem. This may be due to malformed data.', { step });
     }
-  }, [step, stepDef, logger]);
+  }, [step.id, step.type, stepDef, logger]);
   
   if (!stepDef) {
       return (
