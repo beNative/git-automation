@@ -541,8 +541,10 @@ const App: React.FC = () => {
   // This prevents the logger (which updates state) from being called during a render,
   // which was causing an infinite render loop.
   useEffect(() => {
+    // The logger object from useLogger is stable and doesn't need to be a dependency.
     logger.debug(`App view changed to: ${activeView}`, { view: activeView, repoToEditId });
-  }, [activeView, repoToEditId, logger]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView, repoToEditId]);
 
 
   const CurrentView = () => {

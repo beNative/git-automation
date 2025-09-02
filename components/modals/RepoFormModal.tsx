@@ -71,6 +71,7 @@ const TaskStepItem: React.FC<{
     if (!stepDef) {
         logger.error('Invalid step type encountered in TaskStepItem. This may be due to malformed data.', { step });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step.id, step.type]);
   
   if (!stepDef) {
@@ -239,18 +240,21 @@ const TaskStepsEditor: React.FC<{
   const showOnDashboardTooltip = useTooltip('Show this task as a button on the repository card');
   
   useEffect(() => {
-      if (repository?.localPath && repository.name) {
-        logger.debug("Fetching project suggestions", { path: repository.localPath });
-        window.electronAPI.getProjectSuggestions({ repoPath: repository.localPath, repoName: repository.name })
-          .then(s => {
-            setSuggestions(s || []);
-            logger.info("Project suggestions loaded", { count: s?.length || 0 });
-            })
-          .catch(error => logger.warn("Could not load project suggestions:", { error }));
-      } else {
-        setSuggestions([]);
-      }
-  }, [repository?.localPath, repository?.name, logger]);
+    if (repository?.localPath && repository.name) {
+      // The logger functions from useLogger are stable and don't need to be in the dependency array.
+      // Including them causes an infinite loop because logging triggers a context update and re-render.
+      logger.debug("Fetching project suggestions", { path: repository.localPath, repoName: repository.name });
+      window.electronAPI.getProjectSuggestions({ repoPath: repository.localPath, repoName: repository.name })
+        .then(s => {
+          setSuggestions(s || []);
+          logger.info("Project suggestions loaded", { count: s?.length || 0 });
+        })
+        .catch(error => logger.warn("Could not load project suggestions:", { error }));
+    } else {
+      setSuggestions([]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repository?.localPath, repository?.name]);
   
   const handleAddStep = (type: TaskStepType) => {
     const newStep: TaskStep = { id: `step_${Date.now()}`, type, enabled: true };
