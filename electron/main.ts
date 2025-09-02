@@ -12,6 +12,11 @@ import fsSync from 'fs';
 // Fix: Manually declare Node.js globals to resolve type errors when @types/node is not available.
 declare const require: (id: string) => any;
 declare const __dirname: string;
+// FIX: Add a manual type declaration for the Node.js `Buffer` global type,
+// which is used in the `createLineLogger` helper for processing stream chunks.
+declare class Buffer {
+    toString(encoding?: string): string;
+}
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {

@@ -131,7 +131,7 @@ export const useRepositoryManager = () => {
     settings: GlobalSettings,
     onDirty: (statusOutput: string) => Promise<'stash' | 'force' | 'cancel'>
   ) => {
-    const executionId = `exec_${repo.id}_${task.id}_${Date.now()}`;
+    const taskExecutionId = `exec_${repo.id}_${task.id}_${Date.now()}`;
     const { id: repoId } = repo;
     setIsProcessing(prev => new Set(prev).add(repoId));
     
@@ -142,7 +142,7 @@ export const useRepositoryManager = () => {
         addLogEntry(repoId, `RUNNING IN SIMULATION MODE`, LogLevel.Warn);
       }
 
-      for (const step of task.steps) {
+      for (const [index, step] of task.steps.entries()) {
         if (step.enabled === false) {
           addLogEntry(repoId, `Skipping disabled step: ${step.type}`, LogLevel.Info);
           continue;
@@ -162,6 +162,9 @@ export const useRepositoryManager = () => {
             };
           }
 
+          // Generate a unique ID for each step to prevent listener leaks from causing log duplication.
+          const stepExecutionId = `${taskExecutionId}_step_${index}`;
+
           // Check for dirty repo before git pull (Git only)
           if (step.type === TaskStepType.GitPull && repo.vcs === VcsType.Git) {
             const statusResult = await window.electronAPI.checkVcsStatus(repo);
@@ -175,13 +178,13 @@ export const useRepositoryManager = () => {
                  throw new Error('cancelled'); // Special error to suppress toast
               } else if (choice === 'stash') {
                 addLogEntry(repoId, 'Stashing changes...', LogLevel.Info);
-                const stashExecutionId = `${executionId}_stash`;
+                const stashExecutionId = `${stepExecutionId}_stash`;
                 await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash}, settings, addLogEntry, stashExecutionId);
               }
               // if 'force', proceed as normal
             }
           }
-          await runRealStep(repo, stepToRun, settings, addLogEntry, executionId);
+          await runRealStep(repo, stepToRun, settings, addLogEntry, stepExecutionId);
         }
       }
 
