@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { FolderOpenIcon } from './icons/FolderOpenIcon';
 import { PencilIcon } from './icons/PencilIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
@@ -38,6 +38,8 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isValid, setIsValid] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const preRef = useRef<HTMLPreElement>(null);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -65,6 +67,13 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
       setIsValid(true);
     } catch (error) {
       setIsValid(false);
+    }
+  };
+
+  const handleScroll = () => {
+    if (textareaRef.current && preRef.current) {
+      preRef.current.scrollTop = textareaRef.current.scrollTop;
+      preRef.current.scrollLeft = textareaRef.current.scrollLeft;
     }
   };
 
@@ -97,6 +106,8 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
       setIsValid(true);
       setIsEditing(false);
   }
+  
+  const highlightedCode = useMemo(() => highlightJson(editedJson), [editedJson]);
 
   return (
     <div className="flex-1 flex flex-col">
@@ -111,6 +122,22 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
         .dark .json-boolean { color: #93c5fd; } /* dark:blue-300 */
         .json-null { color: #f43f5e; } /* dark:rose-500 */
         .dark .json-null { color: #fda4af; } /* dark:rose-300 */
+
+        .json-editor-textarea {
+          color: transparent;
+          background-color: transparent;
+          caret-color: black;
+          z-index: 1;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          font-size: 0.875rem; /* text-sm */
+          line-height: 1.25rem;
+        }
+        .dark .json-editor-textarea {
+          caret-color: white;
+        }
+        .json-editor-pre {
+          pointer-events: none;
+        }
       `}</style>
       <main className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">JSON Configuration</h2>
@@ -119,16 +146,29 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
         </p>
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           {isLoading ? (
-            <p>Loading settings file...</p>
+            <div className="w-full h-96 rounded-md bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 flex items-center justify-center">
+              <p>Loading settings file...</p>
+            </div>
           ) : isEditing ? (
-            <textarea
-              className={`w-full h-96 font-mono text-sm p-3 rounded-md bg-gray-50 dark:bg-gray-900 border focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isValid ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-              value={editedJson}
-              onChange={handleJsonChange}
-              spellCheck="false"
-            />
+            <div className={`relative w-full h-96 font-mono text-sm rounded-md border focus-within:ring-2 focus-within:ring-blue-500 ${!isValid ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
+              <textarea
+                ref={textareaRef}
+                className="json-editor-textarea absolute top-0 left-0 w-full h-full p-3 bg-transparent resize-none outline-none overflow-auto"
+                value={editedJson}
+                onChange={handleJsonChange}
+                onScroll={handleScroll}
+                spellCheck="false"
+              />
+              <pre
+                ref={preRef}
+                className="json-editor-pre absolute top-0 left-0 w-full h-full p-3 bg-gray-50 dark:bg-gray-900 overflow-auto whitespace-pre-wrap break-words"
+                aria-hidden="true"
+              >
+                <code dangerouslySetInnerHTML={highlightedCode} />
+              </pre>
+            </div>
           ) : (
-            <pre className="w-full h-96 font-mono text-sm p-3 rounded-md bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 overflow-auto">
+            <pre className="w-full h-96 font-mono text-sm p-3 rounded-md bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 overflow-auto whitespace-pre-wrap break-words">
               <code dangerouslySetInnerHTML={highlightJson(rawJson)} />
             </pre>
           )}
