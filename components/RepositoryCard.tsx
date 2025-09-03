@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
-import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig } from '../types';
+import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig, WebLinkConfig } from '../types';
 import { VcsType } from '../types';
 import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
 import { PlayIcon } from './icons/PlayIcon';
@@ -224,6 +224,25 @@ const LaunchConfigButton: React.FC<{
   );
 };
 
+const WebLinkButton: React.FC<{ link: WebLinkConfig }> = ({ link }) => {
+  const tooltip = useTooltip(link.url);
+  const { hideTooltip } = useContext(TooltipContext);
+  return (
+    <a
+      // @ts-ignore
+      {...tooltip}
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={hideTooltip}
+      className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+    >
+      <ArrowTopRightOnSquareIcon className="h-3 w-3 mr-1.5" />
+      <span className="truncate">{link.name}</span>
+    </a>
+  );
+};
+
 
 const RepositoryCard: React.FC<RepositoryCardProps> = ({
   repository,
@@ -335,17 +354,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
         {webLinks && webLinks.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {webLinks.map(link => (
-              <a
-                key={link.id}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={link.url}
-                className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-              >
-                <ArrowTopRightOnSquareIcon className="h-3 w-3 mr-1.5" />
-                <span className="truncate">{link.name}</span>
-              </a>
+              <WebLinkButton key={link.id} link={link} />
             ))}
           </div>
         )}
