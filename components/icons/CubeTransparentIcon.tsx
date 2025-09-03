@@ -22,19 +22,47 @@ const LucideCubeTransparentIcon: React.FC<React.SVGProps<SVGSVGElement>> = (prop
 const TablerCubeTransparentIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-        <path d="M3 4m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" />
-        <path d="M3 9.5l18 0" />
-        <path d="M12 4v16" />
+        <path d="M2.571 8.243l8.858 -5.023a1 1 0 0 1 .571 .006l8.858 5.017" />
+        <path d="M12 22v-11.5" />
+        <path d="M3.142 8.5v8" />
+        <path d="M20.858 8.5v8" />
+        <path d="M12 10.5l8.571 -4.757" />
+        <path d="M3.429 5.743l8.571 4.757" />
     </svg>
 );
 
+const FeatherCubeTransparentIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+        <line x1="3.27" y1="6.96" x2="12" y2="12.5"></line>
+        <line x1="12" y1="22.08" x2="12" y2="12.5"></line>
+        <line x1="20.73" y1="6.96" x2="12" y2="12.5"></line>
+    </svg>
+);
+
+const RemixCubeTransparentIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M12 22L3.93756 16.8125V7.1875L12 12.375L20.0625 7.1875V16.8125L12 22ZM12 1L21 6.5V17.5L12 23L3 17.5V6.5L12 1Z" />
+    </svg>
+);
+
+const PhosphorCubeTransparentIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
+        <path d="M222.19,83.13l-88-53.13a15.9,15.9,0,0,0-12.38,0l-88,53.13A16,16,0,0,0,24,96.87v62.26a16,16,0,0,0,9.81,13.74l88,53.13a15.9,15.9,0,0,0,12.38,0l88-53.13A16,16,0,0,0,232,159.13V96.87A16,16,0,0,0,222.19,83.13ZM40,159.13V96.87L128,144Zm16,10.66,66.19,40L56,169.79ZM144,144,216,96.87v62.26Zm65.81-80.44-72,43.37L68.19,63.69,128,30.13Z" />
+    </svg>
+);
+
+
 export const CubeTransparentIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide' || iconSet === 'feather') {
-        return <LucideCubeTransparentIcon {...props} />;
+    switch (iconSet) {
+        case 'lucide': return <LucideCubeTransparentIcon {...props} />;
+        case 'feather': return <FeatherCubeTransparentIcon {...props} />;
+        case 'tabler': return <TablerCubeTransparentIcon {...props} />;
+        case 'remix': return <RemixCubeTransparentIcon {...props} />;
+        case 'phosphor': return <PhosphorCubeTransparentIcon {...props} />;
+        case 'heroicons':
+        default:
+            return <HeroCubeTransparentIcon {...props} />;
     }
-    if (iconSet === 'tabler' || iconSet === 'remix') {
-        return <TablerCubeTransparentIcon {...props} />;
-    }
-    return <HeroCubeTransparentIcon {...props} />;
 };

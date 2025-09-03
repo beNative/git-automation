@@ -21,13 +21,35 @@ const TablerFolderOpenIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) =>
     </svg>
 );
 
+const FeatherFolderOpenIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+    </svg>
+);
+
+const RemixFolderOpenIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M3 21C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H10.4142L12.4142 5H21C21.5523 5 22 5.44772 22 6V20C22 20.5523 21.5523 21 21 21H3ZM4 5V19H20V7H11.5858L9.58579 5H4Z" />
+    </svg>
+);
+
+const PhosphorFolderOpenIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
+        <path d="M240,94.26V200a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V88a8,8,0,0,1,16,0v88H216a8,8,0,0,0,8-8V101.89l-26.63-66.57A8,8,0,0,0,190.63,32H93.37a16,16,0,0,0-12.8,6.4L32,108.83v-4.57a16,16,0,0,1,16-16H208a8,8,0,0,1,5.82,2.58l22,27.5A8,8,0,0,1,240,94.26ZM208,80H93.37a16,16,0,0,1-12.8,6.4L32,124.83,76,48h9.37L108,58.4l24.63,61.57a8,8,0,0,0,14.74-5.94L121.37,48H190.63Z" />
+    </svg>
+);
+
+
 export const FolderOpenIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide' || iconSet === 'feather') {
-        return <LucideFolderOpenIcon {...props} />;
+    switch (iconSet) {
+        case 'lucide': return <LucideFolderOpenIcon {...props} />;
+        case 'feather': return <FeatherFolderOpenIcon {...props} />;
+        case 'tabler': return <TablerFolderOpenIcon {...props} />;
+        case 'remix': return <RemixFolderOpenIcon {...props} />;
+        case 'phosphor': return <PhosphorFolderOpenIcon {...props} />;
+        case 'heroicons':
+        default:
+            return <HeroFolderOpenIcon {...props} />;
     }
-    if (iconSet === 'tabler' || iconSet === 'remix') {
-        return <TablerFolderOpenIcon {...props} />;
-    }
-    return <HeroFolderOpenIcon {...props} />;
 };

@@ -24,14 +24,38 @@ const TablerExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (
     </svg>
 );
 
+const FeatherExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+);
+
+const RemixExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M12.866 3.46447L21.3541 18.4975C22.0124 19.6094 21.1537 21 19.8868 21H4.11325C2.8463 21 1.98758 19.6094 2.64592 18.4975L11.134 3.46447C11.4781 2.87322 12.5219 2.87322 12.866 3.46447ZM12 16C12.5523 16 13 16.4477 13 17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17C11 16.4477 11.4477 16 12 16ZM11 10V14H13V10H11Z" />
+    </svg>
+);
+
+const PhosphorExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
+        <path d="M236.65,195.35,148.67,35.37a24,24,0,0,0-41.34,0L19.35,195.35a24,24,0,0,0,20.67,36.65H215.98a24,24,0,0,0,20.67-36.65ZM120,104a8,8,0,0,1,8-8h0a8,8,0,0,1,8,8v48a8,8,0,0,1-8,8h0a8,8,0,0,1-8-8Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z" />
+    </svg>
+);
+
+
 
 export const ExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide' || iconSet === 'feather') {
-        return <LucideExclamationTriangleIcon {...props} />;
+    switch (iconSet) {
+        case 'lucide': return <LucideExclamationTriangleIcon {...props} />;
+        case 'feather': return <FeatherExclamationTriangleIcon {...props} />;
+        case 'tabler': return <TablerExclamationTriangleIcon {...props} />;
+        case 'remix': return <RemixExclamationTriangleIcon {...props} />;
+        case 'phosphor': return <PhosphorExclamationTriangleIcon {...props} />;
+        case 'heroicons':
+        default:
+            return <HeroExclamationTriangleIcon {...props} />;
     }
-    if (iconSet === 'tabler' || iconSet === 'remix') {
-        return <TablerExclamationTriangleIcon {...props} />;
-    }
-    return <HeroExclamationTriangleIcon {...props} />;
 };

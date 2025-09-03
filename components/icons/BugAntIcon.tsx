@@ -44,14 +44,42 @@ const TablerBugAntIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     </svg>
 );
 
+const FeatherBugAntIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <line x1="8" y1="6" x2="16" y2="6"></line>
+        <line x1="12" y1="2" x2="12" y2="6"></line>
+        <line x1="12" y1="22" x2="12" y2="18"></line>
+        <line x1="17" y1="20" x2="12" y2="18"></line>
+        <line x1="7" y1="20" x2="12" y2="18"></line>
+        <line x1="20" y1="13" x2="16" y2="12"></line>
+        <line x1="4" y1="13" x2="8" y2="12"></line>
+        <path d="M16,16a4,4,0,0,1-8,0"></path>
+    </svg>
+);
+
+const RemixBugAntIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M12 20C12 21.1046 11.1046 22 10 22H8C6.89543 22 6 21.1046 6 20V14H4V11C4 7.68629 6.68629 5 10 5H14C17.3137 5 20 7.68629 20 11V14H18V20C18 21.1046 17.1046 22 16 22H14C12.8954 22 12 21.1046 12 20V14H10V20ZM10 12H14V11C14 8.79086 12.2091 7 10 7H14C11.7909 7 10 8.79086 10 11V12ZM4.23746 4.81183L5.65167 6.22604L4.23746 7.64025L2.82325 6.22604L4.23746 4.81183ZM19.7625 4.81183L21.1768 6.22604L19.7625 7.64025L18.3483 6.22604L19.7625 4.81183Z" />
+    </svg>
+);
+
+const PhosphorBugAntIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
+        <path d="M216.9,88.75,193.1,64.89a8,8,0,0,0-11.31,0l-12.2,12.2a8,8,0,0,0,0,11.31L181.3,99.7a56.12,56.12,0,0,0-23-4.88V56a8,8,0,0,0-16,0V94.82a56.12,56.12,0,0,0-23,4.88L107.6,88.39a8,8,0,0,0-11.31,0L84.09,100.59a8,8,0,0,0,0,11.31L95.7,123.7a56,56,0,0,0-4.88,23H56a8,8,0,0,0,0,16H90.82a56,56,0,0,0,4.88,23l-11.6,11.6a8,8,0,0,0,0,11.31l12.19,12.2a8,8,0,0,0,11.31,0l12.2-12.2a8,8,0,0,0,0-11.31L118.3,186.3a56.12,56.12,0,0,0,23-4.88V216a8,8,0,0,0,16,0V181.42a56.12,56.12,0,0,0,23-4.88L192.3,188.39a8,8,0,0,0,11.31,0l12.2-12.2a8,8,0,0,0,0-11.31L204.3,153.7a56,56,0,0,0,4.88-23H244a8,8,0,0,0,0-16H209.18a56,56,0,0,0-4.88-23Zm-19.66,90.4L188,188.39a8,8,0,0,0-11.31,0L164.89,200.6a8,8,0,0,0,0,11.31l-3.09,3.1-3.1-3.1a8,8,0,0,0-11.31,0L135.6,224.2a8,8,0,0,0,0,11.31l-3.09,3.1-3.1-3.1a8,8,0,0,0-11.31,0L103.6,247.7a8,8,0,0,0,0,11.31l-3.09,3.1-3.1-3.1a8,8,0,0,0-11.31,0L74.8,268.39a8,8,0,0,0,0,11.31L68,286.5l-6.83-6.84a8,8,0,0,0-11.31,0L43.1,286.5l-3.09,3.1,3.09,3.09a8,8,0,0,0,11.31,0l6.83-6.83,6.84,6.83a8,8,0,0,0,11.31,0l3.1-3.09,3.09,3.09a8,8,0,0,0,11.31,0l11.6-11.6,11.6,11.6a8,8,0,0,0,11.31,0l3.1-3.09,3.09,3.09a8,8,0,0,0,11.31,0l11.6-11.6,11.6,11.6a8,8,0,0,0,11.31,0l3.1-3.09,6.83,6.83,6.84-6.83a8,8,0,0,0,0-11.31L206.5,188.39l-9.16-9.15Zm-60.24,0a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z" />
+    </svg>
+);
+
 
 export const BugAntIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide' || iconSet === 'feather') {
-        return <LucideBugAntIcon {...props} />;
+    switch (iconSet) {
+        case 'lucide': return <LucideBugAntIcon {...props} />;
+        case 'feather': return <FeatherBugAntIcon {...props} />;
+        case 'tabler': return <TablerBugAntIcon {...props} />;
+        case 'remix': return <RemixBugAntIcon {...props} />;
+        case 'phosphor': return <PhosphorBugAntIcon {...props} />;
+        case 'heroicons':
+        default:
+            return <HeroBugAntIcon {...props} />;
     }
-    if (iconSet === 'tabler' || iconSet === 'remix') {
-        return <TablerBugAntIcon {...props} />;
-    }
-    return <HeroBugAntIcon {...props} />;
 };

@@ -28,13 +28,37 @@ const TablerDocumentArrowDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (pr
     </svg>
 );
 
+const FeatherDocumentArrowDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="12" y1="18" x2="12" y2="12"></line>
+        <polyline points="15 15 12 18 9 15"></polyline>
+    </svg>
+);
+
+const RemixDocumentArrowDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M14 2H6C5.44772 2 5 2.44772 5 3V21C5 21.5523 5.44772 22 6 22H18C18.5523 22 19 21.5523 19 21V8L14 2ZM13 18V14H11V18H8L12 22L16 18H13ZM13 3.41421L17.5858 8H13V3.41421Z" />
+    </svg>
+);
+
+const PhosphorDocumentArrowDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
+        <path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,88V44.69L199.31,88ZM200,224H56a8,8,0,0,1-8-8V40a8,8,0,0,1,8-8h88V88a8,8,0,0,0,8,8h48V216A8,8,0,0,1,200,224Zm-72-58.34L165.66,128a8,8,0,0,1,0,11.31l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.31L120,146.34V112a8,8,0,0,1,16,0v34.34Z" />
+    </svg>
+);
+
 export const DocumentArrowDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide' || iconSet === 'feather') {
-        return <LucideDocumentArrowDownIcon {...props} />;
+    switch (iconSet) {
+        case 'lucide': return <LucideDocumentArrowDownIcon {...props} />;
+        case 'feather': return <FeatherDocumentArrowDownIcon {...props} />;
+        case 'tabler': return <TablerDocumentArrowDownIcon {...props} />;
+        case 'remix': return <RemixDocumentArrowDownIcon {...props} />;
+        case 'phosphor': return <PhosphorDocumentArrowDownIcon {...props} />;
+        case 'heroicons':
+        default:
+            return <HeroDocumentArrowDownIcon {...props} />;
     }
-    if (iconSet === 'tabler' || iconSet === 'remix') {
-        return <TablerDocumentArrowDownIcon {...props} />;
-    }
-    return <HeroDocumentArrowDownIcon {...props} />;
 };

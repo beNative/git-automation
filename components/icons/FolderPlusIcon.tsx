@@ -24,14 +24,37 @@ const TablerFolderPlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) =>
     </svg>
 );
 
+const FeatherFolderPlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        <line x1="12" y1="11" x2="12" y2="17"></line>
+        <line x1="9" y1="14" x2="15" y2="14"></line>
+    </svg>
+);
+
+const RemixFolderPlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M12.4142 5H21C21.5523 5 22 5.44772 22 6V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H10.4142L12.4142 5ZM11 11H13V13H15V15H13V17H11V15H9V13H11V11Z" />
+    </svg>
+);
+
+const PhosphorFolderPlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
+        <path d="M240,96v96a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V64A16,16,0,0,1,32,48H93.37a16,16,0,0,1,9.6,3.2L128,72h80a16,16,0,0,1,16,16ZM144,144H112v24a8,8,0,0,1-16,0V144H72a8,8,0,0,1,0-16H96V104a8,8,0,0,1,16,0v24h24a8,8,0,0,1,0,16Z" />
+    </svg>
+);
+
 
 export const FolderPlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide' || iconSet === 'feather') {
-        return <LucideFolderPlusIcon {...props} />;
+    switch (iconSet) {
+        case 'lucide': return <LucideFolderPlusIcon {...props} />;
+        case 'feather': return <FeatherFolderPlusIcon {...props} />;
+        case 'tabler': return <TablerFolderPlusIcon {...props} />;
+        case 'remix': return <RemixFolderPlusIcon {...props} />;
+        case 'phosphor': return <PhosphorFolderPlusIcon {...props} />;
+        case 'heroicons':
+        default:
+            return <HeroFolderPlusIcon {...props} />;
     }
-    if (iconSet === 'tabler' || iconSet === 'remix') {
-        return <TablerFolderPlusIcon {...props} />;
-    }
-    return <HeroFolderPlusIcon {...props} />;
 };

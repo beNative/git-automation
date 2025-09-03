@@ -28,13 +28,39 @@ const TablerDocumentTextIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) 
     </svg>
 );
 
+const FeatherDocumentTextIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+        <polyline points="10 9 9 9 8 9"></polyline>
+    </svg>
+);
+
+const RemixDocumentTextIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M21 8V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V4C3 3.44772 3.44772 3 4 3H13L21 8ZM19 10H13V4H5V19H19V10ZM11 14H7V12H11V14ZM11 17H7V15H11V17Z" />
+    </svg>
+);
+
+const PhosphorDocumentTextIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
+        <path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,88V44.69L199.31,88ZM200,224H56a8,8,0,0,1-8-8V40a8,8,0,0,1,8-8h88V88a8,8,0,0,0,8,8h48V216A8,8,0,0,1,200,224Zm-24-80H80a8,8,0,0,1,0-16h96a8,8,0,0,1,0,16Zm0,32H80a8,8,0,0,1,0-16h96a8,8,0,0,1,0,16Z" />
+    </svg>
+);
+
+
 export const DocumentTextIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide' || iconSet === 'feather') {
-        return <LucideDocumentTextIcon {...props} />;
+    switch (iconSet) {
+        case 'lucide': return <LucideDocumentTextIcon {...props} />;
+        case 'feather': return <FeatherDocumentTextIcon {...props} />;
+        case 'tabler': return <TablerDocumentTextIcon {...props} />;
+        case 'remix': return <RemixDocumentTextIcon {...props} />;
+        case 'phosphor': return <PhosphorDocumentTextIcon {...props} />;
+        case 'heroicons':
+        default:
+            return <HeroDocumentTextIcon {...props} />;
     }
-    if (iconSet === 'tabler' || iconSet === 'remix') {
-        return <TablerDocumentTextIcon {...props} />;
-    }
-    return <HeroDocumentTextIcon {...props} />;
 };
