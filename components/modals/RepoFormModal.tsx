@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, Commit, BranchInfo } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -35,7 +35,7 @@ const NEW_REPO_TEMPLATE: Omit<GitRepository, 'id'> = {
   name: '',
   remoteUrl: '',
   localPath: '',
-  webLink: '',
+  webLinks: [],
   branch: 'main',
   status: RepoStatus.Idle,
   lastUpdated: null,
@@ -634,7 +634,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             ...( 'id' in prev ? { id: prev.id } : {}),
             name: prev.name,
             localPath: prev.localPath,
-            webLink: prev.webLink,
+            webLinks: prev.webLinks || [],
             tasks: [], // Reset tasks when VCS changes as steps might become invalid
             launchConfigs: prev.launchConfigs || [], // Keep launch configs
             status: RepoStatus.Idle,
@@ -688,6 +688,27 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     if (selectedTaskId === taskId) {
       setSelectedTaskId(newTasks.length > 0 ? newTasks[0].id : null);
     }
+  };
+
+  const handleAddWebLink = () => {
+    const newLink: WebLinkConfig = { id: `wl_${Date.now()}`, name: 'New Link', url: 'https://' };
+    setFormData(prev => ({...prev, webLinks: [...(prev.webLinks || []), newLink]}));
+  };
+
+  const handleUpdateWebLink = (id: string, field: keyof Omit<WebLinkConfig, 'id'>, value: string) => {
+    setFormData(prev => ({
+        ...prev,
+        webLinks: (prev.webLinks || []).map(wl => 
+            wl.id === id ? { ...wl, [field]: value } : wl
+        )
+    }));
+  };
+
+  const handleRemoveWebLink = (id: string) => {
+    setFormData(prev => ({
+        ...prev,
+        webLinks: (prev.webLinks || []).filter(wl => wl.id !== id)
+    }));
   };
 
   const handleAddLaunchConfig = () => {
@@ -952,13 +973,30 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             <div><label htmlFor="name" className={formLabelStyle}>Repository Name</label><input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className={formInputStyle}/></div>
             <div><label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label><input type="url" name="remoteUrl" id="remoteUrl" value={formData.remoteUrl} onChange={handleChange} required className={formInputStyle}/></div>
             <div><label htmlFor="localPath" className={formLabelStyle}>Local Path</label><input type="text" name="localPath" id="localPath" value={formData.localPath} onChange={handleChange} required className={formInputStyle}/></div>
-            <div><label htmlFor="webLink" className={formLabelStyle}>Web Link (Optional)</label><input type="url" name="webLink" id="webLink" value={formData.webLink || ''} onChange={handleChange} className={formInputStyle} placeholder="e.g., https://aistudio.google.com/..."/></div>
             
             {formData.vcs === 'git' && (
               <>
                 <div><label htmlFor="branch" className={formLabelStyle}>Default Branch</label><input type="text" name="branch" id="branch" value={(formData as GitRepository).branch} onChange={handleChange} required className={formInputStyle}/></div>
               </>
             )}
+
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+              <h2 className="text-lg font-semibold">Web Links</h2>
+              <div className="space-y-2 mt-2">
+                {(formData.webLinks || []).map(link => (
+                  <div key={link.id} className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border dark:border-gray-700 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input type="text" placeholder="Caption" value={link.name} onChange={e => handleUpdateWebLink(link.id, 'name', e.target.value)} className={`${formInputStyle} flex-grow mt-0`} />
+                      <button type="button" onClick={() => handleRemoveWebLink(link.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0"><TrashIcon className="h-4 w-4"/></button>
+                    </div>
+                    <input type="url" placeholder="https://..." value={link.url} onChange={e => handleUpdateWebLink(link.id, 'url', e.target.value)} className={`${formInputStyle} font-mono mt-0`} />
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={handleAddWebLink} className="mt-3 flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                <PlusIcon className="h-4 w-4 mr-1"/> Add Web Link
+              </button>
+            </div>
 
             <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
               <h2 className="text-lg font-semibold">Launch Configurations</h2>

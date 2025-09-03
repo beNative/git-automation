@@ -26,11 +26,17 @@ export interface LaunchConfig {
   showOnDashboard?: boolean;
 }
 
+export interface WebLinkConfig {
+  id: string;
+  name: string;
+  url: string;
+}
+
 export interface BaseRepository {
   id:string;
   name: string;
   localPath: string;
-  webLink?: string;
+  webLinks?: WebLinkConfig[];
   vcs: VcsType;
   status: RepoStatus;
   lastUpdated: string | null;

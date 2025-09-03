@@ -69,6 +69,16 @@ const migrateRepositories = (repositories: Repository[], settings: GlobalSetting
         migratedRepo.launchConfigs = (migratedRepo.launchConfigs || []).map((lc: any) => ({
           type: 'command', ...lc,
         }));
+        
+        if (migratedRepo.webLink && (!migratedRepo.webLinks || migratedRepo.webLinks.length === 0)) {
+            migratedRepo.webLinks = [{
+                id: `wl_${Date.now()}`,
+                name: 'Web Link',
+                url: migratedRepo.webLink,
+            }];
+        }
+        delete migratedRepo.webLink;
+
         return migratedRepo as Repository;
       });
 }
