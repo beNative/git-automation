@@ -98,12 +98,10 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({ isOpen, onClose, logs, repo
     >
       <div 
         onMouseDown={handleMouseDown}
-        className="absolute -top-1 left-0 right-0 h-1.5 cursor-row-resize flex items-center justify-center group"
+        className="absolute -top-1 left-0 right-0 h-2 cursor-row-resize"
         aria-label="Resize log panel"
         role="separator"
-      >
-        <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-blue-500 transition-colors"/>
-      </div>
+      />
 
       <div className="h-full flex flex-col pt-1">
         <header className="flex items-center justify-between px-4 py-1 flex-shrink-0">

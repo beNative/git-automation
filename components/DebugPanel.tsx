@@ -73,9 +73,11 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
     >
       <div 
         onMouseDown={handleMouseDown}
-        className="absolute -top-1.5 left-0 right-0 h-2 cursor-row-resize flex items-center justify-center group"
+        className="absolute -top-1.5 left-0 right-0 h-2 cursor-row-resize"
+        aria-label="Resize debug panel"
+        role="separator"
       >
-        <div className="w-10 h-1 bg-yellow-400 rounded-full group-hover:bg-yellow-500 transition-colors"/>
+        {/* The visual separator is the yellow top border of the panel itself. */}
       </div>
 
       <div className="h-full flex flex-col">

@@ -12,16 +12,15 @@ const highlightJson = (jsonString: string): { __html: string } => {
         return { __html: '' };
     }
 
-    // Escape the entire string first to handle characters outside of our tokens (e.g., in string values)
     let html = jsonString
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
 
-    // This regex uses a single pass to find all JSON tokens.
-    // The order of the alternatives is important: keys must be matched before general strings.
+    // This single-pass regex uses capture groups to identify different JSON tokens.
+    // The order of alternatives is crucial to correctly identify keys before general strings.
     const jsonRegex = /(("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*")(?=\s*:))|(("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"))|(\b(true|false)\b)|(\bnull\b)|(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
-
+    
     html = html.replace(jsonRegex, (match, key, _k, string, _s, boolean, _b, nullVal, number) => {
         if (key) return `<span class="json-key">${key}</span>`;
         if (string) return `<span class="json-string">${string}</span>`;
@@ -142,18 +141,18 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
           pointer-events: none;
         }
       `}</style>
-      <main className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4">
+      <main className="flex-1 p-4 sm:p-6 flex flex-col overflow-y-auto space-y-4">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">JSON Configuration</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           View and edit the raw `settings.json` file. Changes here are applied directly and require an app restart.
         </p>
-        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex-1 flex flex-col min-h-0">
           {isLoading ? (
-            <div className="w-full h-96 rounded-md bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 flex items-center justify-center">
+            <div className="w-full flex-1 rounded-md bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 flex items-center justify-center">
               <p>Loading settings file...</p>
             </div>
           ) : isEditing ? (
-            <div className={`relative w-full h-96 font-mono text-sm rounded-md border focus-within:ring-2 focus-within:ring-blue-500 ${!isValid ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
+            <div className={`relative w-full flex-1 font-mono text-sm rounded-md border focus-within:ring-2 focus-within:ring-blue-500 ${!isValid ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
               <textarea
                 ref={textareaRef}
                 className="json-editor-textarea absolute top-0 left-0 w-full h-full p-3 bg-transparent resize-none outline-none overflow-auto"
@@ -171,12 +170,12 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
               </pre>
             </div>
           ) : (
-            <pre className="w-full h-96 font-mono text-sm p-3 rounded-md bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 overflow-auto whitespace-pre-wrap break-words">
+            <pre className="w-full flex-1 font-mono text-sm p-3 rounded-md bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 overflow-auto whitespace-pre-wrap break-words">
               <code dangerouslySetInnerHTML={highlightJson(rawJson)} />
             </pre>
           )}
            {!isValid && isEditing && (
-                <p className="text-sm text-red-500 mt-2">The JSON syntax is invalid.</p>
+                <p className="font-semibold text-lg text-red-600 dark:text-red-500 mt-2">The JSON syntax is invalid.</p>
             )}
         </div>
       </main>
