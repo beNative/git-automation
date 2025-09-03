@@ -141,7 +141,7 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
           pointer-events: none;
         }
       `}</style>
-      <main className="flex-1 p-4 sm:p-6 flex flex-col space-y-4 overflow-hidden">
+      <main className="flex-1 p-4 sm:p-6 flex flex-col space-y-4 min-h-0">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">JSON Configuration</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           View and edit the raw `settings.json` file. Changes here are applied directly and require an app restart.
