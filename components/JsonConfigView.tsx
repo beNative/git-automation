@@ -11,26 +11,29 @@ const highlightJson = (jsonString: string): { __html: string } => {
     if (!jsonString) {
         return { __html: '' };
     }
-    // Basic HTML escaping
-    const html = jsonString
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        // "key":
-        .replace(/"(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"\s*:/g, (match) => `<span class="json-key">${match}</span>`)
-        // "string value"
-        .replace(/"(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"/g, (match) => {
-            // Avoid re-coloring keys that were already matched
-            if (match.endsWith(':</span>')) return match;
-            return `<span class="json-string">${match}</span>`;
-        })
-        // boolean
-        .replace(/\b(true|false)\b/g, '<span class="json-boolean">$&</span>')
-        // null
-        .replace(/\b(null)\b/g, '<span class="json-null">$&</span>')
-        // number
-        .replace(/\b-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?\b/g, '<span class="json-number">$&</span>');
+
+    // Escape the entire string first to handle characters outside of our tokens (e.g., in string values)
+    let html = jsonString
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    // This regex uses a single pass to find all JSON tokens.
+    // The order of the alternatives is important: keys must be matched before general strings.
+    const jsonRegex = /(("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*")(?=\s*:))|(("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"))|(\b(true|false)\b)|(\bnull\b)|(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+
+    html = html.replace(jsonRegex, (match, key, _k, string, _s, boolean, _b, nullVal, number) => {
+        if (key) return `<span class="json-key">${key}</span>`;
+        if (string) return `<span class="json-string">${string}</span>`;
+        if (boolean) return `<span class="json-boolean">${boolean}</span>`;
+        if (nullVal) return `<span class="json-null">${nullVal}</span>`;
+        if (number) return `<span class="json-number">${number}</span>`;
+        return match;
+    });
 
     return { __html: html };
 };
+
 
 const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
   const [rawJson, setRawJson] = useState('');
