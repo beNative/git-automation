@@ -20,8 +20,12 @@ const InfoView: React.FC = () => {
     const fetchDoc = async () => {
       setIsLoading(true);
       try {
-        const docContent = await window.electronAPI.getDoc(activeTab);
-        setContent(docContent);
+        const docContent = await window.electronAPI?.getDoc(activeTab);
+        if (docContent) {
+          setContent(docContent);
+        } else {
+          throw new Error("Electron API is not available to load documentation.");
+        }
       } catch (error) {
         console.error(`Failed to load content for ${activeTab}:`, error);
         setContent(`# Error\n\nCould not load documentation file.`);

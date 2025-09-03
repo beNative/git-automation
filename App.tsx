@@ -25,12 +25,17 @@ import { useSettings } from './contexts/SettingsContext';
 
 const App: React.FC = () => {
   const logger = useLogger();
-  const { settings, saveSettings } = useSettings();
-  const {
+  const { 
+    settings, 
+    saveSettings, 
     repositories,
     addRepository,
     updateRepository,
     deleteRepository,
+    isLoading: isDataLoading 
+  } = useSettings();
+
+  const {
     runTask,
     cloneRepository,
     launchApplication,
@@ -38,7 +43,7 @@ const App: React.FC = () => {
     logs,
     clearLogs,
     isProcessing,
-  } = useRepositoryManager();
+  } = useRepositoryManager({ repositories, updateRepository });
   
   const [repoToEditId, setRepoToEditId] = useState<string | 'new' | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -100,6 +105,7 @@ const App: React.FC = () => {
   
   // Effect to check local paths
   useEffect(() => {
+    if (isDataLoading) return;
     const checkPaths = async () => {
         if (repositories.length === 0) {
             setLocalPathStates({});
@@ -115,21 +121,22 @@ const App: React.FC = () => {
 
         const finalStates: Record<string, LocalPathState> = {};
         for (const repo of repositories) {
-            finalStates[repo.id] = await window.electronAPI.checkLocalPath(repo.localPath);
+            finalStates[repo.id] = await window.electronAPI?.checkLocalPath(repo.localPath) ?? 'missing';
         }
         setLocalPathStates(finalStates);
         logger.info('Local path check complete.', finalStates);
     };
     checkPaths();
-  }, [repositories]);
+  }, [repositories, isDataLoading]);
   
   // New effect to fetch detailed VCS statuses and branch lists
   useEffect(() => {
+    if (isDataLoading) return;
     const fetchStatuses = async () => {
       logger.debug('Fetching detailed VCS statuses and branch lists.');
       const statusPromises = repositories.map(async (repo) => {
         if (localPathStates[repo.id] === 'valid') {
-          const status = await window.electronAPI.getDetailedVcsStatus(repo);
+          const status = await window.electronAPI?.getDetailedVcsStatus(repo);
           return { repoId: repo.id, status };
         }
         return { repoId: repo.id, status: null };
@@ -139,7 +146,7 @@ const App: React.FC = () => {
       
       const branchPromises = repositories.map(async (repo) => {
         if (localPathStates[repo.id] === 'valid' && repo.vcs === VcsType.Git) {
-          const branches = await window.electronAPI.listBranches(repo.localPath);
+          const branches = await window.electronAPI?.listBranches(repo.localPath);
           return { repoId: repo.id, branches };
         }
         return { repoId: repo.id, branches: null };
@@ -150,18 +157,19 @@ const App: React.FC = () => {
     };
 
     fetchStatuses();
-  }, [repositories, localPathStates]);
+  }, [repositories, localPathStates, isDataLoading]);
 
 
   // Effect to detect executables when paths are validated
   useEffect(() => {
+    if (isDataLoading) return;
     const detectAll = async () => {
       logger.debug('Detecting executables for valid repositories.');
       const executablesByRepo: Record<string, string[]> = {};
       for (const repo of repositories) {
         if (localPathStates[repo.id] === 'valid' && repo.localPath) {
           try {
-            executablesByRepo[repo.id] = await window.electronAPI.detectExecutables(repo.localPath);
+            executablesByRepo[repo.id] = await window.electronAPI?.detectExecutables(repo.localPath) ?? [];
           } catch (error: any) {
             logger.error(`Failed to detect executables for ${repo.name}:`, { error: error.message });
             executablesByRepo[repo.id] = [];
@@ -172,17 +180,19 @@ const App: React.FC = () => {
       logger.info('Executable detection complete.', executablesByRepo);
     };
     detectAll();
-  }, [repositories, localPathStates]);
+  }, [repositories, localPathStates, isDataLoading]);
 
   // Effect to apply theme
   useEffect(() => {
-    logger.debug('Applying theme setting.', { theme: settings.theme });
-    if (settings.theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    if (settings?.theme) {
+        logger.debug('Applying theme setting.', { theme: settings.theme });
+        if (settings.theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
     }
-  }, [settings.theme]);
+  }, [settings?.theme]);
   
   // Effect for Command Palette & Debug Panel
   useEffect(() => {
@@ -205,14 +215,14 @@ const App: React.FC = () => {
     if (!repo || localPathStates[repo.id] !== 'valid') return;
     logger.info('Refreshing repository state', { repoId, name: repo.name });
 
-    const status = await window.electronAPI.getDetailedVcsStatus(repo);
+    const status = await window.electronAPI?.getDetailedVcsStatus(repo);
     setDetailedStatuses(prev => ({ ...prev, [repoId]: status }));
 
     if (repo.vcs === VcsType.Git) {
-        const branches = await window.electronAPI.listBranches(repo.localPath);
+        const branches = await window.electronAPI?.listBranches(repo.localPath);
         setBranchLists(prev => ({ ...prev, [repoId]: branches }));
         // If the current branch in the state is different from the one on disk, update it
-        if (branches.current && repo.branch !== branches.current) {
+        if (branches?.current && repo.branch !== branches.current) {
             logger.info('Branch changed on disk, updating repository state.', { repoId, old: repo.branch, new: branches.current });
             updateRepository({ ...repo, branch: branches.current });
         }
@@ -225,13 +235,13 @@ const App: React.FC = () => {
     logger.info('Attempting to switch branch', { repoId, branch });
 
     try {
-        const result = await window.electronAPI.checkoutBranch(repo.localPath, branch);
-        if (result.success) {
+        const result = await window.electronAPI?.checkoutBranch(repo.localPath, branch);
+        if (result?.success) {
             setToast({ message: `Switched to branch '${branch}'`, type: 'success' });
             await refreshRepoState(repoId);
         } else {
-            logger.error('Failed to switch branch', { repoId, branch, error: result.error });
-            setToast({ message: `Failed to switch branch: ${result.error}`, type: 'error' });
+            logger.error('Failed to switch branch', { repoId, branch, error: result?.error || 'Electron API not available' });
+            setToast({ message: `Failed to switch branch: ${result?.error || 'Electron API not available'}`, type: 'error' });
         }
     } catch (e: any) {
         logger.error('An exception occurred while switching branch', { repoId, branch, error: e.message });
@@ -418,7 +428,7 @@ const App: React.FC = () => {
     try {
         await cloneRepository(repo);
         // After cloning, re-check the path status
-        const newState = await window.electronAPI.checkLocalPath(repo.localPath);
+        const newState = await window.electronAPI?.checkLocalPath(repo.localPath) ?? 'missing';
         setLocalPathStates(prev => ({...prev, [repo.id]: newState}));
     } catch (e: any) {
         logger.error('Clone failed', { repoId: repo.id, error: e.message });
@@ -434,8 +444,8 @@ const App: React.FC = () => {
     }
 
     try {
-      const result = await window.electronAPI.showDirectoryPicker();
-      if (result.canceled || result.filePaths.length === 0) {
+      const result = await window.electronAPI?.showDirectoryPicker();
+      if (!result || result.canceled || result.filePaths.length === 0) {
         setToast({ message: 'Location selection was cancelled.', type: 'info' });
         return;
       }
@@ -443,7 +453,12 @@ const App: React.FC = () => {
       const parentDir = result.filePaths[0];
       // Sanitize repo name to be used as a directory name
       const repoDirName = repo.name.replace(/[^a-zA-Z0-9_.-]/g, '-').toLowerCase();
-      const newLocalPath = await window.electronAPI.pathJoin(parentDir, repoDirName);
+      const newLocalPath = await window.electronAPI?.pathJoin(parentDir, repoDirName);
+
+      if (!newLocalPath) {
+        setToast({ message: 'Failed to construct repository path.', type: 'error' });
+        return;
+      }
 
       const updatedRepo = { ...repo, localPath: newLocalPath };
       updateRepository(updatedRepo);
@@ -463,9 +478,9 @@ const App: React.FC = () => {
       return;
     }
     try {
-      const result = await window.electronAPI.openLocalPath(path);
-      if (!result.success) {
-        setToast({ message: result.error || 'Failed to open the local folder.', type: 'error' });
+      const result = await window.electronAPI?.openLocalPath(path);
+      if (!result?.success) {
+        setToast({ message: result?.error || 'Failed to open the local folder.', type: 'error' });
       }
     } catch (e: any) {
       setToast({ message: e.message || 'An error occurred while trying to open the folder.', type: 'error' });
@@ -478,11 +493,11 @@ const App: React.FC = () => {
       return;
     }
     try {
-      const result = await window.electronAPI.openTerminal(path);
-      if (result.success) {
+      const result = await window.electronAPI?.openTerminal(path);
+      if (result?.success) {
         setToast({ message: 'Terminal opened successfully.', type: 'success' });
       } else {
-        setToast({ message: result.error || 'Failed to open terminal.', type: 'error' });
+        setToast({ message: result?.error || 'Failed to open terminal.', type: 'error' });
       }
     } catch (e: any) {
       setToast({ message: e.message || 'An error occurred while opening the terminal.', type: 'error' });
@@ -541,6 +556,15 @@ const App: React.FC = () => {
         return baseClasses;
     }
   }, [activeView]);
+
+
+  if (isDataLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
+        <p className="text-lg text-gray-600 dark:text-gray-400">Loading application data...</p>
+      </div>
+    );
+  }
 
 
   const CurrentView = () => {

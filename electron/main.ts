@@ -26,6 +26,14 @@ if (require('electron-squirrel-startup')) {
 let mainWindow: BrowserWindow | null = null;
 let logStream: fsSync.WriteStream | null = null;
 
+const getLogFilePath = () => {
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/:/g, '-').replace(/\..+/, '');
+  const logDir = path.join(app.getPath('userData'), 'logs');
+  return path.join(logDir, `git-automation-dashboard-log-${timestamp}.log`);
+};
+
+const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
 const createWindow = () => {
   // Create the browser window.
@@ -53,6 +61,11 @@ const createWindow = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.on('ready', () => {
+  // Ensure logs directory exists before creating a window or log file
+  const logDir = path.join(app.getPath('userData'), 'logs');
+  fs.mkdir(logDir, { recursive: true }).catch(err => {
+      console.error("Could not create logs directory.", err);
+  });
   createWindow();
 });
 
@@ -79,6 +92,30 @@ app.on('activate', () => {
 // --- IPC Handler for fetching app version ---
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
+});
+
+
+// --- IPC Handlers for Settings ---
+ipcMain.handle('get-all-data', async () => {
+  try {
+    const data = await fs.readFile(settingsPath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error: any) {
+    // If file doesn't exist or is invalid, return empty structure
+    if (error.code === 'ENOENT') {
+      return { globalSettings: null, repositories: [] };
+    }
+    console.error("Failed to read settings file:", error);
+    return { globalSettings: null, repositories: [] };
+  }
+});
+
+ipcMain.on('save-all-data', async (event, data: { globalSettings: GlobalSettings, repositories: Repository[] }) => {
+    try {
+        await fs.writeFile(settingsPath, JSON.stringify(data, null, 2));
+    } catch (error) {
+        console.error("Failed to save settings file:", error);
+    }
 });
 
 
@@ -927,13 +964,6 @@ ipcMain.handle('merge-branch', (e, repoPath: string, branch: string) => simpleGi
 
 
 // --- Log to file handlers ---
-const getLogFilePath = () => {
-  const now = new Date();
-  const timestamp = now.toISOString().replace(/:/g, '-').replace(/\..+/, '');
-  const logDir = app.isPackaged ? path.dirname(app.getPath('exe')) : app.getAppPath();
-  return path.join(logDir, `git-automation-dashboard-log-${timestamp}.log`);
-};
-
 // FIX: Correct a race condition where a new log stream could be created before the old one finished closing.
 // This is done by using the callback version of `logStream.end()` to ensure sequential execution.
 ipcMain.on('log-to-file-init', () => {

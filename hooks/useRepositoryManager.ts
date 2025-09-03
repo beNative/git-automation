@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { Repository, LogEntry, Task, GlobalSettings, TaskStep } from '../types';
 import { RepoStatus, BuildHealth, LogLevel, TaskStepType, VcsType } from '../types';
 
@@ -32,71 +32,9 @@ const substituteVariables = (command: string, variables: Task['variables'] = [])
 };
 
 
-export const useRepositoryManager = () => {
-  const [repositories, setRepositories] = useState<Repository[]>(() => {
-    try {
-      const savedRepos = localStorage.getItem('repositories');
-      const savedSettings = localStorage.getItem('globalSettings');
-      const oldSettings = savedSettings ? JSON.parse(savedSettings) : {};
-      const pkgManager = oldSettings.defaultPackageManager || 'npm';
-
-      if (savedRepos) {
-        const parsedRepos: Repository[] = JSON.parse(savedRepos);
-        
-        return parsedRepos.map(repo => {
-          const migratedRepo: any = {
-            ...repo,
-            vcs: repo.vcs || VcsType.Git, // Default to Git for old data
-            tasks: (repo.tasks || []).map(task => ({
-              ...task,
-              variables: task.variables || [],
-              showOnDashboard: task.showOnDashboard ?? false,
-              steps: (task.steps || []).map(step => {
-                // One-time migration for old step types
-                if ((step.type as any) === 'INSTALL_DEPS') {
-                  return { ...step, type: TaskStepType.RunCommand, command: `${pkgManager} install` };
-                }
-                if ((step.type as any) === 'RUN_TESTS') {
-                    return { ...step, type: TaskStepType.RunCommand, command: `${pkgManager} test` };
-                }
-                return { ...step, enabled: step.enabled ?? true };
-              })
-            }))
-          };
-
-          // Migration for launchCommand -> launchConfigs
-          if (migratedRepo.launchCommand && !migratedRepo.launchConfigs) {
-            migratedRepo.launchConfigs = [{
-              id: `lc_${Date.now()}`,
-              name: 'Default Launch',
-              type: 'command',
-              command: migratedRepo.launchCommand,
-              showOnDashboard: true,
-            }];
-          }
-          delete migratedRepo.launchCommand;
-          // Ensure launch configs exist and have the new 'type' field
-          migratedRepo.launchConfigs = (migratedRepo.launchConfigs || []).map((lc: any) => ({
-            type: 'command', // Default old configs to 'command'
-            ...lc,
-          }));
-
-          return migratedRepo as Repository;
-        });
-      }
-      return [];
-    } catch (error) {
-      console.error("Failed to parse repositories from localStorage", error);
-      return [];
-    }
-  });
-  
+export const useRepositoryManager = ({ repositories, updateRepository }: { repositories: Repository[], updateRepository: (repo: Repository) => void }) => {
   const [logs, setLogs] = useState<Record<string, LogEntry[]>>({});
   const [isProcessing, setIsProcessing] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    localStorage.setItem('repositories', JSON.stringify(repositories));
-  }, [repositories]);
   
   const addLogEntry = useCallback((repoId: string, message: string, level: LogLevel) => {
     const newEntry: LogEntry = {
@@ -111,19 +49,16 @@ export const useRepositoryManager = () => {
   }, []);
 
   const updateRepoStatus = useCallback((repoId: string, status: RepoStatus, buildHealth?: BuildHealth) => {
-    setRepositories(prev =>
-      prev.map(repo =>
-        repo.id === repoId
-          ? {
-              ...repo,
-              status,
-              lastUpdated: new Date().toISOString(),
-              ...(buildHealth && { buildHealth }),
-            }
-          : repo
-      )
-    );
-  }, []);
+    const repoToUpdate = repositories.find(r => r.id === repoId);
+    if (repoToUpdate) {
+        updateRepository({
+            ...repoToUpdate,
+            status,
+            lastUpdated: new Date().toISOString(),
+            ...(buildHealth && { buildHealth }),
+        });
+    }
+  }, [repositories, updateRepository]);
 
   const runTask = useCallback(async (
     repo: Repository,
@@ -167,8 +102,8 @@ export const useRepositoryManager = () => {
 
           // Check for dirty repo before git pull (Git only)
           if (step.type === TaskStepType.GitPull && repo.vcs === VcsType.Git) {
-            const statusResult = await window.electronAPI.checkVcsStatus(repo);
-            if (statusResult.isDirty) {
+            const statusResult = await window.electronAPI?.checkVcsStatus(repo);
+            if (statusResult?.isDirty) {
               addLogEntry(repoId, 'Uncommitted changes detected.', LogLevel.Warn);
               const choice = await onDirty(statusResult.output);
 
@@ -239,13 +174,13 @@ export const useRepositoryManager = () => {
       
       addLogEntry(repoId, `Executing launch command: '${command}'...`, LogLevel.Command);
       try {
-        const result = await window.electronAPI.launchApplication({ repo, command });
-        if (result.success) {
+        const result = await window.electronAPI?.launchApplication({ repo, command });
+        if (result?.success) {
             addLogEntry(repoId, `Launch command executed.`, LogLevel.Success);
             if (result.output) addLogEntry(repoId, result.output, LogLevel.Info);
         } else {
             addLogEntry(repoId, `Launch command failed:`, LogLevel.Error);
-            if (result.output) addLogEntry(repoId, result.output, LogLevel.Error);
+            if (result?.output) addLogEntry(repoId, result.output, LogLevel.Error);
         }
       } catch (e: any) {
         addLogEntry(repoId, `Failed to invoke launch command: ${e.message}`, LogLevel.Error);
@@ -256,52 +191,24 @@ export const useRepositoryManager = () => {
       const { id: repoId } = repo;
       addLogEntry(repoId, `Executing detected executable: '${executablePath}'...`, LogLevel.Command);
       try {
-        const result = await window.electronAPI.launchExecutable({ repoPath: repo.localPath, executablePath });
-        if (result.success) {
+        const result = await window.electronAPI?.launchExecutable({ repoPath: repo.localPath, executablePath });
+        if (result?.success) {
             addLogEntry(repoId, `Executable ran successfully.`, LogLevel.Success);
             if (result.output) addLogEntry(repoId, result.output, LogLevel.Info);
         } else {
             addLogEntry(repoId, `Executable failed:`, LogLevel.Error);
-            if (result.output) addLogEntry(repoId, result.output, LogLevel.Error);
+            if (result?.output) addLogEntry(repoId, result.output, LogLevel.Error);
         }
       } catch (e: any) {
         addLogEntry(repoId, `Failed to launch executable: ${e.message}`, LogLevel.Error);
       }
   }, [addLogEntry]);
   
-  const addRepository = (repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>) => {
-    const newRepo: Repository = {
-      id: `repo_${Date.now()}`,
-      status: RepoStatus.Idle,
-      lastUpdated: null,
-      buildHealth: BuildHealth.Unknown,
-      ...repoData
-    } as Repository;
-    setRepositories(prev => [...prev, newRepo]);
-  };
-  
-  const updateRepository = (updatedRepo: Repository) => {
-    setRepositories(prev => prev.map(repo => (repo.id === updatedRepo.id ? updatedRepo : repo)));
-  };
-  
-  const deleteRepository = (repoId: string) => {
-    setRepositories(prev => prev.filter(repo => repo.id !== repoId));
-    setLogs(prev => {
-        const newLogs = {...prev};
-        delete newLogs[repoId];
-        return newLogs;
-    });
-  };
-  
   const clearLogs = (repoId: string) => {
       setLogs(prev => ({...prev, [repoId]: []}));
   };
 
   return { 
-    repositories, 
-    addRepository, 
-    updateRepository, 
-    deleteRepository, 
     runTask, 
     cloneRepository,
     launchApplication,
@@ -376,6 +283,10 @@ const runRealStep = (
   return new Promise<void>((resolve, reject) => {
     const { id: repoId } = repo;
 
+    if (!window.electronAPI) {
+      return reject(new Error('Electron API is not available. Cannot run real task steps.'));
+    }
+
     const handleLog = (_event: any, logData: { executionId: string, message: string, level: LogLevel }) => {
         if (logData.executionId === executionId) {
             addLogEntry(repoId, logData.message, logData.level);
@@ -410,6 +321,10 @@ const runClone = (
 ) => {
   return new Promise<void>((resolve, reject) => {
     const { id: repoId } = repo;
+
+    if (!window.electronAPI) {
+      return reject(new Error('Electron API is not available. Cannot clone repository.'));
+    }
 
     const handleLog = (_event: any, logData: { executionId: string, message: string, level: LogLevel }) => {
         if (logData.executionId === executionId) {

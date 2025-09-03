@@ -12,6 +12,8 @@ export interface ProjectSuggestion {
 
 export interface IElectronAPI {
   getAppVersion: () => Promise<string>;
+  getAllData: () => Promise<{ globalSettings: GlobalSettings; repositories: Repository[] }>;
+  saveAllData: (data: { globalSettings: GlobalSettings; repositories: Repository[] }) => void;
   getDoc: (docName: string) => Promise<string>;
   getProjectSuggestions: (args: { repoPath: string, repoName: string }) => Promise<ProjectSuggestion[]>;
   getProjectStepSuggestions: (args: { repoPath: string, repoName: string }) => Promise<Omit<TaskStep, 'id'>[]>;

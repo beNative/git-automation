@@ -1,9 +1,15 @@
-import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext } from 'react';
-import type { GlobalSettings } from '../types';
+import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext, useRef } from 'react';
+import type { GlobalSettings, Repository } from '../types';
+import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
 
-interface SettingsContextState {
+interface AppDataContextState {
   settings: GlobalSettings;
   saveSettings: (newSettings: GlobalSettings) => void;
+  repositories: Repository[];
+  addRepository: (repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>) => void;
+  updateRepository: (updatedRepo: Repository) => void;
+  deleteRepository: (repoId: string) => void;
+  isLoading: boolean;
 }
 
 const DEFAULTS: GlobalSettings = {
@@ -15,37 +21,137 @@ const DEFAULTS: GlobalSettings = {
     debugLogging: true,
 };
 
-const initialState: SettingsContextState = {
+const initialState: AppDataContextState = {
   settings: DEFAULTS,
   saveSettings: () => {},
+  repositories: [],
+  addRepository: () => {},
+  updateRepository: () => {},
+  deleteRepository: () => {},
+  isLoading: true,
 };
 
-export const SettingsContext = createContext<SettingsContextState>(initialState);
+export const SettingsContext = createContext<AppDataContextState>(initialState);
+
+// --- One-time data migration logic, moved from old useRepositoryManager ---
+const migrateRepositories = (repositories: Repository[], settings: GlobalSettings): Repository[] => {
+    if (!repositories) return [];
+    
+    // FIX: Cast settings to 'any' to access a legacy 'defaultPackageManager' property during data migration. This resolves a TypeScript error where the property is not defined on the current GlobalSettings type, while still allowing the migration logic to handle older data formats gracefully.
+    const pkgManager = (settings as any)?.defaultPackageManager || 'npm';
+    
+    return repositories.map(repo => {
+        const migratedRepo: any = {
+          ...repo,
+          vcs: repo.vcs || VcsType.Git, // Default to Git for old data
+          tasks: (repo.tasks || []).map(task => ({
+            ...task,
+            variables: task.variables || [],
+            showOnDashboard: task.showOnDashboard ?? false,
+            steps: (task.steps || []).map(step => {
+              if ((step.type as any) === 'INSTALL_DEPS') {
+                return { ...step, type: TaskStepType.RunCommand, command: `${pkgManager} install` };
+              }
+              if ((step.type as any) === 'RUN_TESTS') {
+                  return { ...step, type: TaskStepType.RunCommand, command: `${pkgManager} test` };
+              }
+              return { ...step, enabled: step.enabled ?? true };
+            })
+          }))
+        };
+        if (migratedRepo.launchCommand && !migratedRepo.launchConfigs) {
+          migratedRepo.launchConfigs = [{
+            id: `lc_${Date.now()}`, name: 'Default Launch', type: 'command',
+            command: migratedRepo.launchCommand, showOnDashboard: true,
+          }];
+        }
+        delete migratedRepo.launchCommand;
+        migratedRepo.launchConfigs = (migratedRepo.launchConfigs || []).map((lc: any) => ({
+          type: 'command', ...lc,
+        }));
+        return migratedRepo as Repository;
+      });
+}
+
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<GlobalSettings>(() => {
-    try {
-      const savedSettings = localStorage.getItem('globalSettings');
-      const loaded = savedSettings ? { ...DEFAULTS, ...JSON.parse(savedSettings) } : DEFAULTS;
-      return loaded;
-    } catch (e: any) {
-      console.error('Failed to load settings from localStorage, falling back to defaults.', { error: e.message });
-      return DEFAULTS;
-    }
-  });
+  const [settings, setSettings] = useState<GlobalSettings>(DEFAULTS);
+  const [repositories, setRepositories] = useState<Repository[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const isInitialLoad = useRef(true);
 
+  // Load all data from main process on startup
   useEffect(() => {
-    localStorage.setItem('globalSettings', JSON.stringify(settings));
-  }, [settings]);
+    if (window.electronAPI?.getAllData) {
+      window.electronAPI.getAllData().then(data => {
+          const loadedSettings = data.globalSettings ? { ...DEFAULTS, ...data.globalSettings } : DEFAULTS;
+          const migratedRepos = migrateRepositories(data.repositories || [], loadedSettings);
+          
+          setSettings(loadedSettings);
+          setRepositories(migratedRepos);
+          setIsLoading(false);
+      }).catch(e => {
+          console.error("Failed to load app data, using defaults.", e);
+          setIsLoading(false);
+      });
+    } else {
+      console.warn("Electron API not found. Running in browser mode or preload script failed. Using default settings.");
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Save all data back to main process when it changes
+  useEffect(() => {
+    if (isLoading || isInitialLoad.current) {
+        // Mark initial load as complete after the first run post-loading.
+        if (!isLoading) {
+            isInitialLoad.current = false;
+        }
+        return;
+    };
+
+    const handler = setTimeout(() => {
+        window.electronAPI?.saveAllData({
+            globalSettings: settings,
+            repositories: repositories
+        });
+    }, 1000); // Debounce saves
+
+    return () => clearTimeout(handler);
+  }, [settings, repositories, isLoading]);
 
   const saveSettings = useCallback((newSettings: GlobalSettings) => {
     setSettings(newSettings);
+  }, []);
+  
+  const addRepository = useCallback((repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>) => {
+    const newRepo: Repository = {
+      id: `repo_${Date.now()}`,
+      status: RepoStatus.Idle,
+      lastUpdated: null,
+      buildHealth: BuildHealth.Unknown,
+      ...repoData
+    } as Repository;
+    setRepositories(prev => [...prev, newRepo]);
+  }, []);
+  
+  const updateRepository = useCallback((updatedRepo: Repository) => {
+    setRepositories(prev => prev.map(repo => (repo.id === updatedRepo.id ? updatedRepo : repo)));
+  }, []);
+  
+  const deleteRepository = useCallback((repoId: string) => {
+    setRepositories(prev => prev.filter(repo => repo.id !== repoId));
   }, []);
 
   const value = useMemo(() => ({
     settings,
     saveSettings,
-  }), [settings, saveSettings]);
+    repositories,
+    addRepository,
+    updateRepository,
+    deleteRepository,
+    isLoading,
+  }), [settings, saveSettings, repositories, addRepository, updateRepository, deleteRepository, isLoading]);
 
   return (
     <SettingsContext.Provider value={value}>

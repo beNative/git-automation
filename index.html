@@ -12,20 +12,6 @@
         darkMode: 'class',
       }
     </script>
-    <script>
-      // Must be in the <head> before the <body> to prevent FOUC (Flash of Unstyled Content).
-      try {
-        const settings = localStorage.getItem('globalSettings');
-        if (settings && JSON.parse(settings).theme === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
-      } catch (e) {
-        // Fallback to light mode if settings are corrupt
-        document.documentElement.classList.remove('dark');
-      }
-    </script>
     <style>
       :root {
         --status-bar-height: 1.75rem; /* Equivalent to h-7 in Tailwind */

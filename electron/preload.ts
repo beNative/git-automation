@@ -8,6 +8,10 @@ const taskStepEndChannel = 'task-step-end';
 contextBridge.exposeInMainWorld('electronAPI', {
   // App Info
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version'),
+  
+  // App Data
+  getAllData: (): Promise<{ globalSettings: GlobalSettings; repositories: Repository[] }> => ipcRenderer.invoke('get-all-data'),
+  saveAllData: (data: { globalSettings: GlobalSettings; repositories: Repository[] }) => ipcRenderer.send('save-all-data', data),
 
   // Documentation
   getDoc: (docName: string): Promise<string> => ipcRenderer.invoke('get-doc', docName),

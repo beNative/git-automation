@@ -241,7 +241,7 @@ const TaskStepsEditor: React.FC<{
   useEffect(() => {
     if (repository?.localPath && repository.name) {
       logger.debug("Fetching project suggestions", { repoPath: repository.localPath, repoName: repository.name });
-      window.electronAPI.getProjectSuggestions({ repoPath: repository.localPath, repoName: repository.name })
+      window.electronAPI?.getProjectSuggestions({ repoPath: repository.localPath, repoName: repository.name })
         .then(s => {
           setSuggestions(s || []);
           logger.info("Project suggestions loaded", { count: s?.length || 0 });
@@ -287,7 +287,7 @@ const TaskStepsEditor: React.FC<{
     }
     setIsSuggesting(true);
     try {
-        const suggestedStepTemplates = await window.electronAPI.getProjectStepSuggestions({
+        const suggestedStepTemplates = await window.electronAPI?.getProjectStepSuggestions({
             repoPath: repository.localPath,
             repoName: repository.name,
         });
@@ -496,13 +496,13 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     const skipCount = loadMore ? commits.length : 0;
     
     try {
-        const newCommits = await window.electronAPI.getCommitHistory(repository.localPath, skipCount);
+        const newCommits = await window.electronAPI?.getCommitHistory(repository.localPath, skipCount);
         if(loadMore) {
-            setCommits(prev => [...prev, ...newCommits]);
+            setCommits(prev => [...prev, ...(newCommits || [])]);
         } else {
-            setCommits(newCommits);
+            setCommits(newCommits || []);
         }
-        setHasMoreHistory(newCommits.length === 30);
+        setHasMoreHistory((newCommits || []).length === 30);
     } catch (e: any) {
         setToast({ message: `Failed to load history: ${e.message}`, type: 'error' });
     } finally {
@@ -515,9 +515,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     if (!repository || !isGitRepo) return;
     setBranchesLoading(true);
     try {
-        const branches = await window.electronAPI.listBranches(repository.localPath);
-        setBranchInfo(branches);
-        if (branches.current) {
+        const branches = await window.electronAPI?.listBranches(repository.localPath);
+        setBranchInfo(branches || null);
+        if (branches?.current) {
             setBranchToMerge(branches.current);
         }
     } catch (e: any) {
@@ -660,26 +660,26 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
   const handleCreateBranch = async () => {
     if (!repository || !newBranchName.trim()) return;
-    const result = await window.electronAPI.createBranch(repository.localPath, newBranchName.trim());
-    if (result.success) {
+    const result = await window.electronAPI?.createBranch(repository.localPath, newBranchName.trim());
+    if (result?.success) {
         setToast({ message: `Branch '${newBranchName.trim()}' created`, type: 'success' });
         setNewBranchName('');
         fetchBranches();
         onRefreshState(repository.id);
     } else {
-        setToast({ message: `Error: ${result.error}`, type: 'error' });
+        setToast({ message: `Error: ${result?.error || 'Electron API not available.'}`, type: 'error' });
     }
   };
   
   const handleDeleteBranch = async (branchName: string, isRemote: boolean) => {
     if (!repository || !window.confirm(`Are you sure you want to delete ${isRemote ? 'remote' : 'local'} branch '${branchName}'?`)) return;
-    const result = await window.electronAPI.deleteBranch(repository.localPath, branchName, isRemote);
-    if (result.success) {
+    const result = await window.electronAPI?.deleteBranch(repository.localPath, branchName, isRemote);
+    if (result?.success) {
         setToast({ message: `Branch '${branchName}' deleted`, type: 'success' });
         fetchBranches();
         onRefreshState(repository.id);
     } else {
-        setToast({ message: `Error: ${result.error}`, type: 'error' });
+        setToast({ message: `Error: ${result?.error || 'Electron API not available.'}`, type: 'error' });
     }
   };
 
@@ -692,13 +692,13 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       }
       if (!window.confirm(`Are you sure you want to merge '${branchToMerge}' into '${currentBranch}'?`)) return;
       
-      const result = await window.electronAPI.mergeBranch(repository.localPath, branchToMerge);
-      if (result.success) {
+      const result = await window.electronAPI?.mergeBranch(repository.localPath, branchToMerge);
+      if (result?.success) {
           setToast({ message: `Successfully merged '${branchToMerge}' into '${currentBranch}'`, type: 'success' });
           fetchBranches();
           onRefreshState(repository.id);
       } else {
-          setToast({ message: `Merge failed: ${result.error}`, type: 'error' });
+          setToast({ message: `Merge failed: ${result?.error || 'Electron API not available.'}`, type: 'error' });
       }
   };
 
