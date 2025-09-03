@@ -30,6 +30,7 @@ export interface BaseRepository {
   id:string;
   name: string;
   localPath: string;
+  webLink?: string;
   vcs: VcsType;
   status: RepoStatus;
   lastUpdated: string | null;

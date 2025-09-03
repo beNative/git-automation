@@ -20,6 +20,7 @@ import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { ClockIcon } from './icons/ClockIcon';
 import { useTooltip } from '../hooks/useTooltip';
 import { TooltipContext } from '../contexts/TooltipContext';
+import { ArrowTopRightOnSquareIcon } from './icons/ArrowTopRightOnSquareIcon';
 
 
 interface RepositoryCardProps {
@@ -245,7 +246,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onOpenLocalPath,
   onOpenTerminal,
 }) => {
-  const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, tasks, launchConfigs, localPath } = repository;
+  const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, tasks, launchConfigs, localPath, webLink } = repository;
   
   const isPathValid = localPathState === 'valid';
   const isPathMissing = localPathState === 'missing';
@@ -313,6 +314,20 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 >
                     {localPath}
                 </button>
+            </div>
+          )}
+          {webLink && (
+            <div className="flex items-center">
+              <ArrowTopRightOnSquareIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+              <a 
+                href={webLink} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="truncate hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                title={webLink}
+              >
+                {webLink}
+              </a>
             </div>
           )}
           <div className="flex items-center">

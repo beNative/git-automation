@@ -35,6 +35,7 @@ const NEW_REPO_TEMPLATE: Omit<GitRepository, 'id'> = {
   name: '',
   remoteUrl: '',
   localPath: '',
+  webLink: '',
   branch: 'main',
   status: RepoStatus.Idle,
   lastUpdated: null,
@@ -633,6 +634,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             ...( 'id' in prev ? { id: prev.id } : {}),
             name: prev.name,
             localPath: prev.localPath,
+            webLink: prev.webLink,
             tasks: [], // Reset tasks when VCS changes as steps might become invalid
             launchConfigs: prev.launchConfigs || [], // Keep launch configs
             status: RepoStatus.Idle,
@@ -950,6 +952,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             <div><label htmlFor="name" className={formLabelStyle}>Repository Name</label><input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className={formInputStyle}/></div>
             <div><label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label><input type="url" name="remoteUrl" id="remoteUrl" value={formData.remoteUrl} onChange={handleChange} required className={formInputStyle}/></div>
             <div><label htmlFor="localPath" className={formLabelStyle}>Local Path</label><input type="text" name="localPath" id="localPath" value={formData.localPath} onChange={handleChange} required className={formInputStyle}/></div>
+            <div><label htmlFor="webLink" className={formLabelStyle}>Web Link (Optional)</label><input type="url" name="webLink" id="webLink" value={formData.webLink || ''} onChange={handleChange} className={formInputStyle} placeholder="e.g., https://aistudio.google.com/..."/></div>
             
             {formData.vcs === 'git' && (
               <>
