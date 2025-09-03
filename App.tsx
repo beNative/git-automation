@@ -29,6 +29,7 @@ const App: React.FC = () => {
     settings, 
     saveSettings, 
     repositories,
+    setRepositories,
     addRepository,
     updateRepository,
     deleteRepository,
@@ -587,6 +588,7 @@ const App: React.FC = () => {
       default:
         return <Dashboard 
           repositories={repositories} 
+          setRepositories={setRepositories}
           onOpenTaskSelection={handleOpenTaskSelection} 
           onRunTask={handleRunTask}
           onViewLogs={handleViewLogs}

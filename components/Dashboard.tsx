@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Repository, LocalPathState, DetailedStatus, BranchInfo } from '../types';
 import RepositoryCard from './RepositoryCard';
 import { PlusCircleIcon } from './icons/PlusCircleIcon';
 
 interface DashboardProps {
   repositories: Repository[];
+  setRepositories: (repos: Repository[]) => void;
   onOpenTaskSelection: (repoId: string) => void;
   onRunTask: (repoId: string, taskId: string) => void;
   onViewLogs: (repoId: string) => void;
@@ -27,6 +28,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({
   repositories,
+  setRepositories,
   onOpenTaskSelection,
   onRunTask,
   onViewLogs,
@@ -46,6 +48,55 @@ const Dashboard: React.FC<DashboardProps> = ({
   onOpenLocalPath,
   onOpenTerminal,
 }) => {
+  const [draggedRepoId, setDraggedRepoId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, repoId: string) => {
+    e.dataTransfer.setData('repoId', repoId);
+    setDraggedRepoId(repoId);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); // Necessary to allow dropping
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>, targetRepoId: string) => {
+    if (targetRepoId !== draggedRepoId) {
+        setDropTargetId(targetRepoId);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    setDropTargetId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetRepoId: string) => {
+    e.preventDefault();
+    const draggedId = e.dataTransfer.getData('repoId');
+    if (!draggedId || draggedId === targetRepoId) {
+        setDropTargetId(null);
+        return;
+    }
+
+    const draggedRepo = repositories.find(r => r.id === draggedId);
+    if (!draggedRepo) return;
+
+    const remainingRepos = repositories.filter(r => r.id !== draggedId);
+    const targetIndex = remainingRepos.findIndex(r => r.id === targetRepoId);
+
+    if (targetIndex !== -1) {
+        remainingRepos.splice(targetIndex, 0, draggedRepo);
+        setRepositories(remainingRepos);
+    }
+    
+    setDropTargetId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedRepoId(null);
+    setDropTargetId(null);
+  };
+
   if (repositories.length === 0) {
     return (
       <div className="text-center py-16">
@@ -80,6 +131,14 @@ const Dashboard: React.FC<DashboardProps> = ({
           onOpenLaunchSelection={onOpenLaunchSelection}
           onOpenLocalPath={onOpenLocalPath}
           onOpenTerminal={onOpenTerminal}
+          isBeingDragged={repo.id === draggedRepoId}
+          isDropTarget={repo.id === dropTargetId}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onDragEnd={handleDragEnd}
         />
       ))}
     </div>

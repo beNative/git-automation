@@ -6,6 +6,7 @@ interface AppDataContextState {
   settings: GlobalSettings;
   saveSettings: (newSettings: GlobalSettings) => void;
   repositories: Repository[];
+  setRepositories: (repos: Repository[]) => void;
   addRepository: (repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>) => void;
   updateRepository: (updatedRepo: Repository) => void;
   deleteRepository: (repoId: string) => void;
@@ -25,6 +26,7 @@ const initialState: AppDataContextState = {
   settings: DEFAULTS,
   saveSettings: () => {},
   repositories: [],
+  setRepositories: () => {},
   addRepository: () => {},
   updateRepository: () => {},
   deleteRepository: () => {},
@@ -157,11 +159,12 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     settings,
     saveSettings,
     repositories,
+    setRepositories,
     addRepository,
     updateRepository,
     deleteRepository,
     isLoading,
-  }), [settings, saveSettings, repositories, addRepository, updateRepository, deleteRepository, isLoading]);
+  }), [settings, saveSettings, repositories, setRepositories, addRepository, updateRepository, deleteRepository, isLoading]);
 
   return (
     <SettingsContext.Provider value={value}>
