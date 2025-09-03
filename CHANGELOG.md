@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - YYYY-MM-DD
+
+### Added
+- **Enhanced Debug Panel:** The debug panel now includes level-based filtering (Debug, Info, Warn, Error) and an option to save live logs directly to a file for easier troubleshooting.
+
+### Changed
+- **UI Improvement:** The documentation tabs in the Info Hub are now sticky, remaining visible while scrolling through long documents.
+
+### Fixed
+- The debug console now displays multiline messages and data objects fully by default, removing the need to hover to see all content.
+
 ## [1.5.0] - YYYY-MM-DD
 
 ### Added

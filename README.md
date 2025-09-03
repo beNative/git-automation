@@ -12,6 +12,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Branch Management:** Quickly switch branches from the dashboard, or view, create, delete, and merge branches in the configuration view.
 -   **Commit History:** View the 30 most recent commits for any repository.
 -   **Resizable Log Panel:** Monitor the output of every command in a detailed, resizable log panel at the bottom of the window.
+-   **Advanced Debugging:** A powerful debug console with log filtering and a save-to-file feature for in-depth troubleshooting.
 -   **Easy Configuration:** Add new repositories and configure them through a simple, unified form.
 -   **Global Settings:** Customize the default package manager (`npm` or `yarn`), theme, and more.
 -   **Cross-Platform:** Works on Windows, macOS, and Linux.

@@ -99,3 +99,13 @@ Click the **cog icon** in the header to access global settings.
     -   **Enable Simulation Mode:** This is a critical safety feature.
         -   When **enabled (default)**, tasks are only simulated. The log panel will show the commands that *would* run, but no changes will be made to your local files.
         -   When **disabled**, the application will execute real `git`, `svn`, `npm`, and other shell commands. **Disable with caution.**
+
+## 6. The Debug Panel
+
+For advanced troubleshooting, a debug panel is available. You can open it by clicking the **"Debug"** button in the status bar at the very bottom of the window, or by pressing `Ctrl+D` (or `Cmd+D` on macOS).
+
+This panel shows internal application logs, which can be helpful for diagnosing unexpected behavior.
+
+-   **Log Filtering:** The header of the panel has buttons to toggle the visibility of different log levels (`DEBUG`, `INFO`, `WARN`, `ERROR`). This allows you to focus only on the messages you're interested in.
+-   **Save to File:** Clicking the "Save logs to file" icon will start writing all subsequent debug logs to a timestamped file on your computer. This is useful for capturing detailed information over a longer session to share in a bug report. Click the button again to stop logging to the file.
+-   **Resizing:** Like the Task Log Panel, you can click and drag the top border to resize it.
