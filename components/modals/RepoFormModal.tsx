@@ -20,6 +20,7 @@ import { GitBranchIcon } from '../icons/GitBranchIcon';
 import { ExclamationCircleIcon } from '../icons/ExclamationCircleIcon';
 import { useTooltip } from '../../hooks/useTooltip';
 import { useLogger } from '../../hooks/useLogger';
+import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';
 
 
 interface RepoEditViewProps {
@@ -470,6 +471,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isMoreHistoryLoading, setIsMoreHistoryLoading] = useState(false);
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  const [historySearch, setHistorySearch] = useState('');
+  const [debouncedHistorySearch, setDebouncedHistorySearch] = useState('');
 
   // State for Branches Tab
   const [branchInfo, setBranchInfo] = useState<BranchInfo | null>(null);
@@ -483,6 +486,14 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   const isGitRepo = formData.vcs === VcsType.Git;
 
+  // Debounce history search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+        setDebouncedHistorySearch(historySearch);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [historySearch]);
+
   const fetchHistory = useCallback(async (loadMore = false) => {
     if (!repository || !isGitRepo) return;
     
@@ -490,26 +501,25 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         setIsMoreHistoryLoading(true);
     } else {
         setHistoryLoading(true);
-        setCommits([]); // Clear for initial load/refresh
     }
 
     const skipCount = loadMore ? commits.length : 0;
     
     try {
-        const newCommits = await window.electronAPI?.getCommitHistory(repository.localPath, skipCount);
+        const newCommits = await window.electronAPI?.getCommitHistory(repository.localPath, skipCount, debouncedHistorySearch);
         if(loadMore) {
             setCommits(prev => [...prev, ...(newCommits || [])]);
         } else {
             setCommits(newCommits || []);
         }
-        setHasMoreHistory((newCommits || []).length === 30);
+        setHasMoreHistory((newCommits || []).length === 100);
     } catch (e: any) {
         setToast({ message: `Failed to load history: ${e.message}`, type: 'error' });
     } finally {
         setHistoryLoading(false);
         setIsMoreHistoryLoading(false);
     }
-  }, [repository, isGitRepo, setToast, commits.length]);
+  }, [repository, isGitRepo, setToast, commits.length, debouncedHistorySearch]);
 
   const fetchBranches = useCallback(async () => {
     if (!repository || !isGitRepo) return;
@@ -541,24 +551,23 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
     // Reset state when repo changes
     setCommits([]);
+    setHistorySearch('');
+    setDebouncedHistorySearch('');
     setBranchInfo(null);
     setActiveTab('tasks');
   }, [repository]);
   
-  // Fetch data when a tab becomes active
+  // Fetch data when a tab becomes active or search term changes
   useEffect(() => {
     if (activeTab === 'history') {
-        // Fetch only if it's the first time viewing the tab for this repo
-        if (commits.length === 0) {
-            fetchHistory(false);
-        }
+        fetchHistory(false);
     }
     if (activeTab === 'branches') {
         if (!branchInfo) {
             fetchBranches();
         }
     }
-  }, [activeTab, fetchHistory, fetchBranches, commits.length, branchInfo]);
+  }, [activeTab, debouncedHistorySearch, fetchBranches, fetchHistory, branchInfo]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -762,30 +771,44 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             );
         case 'history':
             return (
-                <div className="flex-1 p-4 overflow-y-auto">
-                    {historyLoading ? (<p className="text-center text-gray-500">Loading history...</p>) : commits.length === 0 ? (
-                        <p className="text-center text-gray-500">No commits found.</p>
-                    ) : (
-                        <>
-                            <ul className="space-y-3">
-                                {commits.map(commit => (
-                                    <CommitListItem key={commit.hash} commit={commit} />
-                                ))}
-                            </ul>
-                            {hasMoreHistory && (
-                                <div className="mt-4 text-center">
-                                    <button
-                                    type="button"
-                                    onClick={() => fetchHistory(true)}
-                                    disabled={isMoreHistoryLoading}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 transition-colors"
-                                    >
-                                    {isMoreHistoryLoading ? 'Loading...' : 'Load More'}
-                                    </button>
-                                </div>
-                            )}
-                        </>
-                    )}
+                <div className="flex-1 flex flex-col p-4 overflow-hidden">
+                    <div className="pb-4 flex-shrink-0">
+                        <div className="relative">
+                            <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                            <input
+                            type="text"
+                            placeholder="Search commit messages..."
+                            value={historySearch}
+                            onChange={(e) => setHistorySearch(e.target.value)}
+                            className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900/50 pl-10 pr-3 py-1.5 text-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                        {historyLoading ? (<p className="text-center text-gray-500">Loading history...</p>) : commits.length === 0 ? (
+                            <p className="text-center text-gray-500">{debouncedHistorySearch ? `No commits found for "${debouncedHistorySearch}".` : 'No commits found.'}</p>
+                        ) : (
+                            <>
+                                <ul className="space-y-3">
+                                    {commits.map(commit => (
+                                        <CommitListItem key={commit.hash} commit={commit} />
+                                    ))}
+                                </ul>
+                                {hasMoreHistory && (
+                                    <div className="mt-4 text-center">
+                                        <button
+                                        type="button"
+                                        onClick={() => fetchHistory(true)}
+                                        disabled={isMoreHistoryLoading}
+                                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 transition-colors"
+                                        >
+                                        {isMoreHistoryLoading ? 'Loading...' : 'Load More'}
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
                 </div>
             );
         case 'branches':

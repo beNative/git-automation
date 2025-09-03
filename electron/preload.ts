@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Version Control
   checkVcsStatus: (repo: Repository): Promise<{ isDirty: boolean; output: string }> => ipcRenderer.invoke('check-vcs-status', repo),
   getDetailedVcsStatus: (repo: Repository): Promise<DetailedStatus | null> => ipcRenderer.invoke('get-detailed-vcs-status', repo),
-  getCommitHistory: (repoPath: string, skipCount?: number): Promise<Commit[]> => ipcRenderer.invoke('get-commit-history', repoPath, skipCount),
+  getCommitHistory: (repoPath: string, skipCount?: number, searchQuery?: string): Promise<Commit[]> => ipcRenderer.invoke('get-commit-history', repoPath, skipCount, searchQuery),
   listBranches: (repoPath: string): Promise<BranchInfo> => ipcRenderer.invoke('list-branches', repoPath),
   checkoutBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('checkout-branch', repoPath, branch),
   createBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('create-branch', repoPath, branch),
@@ -37,7 +37,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showDirectoryPicker: (): Promise<{ canceled: boolean, filePaths: string[] }> => ipcRenderer.invoke('show-directory-picker'),
   pathJoin: (...args: string[]): Promise<string> => ipcRenderer.invoke('path-join', ...args),
   detectExecutables: (repoPath: string): Promise<string[]> => ipcRenderer.invoke('detect-executables', repoPath),
-  launchExecutable: (args: { repoPath: string, executablePath: string }): Promise<{ success: boolean, output: string }> => ipcRenderer.invoke('launch-executable', args),
+  launchExecutable: (args: { repoPath: string, executablePath: string }): Promise<{ success: boolean; output: string }> => ipcRenderer.invoke('launch-executable', args),
   openLocalPath: (path: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('open-local-path', path),
   openTerminal: (path: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('open-terminal', path),
 

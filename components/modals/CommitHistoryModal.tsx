@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Repository, Commit } from '../../types';
 import { ClockIcon } from '../icons/ClockIcon';
 import { XIcon } from '../icons/XIcon';
+import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';
 
 interface CommitHistoryModalProps {
   isOpen: boolean;
@@ -14,17 +15,31 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
   const [isLoading, setIsLoading] = useState(false);
   const [isMoreLoading, setIsMoreLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
 
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+        setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => {
+        clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
+  // Fetch initial history when modal opens or search query changes
   useEffect(() => {
     if (isOpen && repository) {
       const fetchInitialHistory = async () => {
         setIsLoading(true);
-        setCommits([]); // Reset on open
-        setHasMore(true); // Reset on open
+        setCommits([]); // Reset on open or new search
+        setHasMore(true); // Reset on open or new search
         try {
-          const initialCommits = await window.electronAPI.getCommitHistory(repository.localPath, 0);
+          const initialCommits = await window.electronAPI.getCommitHistory(repository.localPath, 0, debouncedSearchQuery);
           setCommits(initialCommits);
-          setHasMore(initialCommits.length === 30);
+          setHasMore(initialCommits.length === 100);
         } catch (error) {
           console.error(`Failed to load history for ${repository.name}:`, error);
           setCommits([]);
@@ -34,15 +49,22 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
       };
       fetchInitialHistory();
     }
-  }, [isOpen, repository]);
+  }, [isOpen, repository, debouncedSearchQuery]);
+  
+  // Reset search query when modal is closed
+  useEffect(() => {
+    if (!isOpen) {
+        setSearchQuery('');
+    }
+  }, [isOpen]);
 
   const handleLoadMore = async () => {
     if (!repository || isMoreLoading) return;
     setIsMoreLoading(true);
     try {
-        const newCommits = await window.electronAPI.getCommitHistory(repository.localPath, commits.length);
+        const newCommits = await window.electronAPI.getCommitHistory(repository.localPath, commits.length, debouncedSearchQuery);
         setCommits(prev => [...prev, ...newCommits]);
-        setHasMore(newCommits.length === 30);
+        setHasMore(newCommits.length === 100);
     } catch (error) {
         console.error(`Failed to load more history for ${repository.name}:`, error);
     } finally {
@@ -82,11 +104,24 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
           </button>
         </header>
 
+        <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <div className="relative">
+            <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search commit messages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900/50 pl-10 pr-3 py-1.5 text-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
+            />
+          </div>
+        </div>
+
         <main className="p-4 flex-1 overflow-y-auto">
           {isLoading ? (
             <p className="text-center text-gray-500">Loading history...</p>
           ) : commits.length === 0 ? (
-            <p className="text-center text-gray-500">No commits found or repository path is not valid.</p>
+            <p className="text-center text-gray-500">{debouncedSearchQuery ? `No commits found for "${debouncedSearchQuery}".` : 'No commits found.'}</p>
           ) : (
             <>
               <ul className="space-y-3">

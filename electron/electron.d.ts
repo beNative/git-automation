@@ -19,7 +19,7 @@ export interface IElectronAPI {
   getProjectStepSuggestions: (args: { repoPath: string, repoName: string }) => Promise<Omit<TaskStep, 'id'>[]>;
   checkVcsStatus: (repo: Repository) => Promise<{ isDirty: boolean; output: string }>;
   getDetailedVcsStatus: (repo: Repository) => Promise<DetailedStatus | null>;
-  getCommitHistory: (repoPath: string, skipCount?: number) => Promise<Commit[]>;
+  getCommitHistory: (repoPath: string, skipCount?: number, searchQuery?: string) => Promise<Commit[]>;
   listBranches: (repoPath: string) => Promise<BranchInfo>;
   checkoutBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
   createBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;

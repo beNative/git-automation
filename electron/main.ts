@@ -904,14 +904,20 @@ ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promi
 
 
 // --- Get Commit History (Git only) ---
-ipcMain.handle('get-commit-history', async (event, repoPath: string, skipCount?: number): Promise<Commit[]> => {
+ipcMain.handle('get-commit-history', async (event, repoPath: string, skipCount?: number, searchQuery?: string): Promise<Commit[]> => {
     try {
         const SEPARATOR = '_||_';
         const format = `%H${SEPARATOR}%h${SEPARATOR}%an${SEPARATOR}%ar${SEPARATOR}%B`;
         const skip = skipCount && Number.isInteger(skipCount) && skipCount > 0 ? `--skip=${skipCount}` : '';
+        
+        // Basic sanitization for the search query to be used with --grep
+        const search = searchQuery ? `--grep="${searchQuery.replace(/"/g, '\\"')}" -i --all-match` : '';
+        
         // Use -z to separate commits with a NUL character, as messages can contain newlines
-        const { stdout } = await execAsync(`git log --pretty=format:"${format}" -z -n 30 ${skip}`, { cwd: repoPath });
+        const { stdout } = await execAsync(`git log --pretty=format:"${format}" -z -n 100 ${skip} ${search}`, { cwd: repoPath });
+        
         if (!stdout) return [];
+        
         // Split by NUL character, and filter out any empty strings that might result from a trailing NUL
         return stdout.split('\0').filter(line => line.trim() !== '').map(line => {
             const parts = line.split(SEPARATOR);
@@ -923,8 +929,10 @@ ipcMain.handle('get-commit-history', async (event, repoPath: string, skipCount?:
             const message = parts.slice(4).join(SEPARATOR);
             return { hash, shortHash, author, date, message: message || '' };
         });
-    } catch (e) {
-        console.error(`Failed to get commit history for ${repoPath}:`, e);
+    } catch (e: any) {
+        console.error(`Failed to get commit history for ${repoPath} (search: "${searchQuery}"):`, e.message);
+        // If git log fails (e.g., on an empty repository), it will throw.
+        // In this case, we want to return an empty array, not crash the app.
         return [];
     }
 });
