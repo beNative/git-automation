@@ -46,7 +46,7 @@ const InfoView: React.FC = () => {
 
   return (
     <div className="w-full mx-auto animate-fade-in">
-        <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <div className="sticky top-0 z-10 flex border-b border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900">
             {DOCS.map(doc => (
                 <button
                     key={doc.id}
