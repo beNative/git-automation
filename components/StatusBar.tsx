@@ -44,7 +44,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
     const latestLogTooltip = useTooltip(latestLog?.message || '');
 
     return (
-        <footer className="h-7 bg-gray-200 dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700 flex items-center justify-between px-3 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0 z-10">
+        <footer className="h-[var(--status-bar-height)] bg-gray-200 dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700 flex items-center justify-between px-3 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0 z-10">
             {/* Left Section */}
             <div className="flex items-center space-x-3">
                 <div

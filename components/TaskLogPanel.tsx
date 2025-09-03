@@ -25,6 +25,29 @@ const MIN_HEIGHT = 100; // Minimum pixel height for the panel
 const TaskLogPanel: React.FC<TaskLogPanelProps> = ({ isOpen, onClose, logs, repository, height, setHeight }) => {
   const logContainerRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
+  const [statusBarHeight, setStatusBarHeight] = useState(0);
+
+  useEffect(() => {
+    // Read the CSS variable for status bar height and convert it to pixels.
+    if (typeof window !== 'undefined') {
+        try {
+            const heightValue = getComputedStyle(document.documentElement).getPropertyValue('--status-bar-height').trim();
+            const numericHeight = parseFloat(heightValue);
+            let pixelHeight = numericHeight;
+
+            if (heightValue.endsWith('rem')) {
+                const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+                pixelHeight = numericHeight * rootFontSize;
+            } else if (heightValue.endsWith('px')) {
+                pixelHeight = numericHeight;
+            }
+            setStatusBarHeight(pixelHeight);
+        } catch (e) {
+            console.error("Could not parse --status-bar-height, falling back to 28px.", e);
+            setStatusBarHeight(28); // Fallback if CSS variable is missing or invalid
+        }
+    }
+  }, []);
 
   // Auto-scroll to the bottom of the logs when new entries are added
   useEffect(() => {
@@ -46,13 +69,13 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({ isOpen, onClose, logs, repo
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (isResizing) {
       const maxHeight = window.innerHeight - 100; // Prevent overlapping the header
-      const newHeight = window.innerHeight - e.clientY;
+      const newHeight = window.innerHeight - e.clientY - statusBarHeight;
 
       if (newHeight >= MIN_HEIGHT && newHeight <= maxHeight) {
         setHeight(newHeight);
       }
     }
-  }, [isResizing, setHeight]);
+  }, [isResizing, setHeight, statusBarHeight]);
   
   // Effect to add and remove global event listeners for resizing
   useEffect(() => {
@@ -69,7 +92,7 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({ isOpen, onClose, logs, repo
 
   return (
     <div
-      className={`fixed bottom-0 left-0 right-0 z-20 bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700 transition-transform duration-300 ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
+      className={`fixed bottom-[var(--status-bar-height)] left-0 right-0 z-20 bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700 transition-transform duration-300 ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
       style={{ height: `${height}px` }}
       aria-hidden={!isOpen}
     >
