@@ -41,6 +41,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openLocalPath: (path: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('open-local-path', path),
   openTerminal: (path: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('open-terminal', path),
 
+  // JSON Config
+  getRawSettingsJson: (): Promise<string> => ipcRenderer.invoke('get-raw-settings-json'),
+  showSettingsFile: () => ipcRenderer.invoke('show-settings-file'),
 
   // Real Task Execution
   runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; }) => {

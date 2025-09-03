@@ -570,7 +570,7 @@ const App: React.FC = () => {
   const CurrentView = () => {
     switch (activeView) {
       case 'settings':
-        return <SettingsView currentSettings={settings} onSave={handleSaveSettings} />;
+        return <SettingsView currentSettings={settings} onSave={handleSaveSettings} setToast={setToast} />;
       case 'info':
         return <InfoView />;
       case 'edit-repository':

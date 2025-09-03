@@ -37,6 +37,10 @@ export interface IElectronAPI {
   openLocalPath: (path: string) => Promise<{ success: boolean; error?: string }>;
   openTerminal: (path: string) => Promise<{ success: boolean; error?: string }>;
   
+  // JSON Config
+  getRawSettingsJson: () => Promise<string>;
+  showSettingsFile: () => void;
+  
   runTaskStep: (args: {
     repo: Repository;
     step: TaskStep;

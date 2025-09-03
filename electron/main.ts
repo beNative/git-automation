@@ -118,6 +118,24 @@ ipcMain.on('save-all-data', async (event, data: { globalSettings: GlobalSettings
     }
 });
 
+ipcMain.handle('get-raw-settings-json', async () => {
+  try {
+    const data = await fs.readFile(settingsPath, 'utf-8');
+    return data;
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      // If file doesn't exist, return a prettified empty structure.
+      return JSON.stringify({ globalSettings: null, repositories: [] }, null, 2);
+    }
+    console.error("Failed to read settings file:", error);
+    throw error; // Let the renderer handle the error
+  }
+});
+
+ipcMain.handle('show-settings-file', () => {
+  shell.showItemInFolder(settingsPath);
+});
+
 
 // --- IPC Handler for fetching documentation ---
 ipcMain.handle('get-doc', async (event, docName: string) => {
