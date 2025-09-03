@@ -109,14 +109,14 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
 
         <main ref={logContainerRef} className="flex-1 p-2 bg-gray-50 dark:bg-gray-900 overflow-y-auto font-mono text-xs">
           {filteredLogs.map(log => (
-            <div key={log.id} className="group hover:bg-gray-100 dark:hover:bg-gray-800/50 p-0.5 rounded flex items-start">
+            <div key={log.id} className="hover:bg-gray-100 dark:hover:bg-gray-800/50 p-0.5 rounded flex items-start">
               <div className="flex-shrink-0">
                 <span className="text-gray-500 mr-2">{log.timestamp.toLocaleTimeString()}.{log.timestamp.getMilliseconds().toString().padStart(3, '0')}</span>
                 <span className={`font-bold mr-2 ${LEVEL_CONFIG[log.level].color}`}>{log.level.padEnd(5)}</span>
               </div>
               <div className="flex-grow min-w-0">
                 <span className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words">{log.message}</span>
-                {log.data && <pre className="mt-1 ml-4 text-gray-500 text-[11px] whitespace-pre-wrap opacity-0 group-hover:opacity-100 transition-opacity">{JSON.stringify(log.data, null, 2)}</pre>}
+                {log.data && <pre className="mt-1 ml-4 text-gray-500 text-[11px] whitespace-pre-wrap">{JSON.stringify(log.data, null, 2)}</pre>}
               </div>
             </div>
           ))}
