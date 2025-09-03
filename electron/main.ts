@@ -23,17 +23,24 @@ if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
+// --- Portable App Data Path ---
+const getAppDataPath = () => {
+  // For portable app behavior, store data next to the executable in production.
+  // In development, continue using the default userData path to avoid cluttering the project root.
+  return app.isPackaged ? path.dirname(app.getPath('exe')) : app.getPath('userData');
+};
+
 let mainWindow: BrowserWindow | null = null;
 let logStream: fsSync.WriteStream | null = null;
 
 const getLogFilePath = () => {
   const now = new Date();
   const timestamp = now.toISOString().replace(/:/g, '-').replace(/\..+/, '');
-  const logDir = path.join(app.getPath('userData'), 'logs');
+  const logDir = path.join(getAppDataPath(), 'logs');
   return path.join(logDir, `git-automation-dashboard-log-${timestamp}.log`);
 };
 
-const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+const settingsPath = path.join(getAppDataPath(), 'settings.json');
 
 const createWindow = () => {
   // Create the browser window.
@@ -62,7 +69,7 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 app.on('ready', () => {
   // Ensure logs directory exists before creating a window or log file
-  const logDir = path.join(app.getPath('userData'), 'logs');
+  const logDir = path.join(getAppDataPath(), 'logs');
   fs.mkdir(logDir, { recursive: true }).catch(err => {
       console.error("Could not create logs directory.", err);
   });
