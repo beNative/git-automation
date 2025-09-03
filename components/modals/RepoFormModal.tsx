@@ -439,15 +439,39 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect,
   );
 };
 
+const HighlightedText: React.FC<{ text: string; highlight: string }> = ({ text, highlight }) => {
+    if (!highlight.trim()) {
+        return <>{text}</>;
+    }
+    const regex = new RegExp(`(${highlight.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return (
+        <span>
+            {parts.map((part, i) =>
+                part.toLowerCase() === highlight.toLowerCase() ? (
+                    <mark key={i} className="bg-yellow-200 dark:bg-yellow-700 rounded px-0.5 py-0 text-gray-900 dark:text-gray-900">
+                        {part}
+                    </mark>
+                ) : (
+                    part
+                )
+            )}
+        </span>
+    );
+};
+
 interface CommitListItemProps {
   commit: Commit;
+  highlight: string;
 }
 
-const CommitListItem: React.FC<CommitListItemProps> = ({ commit }) => {
+const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) => {
   const commitHashTooltip = useTooltip(commit.hash);
   return (
     <li className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-        <pre className="font-sans whitespace-pre-wrap text-gray-900 dark:text-gray-100">{commit.message}</pre>
+        <pre className="font-sans whitespace-pre-wrap text-gray-900 dark:text-gray-100">
+          <HighlightedText text={commit.message} highlight={highlight} />
+        </pre>
         <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
             <span>{commit.author}</span>
             <span
@@ -473,6 +497,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const [historySearch, setHistorySearch] = useState('');
   const [debouncedHistorySearch, setDebouncedHistorySearch] = useState('');
+  const [historyMatchStats, setHistoryMatchStats] = useState({ commitCount: 0, occurrenceCount: 0 });
 
   // State for Branches Tab
   const [branchInfo, setBranchInfo] = useState<BranchInfo | null>(null);
@@ -501,6 +526,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         setIsMoreHistoryLoading(true);
     } else {
         setHistoryLoading(true);
+        setHistoryMatchStats({ commitCount: 0, occurrenceCount: 0 });
     }
 
     const skipCount = loadMore ? commits.length : 0;
@@ -513,6 +539,28 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             setCommits(newCommits || []);
         }
         setHasMoreHistory((newCommits || []).length === 100);
+
+        if (debouncedHistorySearch) {
+          const regex = new RegExp(debouncedHistorySearch.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+          let newOccurrences = 0;
+          (newCommits || []).forEach(commit => {
+            newOccurrences += (commit.message.match(regex) || []).length;
+          });
+
+          if (loadMore) {
+            setHistoryMatchStats(prev => ({
+              commitCount: prev.commitCount + (newCommits?.length || 0),
+              occurrenceCount: prev.occurrenceCount + newOccurrences
+            }));
+          } else {
+            setHistoryMatchStats({
+              commitCount: (newCommits?.length || 0),
+              occurrenceCount: newOccurrences
+            });
+          }
+        } else {
+          setHistoryMatchStats({ commitCount: 0, occurrenceCount: 0 });
+        }
     } catch (e: any) {
         setToast({ message: `Failed to load history: ${e.message}`, type: 'error' });
     } finally {
@@ -553,6 +601,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     setCommits([]);
     setHistorySearch('');
     setDebouncedHistorySearch('');
+    setHistoryMatchStats({ commitCount: 0, occurrenceCount: 0 });
     setBranchInfo(null);
     setActiveTab('tasks');
   }, [repository]);
@@ -567,7 +616,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             fetchBranches();
         }
     }
-  }, [activeTab, debouncedHistorySearch, fetchBranches, fetchHistory, branchInfo]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, debouncedHistorySearch, fetchBranches, branchInfo]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -783,6 +833,11 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                             className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900/50 pl-10 pr-3 py-1.5 text-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
                             />
                         </div>
+                         {debouncedHistorySearch && !historyLoading && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
+                                Found <span className="font-bold text-gray-700 dark:text-gray-200">{historyMatchStats.occurrenceCount}</span> occurrence(s) in <span className="font-bold text-gray-700 dark:text-gray-200">{historyMatchStats.commitCount}</span> commit(s).
+                            </p>
+                        )}
                     </div>
                     <div className="flex-1 overflow-y-auto">
                         {historyLoading ? (<p className="text-center text-gray-500">Loading history...</p>) : commits.length === 0 ? (
@@ -791,7 +846,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                             <>
                                 <ul className="space-y-3">
                                     {commits.map(commit => (
-                                        <CommitListItem key={commit.hash} commit={commit} />
+                                        <CommitListItem key={commit.hash} commit={commit} highlight={debouncedHistorySearch}/>
                                     ))}
                                 </ul>
                                 {hasMoreHistory && (

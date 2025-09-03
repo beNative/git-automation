@@ -10,6 +10,28 @@ interface CommitHistoryModalProps {
   onClose: () => void;
 }
 
+const HighlightedText: React.FC<{ text: string; highlight: string }> = ({ text, highlight }) => {
+    if (!highlight.trim()) {
+        return <>{text}</>;
+    }
+    const regex = new RegExp(`(${highlight.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return (
+        <span>
+            {parts.map((part, i) =>
+                part.toLowerCase() === highlight.toLowerCase() ? (
+                    <mark key={i} className="bg-yellow-200 dark:bg-yellow-700 rounded px-0.5 py-0 text-gray-900 dark:text-gray-900">
+                        {part}
+                    </mark>
+                ) : (
+                    part
+                )
+            )}
+        </span>
+    );
+};
+
+
 const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, repository, onClose }) => {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +39,7 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
   const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [matchStats, setMatchStats] = useState({ commitCount: 0, occurrenceCount: 0 });
 
   // Debounce search input
   useEffect(() => {
@@ -36,10 +59,20 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
         setIsLoading(true);
         setCommits([]); // Reset on open or new search
         setHasMore(true); // Reset on open or new search
+        setMatchStats({ commitCount: 0, occurrenceCount: 0 }); // Reset stats
         try {
           const initialCommits = await window.electronAPI.getCommitHistory(repository.localPath, 0, debouncedSearchQuery);
           setCommits(initialCommits);
           setHasMore(initialCommits.length === 100);
+
+          if (debouncedSearchQuery) {
+            let occurrences = 0;
+            const regex = new RegExp(debouncedSearchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+            initialCommits.forEach(commit => {
+              occurrences += (commit.message.match(regex) || []).length;
+            });
+            setMatchStats({ commitCount: initialCommits.length, occurrenceCount: occurrences });
+          }
         } catch (error) {
           console.error(`Failed to load history for ${repository.name}:`, error);
           setCommits([]);
@@ -65,6 +98,18 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
         const newCommits = await window.electronAPI.getCommitHistory(repository.localPath, commits.length, debouncedSearchQuery);
         setCommits(prev => [...prev, ...newCommits]);
         setHasMore(newCommits.length === 100);
+
+        if (debouncedSearchQuery) {
+            let newOccurrences = 0;
+            const regex = new RegExp(debouncedSearchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+            newCommits.forEach(commit => {
+              newOccurrences += (commit.message.match(regex) || []).length;
+            });
+            setMatchStats(prev => ({
+              commitCount: prev.commitCount + newCommits.length,
+              occurrenceCount: prev.occurrenceCount + newOccurrences
+            }));
+        }
     } catch (error) {
         console.error(`Failed to load more history for ${repository.name}:`, error);
     } finally {
@@ -115,6 +160,11 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
               className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900/50 pl-10 pr-3 py-1.5 text-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
             />
           </div>
+          {debouncedSearchQuery && !isLoading && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
+              Found <span className="font-bold text-gray-700 dark:text-gray-200">{matchStats.occurrenceCount}</span> occurrence(s) in <span className="font-bold text-gray-700 dark:text-gray-200">{matchStats.commitCount}</span> commit(s).
+            </p>
+          )}
         </div>
 
         <main className="p-4 flex-1 overflow-y-auto">
@@ -127,7 +177,9 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
               <ul className="space-y-3">
                 {commits.map(commit => (
                   <li key={commit.hash} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <pre className="font-sans whitespace-pre-wrap text-gray-900 dark:text-gray-100">{commit.message}</pre>
+                    <pre className="font-sans whitespace-pre-wrap text-gray-900 dark:text-gray-100">
+                      <HighlightedText text={commit.message} highlight={debouncedSearchQuery} />
+                    </pre>
                     <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                       <span>{commit.author}</span>
                       <span title={commit.hash} className="font-mono">{commit.shortHash} &bull; {commit.date}</span>
