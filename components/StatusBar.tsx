@@ -48,7 +48,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
             {/* Left Section */}
             <div className="flex items-center space-x-3">
                 <div
-// @ts-ignore
  {...repoCountTooltip} className="flex items-center">
                     <GitBranchIcon className="h-4 w-4 mr-1.5" />
                     <span>{repoCount} Repositories</span>
@@ -57,7 +56,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                     <>
                         <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
                         <div
-// @ts-ignore
  {...processingTooltip} className="flex items-center text-blue-500 dark:text-blue-400">
                             <ArrowPathIcon className="h-4 w-4 mr-1.5 animate-spin" />
                             <span>{processingCount} Running</span>
@@ -68,7 +66,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
             
             {/* Center Section */}
             <div
-// @ts-ignore
  {...latestLogTooltip} className="flex-1 text-center truncate px-4">
                 {latestLog && (
                     <span className={LOG_LEVEL_COLOR_CLASSES[latestLog.level] || 'text-gray-400'}>
@@ -81,7 +78,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
             <div className="flex items-center space-x-3">
                 {isSimulationMode && (
                     <div
-// @ts-ignore
  {...simModeTooltip} className="flex items-center text-yellow-600 dark:text-yellow-500">
                         <BeakerIcon className="h-4 w-4 mr-1.5" />
                         <span>Sim Mode</span>
@@ -89,7 +85,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                 )}
                  <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
                  <button
-// @ts-ignore
                     {...debugPanelTooltip}
                     onClick={onToggleDebugPanel}
                     className="flex items-center"
@@ -99,7 +94,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                  </button>
                  <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
                  <div
-// @ts-ignore
  {...commandPaletteTooltip} className="flex items-center">
                     <KeyboardIcon className="h-4 w-4 mr-1.5" />
                     <span>Ctrl+K</span>
@@ -114,7 +108,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                 
                 <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
                 <div
-// @ts-ignore
  {...timeTooltip} className="flex items-center">
                     <ClockIcon className="h-4 w-4 mr-1.5" />
                     <Clock />

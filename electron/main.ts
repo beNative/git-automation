@@ -9,11 +9,8 @@ import { TaskStepType, LogLevel, VcsType } from '../types';
 import fsSync from 'fs';
 
 
-// Fix: Manually declare Node.js globals to resolve type errors when @types/node is not available.
 declare const require: (id: string) => any;
 declare const __dirname: string;
-// FIX: Add a manual type declaration for the Node.js `Buffer` global type,
-// which is used in the `createLineLogger` helper for processing stream chunks.
 declare class Buffer {
     toString(encoding?: string): string;
 }
@@ -150,7 +147,6 @@ ipcMain.handle('get-doc', async (event, docName: string) => {
     const isPackaged = app.isPackaged;
     // Define the base path to the 'docs' directory based on environment
     const docsBasePath = isPackaged
-      // Fix: `process.resourcesPath` is an Electron-specific property not available in the default Node.js `process` type.
       ? path.join((process as any).resourcesPath, 'docs') // In production, it's in the resources folder
       : path.join(__dirname, 'docs');             // In dev, it's in the dist/docs folder
     
@@ -667,8 +663,6 @@ ipcMain.on('clone-repository', (event, { repo, executionId }: { repo: Repository
         command = 'svn';
         args = ['checkout', repo.remoteUrl, repo.localPath];
     } else {
-        // Fix: The type of `repo` is `never` here because all members of the `Repository` union are exhausted.
-        // Cast `repo` to access the `vcs` property for logging without a TypeScript error.
         sendLog(`Cloning/Checking out is not supported for this VCS type: '${(repo as Repository).vcs}'.`, LogLevel.Error);
         sendEnd(1);
         return;
@@ -997,8 +991,6 @@ ipcMain.handle('merge-branch', (e, repoPath: string, branch: string) => simpleGi
 
 
 // --- Log to file handlers ---
-// FIX: Correct a race condition where a new log stream could be created before the old one finished closing.
-// This is done by using the callback version of `logStream.end()` to ensure sequential execution.
 ipcMain.on('log-to-file-init', () => {
     const initNewStream = () => {
         const logPath = getLogFilePath();
@@ -1019,8 +1011,6 @@ ipcMain.on('log-to-file-init', () => {
 
 ipcMain.on('log-to-file-close', () => {
     if (logStream) {
-        // FIX: Use the end() callback to prevent a race condition where the stream
-        // is nulled out before it has finished writing and closing.
         logStream.end(`--- Log session ended at ${new Date().toISOString()} ---\n`, () => {
             logStream = null;
             console.log('Stopped logging to file.');

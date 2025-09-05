@@ -39,7 +39,6 @@ export const SettingsContext = createContext<AppDataContextState>(initialState);
 const migrateRepositories = (repositories: Repository[], settings: GlobalSettings): Repository[] => {
     if (!repositories) return [];
     
-    // FIX: Cast settings to 'any' to access a legacy 'defaultPackageManager' property during data migration. This resolves a TypeScript error where the property is not defined on the current GlobalSettings type, while still allowing the migration logic to handle older data formats gracefully.
     const pkgManager = (settings as any)?.defaultPackageManager || 'npm';
     
     return repositories.map(repo => {

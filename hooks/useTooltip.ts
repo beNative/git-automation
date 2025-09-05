@@ -10,7 +10,6 @@ export const useTooltip = (content: ReactNode) => {
   const { showTooltip, hideTooltip } = useContext(TooltipContext);
   const targetRef = useRef<HTMLElement | null>(null);
 
-// FIX: The event type is now a union to correctly handle both onMouseEnter (MouseEvent) and onFocus (FocusEvent).
   const handleShow = useCallback((event: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>) => {
     if (!content) return;
     targetRef.current = event.currentTarget;
