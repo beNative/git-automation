@@ -126,11 +126,6 @@ export interface Task {
   showOnDashboard?: boolean;
 }
 
-
-export interface ActiveModal {
-  type: 'repo-form' | null;
-}
-
 export type AppView = 'dashboard' | 'settings' | 'info' | 'edit-repository';
 
 export interface ProjectSuggestion {

@@ -107,9 +107,7 @@ const TaskStepItem: React.FC<{
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <label
-// @ts-ignore
- {...toggleTooltip} className="relative inline-flex items-center cursor-pointer">
+          <label {...toggleTooltip} className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" checked={isEnabled} onChange={(e) => onStepChange(step.id, {enabled: e.target.checked})} className="sr-only peer" />
             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
           </label>
@@ -335,9 +333,7 @@ const TaskStepsEditor: React.FC<{
         />
         <div className="flex items-center space-x-2 flex-shrink-0">
           <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Show on card</span>
-          <label
-// @ts-ignore
- {...showOnDashboardTooltip} className="relative inline-flex items-center cursor-pointer">
+          <label {...showOnDashboardTooltip} className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" checked={task.showOnDashboard ?? false} onChange={(e) => setTask({...task, showOnDashboard: e.target.checked})} className="sr-only peer" />
             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
           </label>
@@ -425,7 +421,6 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect,
         <div className="flex justify-between items-start">
           <p className={`font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
           <button
-            // @ts-ignore
             {...deleteTooltip}
             type="button"
             onClick={handleDelete}
@@ -475,9 +470,7 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
         </pre>
         <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
             <span>{commit.author}</span>
-            <span
-// @ts-ignore
-{...commitHashTooltip} className="font-mono">{commit.shortHash} &bull; {commit.date}</span>
+            <span {...commitHashTooltip} className="font-mono">{commit.shortHash} &bull; {commit.date}</span>
         </div>
     </li>
   );
@@ -789,9 +782,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     return formData.tasks?.find(t => t.id === selectedTaskId) || null;
   }, [selectedTaskId, formData.tasks]);
 
-  // FIX: Memoize a subset of the repository data. This creates a stable object
-  // reference to pass down, preventing the TaskStepsEditor's useEffect hook
-  // from re-running unnecessarily when the parent re-renders due to logging.
   const repositoryForTaskEditor = useMemo(() => {
     return {
         localPath: formData.localPath,
@@ -802,8 +792,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
 
   const renderTabContent = () => {
-    // FIX: Check for 'id' in the formData state to determine if the repo is saved,
-    // instead of relying on the initial `repository` prop.
     if (!('id' in formData)) {
         return <div className="p-4 text-center text-gray-500">Please save the repository to access advanced features.</div>
     }

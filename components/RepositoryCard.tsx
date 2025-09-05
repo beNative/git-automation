@@ -143,7 +143,6 @@ const CloneToPathButton: React.FC<{
   const { hideTooltip } = useContext(TooltipContext);
   return (
     <button
-      // @ts-ignore
       {...tooltip}
       onClick={() => {
         hideTooltip();
@@ -167,7 +166,6 @@ const ChooseLocationButton: React.FC<{
   const { hideTooltip } = useContext(TooltipContext);
   return (
     <button
-      // @ts-ignore
       {...tooltip}
       onClick={() => {
         hideTooltip();
@@ -192,7 +190,6 @@ const TaskButton: React.FC<{
   const { hideTooltip } = useContext(TooltipContext);
   return (
     <button
-      // @ts-ignore
       {...tooltip}
       onClick={() => {
         hideTooltip();
@@ -217,7 +214,6 @@ const LaunchConfigButton: React.FC<{
   const { hideTooltip } = useContext(TooltipContext);
   return (
     <button
-      // @ts-ignore
       {...tooltip}
       onClick={() => {
         hideTooltip();
@@ -237,7 +233,6 @@ const WebLinkButton: React.FC<{ link: WebLinkConfig }> = ({ link }) => {
   const { hideTooltip } = useContext(TooltipContext);
   return (
     <a
-      // @ts-ignore
       {...tooltip}
       href={link.url}
       target="_blank"
@@ -348,7 +343,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             <div className="flex items-center">
                 <FolderIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
                 <button
-// @ts-ignore
                     {...localPathTooltip}
                     onClick={() => {
                       hideTooltip();
@@ -441,7 +435,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             <div className="flex items-center space-x-0.5">
                 {isPathValid && hasMoreTasks && (
                   <button
-// @ts-ignore
                     {...moreTasksTooltip}
                     onClick={() => {
                       hideTooltip();
@@ -455,7 +448,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 )}
                 {isPathValid && hasMoreLaunchOptions && (
                     <button
-// @ts-ignore
                       {...moreLaunchTooltip}
                       onClick={() => {
                         hideTooltip();
@@ -468,7 +460,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                     </button>
                 )}
                 <button
-// @ts-ignore
                   {...terminalTooltip}
                   onClick={() => {
                     hideTooltip();
@@ -480,7 +471,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                   <TerminalIcon className="h-5 w-5" />
                 </button>
                 <button
-// @ts-ignore
                   {...historyTooltip}
                   onClick={() => {
                     hideTooltip();
@@ -492,7 +482,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                   <ClockIcon className="h-5 w-5" />
                 </button>
                 <button
-// @ts-ignore
                   {...logsTooltip}
                   onClick={() => {
                     hideTooltip();
@@ -503,7 +492,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                   <DocumentTextIcon className="h-5 w-5" />
                 </button>
                 <button
-// @ts-ignore
                   {...configureTooltip}
                   onClick={() => {
                     hideTooltip();
@@ -514,7 +502,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                   <PencilIcon className="h-5 w-5" />
                 </button>
                 <button
-// @ts-ignore
                   {...deleteTooltip}
                   onClick={() => {
                     hideTooltip();

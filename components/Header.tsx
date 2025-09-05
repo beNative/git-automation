@@ -51,7 +51,6 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
             )}
 
             <button
-// @ts-ignore
               {...dashboardTooltip}
               onClick={() => onSetView('dashboard')}
               disabled={isEditing}
@@ -61,7 +60,6 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
               <HomeIcon className="h-6 w-6" />
             </button>
             <button
-// @ts-ignore
               {...settingsTooltip}
               onClick={() => onSetView('settings')}
               disabled={isEditing}
@@ -71,7 +69,6 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
               <CogIcon className="h-6 w-6" />
             </button>
             <button
-// @ts-ignore
               {...infoTooltip}
               onClick={() => onSetView('info')}
               disabled={isEditing}
