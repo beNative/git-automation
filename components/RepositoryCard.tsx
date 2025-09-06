@@ -59,7 +59,9 @@ const BranchSwitcher: React.FC<{
   onSwitchBranch: (repoId: string, branch: string) => void
 }> = ({ repoId, branchInfo, onSwitchBranch }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [opensUp, setOpensUp] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const DROPDOWN_HEIGHT = 240; // Approx height for max-h-60
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -84,12 +86,27 @@ const BranchSwitcher: React.FC<{
     const otherLocalBranches = local.filter(b => b !== current);
     const hasOptions = otherLocalBranches.length > 0 || remoteBranchesToOffer.length > 0;
 
+    const handleClick = () => {
+        if (!hasOptions) return;
+
+        if (wrapperRef.current) {
+            const rect = wrapperRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            if (spaceBelow < DROPDOWN_HEIGHT && rect.top > DROPDOWN_HEIGHT) {
+                setOpensUp(true);
+            } else {
+                setOpensUp(false);
+            }
+        }
+        setIsOpen(prev => !prev);
+    };
+
     return (
         <div className="relative inline-block text-left" ref={wrapperRef}>
             <button
                 type="button"
                 className="inline-flex items-center justify-center w-full rounded-md disabled:cursor-not-allowed"
-                onClick={() => hasOptions && setIsOpen(!isOpen)}
+                onClick={handleClick}
                 disabled={!hasOptions}
             >
                 <span className="truncate max-w-[150px] sm:max-w-[200px]">{current}</span>
@@ -97,7 +114,7 @@ const BranchSwitcher: React.FC<{
             </button>
 
             {isOpen && hasOptions && (
-                <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                <div className={`${opensUp ? 'origin-bottom-right bottom-full mb-2' : 'origin-top-right mt-2'} absolute right-0 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-30`}>
                     <div className="py-1 max-h-60 overflow-y-auto" role="menu" aria-orientation="vertical">
                         {otherLocalBranches.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Local</div>}
                         {otherLocalBranches.map(branch => (
