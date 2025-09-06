@@ -477,45 +477,25 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
   );
 };
 
-
-type FixStrategy = 'standard' | 'setTimeout' | 'noToast' | 'stateGuard' | 'directDOM';
-
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
-  const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => {
-    const initialState = repository || NEW_REPO_TEMPLATE;
-    console.log('[RepoFormModal] Initializer ran. Initial state:', initialState);
-    return initialState;
-  });
+  const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
+
+  // Ref to track previous remoteUrl to fire toast only once on discovery
+  const prevRemoteUrlRef = useRef(formData.remoteUrl);
+
+  // This effect runs *after* a render, decoupling the parent toast update from the local state update.
+  useEffect(() => {
+    const currentRemoteUrl = formData.remoteUrl;
+    const prevRemoteUrl = prevRemoteUrlRef.current;
   
-  // --- Start of Flicker-Fix Debugging Tools ---
-  const [fixStrategy, setFixStrategy] = useState<FixStrategy>('standard');
-  const justDiscoveredRef = useRef(false);
-
-  // LOGGING: Log every render cycle
-  useEffect(() => {
-    console.log(`[RepoFormModal] Render cycle start. isEditing=${!!repository}, strategy=${fixStrategy}, props:`, { repository });
-  });
-
-  // LOGGING: Log every time formData state *actually* changes
-  useEffect(() => {
-      console.log('[RepoFormModal][useEffect:formData] formData STATE CHANGED to:', formData);
-  }, [formData]);
-
-  // The problematic effect. We only enable it for the 'stateGuard' strategy to test the guard.
-  // For all other strategies, we assume it's NOT present, as per the last attempted fix.
-  useEffect(() => {
-    if (fixStrategy === 'stateGuard') {
-      if (justDiscoveredRef.current) {
-        console.log('[Strategy 4] useEffect[repository] SKIPPED due to justDiscoveredRef being true.');
-        justDiscoveredRef.current = false; // Reset for next time
-        return;
-      }
-      console.log('[Strategy 4] useEffect[repository] is ACTIVE and is now resetting form state based on props.');
-      setFormData(repository || NEW_REPO_TEMPLATE);
+    // If the previous URL was empty and the current one is not, it means we just discovered it.
+    if (!prevRemoteUrl && currentRemoteUrl) {
+      setToast({ message: 'Remote URL and name discovered!', type: 'success' });
     }
-  }, [repository, fixStrategy]);
-  // --- End of Flicker-Fix Debugging Tools ---
-
+  
+    // Update the ref for the next render.
+    prevRemoteUrlRef.current = currentRemoteUrl;
+  }, [formData.remoteUrl, setToast]);
   
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => {
     if (repository && repository.tasks && repository.tasks.length > 0) {
@@ -800,8 +780,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
   const handleDiscoverRemote = useCallback(async () => {
     const currentLocalPath = formData.localPath;
-    console.log(`[RepoFormModal][handleDiscoverRemote] Discover clicked. Using strategy: ${fixStrategy}. Path:`, currentLocalPath);
-    
     if (!currentLocalPath) {
         setToast({ message: 'Please provide a local path first.', type: 'info' });
         return;
@@ -809,86 +787,25 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
     try {
         const result = await window.electronAPI.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
-        console.log(`[RepoFormModal][handleDiscoverRemote] API call result:`, result);
-
         if (result && result.url) {
             const discoveredUrl = result.url;
             const discoveredName = result.url.split('/').pop()?.replace(/\.git$/, '') || '';
-
-            // --- Apply strategy ---
-
-            if (fixStrategy === 'stateGuard') {
-                console.log('[Strategy 4] Setting justDiscoveredRef to true before state update.');
-                justDiscoveredRef.current = true;
-            }
-
-            if (fixStrategy === 'directDOM') {
-                console.log('[Strategy 5] Bypassing React state for inputs.');
-                const nameInput = document.getElementById('repo-form-name') as HTMLInputElement;
-                const urlInput = document.getElementById('repo-form-remoteUrl') as HTMLInputElement;
-
-                if (nameInput && (!nameInput.value || nameInput.value.trim() === '')) {
-                    nameInput.value = discoveredName;
-                    console.log(`[Strategy 5] Set name input value to: ${discoveredName}`);
-                }
-                if (urlInput) {
-                    urlInput.value = discoveredUrl;
-                    console.log(`[Strategy 5] Set url input value to: ${discoveredUrl}`);
-                }
-                
-                // Also update React state so saving works, but after a delay.
-                setTimeout(() => {
-                    console.log('[Strategy 5] Updating React state in background.');
-                    setFormData(prev => ({
-                        ...prev,
-                        remoteUrl: discoveredUrl,
-                        name: (!prev.name || prev.name.trim() === '') ? discoveredName : prev.name,
-                    }));
-                }, 100);
-
-                console.log('[Strategy 5] Firing setToast.');
-                setToast({ message: 'Remote URL and name discovered! (Direct DOM)', type: 'success' });
-                return;
-            }
-
-            // All other strategies update state normally
+            
+            // This is the safe way: only set the local state. The useEffect will handle the toast.
             setFormData(prev => {
                 const newName = (!prev.name || prev.name.trim() === '') ? discoveredName : prev.name;
-                const newState = { ...prev, remoteUrl: discoveredUrl, name: newName };
-                console.log(`[RepoFormModal][handleDiscoverRemote] Inside setFormData updater. Prev state:`, prev, 'New state:', newState);
-                return newState;
+                return { ...prev, remoteUrl: discoveredUrl, name: newName };
             });
-            console.log('[RepoFormModal][handleDiscoverRemote] Fired setFormData.');
-
-            if (fixStrategy === 'noToast') {
-                console.log('[Strategy 3] SUCCESS. Fields should be populated. No toast was fired.');
-                return;
-            }
-
-            if (fixStrategy === 'setTimeout') {
-                console.log('[Strategy 2] Scheduling setToast with setTimeout.');
-                setTimeout(() => {
-                    console.log('[Strategy 2] setTimeout fired. Calling setToast now.');
-                    setToast({ message: 'Remote URL and name discovered! (setTimeout)', type: 'success' });
-                }, 0);
-                return;
-            }
-
-            // Standard Strategy
-            console.log('[Strategy 1] Calling setToast directly. This may cause the flicker.');
-            setToast({ message: 'Remote URL and name discovered! (Standard)', type: 'success' });
 
         } else {
             const errorMsg = `Could not discover URL: ${result.error || 'No remote found.'}`;
-            console.error(`[RepoFormModal][handleDiscoverRemote] Discovery failed:`, errorMsg);
             setToast({ message: errorMsg, type: 'error' });
         }
     } catch (e: any) {
         const errorMsg = `Error during discovery: ${e.message}`;
-        console.error(`[RepoFormModal][handleDiscoverRemote] An exception occurred:`, e);
         setToast({ message: errorMsg, type: 'error' });
     }
-  }, [formData.localPath, formData.vcs, setToast, fixStrategy]);
+  }, [formData.localPath, formData.vcs, setToast]);
 
 
   const selectedTask = useMemo(() => {
@@ -1049,7 +966,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   return (
     <div className="flex flex-col bg-gray-100 dark:bg-gray-900 animate-fade-in h-full">
-      <header className="relative flex items-center justify-between p-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+      <header className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={onCancel} className="flex items-center text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
             <ArrowLeftIcon className="h-5 w-5 mr-1"/> Back to Dashboard
@@ -1059,26 +976,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
           </h1>
         </div>
         
-        {repository === null && (
-            <div className="absolute left-1/2 -translate-x-1/2 bg-yellow-100 dark:bg-yellow-900/50 p-2 rounded-lg border border-yellow-300 dark:border-yellow-700 shadow-lg">
-                <label htmlFor="fixStrategy" className="block text-xs font-medium text-yellow-800 dark:text-yellow-200 mb-1">
-                    Debug: Flicker Fix Strategy
-                </label>
-                <select
-                    id="fixStrategy"
-                    value={fixStrategy}
-                    onChange={(e) => setFixStrategy(e.target.value as any)}
-                    className="block w-full text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1 px-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                    <option value="standard">1: Standard</option>
-                    <option value="setTimeout">2: setTimeout Decoupling</option>
-                    <option value="noToast">3: No Toast Notification</option>
-                    <option value="stateGuard">4: State Guard (useRef)</option>
-                    <option value="directDOM">5: Direct DOM (Nuclear)</option>
-                </select>
-            </div>
-        )}
-
         <div className="flex items-center gap-3">
           <button onClick={onCancel} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">Cancel</button>
           <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Save Repository</button>
