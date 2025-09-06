@@ -54,6 +54,7 @@ const App: React.FC = () => {
   const [localPathStates, setLocalPathStates] = useState<Record<string, LocalPathState>>({});
   const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
   const [appVersion, setAppVersion] = useState<string>('');
+  const [isCheckingAll, setIsCheckingAll] = useState(false);
 
   // New states for deeper VCS integration
   const [detailedStatuses, setDetailedStatuses] = useState<Record<string, DetailedStatus | null>>({});
@@ -229,6 +230,29 @@ const App: React.FC = () => {
         }
     }
   }, [repositories, localPathStates, updateRepository, logger]);
+
+  const handleCheckAllForUpdates = useCallback(async () => {
+    const validRepos = repositories.filter(r => localPathStates[r.id] === 'valid');
+    if (validRepos.length === 0) {
+      setToast({ message: 'No repositories with valid local paths to check.', type: 'info' });
+      return;
+    }
+
+    setIsCheckingAll(true);
+    setToast({ message: `Checking ${validRepos.length} repositories for updates...`, type: 'info' });
+
+    const updatePromises = validRepos.map(repo => refreshRepoState(repo.id));
+    
+    try {
+        await Promise.all(updatePromises);
+        setToast({ message: 'Update check complete.', type: 'success' });
+    } catch (e: any) {
+        logger.error('An error occurred during the update check for all repos.', { error: e.message });
+        setToast({ message: 'An error occurred during update check.', type: 'error' });
+    } finally {
+        setIsCheckingAll(false);
+    }
+  }, [repositories, localPathStates, refreshRepoState, logger]);
 
   const handleSwitchBranch = useCallback(async (repoId: string, branch: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -599,7 +623,13 @@ const App: React.FC = () => {
     <IconContext.Provider value={settings.iconSet}>
       <TooltipProvider>
         <div className="flex flex-col h-screen">
-          <Header onNewRepo={() => handleEditRepository('new')} activeView={activeView} onSetView={setActiveView} />
+          <Header 
+            onNewRepo={() => handleEditRepository('new')} 
+            activeView={activeView} 
+            onSetView={setActiveView}
+            onCheckAllForUpdates={handleCheckAllForUpdates}
+            isCheckingAll={isCheckingAll}
+          />
           <main className={mainContentClass}>
             <CurrentView />
           </main>

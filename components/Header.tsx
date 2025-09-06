@@ -5,14 +5,17 @@ import { CogIcon } from './icons/CogIcon';
 import { InformationCircleIcon } from './icons/InformationCircleIcon';
 import { HomeIcon } from './icons/HomeIcon';
 import { useTooltip } from '../hooks/useTooltip';
+import { CloudArrowDownIcon } from './icons/CloudArrowDownIcon';
 
 interface HeaderProps {
   onNewRepo: () => void;
   activeView: AppView;
   onSetView: (view: AppView) => void;
+  onCheckAllForUpdates: () => void;
+  isCheckingAll: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => {
+const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView, onCheckAllForUpdates, isCheckingAll }) => {
   const navButtonStyle = "p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors";
   
   const activeDashboardStyle = "p-2 rounded-full bg-red-600 dark:bg-red-700 text-white";
@@ -26,6 +29,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
   const dashboardTooltip = useTooltip('Dashboard');
   const settingsTooltip = useTooltip('Settings');
   const infoTooltip = useTooltip('Information');
+  const checkUpdatesTooltip = useTooltip('Check all repositories for updates');
 
   return (
     <header className="bg-gray-200/80 dark:bg-gray-800/80 backdrop-blur-sm sticky top-0 z-20 shadow-md">
@@ -37,6 +41,15 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView }) => 
           <div className="flex items-center space-x-1 sm:space-x-2">
             {activeView === 'dashboard' && (
               <>
+                <button
+                  {...checkUpdatesTooltip}
+                  onClick={onCheckAllForUpdates}
+                  disabled={isCheckingAll || isEditing}
+                  className="flex items-center justify-center px-3 py-1.5 sm:px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <CloudArrowDownIcon className={`h-5 w-5 mr-0 sm:mr-2 ${isCheckingAll ? 'animate-pulse' : ''}`} />
+                  <span className="hidden sm:inline">{isCheckingAll ? 'Checking...' : 'Check Updates'}</span>
+                </button>
                 <button
                   onClick={onNewRepo}
                   disabled={isEditing}

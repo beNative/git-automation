@@ -843,6 +843,13 @@ const execAsync = (command: string, options: { cwd: string }): Promise<{ stdout:
 ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promise<DetailedStatus | null> => {
   try {
     if (repo.vcs === VcsType.Git) {
+      try {
+        // Fetch updates from all remotes without changing local branches
+        await execAsync('git remote update', { cwd: repo.localPath });
+      } catch (fetchError: any) {
+        // Log the error but continue, as status can still be useful with stale data
+        console.warn(`'git remote update' failed for ${repo.name}. Status may be stale. Error: ${fetchError.stderr || fetchError.message}`);
+      }
       const { stdout } = await execAsync('git status --porcelain=v2 --branch', { cwd: repo.localPath });
       const files: VcsFileStatus = { added: 0, modified: 0, deleted: 0, conflicted: 0, untracked: 0, renamed: 0 };
       let branchInfo: DetailedStatus['branchInfo'] = undefined;
@@ -875,19 +882,35 @@ ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promi
       }
       return { files, branchInfo, isDirty };
     } else if (repo.vcs === VcsType.Svn) {
-      const { stdout } = await execAsync('svn status', { cwd: repo.localPath });
+      const { stdout } = await execAsync('svn status -u', { cwd: repo.localPath });
       const files: VcsFileStatus = { added: 0, modified: 0, deleted: 0, conflicted: 0, untracked: 0, renamed: 0 };
-      if (stdout.trim().length === 0) return { files, isDirty: false };
+      let updatesAvailable = false;
+      let isDirty = false;
 
-      for (const line of stdout.split('\n')) {
-        const status = line.trim().charAt(0);
-        if (status === 'A') files.added++;
-        else if (status === 'M') files.modified++;
-        else if (status === 'D') files.deleted++;
-        else if (status === 'C') files.conflicted++;
-        else if (status === '?') files.untracked++;
+      const lines = stdout.trim().split('\n').filter(line => line.trim() !== '' && !line.startsWith('Status against revision:'));
+
+      if (lines.length === 0) {
+        return { files, isDirty: false, updatesAvailable: false };
       }
-      return { files, isDirty: true };
+
+      for (const line of lines) {
+        const statusChar = line.charAt(0);
+        
+        if (statusChar !== ' ') {
+            isDirty = true;
+        }
+        
+        if (line.length >= 9 && line.charAt(8) === '*') {
+            updatesAvailable = true;
+        }
+        
+        if (statusChar === 'A') files.added++;
+        else if (statusChar === 'M') files.modified++;
+        else if (statusChar === 'D') files.deleted++;
+        else if (statusChar === 'C') files.conflicted++;
+        else if (statusChar === '?') files.untracked++;
+      }
+      return { files, isDirty, updatesAvailable };
     }
     return null;
   } catch (error) {

@@ -160,6 +160,7 @@ export interface GitBranchInfo {
 export interface DetailedStatus {
   files: VcsFileStatus;
   branchInfo?: GitBranchInfo;
+  updatesAvailable?: boolean;
   isDirty: boolean;
 }
 
