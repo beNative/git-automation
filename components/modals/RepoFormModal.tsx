@@ -481,8 +481,20 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
   const logger = useLogger();
   
-  const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(NEW_REPO_TEMPLATE);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => {
+    if (repository) {
+        return repository;
+    }
+    return NEW_REPO_TEMPLATE;
+  });
+
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => {
+    if (repository && repository.tasks && repository.tasks.length > 0) {
+        return repository.tasks[0].id;
+    }
+    return null;
+  });
+
   const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'branches'>('tasks');
   
   // State for History Tab
@@ -580,27 +592,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   }, [repository, isGitRepo, setToast]);
   
-  useEffect(() => {
-    if (repository) {
-      setFormData(repository);
-      if (repository.tasks && repository.tasks.length > 0) {
-        setSelectedTaskId(repository.tasks[0].id);
-      } else {
-        setSelectedTaskId(null);
-      }
-    } else {
-      setFormData(NEW_REPO_TEMPLATE);
-      setSelectedTaskId(null);
-    }
-    // Reset state when repo changes
-    setCommits([]);
-    setHistorySearch('');
-    setDebouncedHistorySearch('');
-    setHistoryMatchStats({ commitCount: 0, occurrenceCount: 0 });
-    setBranchInfo(null);
-    setActiveTab('tasks');
-  }, [repository]);
-  
   // Fetch data when a tab becomes active or search term changes
   useEffect(() => {
     if (activeTab === 'history') {
@@ -613,11 +604,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, debouncedHistorySearch, fetchBranches, branchInfo]);
-  
-  // --- THIS IS THE CRITICAL DIAGNOSTIC STEP ---
-  useEffect(() => {
-    console.log("[DIAGNOSTIC] useEffect watching formData has fired. Current state:", formData);
-  }, [formData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -784,10 +770,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   };
   
   const handleDiscoverRemote = useCallback(async () => {
-    console.log('[DIAGNOSTIC] Discover button clicked. Calling handleDiscoverRemote.');
     const currentLocalPath = formData.localPath;
-    console.log('[DIAGNOSTIC] Path to be checked:', currentLocalPath);
-
     if (!currentLocalPath) {
         setToast({ message: 'Please provide a local path first.', type: 'info' });
         return;
@@ -795,27 +778,20 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
     try {
         const result = await window.electronAPI.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
-        console.log("[DIAGNOSTIC] API returned:", result);
         
         if (result && result.url) {
             setToast({ message: 'Remote URL and name discovered!', type: 'success' });
             
             setFormData(prev => {
-                console.log("[DIAGNOSTIC] Inside setFormData updater. Previous state:", prev);
-
-                // Determine the new name ONLY if the current name is empty
                 const newName = (!prev.name || prev.name.trim() === '')
                     ? result.url.split('/').pop()?.replace(/\.git$/, '') || prev.name
                     : prev.name;
                 
-                const newState = { 
+                return { 
                     ...prev, 
                     remoteUrl: result.url,
                     name: newName,
                 };
-
-                console.log("[DIAGNOSTIC] Calculated new state:", newState);
-                return newState;
             });
 
         } else {
