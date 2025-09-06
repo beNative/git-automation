@@ -117,7 +117,8 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
                 } else if (choice === 'stash') {
                   addLogEntry(repoId, 'Stashing changes...', LogLevel.Info);
                   const stashExecutionId = `${stepExecutionId}_stash`;
-                  await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash}, settings, addLogEntry, stashExecutionId);
+                  // FIX: Property 'enabled' is missing in type '{ id: string; type: TaskStepType.GitStash; }' but required in type 'TaskStep'.
+                  await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash, enabled: true}, settings, addLogEntry, stashExecutionId);
                 }
                 // if 'force' or 'ignored_and_continue', proceed as normal
               }

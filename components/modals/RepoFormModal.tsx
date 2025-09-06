@@ -531,7 +531,8 @@ const DelphiTaskGenerator: React.FC<{
             steps: [{
                 type: TaskStepType.DelphiBuild,
                 delphiProjectFile: projectPath,
-                delphiBuildMode: 'Build',
+// FIX: Type 'string' is not assignable to type '"Build" | "Rebuild" | "Clean"'. Cast to prevent type widening.
+                delphiBuildMode: 'Build' as 'Build' | 'Rebuild' | 'Clean',
                 delphiConfiguration: 'Release',
                 delphiPlatform: 'Win32'
             }].map(s => ({ ...s, id: '', enabled: true }))

@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import type { LogEntry, Repository } from '../types';
 import { LogLevel, RepoStatus } from '../types';
 import { XIcon } from './icons/XIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { XCircleIcon } from './icons/XCircleIcon';
+import { MagnifyingGlassIcon } from './icons/MagnifyingGlassIcon';
 
 interface TaskLogPanelProps {
   onClosePanel: () => void;
@@ -29,6 +30,28 @@ const LOG_LEVEL_STYLES: Record<LogLevel, string> = {
 
 const MIN_HEIGHT = 100; // Minimum pixel height for the panel
 
+const HighlightedText: React.FC<{ text: string; highlight: string }> = ({ text, highlight }) => {
+    if (!highlight.trim()) {
+        return <>{text}</>;
+    }
+    const regex = new RegExp(`(${highlight.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return (
+        <>
+            {parts.map((part, i) =>
+                part.toLowerCase() === highlight.toLowerCase() ? (
+                    <mark key={i} className="bg-yellow-200 dark:bg-yellow-700 rounded px-0.5 py-0 text-gray-900 dark:text-gray-900">
+                        {part}
+                    </mark>
+                ) : (
+                    part
+                )
+            )}
+        </>
+    );
+};
+
+
 const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
   onClosePanel, onCloseTab, onSelectTab, logs, allRepositories,
   activeRepoIds, selectedRepoId, height, setHeight, isProcessing,
@@ -36,9 +59,23 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
   const logContainerRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [statusBarHeight, setStatusBarHeight] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const selectedRepo = allRepositories.find(r => r.id === selectedRepoId);
-  const selectedLogs = selectedRepoId ? logs[selectedRepoId] || [] : [];
+
+  const filteredLogs = useMemo(() => {
+    const selectedLogs = selectedRepoId ? logs[selectedRepoId] || [] : [];
+    if (!searchQuery.trim()) {
+      return selectedLogs;
+    }
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    return selectedLogs.filter(log => log.message.toLowerCase().includes(lowerCaseQuery));
+  }, [logs, selectedRepoId, searchQuery]);
+
+  useEffect(() => {
+    // Clear search when tab changes for a cleaner experience
+    setSearchQuery('');
+  }, [selectedRepoId]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -64,7 +101,7 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
-  }, [selectedLogs]);
+  }, [filteredLogs]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -189,13 +226,35 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
               })}
             </div>
           </div>
-          <button
-            onClick={onClosePanel}
-            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            aria-label="Close log panel"
-          >
-            <XIcon className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2 pr-2">
+            <div className="relative flex-1 max-w-xs">
+                <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Filter logs..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900/50 pl-9 pr-7 py-1 text-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="absolute top-1/2 right-2 -translate-y-1/2 p-0.5 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <XIcon className="h-3 w-3" />
+                  </button>
+                )}
+            </div>
+            {searchQuery && (
+                <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                    {filteredLogs.length} matches
+                </span>
+            )}
+            <button
+                onClick={onClosePanel}
+                className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                aria-label="Close log panel"
+            >
+                <XIcon className="h-5 w-5" />
+            </button>
+          </div>
         </header>
 
         <main
@@ -203,15 +262,16 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
           className="flex-grow p-2 sm:p-4 bg-gray-50 dark:bg-gray-900 overflow-y-auto font-mono text-sm"
           role="log"
         >
-          {selectedLogs.length > 0 ? selectedLogs.map((log, index) => (
+          {filteredLogs.length > 0 ? filteredLogs.map((log, index) => (
             <div key={index} className={`flex ${LOG_LEVEL_STYLES[log.level]}`}>
               <span className="flex-shrink-0 mr-4 text-gray-400 dark:text-gray-600">{new Date(log.timestamp).toLocaleTimeString()}</span>
               <p className="whitespace-pre-wrap break-words">
-                {log.level === LogLevel.Command && '$ '}{log.message}
+                {log.level === LogLevel.Command && '$ '}
+                <HighlightedText text={log.message} highlight={searchQuery} />
               </p>
             </div>
           )) : (
-            <p className="text-gray-500">No logs for {selectedRepo?.name || 'this repository'}.</p>
+            <p className="text-gray-500">{searchQuery ? 'No matching logs found.' : `No logs for ${selectedRepo?.name || 'this repository'}.`}</p>
           )}
         </main>
       </div>

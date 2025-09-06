@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import type { GlobalSettings } from '../types';
 import { SunIcon } from './icons/SunIcon';
 import { MoonIcon } from './icons/MoonIcon';
-import type { IconSet } from '../contexts/IconContext';
+// FIX: Module '"../contexts/IconContext"' declares 'IconSet' locally, but it is not exported. It was moved to types.ts.
+import type { IconSet } from '../types';
 import { CodeBracketIcon } from './icons/CodeBracketIcon';
 import JsonConfigView from './JsonConfigView';
 

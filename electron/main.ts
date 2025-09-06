@@ -250,7 +250,8 @@ const getXmlAttribute = (content: string, elementName: string, attributeName: st
 
 // FIX: Extracted project info logic into a reusable function to fix type errors and allow direct calls from other handlers.
 const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
-    if (!repoPath) return { tags: [], files: {}, python: undefined, delphi: undefined, nodejs: undefined };
+    // FIX: Property 'dproj' is missing in type '{}' but required in type '{ dproj: string[]; }'.
+    if (!repoPath) return { tags: [], files: { dproj: [] }, python: undefined, delphi: undefined, nodejs: undefined, lazarus: undefined };
 
     const tagsSet = new Set<string>();
     const info: ProjectInfo = {
