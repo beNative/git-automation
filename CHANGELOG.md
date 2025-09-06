@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - YYYY-MM-DD
+
+### Added
+- **Check for Updates:** A new "Check Updates" button in the header allows fetching remote changes for all valid repositories at once.
+- **"Updates Available" Indicator:** Repository cards now display a clear indicator when new commits or a higher SVN revision are available on the remote.
+- **Tabbed Log Viewing:** The Task Log Panel now features a tabbed interface, allowing users to view logs from multiple concurrent tasks simultaneously.
+
+### Changed
+- **Integrated Log Panel:** The Task Log Panel is no longer an overlay. It is now integrated into the main layout, smoothly resizing the dashboard view to prevent any overlap.
+
 ## [1.6.0] - YYYY-MM-DD
 
 ### Added

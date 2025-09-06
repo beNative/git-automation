@@ -14,6 +14,8 @@ The application is organized into three main views, which you can switch between
 
 The dashboard is the central hub of the application. It displays all your configured repositories as individual cards. You can run tasks on multiple repositories at the same time. Starting a long build on one project won't stop you from running a quick update on another.
 
+The header also contains a **"Check Updates"** button. Clicking this will check all of your repositories for new changes on their remotes.
+
 ### Repository Card
 
 Each card gives you an at-a-glance overview of a repository:
@@ -23,6 +25,7 @@ Each card gives you an at-a-glance overview of a repository:
 -   **Remote URL:** The Git or SVN remote URL, which is also a clickable link.
 -   **Branch/VCS:** For Git, this is a dropdown menu to view and switch between all local and remote branches. For SVN, it just indicates the VCS type.
 -   **Visual Status:** For Git repos, shows if you are ahead/behind the remote and a summary of changed files (e.g., `+1 ~2` for 1 added, 2 modified).
+-   **"Updates Available" Indicator:** Appears below the branch/VCS info if there are changes on the remote that you can pull or update.
 -   **Build Health:** The status of the last build (`Healthy`, `Failing`, `Unknown`).
 -   **Last Updated:** The timestamp of the last time an automation was run.
 
@@ -80,13 +83,16 @@ Provides a full interface to manage your Git branches. You can:
 
 After making any changes, click **"Save Repository"** on the main view to persist them.
 
-## 4. The Resizable Log Panel
+## 4. The Task Log Panel
 
-When you run a task, a log panel will appear at the bottom of the screen.
+When you run a task or choose to view logs, a panel will appear at the bottom of the screen. This panel is fully integrated into the application's layout.
 
+-   **Integrated View:** The log panel docks at the bottom of the window, resizing the dashboard above it so nothing is ever hidden.
+-   **Tabbed Interface:** If you run tasks on multiple repositories at the same time, each task will open in its own tab. You can easily switch between logs by clicking the tabs.
+-   **Tab Management:** Each tab has its own close button. When the last tab is closed, the entire panel will hide itself.
 -   **Resizing:** Click and drag the top border of the panel to resize it to your desired height.
 -   **Content:** Logs are timestamped and color-coded for readability. The view auto-scrolls to the latest output.
--   **Closing:** Click the 'X' icon in the top-right of the panel to close it.
+-   **Closing:** You can close the entire panel at once by clicking the 'X' icon in the top-right of the panel.
 
 ## 5. Global Settings View
 
