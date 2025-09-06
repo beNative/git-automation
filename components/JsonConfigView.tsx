@@ -112,7 +112,7 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
   const highlightedCode = useMemo(() => highlightJson(editedJson), [editedJson]);
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col min-h-0">
       <style>{`
         .json-key { color: #a78bfa; } /* dark:violet-400 */
         .dark .json-key { color: #c4b5fd; } /* dark:violet-300 */
@@ -144,7 +144,7 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
       <main className="flex-1 p-4 sm:p-6 flex flex-col space-y-4 min-h-0">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">JSON Configuration</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          View and edit the raw `settings.json` file. Changes here are applied directly and require an app restart.
+          View and edit the raw \`settings.json\` file. Changes here are applied directly and require an app restart.
         </p>
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex-1 flex flex-col min-h-0">
           {isLoading ? (
