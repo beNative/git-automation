@@ -786,30 +786,38 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
     try {
         const result = await window.electronAPI.discoverRemoteUrl({ localPath: formData.localPath, vcs: formData.vcs });
-        if (result.url) {
+        
+        if (result && result.url) {
             setFormData(prev => {
-                const updates: any = { remoteUrl: result.url };
-                
-                // Suggest repo name if name is empty and url is not empty
-                if (!prev.name && result.url) {
-                    // Heuristic to get repo name from URL. Works for http and git protocols.
-                    // Grabs the last part of the path and removes an optional .git suffix.
-                    const repoName = result.url.split('/').pop()?.replace(/\.git$/, '');
-                    if (repoName) {
-                        updates.name = repoName;
+                const isNameEmpty = !prev.name || prev.name.trim() === '';
+                let newName = prev.name;
+
+                if (isNameEmpty) {
+                    const discoveredName = result.url.split('/').pop()?.replace(/\.git$/, '');
+                    if (discoveredName) {
+                        newName = discoveredName;
                     }
                 }
                 
-                return { ...prev, ...updates };
+                // Construct the new state object directly to ensure React detects the change.
+                const newState = {
+                    ...prev,
+                    remoteUrl: result.url,
+                    name: newName,
+                };
+                
+                return newState;
             });
+
             setToast({ message: 'Remote URL and name discovered!', type: 'success' });
         } else {
             setToast({ message: `Could not discover URL: ${result.error || 'No remote found.'}`, type: 'error' });
         }
     } catch (e: any) {
-        setToast({ message: `Error: ${e.message}`, type: 'error' });
+        setToast({ message: `Error during discovery: ${e.message}`, type: 'error' });
+        logger.error("Error in handleDiscoverRemote", { error: e });
     }
-  }, [formData.localPath, formData.name, formData.vcs, setToast]);
+  }, [formData.localPath, formData.vcs, setToast, logger]);
 
 
   const selectedTask = useMemo(() => {
