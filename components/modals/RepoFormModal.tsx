@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
@@ -479,12 +479,26 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
 
 
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
-  const logger = useLogger();
+  // =================================================================
+  // DIAGNOSTIC LOGGING - RENDER & MOUNT
+  // =================================================================
+  console.log('[RepoFormModal] Render cycle start. Props:', { repository: JSON.parse(JSON.stringify(repository)) });
+  useEffect(() => {
+    console.log('[RepoFormModal] MOUNTED. Initializing state with:', repository || NEW_REPO_TEMPLATE);
+  }, []);
   
-  // Initialize state from props ONCE. The `key` prop on the component in App.tsx
-  // ensures this component is fully remounted (and state is re-initialized) when
-  // switching between different repositories. This avoids the useEffect/prop-sync anti-pattern.
-  const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(repository || NEW_REPO_TEMPLATE);
+  const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => {
+    const initialState = repository || NEW_REPO_TEMPLATE;
+    console.log('[RepoFormModal] useState initializer ran. Initial state:', initialState);
+    return initialState;
+  });
+
+  // =================================================================
+  // DIAGNOSTIC LOGGING - STATE CHANGES
+  // =================================================================
+  useEffect(() => {
+    console.log('[RepoFormModal][useEffect:formData] formData state CHANGED to:', JSON.parse(JSON.stringify(formData)));
+  }, [formData]);
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => {
     if (repository && repository.tasks && repository.tasks.length > 0) {
@@ -605,6 +619,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    console.log(`[RepoFormModal][handleChange] Fired. name: ${name}, value: ${value}`);
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
@@ -769,6 +784,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
   const handleDiscoverRemote = useCallback(async () => {
     const currentLocalPath = formData.localPath;
+    console.log(`[RepoFormModal][handleDiscoverRemote] Discover button clicked. Path: ${currentLocalPath}`);
     if (!currentLocalPath) {
         setToast({ message: 'Please provide a local path first.', type: 'info' });
         return;
@@ -776,26 +792,35 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
     try {
         const result = await window.electronAPI.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
+        console.log('[RepoFormModal][handleDiscoverRemote] API call result:', result);
         
         if (result && result.url) {
             setFormData(prev => {
+                console.log('[RepoFormModal][handleDiscoverRemote] Inside setFormData updater. Previous state:', JSON.parse(JSON.stringify(prev)));
                 const newName = (!prev.name || prev.name.trim() === '')
                     ? result.url.split('/').pop()?.replace(/\.git$/, '') || prev.name
                     : prev.name;
                 
-                return { 
+                const newState = { 
                     ...prev, 
                     remoteUrl: result.url,
                     name: newName,
                 };
+                console.log('[RepoFormModal][handleDiscoverRemote] Calculated new state:', newState);
+                return newState;
             });
+            console.log('[RepoFormModal][handleDiscoverRemote] Fired setFormData.');
+            
             setToast({ message: 'Remote URL and name discovered!', type: 'success' });
+            console.log('[RepoFormModal][handleDiscoverRemote] Fired setToast.');
         } else {
             const errorMsg = `Could not discover URL: ${result.error || 'No remote found.'}`;
+            console.log(`[RepoFormModal][handleDiscoverRemote] Discovery failed: ${errorMsg}`);
             setToast({ message: errorMsg, type: 'error' });
         }
     } catch (e: any) {
         const errorMsg = `Error during discovery: ${e.message}`;
+        console.error('[RepoFormModal][handleDiscoverRemote] Exception caught:', e);
         setToast({ message: errorMsg, type: 'error' });
     }
   }, [formData.localPath, formData.vcs, setToast]);
