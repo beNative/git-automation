@@ -153,10 +153,12 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
             </div>
           ) : isEditing ? (
             <div className="flex-1 flex flex-col min-h-0">
-              <div className={`relative w-full flex-1 font-mono text-sm rounded-md border focus-within:ring-2 focus-within:ring-blue-500 ${!isValid ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
+              <div className={`grid w-full flex-1 rounded-md border focus-within:ring-2 focus-within:ring-blue-500 ${!isValid ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                {/* The textarea and pre now share the same grid cell, creating an overlay. */}
+                {/* z-index on the textarea ensures it's on top and editable. */}
                 <textarea
                   ref={textareaRef}
-                  className="json-editor-textarea absolute top-0 left-0 w-full h-full p-3 bg-transparent resize-none outline-none overflow-auto"
+                  className="json-editor-textarea col-start-1 row-start-1 p-3 resize-none outline-none overflow-auto"
                   value={editedJson}
                   onChange={handleJsonChange}
                   onScroll={handleScroll}
@@ -164,7 +166,7 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
                 />
                 <pre
                   ref={preRef}
-                  className="json-editor-pre absolute top-0 left-0 w-full h-full p-3 bg-gray-50 dark:bg-gray-900 overflow-auto whitespace-pre-wrap break-words"
+                  className="json-editor-pre col-start-1 row-start-1 p-3 bg-gray-50 dark:bg-gray-900 overflow-auto whitespace-pre-wrap break-words"
                   aria-hidden="true"
                 >
                   <code dangerouslySetInnerHTML={highlightedCode} />
