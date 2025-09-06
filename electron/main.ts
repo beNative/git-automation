@@ -159,6 +159,48 @@ ipcMain.handle('get-doc', async (event, docName: string) => {
   }
 });
 
+// --- IPC handler for intelligent project analysis ---
+ipcMain.handle('get-project-info', async (event, repoPath: string): Promise<{ tags: string[]; files: Record<string, string[]> }> => {
+    if (!repoPath) return { tags: [], files: {} };
+
+    const tags = new Set<string>();
+    const files: Record<string, string[]> = {
+        dproj: [],
+    };
+
+    try {
+        // VCS Type
+        try {
+            await fs.stat(path.join(repoPath, '.git'));
+            tags.add('git');
+        } catch (e) { /* ignore */ }
+        try {
+            await fs.stat(path.join(repoPath, '.svn'));
+            tags.add('svn');
+        } catch (e) { /* ignore */ }
+        
+        // Project files
+        const dirContents = await fs.readdir(repoPath);
+
+        for (const file of dirContents) {
+            if (file.toLowerCase().endsWith('.dproj')) {
+                tags.add('delphi');
+                files.dproj.push(file);
+            }
+            if (file === 'package.json') {
+                tags.add('node');
+            }
+            // ... add more detections as needed
+        }
+
+    } catch (error) {
+        console.error(`Error getting project info for ${repoPath}:`, error);
+    }
+    
+    return { tags: Array.from(tags), files };
+});
+
+
 // --- IPC Handler for project configuration suggestions ---
 ipcMain.handle('get-project-suggestions', async (event, { repoPath, repoName }: { repoPath: string; repoName: string }): Promise<ProjectSuggestion[]> => {
   if (!repoPath) return [];
@@ -832,7 +874,7 @@ ipcMain.handle('launch-executable', async (event, { repoPath, executablePath }: 
 });
 
 // --- IPC Handler for running real task steps ---
-ipcMain.on('run-task-step', (event, { repo, step, settings, executionId }: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; }) => {
+ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId }: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; }) => {
     const sender = mainWindow?.webContents.send.bind(mainWindow.webContents);
     if (!sender) return;
 
@@ -885,6 +927,31 @@ ipcMain.on('run-task-step', (event, { repo, step, settings, executionId }: { rep
             const parts = step.command.split(' ');
             command = parts[0];
             args = parts.slice(1);
+            break;
+        case TaskStepType.DelphiBuild:
+            try {
+                const projectFiles = (await fs.readdir(repo.localPath)).filter(f => f.toLowerCase().endsWith('.dproj'));
+                const projectFile = step.delphiProjectFile || (projectFiles.length > 0 ? projectFiles[0] : null);
+
+                if (!projectFile) {
+                    throw new Error('No .dproj file found in the repository root.');
+                }
+                const config = step.delphiConfiguration || 'Release';
+                const platform = step.delphiPlatform || 'Win32';
+
+                command = 'msbuild';
+                // Important: Arguments for msbuild must be passed correctly, especially paths with spaces.
+                args = [
+                    projectFile,
+                    '/t:Build',
+                    `/p:Configuration=${config}`,
+                    `/p:Platform=${platform}`
+                ];
+            } catch (e: any) {
+                sendLog(`Error preparing Delphi build: ${e.message}`, LogLevel.Error);
+                sendEnd(1);
+                return;
+            }
             break;
         default:
             sendLog(`Unknown step type: ${step.type}`, LogLevel.Error);

@@ -52,6 +52,7 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.GitCheckout]: { label: 'Git Checkout', icon: ArrowRightOnRectangleIcon, description: 'Switch to a specific branch.' },
   [TaskStepType.GitStash]: { label: 'Git Stash', icon: ArchiveBoxIcon, description: 'Stash uncommitted local changes.' },
   [TaskStepType.SvnUpdate]: { label: 'SVN Update', icon: ArrowDownTrayIcon, description: 'Update working copy to latest revision.' },
+  [TaskStepType.DelphiBuild]: { label: 'Delphi Build', icon: BeakerIcon, description: 'Build a Delphi project using MSBuild.' },
   [TaskStepType.RunCommand]: { label: 'Run Command', icon: CodeBracketIcon, description: 'Execute a custom shell command.' },
 };
 
@@ -64,7 +65,8 @@ const TaskStepItem: React.FC<{
   onMoveStep: (index: number, direction: 'up' | 'down') => void;
   onRemoveStep: (id: string) => void;
   suggestions: ProjectSuggestion[];
-}> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, suggestions }) => {
+  projectInfo: { files: Record<string, string[]> } | null;
+}> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, suggestions, projectInfo }) => {
   const logger = useLogger();
   
   const stepDef = STEP_DEFINITIONS[step.type];
@@ -121,6 +123,45 @@ const TaskStepItem: React.FC<{
         <div>
           <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Branch Name</label>
           <input type="text" placeholder="e.g., main" value={step.branch || ''} onChange={(e) => onStepChange(step.id, { branch: e.target.value })} required className={formInputStyle} />
+        </div>
+      )}
+      {step.type === TaskStepType.DelphiBuild && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Project File (.dproj)</label>
+                <select
+                    value={step.delphiProjectFile || ''}
+                    onChange={(e) => onStepChange(step.id, { delphiProjectFile: e.target.value })}
+                    className={formInputStyle}
+                >
+                    <option value="">Auto-detect ({projectInfo?.files?.dproj?.[0] || 'None found'})</option>
+                    {projectInfo?.files?.dproj?.map(file => (
+                        <option key={file} value={file}>{file}</option>
+                    ))}
+                </select>
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Configuration</label>
+                <select
+                    value={step.delphiConfiguration || 'Release'}
+                    onChange={(e) => onStepChange(step.id, { delphiConfiguration: e.target.value })}
+                    className={formInputStyle}
+                >
+                    <option>Release</option>
+                    <option>Debug</option>
+                </select>
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Platform</label>
+                <select
+                    value={step.delphiPlatform || 'Win32'}
+                    onChange={(e) => onStepChange(step.id, { delphiPlatform: e.target.value })}
+                    className={formInputStyle}
+                >
+                    <option>Win32</option>
+                    <option>Win64</option>
+                </select>
+            </div>
         </div>
       )}
       {step.type === TaskStepType.RunCommand && (() => {
@@ -237,12 +278,20 @@ const TaskStepsEditor: React.FC<{
   const [isAddingStep, setIsAddingStep] = useState(false);
   const [suggestions, setSuggestions] = useState<ProjectSuggestion[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [projectInfo, setProjectInfo] = useState<{ tags: string[]; files: Record<string, string[]> } | null>(null);
   const showOnDashboardTooltip = useTooltip('Show this task as a button on the repository card');
   
   useEffect(() => {
-    if (repository?.localPath && repository.name) {
-      logger.debug("Fetching project suggestions", { repoPath: repository.localPath, repoName: repository.name });
-      window.electronAPI?.getProjectSuggestions({ repoPath: repository.localPath, repoName: repository.name })
+    if (repository?.localPath) {
+      logger.debug("Fetching project info & suggestions", { repoPath: repository.localPath });
+      window.electronAPI?.getProjectInfo(repository.localPath)
+        .then(info => {
+            setProjectInfo(info);
+            logger.info("Project info loaded", { info });
+        })
+        .catch(error => logger.warn("Could not load project info:", { error }));
+      
+      window.electronAPI?.getProjectSuggestions({ repoPath: repository.localPath, repoName: repository.name || '' })
         .then(s => {
           setSuggestions(s || []);
           logger.info("Project suggestions loaded", { count: s?.length || 0 });
@@ -250,6 +299,7 @@ const TaskStepsEditor: React.FC<{
         .catch(error => logger.warn("Could not load project suggestions:", { error }));
     } else {
       setSuggestions([]);
+      setProjectInfo(null);
     }
   }, [repository?.localPath, repository?.name, logger]);
   
@@ -311,16 +361,18 @@ const TaskStepsEditor: React.FC<{
   };
   
   const availableSteps = useMemo(() => {
-    return (Object.keys(STEP_DEFINITIONS) as TaskStepType[]).filter(type => {
-        if (repository?.vcs === VcsType.Git) {
-            return !type.startsWith('SVN_');
-        }
-        if (repository?.vcs === VcsType.Svn) {
-            return !type.startsWith('GIT_');
-        }
-        return true; // Should not happen
+    const allStepTypes = (Object.keys(STEP_DEFINITIONS) as TaskStepType[]);
+    const vcs = repository?.vcs;
+    const tags = projectInfo?.tags || [];
+
+    return allStepTypes.filter(type => {
+        if (type.startsWith('GIT_')) return vcs === VcsType.Git;
+        if (type.startsWith('SVN_')) return vcs === VcsType.Svn;
+        if (type === TaskStepType.DelphiBuild) return tags.includes('delphi');
+        // All other steps (like RunCommand) are always available.
+        return true;
     });
-  }, [repository?.vcs]);
+  }, [repository?.vcs, projectInfo]);
 
   return (
     <div className="space-y-4">
@@ -373,6 +425,7 @@ const TaskStepsEditor: React.FC<{
             onMoveStep={handleMoveStep}
             onRemoveStep={handleRemoveStep}
             suggestions={suggestions}
+            projectInfo={projectInfo}
           />
         ))}
       </div>

@@ -15,6 +15,7 @@ export interface IElectronAPI {
   getAllData: () => Promise<{ globalSettings: GlobalSettings; repositories: Repository[] }>;
   saveAllData: (data: { globalSettings: GlobalSettings; repositories: Repository[] }) => void;
   getDoc: (docName: string) => Promise<string>;
+  getProjectInfo: (repoPath: string) => Promise<{ tags: string[]; files: Record<string, string[]> }>;
   getProjectSuggestions: (args: { repoPath: string, repoName: string }) => Promise<ProjectSuggestion[]>;
   getProjectStepSuggestions: (args: { repoPath: string, repoName: string }) => Promise<Omit<TaskStep, 'id'>[]>;
   checkVcsStatus: (repo: Repository) => Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }>;

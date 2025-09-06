@@ -1,3 +1,4 @@
+// FIX: Removed self-import which caused declaration conflicts.
 export enum RepoStatus {
   Idle = 'Idle',
   Syncing = 'Syncing',
@@ -109,6 +110,8 @@ export enum TaskStepType {
   SvnUpdate = 'SVN_UPDATE',
   // Common
   RunCommand = 'RUN_COMMAND',
+  // Project-specific
+  DelphiBuild = 'DELPHI_BUILD',
 }
 
 export interface TaskStep {
@@ -117,6 +120,10 @@ export interface TaskStep {
   command?: string; // Only for RunCommand
   branch?: string; // Only for GitCheckout
   enabled?: boolean;
+  // Delphi Build specific
+  delphiConfiguration?: string;
+  delphiPlatform?: string;
+  delphiProjectFile?: string;
 }
 
 export interface Task {
