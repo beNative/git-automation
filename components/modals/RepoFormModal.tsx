@@ -614,10 +614,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, debouncedHistorySearch, fetchBranches, branchInfo]);
   
-  // --- DEBUG: Add a useEffect to log formData changes ---
+  // --- THIS IS THE CRITICAL DIAGNOSTIC STEP ---
   useEffect(() => {
-    logger.debug("[RepoFormModal] formData state changed.", { formData });
-  }, [formData, logger]);
+    console.log("[DIAGNOSTIC] useEffect watching formData has fired. Current state:", formData);
+  }, [formData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -785,42 +785,31 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
   const handleDiscoverRemote = useCallback(async () => {
     console.log('[DIAGNOSTIC] Discover button clicked. Calling handleDiscoverRemote.');
-    // Use a local variable for the check to avoid stale closures in the conditional.
     const currentLocalPath = formData.localPath;
-    console.log('[DIAGNOSTIC] Current formData state:', formData);
+    console.log('[DIAGNOSTIC] Path to be checked:', currentLocalPath);
 
     if (!currentLocalPath) {
         setToast({ message: 'Please provide a local path first.', type: 'info' });
-        console.warn("[DIAGNOSTIC] Aborted: localPath is empty.");
         return;
     }
 
     try {
         const result = await window.electronAPI.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
-        
         console.log("[DIAGNOSTIC] API returned:", result);
         
         if (result && result.url) {
             setToast({ message: 'Remote URL and name discovered!', type: 'success' });
             
-            // This is the key part. By using the functional update form of setState,
-            // we guarantee we are working with the most up-to-date state,
-            // avoiding any stale closure issues with `formData`.
-            setFormData(prevFormData => {
-                console.log("[DIAGNOSTIC] Inside setFormData updater. Previous state:", prevFormData);
+            setFormData(prev => {
+                console.log("[DIAGNOSTIC] Inside setFormData updater. Previous state:", prev);
 
-                const isNameEmpty = !prevFormData.name || prevFormData.name.trim() === '';
-                let newName = prevFormData.name;
-                
-                if (isNameEmpty) {
-                    const discoveredName = result.url.split('/').pop()?.replace(/\.git$/, '');
-                    if (discoveredName) {
-                        newName = discoveredName;
-                    }
-                }
+                // Determine the new name ONLY if the current name is empty
+                const newName = (!prev.name || prev.name.trim() === '')
+                    ? result.url.split('/').pop()?.replace(/\.git$/, '') || prev.name
+                    : prev.name;
                 
                 const newState = { 
-                    ...prevFormData, 
+                    ...prev, 
                     remoteUrl: result.url,
                     name: newName,
                 };
@@ -832,14 +821,12 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         } else {
             const errorMsg = `Could not discover URL: ${result.error || 'No remote found.'}`;
             setToast({ message: errorMsg, type: 'error' });
-            console.warn("[DIAGNOSTIC] URL discovery failed", { error: result.error });
         }
     } catch (e: any) {
         const errorMsg = `Error during discovery: ${e.message}`;
         setToast({ message: errorMsg, type: 'error' });
-        console.error("[DIAGNOSTIC] Unhandled error in handleDiscoverRemote", e);
     }
-  }, [formData, setToast]); // Depend on the whole formData object to ensure the function is recreated when any part of it changes.
+  }, [formData.localPath, formData.vcs, setToast]);
 
 
   const selectedTask = useMemo(() => {
