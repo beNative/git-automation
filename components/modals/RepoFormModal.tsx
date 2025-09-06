@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -21,7 +21,7 @@ import { ExclamationCircleIcon } from '../icons/ExclamationCircleIcon';
 import { useTooltip } from '../../hooks/useTooltip';
 import { useLogger } from '../../hooks/useLogger';
 import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';
-
+import { PythonIcon } from '../icons/PythonIcon';
 
 interface RepoEditViewProps {
   onSave: (repository: Repository) => void;
@@ -54,6 +54,13 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.SvnUpdate]: { label: 'SVN Update', icon: ArrowDownTrayIcon, description: 'Update working copy to latest revision.' },
   [TaskStepType.DelphiBuild]: { label: 'Delphi Build', icon: BeakerIcon, description: 'Build a Delphi project using MSBuild.' },
   [TaskStepType.RunCommand]: { label: 'Run Command', icon: CodeBracketIcon, description: 'Execute a custom shell command.' },
+  [TaskStepType.PYTHON_CREATE_VENV]: { label: 'Python: Create Venv', icon: PythonIcon, description: 'Create a .venv virtual environment.' },
+  [TaskStepType.PYTHON_INSTALL_DEPS]: { label: 'Python: Install Deps', icon: PythonIcon, description: 'Install dependencies using the detected manager.' },
+  [TaskStepType.PYTHON_RUN_LINT]: { label: 'Python: Run Linting', icon: PythonIcon, description: 'Run all detected linters (e.g., Ruff).' },
+  [TaskStepType.PYTHON_RUN_FORMAT]: { label: 'Python: Run Formatting', icon: PythonIcon, description: 'Run all detected formatters (e.g., Black, isort).' },
+  [TaskStepType.PYTHON_RUN_TYPECHECK]: { label: 'Python: Run Type Check', icon: PythonIcon, description: 'Run all detected type checkers (e.g., Mypy).' },
+  [TaskStepType.PYTHON_RUN_TESTS]: { label: 'Python: Run Tests', icon: PythonIcon, description: 'Run tests using the detected framework (e.g., Pytest).' },
+  [TaskStepType.PYTHON_RUN_BUILD]: { label: 'Python: Build Package', icon: PythonIcon, description: 'Build wheel and sdist using the detected backend.' },
 };
 
 // Component for a single step in the TaskStepsEditor
@@ -65,7 +72,7 @@ const TaskStepItem: React.FC<{
   onMoveStep: (index: number, direction: 'up' | 'down') => void;
   onRemoveStep: (id: string) => void;
   suggestions: ProjectSuggestion[];
-  projectInfo: { files: Record<string, string[]> } | null;
+  projectInfo: ProjectInfo | null;
 }> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, suggestions, projectInfo }) => {
   const logger = useLogger();
   
@@ -267,18 +274,84 @@ const TaskVariablesEditor: React.FC<{
   );
 }
 
+const PythonTaskGenerator: React.FC<{
+    pythonCaps: PythonCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ pythonCaps, onAddTask }) => {
+    if (!pythonCaps) return null;
+    
+    const createSetupTask = () => {
+        onAddTask({
+            name: 'Setup Environment',
+            steps: [
+                { type: TaskStepType.PYTHON_CREATE_VENV },
+                { type: TaskStepType.PYTHON_INSTALL_DEPS }
+            ].map(s => ({ ...s, id: '', enabled: true }))
+        });
+    };
+
+    const createChecksTask = () => {
+        const steps: Omit<TaskStep, 'id'>[] = [];
+        if (pythonCaps.linters.length > 0) steps.push({ type: TaskStepType.PYTHON_RUN_LINT, enabled: true });
+        if (pythonCaps.typeCheckers.length > 0) steps.push({ type: TaskStepType.PYTHON_RUN_TYPECHECK, enabled: true });
+        if (pythonCaps.testFramework !== 'unknown') steps.push({ type: TaskStepType.PYTHON_RUN_TESTS, enabled: true });
+
+        onAddTask({
+            name: 'Run Checks',
+            steps: steps.map(s => ({ ...s, id: '' }))
+        });
+    };
+
+    const createBuildTask = () => {
+        onAddTask({
+            name: 'Build Package',
+            steps: [{ type: TaskStepType.PYTHON_RUN_BUILD, id: '', enabled: true }]
+        });
+    };
+
+    const detectedTools = [
+        `Env: ${pythonCaps.envManager}`,
+        `Build: ${pythonCaps.buildBackend}`,
+        `Test: ${pythonCaps.testFramework}`,
+        ...pythonCaps.linters,
+        ...pythonCaps.formatters,
+        ...pythonCaps.typeCheckers,
+    ].filter(t => !t.endsWith('unknown')).map(t => t.charAt(0).toUpperCase() + t.slice(1));
+
+
+    return (
+        <div className="p-3 mb-4 bg-blue-50 dark:bg-gray-900/50 rounded-lg border border-blue-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <PythonIcon className="h-5 w-5 text-blue-500"/>
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Python Project Detected</h3>
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                {detectedTools.map(tool => (
+                    <span key={tool} className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full">{tool}</span>
+                ))}
+            </div>
+            <div className="flex gap-2">
+                <button type="button" onClick={createSetupTask} className="text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md">Add Setup Task</button>
+                <button type="button" onClick={createChecksTask} className="text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md">Add Checks Task</button>
+                <button type="button" onClick={createBuildTask} className="text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md">Add Build Task</button>
+            </div>
+        </div>
+    );
+};
+
 
 // Component for editing the steps of a single task
 const TaskStepsEditor: React.FC<{
   task: Task;
   setTask: (task: Task) => void;
   repository: Partial<Repository> | null;
-}> = ({ task, setTask, repository }) => {
+  onAddTask: (template: Partial<Task>) => void;
+}> = ({ task, setTask, repository, onAddTask }) => {
   const logger = useLogger();
   const [isAddingStep, setIsAddingStep] = useState(false);
   const [suggestions, setSuggestions] = useState<ProjectSuggestion[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
-  const [projectInfo, setProjectInfo] = useState<{ tags: string[]; files: Record<string, string[]> } | null>(null);
+  const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
   const showOnDashboardTooltip = useTooltip('Show this task as a button on the repository card');
   
   useEffect(() => {
@@ -369,6 +442,7 @@ const TaskStepsEditor: React.FC<{
         if (type.startsWith('GIT_')) return vcs === VcsType.Git;
         if (type.startsWith('SVN_')) return vcs === VcsType.Svn;
         if (type === TaskStepType.DelphiBuild) return tags.includes('delphi');
+        if (type.startsWith('PYTHON_')) return tags.includes('python');
         // All other steps (like RunCommand) are always available.
         return true;
     });
@@ -413,6 +487,8 @@ const TaskStepsEditor: React.FC<{
               </div>
           </div>
       )}
+      
+      <PythonTaskGenerator pythonCaps={projectInfo?.python} onAddTask={onAddTask} />
 
       <div className="space-y-3">
         {task.steps.map((step, index) => (
@@ -721,12 +797,24 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }));
   };
   
-  const handleNewTask = () => {
-    const newTask: Task = { id: `task_${Date.now()}`, name: 'New Task', steps: [], variables: [], showOnDashboard: false };
+  const handleNewTask = useCallback((template?: Partial<Task>) => {
+    const newSteps = (template?.steps || []).map(s => ({
+        ...s,
+        id: `step_${Date.now()}_${Math.random()}`,
+        enabled: true,
+    }));
+
+    const newTask: Task = {
+        id: `task_${Date.now()}`,
+        name: template?.name || 'New Task',
+        steps: newSteps,
+        variables: [],
+        showOnDashboard: false,
+    };
     const newTasks = [...(formData.tasks || []), newTask];
     setFormData(prev => ({ ...prev, tasks: newTasks }));
     setSelectedTaskId(newTask.id);
-  };
+  }, [formData.tasks]);
   
   const handleDeleteTask = (taskId: string) => {
     if (!window.confirm("Are you sure you want to delete this task?")) return;
@@ -885,7 +973,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                     <aside className="w-1/3 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50">
                         <div className="p-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
                             <h3 className="font-semibold text-gray-800 dark:text-gray-200">Tasks</h3>
-                            <button type="button" onClick={handleNewTask} className="flex items-center px-3 py-1 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md"><PlusIcon className="h-4 w-4 mr-1"/>New</button>
+                            <button type="button" onClick={() => handleNewTask()} className="flex items-center px-3 py-1 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md"><PlusIcon className="h-4 w-4 mr-1"/>New</button>
                         </div>
                         <ul className="divide-y divide-gray-200 dark:divide-gray-700 overflow-y-auto">
                             {(!formData.tasks || formData.tasks.length === 0) && <li className="px-4 py-4 text-center text-gray-500 text-sm">No tasks created.</li>}
@@ -902,7 +990,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                     </aside>
                     <div className="flex-1 p-4 overflow-y-auto">
                         {selectedTask ? (
-                            <TaskStepsEditor task={selectedTask} setTask={handleTaskChange} repository={repositoryForTaskEditor} />
+                            <TaskStepsEditor task={selectedTask} setTask={handleTaskChange} repository={repositoryForTaskEditor} onAddTask={handleNewTask} />
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-center text-gray-500">
                                 <CubeTransparentIcon className="h-12 w-12 text-gray-400"/>

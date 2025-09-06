@@ -1,5 +1,5 @@
 import type { IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType } from '../types';
+import type { Repository, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo } from '../types';
 
 export type LocalPathState = AppLocalPathState;
 
@@ -15,7 +15,7 @@ export interface IElectronAPI {
   getAllData: () => Promise<{ globalSettings: GlobalSettings; repositories: Repository[] }>;
   saveAllData: (data: { globalSettings: GlobalSettings; repositories: Repository[] }) => void;
   getDoc: (docName: string) => Promise<string>;
-  getProjectInfo: (repoPath: string) => Promise<{ tags: string[]; files: Record<string, string[]> }>;
+  getProjectInfo: (repoPath: string) => Promise<ProjectInfo>;
   getProjectSuggestions: (args: { repoPath: string, repoName: string }) => Promise<ProjectSuggestion[]>;
   getProjectStepSuggestions: (args: { repoPath: string, repoName: string }) => Promise<Omit<TaskStep, 'id'>[]>;
   checkVcsStatus: (repo: Repository) => Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }>;

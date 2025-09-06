@@ -28,7 +28,7 @@ export interface LaunchConfig {
 }
 
 export interface WebLinkConfig {
-  id: string;
+  id:string;
   name: string;
   url: string;
 }
@@ -112,6 +112,14 @@ export enum TaskStepType {
   RunCommand = 'RUN_COMMAND',
   // Project-specific
   DelphiBuild = 'DELPHI_BUILD',
+  // Python-specific steps
+  PYTHON_CREATE_VENV = 'PYTHON_CREATE_VENV',
+  PYTHON_INSTALL_DEPS = 'PYTHON_INSTALL_DEPS',
+  PYTHON_RUN_LINT = 'PYTHON_RUN_LINT',
+  PYTHON_RUN_FORMAT = 'PYTHON_RUN_FORMAT',
+  PYTHON_RUN_TYPECHECK = 'PYTHON_RUN_TYPECHECK',
+  PYTHON_RUN_TESTS = 'PYTHON_RUN_TESTS',
+  PYTHON_RUN_BUILD = 'PYTHON_RUN_BUILD',
 }
 
 export interface TaskStep {
@@ -184,4 +192,22 @@ export interface BranchInfo {
     local: string[];
     remote: string[];
     current: string | null;
+}
+
+// --- Python Project Types ---
+export interface PythonCapabilities {
+  requestedPythonVersion: string | null;
+  envManager: 'poetry' | 'pdm' | 'pip' | 'conda' | 'pipenv' | 'unknown';
+  buildBackend: 'setuptools' | 'hatch' | 'poetry' | 'flit' | 'pdm' | 'mesonpy' | 'unknown';
+  testFramework: 'pytest' | 'tox' | 'nox' | 'unittest' | 'unknown';
+  linters: string[];
+  formatters: string[];
+  typeCheckers: string[];
+  hasPrecommit: boolean;
+}
+
+export interface ProjectInfo {
+    tags: string[];
+    files: Record<string, string[]>;
+    python?: PythonCapabilities;
 }

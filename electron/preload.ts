@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType } from '../types';
+import type { Repository, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo } from '../types';
 
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDoc: (docName: string): Promise<string> => ipcRenderer.invoke('get-doc', docName),
   
   // Smart Scripts
-  getProjectInfo: (repoPath: string): Promise<{ tags: string[]; files: Record<string, string[]> }> => ipcRenderer.invoke('get-project-info', repoPath),
+  getProjectInfo: (repoPath: string): Promise<ProjectInfo> => ipcRenderer.invoke('get-project-info', repoPath),
   getProjectSuggestions: (args: { repoPath: string, repoName: string }): Promise<ProjectSuggestion[]> => ipcRenderer.invoke('get-project-suggestions', args),
   getProjectStepSuggestions: (args: { repoPath: string, repoName: string }): Promise<Omit<TaskStep, 'id'>[]> => ipcRenderer.invoke('get-project-step-suggestions', args),
 
