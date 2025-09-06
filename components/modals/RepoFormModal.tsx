@@ -43,6 +43,7 @@ const NEW_REPO_TEMPLATE: Omit<GitRepository, 'id'> = {
   tasks: [],
   vcs: VcsType.Git,
   launchConfigs: [],
+  ignoreDirty: false,
 };
 
 const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.ComponentType<{className: string}>; description: string }> = {
@@ -965,6 +966,22 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             {formData.vcs === 'git' && (
               <>
                 <div><label htmlFor="branch" className={formLabelStyle}>Default Branch</label><input type="text" name="branch" id="branch" value={(formData as GitRepository).branch} onChange={handleChange} required className={formInputStyle}/></div>
+                <div className="flex items-start pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center h-5">
+                        <input
+                            id="ignoreDirty"
+                            name="ignoreDirty"
+                            type="checkbox"
+                            checked={(formData as GitRepository).ignoreDirty ?? false}
+                            onChange={e => setFormData(prev => ({ ...prev, ignoreDirty: e.target.checked }))}
+                            className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"
+                        />
+                    </div>
+                    <div className="ml-3 text-sm">
+                        <label htmlFor="ignoreDirty" className="font-medium text-gray-700 dark:text-gray-300">Ignore Uncommitted Changes</label>
+                        <p className="text-gray-500 text-xs">If checked, the "uncommitted changes" dialog will be skipped and the pull will proceed. Use with caution.</p>
+                    </div>
+                </div>
               </>
             )}
 

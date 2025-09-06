@@ -49,6 +49,7 @@ export interface GitRepository extends BaseRepository {
   vcs: VcsType.Git;
   remoteUrl: string;
   branch: string;
+  ignoreDirty?: boolean;
 }
 
 export interface SvnRepository extends BaseRepository {

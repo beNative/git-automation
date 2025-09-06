@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { Repository, LogEntry, Task, GlobalSettings, TaskStep } from '../types';
+import type { Repository, LogEntry, Task, GlobalSettings, TaskStep, GitRepository } from '../types';
 import { RepoStatus, BuildHealth, LogLevel, TaskStepType, VcsType } from '../types';
 
 // --- Simulation logic moved from the now-obsolete automationService ---
@@ -102,21 +102,25 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
 
           // Check for dirty repo before git pull (Git only)
           if (step.type === TaskStepType.GitPull && repo.vcs === VcsType.Git) {
-            const statusResult = await window.electronAPI?.checkVcsStatus(repo);
-            if (statusResult?.isDirty) {
-              addLogEntry(repoId, 'Uncommitted changes detected.', LogLevel.Warn);
-              const choice = await onDirty(statusResult);
+            if (repo.ignoreDirty) {
+              addLogEntry(repoId, `Skipping dirty repository check due to repository setting.`, LogLevel.Warn);
+            } else {
+              const statusResult = await window.electronAPI?.checkVcsStatus(repo);
+              if (statusResult?.isDirty) {
+                addLogEntry(repoId, 'Uncommitted changes detected.', LogLevel.Warn);
+                const choice = await onDirty(statusResult);
 
-              if (choice === 'cancel') {
-                 addLogEntry(repoId, 'Task cancelled by user.', LogLevel.Info);
-                 updateRepoStatus(repoId, RepoStatus.Idle);
-                 throw new Error('cancelled'); // Special error to suppress toast
-              } else if (choice === 'stash') {
-                addLogEntry(repoId, 'Stashing changes...', LogLevel.Info);
-                const stashExecutionId = `${stepExecutionId}_stash`;
-                await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash}, settings, addLogEntry, stashExecutionId);
+                if (choice === 'cancel') {
+                   addLogEntry(repoId, 'Task cancelled by user.', LogLevel.Info);
+                   updateRepoStatus(repoId, RepoStatus.Idle);
+                   throw new Error('cancelled'); // Special error to suppress toast
+                } else if (choice === 'stash') {
+                  addLogEntry(repoId, 'Stashing changes...', LogLevel.Info);
+                  const stashExecutionId = `${stepExecutionId}_stash`;
+                  await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash}, settings, addLogEntry, stashExecutionId);
+                }
+                // if 'force' or 'ignored_and_continue', proceed as normal
               }
-              // if 'force' or 'ignored_and_continue', proceed as normal
             }
           }
           await runRealStep(repo, stepToRun, settings, addLogEntry, stepExecutionId);
