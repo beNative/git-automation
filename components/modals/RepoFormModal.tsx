@@ -493,11 +493,15 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const prevFormDataRef = useRef(formData);
 
   // This effect decouples the toast notification from the state update that causes it.
-  // It runs *after* the main state update has been committed.
   useEffect(() => {
     const wasJustDiscovered = !prevFormDataRef.current.remoteUrl && !!formData.remoteUrl;
     if (wasJustDiscovered) {
+      // Use setTimeout to push the toast notification to the next event loop tick.
+      // This breaks the React render race condition where the parent's re-render
+      // was overwriting the child's state before it could be committed.
+      setTimeout(() => {
         setToast({ message: 'Remote URL and name discovered!', type: 'success' });
+      }, 0);
     }
     // Keep a ref to the previous state for the next comparison.
     prevFormDataRef.current = formData;
