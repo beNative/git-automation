@@ -3,7 +3,6 @@ import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
-import { GoogleGenAI, Type } from '@google/genai';
 import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
@@ -505,91 +504,6 @@ ipcMain.handle('get-project-suggestions', async (event, { repoPath, repoName }: 
   // ... (Other suggestions remain unchanged)
   
   return suggestions;
-});
-
-// --- IPC Handler for suggesting a whole workflow ---
-ipcMain.handle('get-project-step-suggestions', async (event, { repoPath }: { repoPath: string }): Promise<Omit<TaskStep, 'id'>[]> => {
-    if (!process.env.API_KEY) {
-        console.error('API_KEY environment variable not set. Cannot use AI features.');
-        throw new Error('AI Suggestion Failed: API_KEY is not configured in the main process.');
-    }
-
-    let fileContent = '';
-    let fileType = '';
-
-    try {
-        if (await fileExists(repoPath, 'package.json')) {
-            const pkgRaw = await fs.readFile(path.join(repoPath, 'package.json'), 'utf-8');
-            const pkg = JSON.parse(pkgRaw);
-            if (pkg.scripts) {
-                fileContent = JSON.stringify(pkg.scripts, null, 2);
-                fileType = 'package.json scripts';
-            }
-        } else if (await fileExists(repoPath, 'Makefile')) {
-            fileContent = await fs.readFile(path.join(repoPath, 'Makefile'), 'utf-8');
-            fileType = 'Makefile';
-        } else if (await fileExists(repoPath, 'docker-compose.yml')) {
-            fileContent = await fs.readFile(path.join(repoPath, 'docker-compose.yml'), 'utf-8');
-            fileType = 'docker-compose.yml';
-        }
-
-        if (!fileContent) {
-            console.log('No suitable project file found for AI suggestion.');
-            return [];
-        }
-
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        
-        const prompt = `Based on the following '${fileType}' content, suggest a logical sequence of 'Run Command' steps for a standard build-and-test workflow. Only include the most common and essential steps (e.g., install, build, test).
-
-File Content:
-\`\`\`
-${fileContent}
-\`\`\`
-`;
-        
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            type: {
-                                type: Type.STRING,
-                                description: "The type of the task step. Must be 'RUN_COMMAND'.",
-                                enum: [TaskStepType.RunCommand],
-                            },
-                            command: {
-                                type: Type.STRING,
-                                description: "The shell command to execute.",
-                            },
-                        },
-                        required: ["type", "command"],
-                    },
-                },
-            },
-        });
-        
-        const jsonText = response.text.trim();
-        if (!jsonText) {
-            console.warn('AI suggestion returned an empty response.');
-            return [];
-        }
-        
-        const suggestedSteps = JSON.parse(jsonText);
-        return suggestedSteps as Omit<TaskStep, 'id'>[];
-
-    } catch (error) {
-        console.error("Failed to get AI project step suggestions:", error);
-        if (error instanceof Error) {
-            throw new Error(`AI suggestion failed: ${error.message}`);
-        }
-        throw new Error('An unknown error occurred during AI suggestion.');
-    }
 });
 
 // --- IPC handler for checking git/svn status ---

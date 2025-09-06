@@ -14,7 +14,6 @@ import { BeakerIcon } from '../icons/BeakerIcon';
 import { CubeTransparentIcon } from '../icons/CubeTransparentIcon';
 import { CodeBracketIcon } from '../icons/CodeBracketIcon';
 import { VariableIcon } from '../icons/VariableIcon';
-import { SparklesIcon } from '../icons/SparklesIcon';
 import { DocumentTextIcon } from '../icons/DocumentTextIcon';
 import { GitBranchIcon } from '../icons/GitBranchIcon';
 import { ExclamationCircleIcon } from '../icons/ExclamationCircleIcon';
@@ -520,7 +519,6 @@ const TaskStepsEditor: React.FC<{
   const logger = useLogger();
   const [isAddingStep, setIsAddingStep] = useState(false);
   const [suggestions, setSuggestions] = useState<ProjectSuggestion[]>([]);
-  const [isSuggesting, setIsSuggesting] = useState(false);
   const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
   const showOnDashboardTooltip = useTooltip('Show this task as a button on the repository card');
   
@@ -573,35 +571,6 @@ const TaskStepsEditor: React.FC<{
   const handleVariablesChange = (vars: Task['variables']) => {
     setTask({ ...task, variables: vars });
   };
-
-  const handleSuggestSteps = async () => {
-    if (!repository?.localPath || !repository.name) {
-        logger.warn("Cannot suggest steps without a repository path and name.");
-        return;
-    }
-    setIsSuggesting(true);
-    try {
-        const suggestedStepTemplates = await window.electronAPI?.getProjectStepSuggestions({
-            repoPath: repository.localPath,
-            repoName: repository.name,
-        });
-        
-        if (suggestedStepTemplates && suggestedStepTemplates.length > 0) {
-            const newSteps: TaskStep[] = suggestedStepTemplates.map((s, i) => ({
-                ...(s as Omit<TaskStep, 'id'>),
-                id: `step_ai_${Date.now()}_${i}`,
-                enabled: true,
-            }));
-            setTask({ ...task, steps: [...task.steps, ...newSteps] });
-        } else {
-          logger.info("AI returned no step suggestions for this project.");
-        }
-    } catch (error) {
-        logger.error("Failed to get AI project step suggestions:", { error });
-    } finally {
-        setIsSuggesting(false);
-    }
-  };
   
   const availableSteps = useMemo(() => {
     const allStepTypes = (Object.keys(STEP_DEFINITIONS) as TaskStepType[]);
@@ -644,18 +613,7 @@ const TaskStepsEditor: React.FC<{
           <div className="text-center py-6 px-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
               <CubeTransparentIcon className="mx-auto h-10 w-10 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-800 dark:text-gray-200">This task has no steps.</h3>
-              <p className="mt-1 text-xs text-gray-500">Add steps manually or let us suggest a workflow.</p>
-              <div className="mt-4">
-                  <button
-                      type="button"
-                      onClick={handleSuggestSteps}
-                      disabled={isSuggesting}
-                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 disabled:opacity-50"
-                  >
-                      <SparklesIcon className="-ml-0.5 mr-1.5 h-4 w-4" />
-                      {isSuggesting ? 'Analyzing with AI...' : 'Suggest with AI'}
-                  </button>
-              </div>
+              <p className="mt-1 text-xs text-gray-500">Add steps manually to begin.</p>
           </div>
       )}
       
