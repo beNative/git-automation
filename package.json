@@ -1,6 +1,6 @@
 {
   "name": "git-automation-dashboard",
-  "version": "1.7.0",
+  "version": "0.1.7",
   "description": "A dashboard to manage and automate the workflow for a set of Git repositories.",
   "main": "dist/main.js",
   "author": "AI Assistant",
@@ -11,11 +11,13 @@
     "electron": "wait-on dist/main.js dist/renderer.js dist/preload.js && electron .",
     "build": "cross-env NODE_ENV=production node esbuild.config.js",
     "pack": "npm run build && electron-builder",
+    "publish": "npm run build && electron-builder --publish always",
     "test": "echo \"See README.md for testing instructions.\" && exit 0"
   },
   "dependencies": {
     "@google/genai": "^1.16.0",
     "electron-squirrel-startup": "^1.0.0",
+    "electron-updater": "^6.2.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-markdown": "^9.0.1",
@@ -61,6 +63,13 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ai-studio-sdk",
+        "repo": "git-automation-dashboard-example"
+      }
+    ]
   }
 }

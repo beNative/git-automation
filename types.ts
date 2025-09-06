@@ -212,6 +212,13 @@ export interface BranchInfo {
   current: string | null;
 }
 
+export type UpdateStatus = 'checking' | 'available' | 'downloaded' | 'error';
+
+export interface UpdateStatusMessage {
+  status: UpdateStatus;
+  message: string;
+}
+
 export interface Commit {
   hash: string;
   shortHash: string;

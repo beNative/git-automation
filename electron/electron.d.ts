@@ -1,5 +1,5 @@
 import type { IpcRendererEvent } from 'electron';
-import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo } from '../types';
+import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, UpdateStatusMessage } from '../types';
 
 export type LocalPathState = AppLocalPathState;
 
@@ -69,6 +69,14 @@ export interface IElectronAPI {
   logToFileInit: () => void;
   logToFileClose: () => void;
   logToFileWrite: (log: DebugLogEntry) => void;
+
+  // Auto Update
+  onUpdateStatusChange: (
+    callback: (event: IpcRendererEvent, data: UpdateStatusMessage) => void
+  ) => void;
+  removeUpdateStatusChangeListener: (
+    callback: (event: IpcRendererEvent, data: UpdateStatusMessage) => void
+  ) => void;
 }
 
 declare global {

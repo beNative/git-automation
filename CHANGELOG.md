@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.7.0] - YYYY-MM-DD
+## [0.1.7]
 
 ### Added
 - **Check for Updates:** A new "Check Updates" button in the header allows fetching remote changes for all valid repositories at once.
@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - **Integrated Log Panel:** The Task Log Panel is no longer an overlay. It is now integrated into the main layout, smoothly resizing the dashboard view to prevent any overlap.
 
-## [1.6.0] - YYYY-MM-DD
+## [0.1.6]
 
 ### Added
 - **Enhanced Debug Panel:** The debug panel now includes level-based filtering (Debug, Info, Warn, Error) and an option to save live logs directly to a file for easier troubleshooting.
@@ -23,7 +23,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - The debug console now displays multiline messages and data objects fully by default, removing the need to hover to see all content.
 
-## [1.5.0] - YYYY-MM-DD
+## [0.1.5]
 
 ### Added
 - **Deeper Version Control Integration:**
@@ -36,7 +36,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **Branch Switching Ambiguity:** The branch switcher now correctly handles repositories with multiple remotes and branches of the same name by displaying the full remote path (e.g., `origin/main`) and using a more precise `git checkout --track` command.
 
-## [1.4.0] - YYYY-MM-DD
+## [0.1.4]
 
 ### Changed
 - **UI Compactness:** Significantly reduced padding, margins, and component sizes across the application to create a more compact, data-dense interface. This affects the Header, Dashboard, Repository Cards, Configuration Views, Log Panel, and Settings.
@@ -46,7 +46,7 @@ All notable changes to this project will be documented in this file.
 - **Dropdown Visibility:** The "Run Task" dropdown menu on repository cards now dynamically opens upwards when there isn't enough space below, preventing it from being clipped by the viewport.
 - Resolved a TypeScript compilation error in `electron/main.ts` related to missing Node.js global type definitions without modifying the build environment.
 
-## [1.3.0] - YYYY-MM-DD
+## [0.1.3]
 
 ### Added
 - **Light/Dark Mode:** Added a theme switcher in the Settings view to toggle between light and dark modes for the entire application.
@@ -59,7 +59,7 @@ All notable changes to this project will be documented in this file.
 ### Removed
 - Removed obsolete, unused components (`LogModal.tsx`, `SettingsModal.tsx`) from the codebase to improve maintainability.
 
-## [1.2.0] - YYYY-MM-DD
+## [0.1.2] 
 
 ### Added
 - **Repository-Specific Tasks:** Tasks are now created and managed for each individual repository. The global task list has been removed.
@@ -71,7 +71,7 @@ All notable changes to this project will be documented in this file.
 - The "Edit Repository" modal now includes a "Tasks" tab for managing that repository's specific automation scripts.
 - The application header now serves as the primary navigation control.
 
-## [1.1.0] - YYYY-MM-DD
+## [0.1.0]
 
 ### Added
 - **Scriptable Tasks:** Major new feature allowing users to create, manage, and run custom multi-step automation scripts.
@@ -83,7 +83,7 @@ All notable changes to this project will be documented in this file.
 - Refactored automation engine to support dynamic task steps instead of a hard-coded workflow.
 - Updated all documentation to reflect the new scriptable tasks feature.
 
-## [1.0.0] - YYYY-MM-DD
+## [0.0.1]
 
 ### Added
 

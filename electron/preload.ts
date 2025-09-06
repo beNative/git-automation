@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   mergeBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('merge-branch', repoPath, branch),
   ignoreFilesAndPush: (args: { repo: Repository, filesToIgnore: string[] }): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('ignore-files-and-push', args),
 
+
   // Local Path and Actions
   checkLocalPath: (path: string): Promise<LocalPathState> => ipcRenderer.invoke('check-local-path', path),
   discoverRemoteUrl: (args: { localPath: string, vcs: VcsType }): Promise<{ url: string | null; error?: string }> => ipcRenderer.invoke('discover-remote-url', args),
@@ -70,4 +71,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   logToFileInit: () => ipcRenderer.send('log-to-file-init'),
   logToFileClose: () => ipcRenderer.send('log-to-file-close'),
   logToFileWrite: (log: DebugLogEntry) => ipcRenderer.send('log-to-file-write', log),
+
+  // Auto Update
+  onUpdateStatusChange: (callback: (event: IpcRendererEvent, data: any) => void) => {
+    ipcRenderer.on('update-status-change', callback);
+  },
+  removeUpdateStatusChangeListener: (callback: (event: IpcRendererEvent, data: any) => void) => {
+    ipcRenderer.removeListener('update-status-change', callback);
+  },
 });

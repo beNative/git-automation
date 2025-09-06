@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
@@ -70,6 +71,40 @@ app.on('ready', () => {
       console.error("Could not create logs directory.", err);
   });
   createWindow();
+
+  // --- Auto-updater logic ---
+  if (app.isPackaged) {
+    console.log('App is packaged, initializing auto-updater.');
+    
+    autoUpdater.on('checking-for-update', () => {
+        console.log('Checking for update...');
+        mainWindow?.webContents.send('update-status-change', { status: 'checking', message: 'Checking for updates...' });
+    });
+    autoUpdater.on('update-available', (info) => {
+        console.log('Update available.', info);
+        mainWindow?.webContents.send('update-status-change', { status: 'available', message: `Update v${info.version} available. Downloading...` });
+    });
+    autoUpdater.on('update-not-available', (info) => {
+        console.log('Update not available.', info);
+    });
+    autoUpdater.on('error', (err) => {
+        console.error('Error in auto-updater.', err);
+        mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Error in auto-updater: ${err.message}` });
+    });
+    autoUpdater.on('download-progress', (progressObj) => {
+        const log_message = `Downloaded ${progressObj.percent.toFixed(2)}%`;
+        console.log(log_message);
+    });
+    autoUpdater.on('update-downloaded', (info) => {
+        console.log('Update downloaded.', info);
+        mainWindow?.webContents.send('update-status-change', { status: 'downloaded', message: `Update v${info.version} downloaded. It will be installed on restart.` });
+    });
+
+    // Check for updates
+    autoUpdater.checkForUpdatesAndNotify();
+  } else {
+    console.log('App is not packaged, skipping auto-updater.');
+  }
 });
 
 // Quit when all windows are closed, except on macOS.

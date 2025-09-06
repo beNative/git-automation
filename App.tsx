@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
-import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo } from './types';
+import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage } from './types';
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
 import RepoEditView from './components/modals/RepoFormModal';
@@ -105,7 +105,35 @@ const App: React.FC = () => {
     if (window.electronAPI?.getAppVersion) {
       window.electronAPI.getAppVersion().then(setAppVersion);
     }
-  }, []);
+  }, [logger]);
+
+  // Effect for auto-updater
+  useEffect(() => {
+    const handleUpdateStatus = (_event: any, data: UpdateStatusMessage) => {
+        logger.info(`Update status change received: ${data.status}`, data);
+        switch (data.status) {
+            case 'available':
+                setToast({ message: data.message, type: 'info' });
+                break;
+            case 'downloaded':
+                setToast({ message: data.message, type: 'success' });
+                break;
+            case 'error':
+                setToast({ message: data.message, type: 'error' });
+                break;
+        }
+    };
+
+    if (window.electronAPI?.onUpdateStatusChange) {
+        window.electronAPI.onUpdateStatusChange(handleUpdateStatus);
+    }
+
+    return () => {
+        if (window.electronAPI?.removeUpdateStatusChangeListener) {
+            window.electronAPI.removeUpdateStatusChangeListener(handleUpdateStatus);
+        }
+    };
+  }, [logger]);
   
   // Effect to check local paths
   useEffect(() => {
@@ -131,7 +159,7 @@ const App: React.FC = () => {
         logger.info('Local path check complete.', finalStates);
     };
     checkPaths();
-  }, [repositories, isDataLoading]);
+  }, [repositories, isDataLoading, logger]);
   
   // New effect to fetch detailed VCS statuses and branch lists
   useEffect(() => {
@@ -161,7 +189,7 @@ const App: React.FC = () => {
     };
 
     fetchStatuses();
-  }, [repositories, localPathStates, isDataLoading]);
+  }, [repositories, localPathStates, isDataLoading, logger]);
 
 
   // Effect to detect executables when paths are validated
@@ -184,7 +212,7 @@ const App: React.FC = () => {
       logger.info('Executable detection complete.', executablesByRepo);
     };
     detectAll();
-  }, [repositories, localPathStates, isDataLoading]);
+  }, [repositories, localPathStates, isDataLoading, logger]);
 
   // Effect to apply theme
   useEffect(() => {
@@ -196,7 +224,7 @@ const App: React.FC = () => {
           document.documentElement.classList.remove('dark');
         }
     }
-  }, [settings?.theme]);
+  }, [settings?.theme, logger]);
   
   // Effect for Command Palette & Debug Panel
   useEffect(() => {

@@ -68,3 +68,14 @@ To publish a new version for manual download:
 1.  **Increment Version:** Bump the `version` in `package.json`.
 2.  **Run Pack:** Execute `npm run pack`. This will generate the installers in the `release/` folder.
 3.  **Publish Release:** Go to your repository's "Releases" page on GitHub, create a new release, and upload the generated installer files.
+## 7. Automatic Updates
+
+The application is configured to automatically check for updates on startup.
+
+-   **Update Source:** It checks for new releases published on the project's [GitHub Releases page](https://github.com/ai-studio-sdk/git-automation-dashboard-example/releases).
+-   **Process:** When a new version is found, it is downloaded in the background. You will receive a notification when the download is complete. The update will be automatically installed the next time you quit and restart the application.
+-   **Publishing a New Version:** To publish a new release, a developer with repository access must:
+    1.  Ensure the `version` in `package.json` is incremented.
+    2.  Create a `GH_TOKEN` (GitHub Personal Access Token) with `repo` scopes and make it available as an environment variable.
+    3.  Run the command `npm run publish`. This will build the application, create installers, and upload them to a new draft release on GitHub.
+    4.  Navigate to the GitHub release, add release notes, and publish it.
