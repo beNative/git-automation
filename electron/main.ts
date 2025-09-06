@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
 import { GoogleGenAI, Type } from '@google/genai';
-import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject } from '../types';
+import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 
@@ -189,6 +189,33 @@ const findFilesByExtensionRecursive = async (
   return results;
 };
 
+// --- Helper function for finding files by patterns like "jest.config" ---
+const findFileByPattern = async (
+    dir: string,
+    patterns: string[],
+    repoRoot: string,
+    depth = 0,
+    maxDepth = 2
+): Promise<string[]> => {
+    let results: string[] = [];
+    if (depth > maxDepth) return [];
+    try {
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                if (entry.name !== 'node_modules' && !entry.name.startsWith('.')) {
+                    results = results.concat(await findFileByPattern(fullPath, patterns, repoRoot, depth + 1, maxDepth));
+                }
+            } else if (patterns.some(p => entry.name.startsWith(p))) {
+                results.push(path.relative(repoRoot, fullPath));
+            }
+        }
+    } catch (err) {}
+    return results;
+};
+
+
 // --- Helper for checking file existence ---
 const fileExists = async (basePath: string, ...fileParts: string[]) => {
     try {
@@ -213,7 +240,7 @@ const getTomlSection = (content: string, sectionName: string): string | null => 
 
 // FIX: Extracted project info logic into a reusable function to fix type errors and allow direct calls from other handlers.
 const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
-    if (!repoPath) return { tags: [], files: {}, python: undefined };
+    if (!repoPath) return { tags: [], files: {}, python: undefined, delphi: undefined, nodejs: undefined };
 
     const tagsSet = new Set<string>();
     const info: ProjectInfo = {
@@ -221,6 +248,7 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
         files: { dproj: [] },
         python: undefined,
         delphi: undefined,
+        nodejs: undefined,
     };
 
     try {
@@ -228,13 +256,6 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
         if (await fileExists(repoPath, '.git')) tagsSet.add('git');
         if (await fileExists(repoPath, '.svn')) tagsSet.add('svn');
         
-        // Project files
-        const dirContents = await fs.readdir(repoPath);
-
-        if (dirContents.includes('package.json')) {
-            tagsSet.add('node');
-        }
-
         // --- Delphi Project Detection ---
         let isDelphiProject = false;
         const delphiCaps: DelphiCapabilities = {
@@ -369,6 +390,64 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
         if (isPythonProject) {
             tagsSet.add('python');
             info.python = pyCapabilities;
+        }
+
+        // --- Node.js Project Detection ---
+        let isNodeProject = false;
+        const nodejsCaps: NodejsCapabilities = {
+            engine: null,
+            declaredManager: null,
+            packageManagers: { pnpm: false, yarn: false, npm: false, bun: false },
+            typescript: false,
+            testFrameworks: [],
+            linters: [],
+            bundlers: [],
+            monorepo: { workspaces: false, turbo: false, nx: false, yarnBerryPnp: false },
+        };
+
+        if (await fileExists(repoPath, 'package.json')) {
+            isNodeProject = true;
+            try {
+                const pkgContent = await fs.readFile(path.join(repoPath, 'package.json'), 'utf-8');
+                const pkg = JSON.parse(pkgContent);
+                if (pkg.engines?.node) nodejsCaps.engine = pkg.engines.node;
+                if (pkg.packageManager) nodejsCaps.declaredManager = pkg.packageManager;
+                if (pkg.workspaces) nodejsCaps.monorepo.workspaces = true;
+            } catch (e) { console.error('Could not parse package.json', e); }
+        }
+
+        // Check lockfiles
+        if (await fileExists(repoPath, 'pnpm-lock.yaml')) { nodejsCaps.packageManagers.pnpm = true; isNodeProject = true; }
+        if (await fileExists(repoPath, 'yarn.lock')) { nodejsCaps.packageManagers.yarn = true; isNodeProject = true; }
+        if (await fileExists(repoPath, 'package-lock.json')) { nodejsCaps.packageManagers.npm = true; isNodeProject = true; }
+        if (await fileExists(repoPath, 'bun.lockb')) { nodejsCaps.packageManagers.bun = true; isNodeProject = true; }
+
+        // Check tooling configs
+        if (await fileExists(repoPath, 'tsconfig.json')) nodejsCaps.typescript = true;
+        if ((await findFileByPattern(repoPath, ['eslint.config.', '.eslintrc'], repoPath)).length > 0) nodejsCaps.linters.push('eslint');
+        if ((await findFileByPattern(repoPath, ['.prettierrc'], repoPath)).length > 0) nodejsCaps.linters.push('prettier');
+
+        // Test frameworks
+        if ((await findFileByPattern(repoPath, ['jest.config.'], repoPath)).length > 0) nodejsCaps.testFrameworks.push('jest');
+        if ((await findFileByPattern(repoPath, ['vitest.config.'], repoPath)).length > 0) nodejsCaps.testFrameworks.push('vitest');
+        if ((await findFileByPattern(repoPath, ['playwright.config.'], repoPath)).length > 0) nodejsCaps.testFrameworks.push('playwright');
+        if ((await findFileByPattern(repoPath, ['cypress.config.'], repoPath)).length > 0) nodejsCaps.testFrameworks.push('cypress');
+
+        // Bundlers
+        if ((await findFileByPattern(repoPath, ['vite.config.'], repoPath)).length > 0) nodejsCaps.bundlers.push('vite');
+        if ((await findFileByPattern(repoPath, ['webpack.config.'], repoPath)).length > 0) nodejsCaps.bundlers.push('webpack');
+        if ((await findFileByPattern(repoPath, ['rollup.config.'], repoPath)).length > 0) nodejsCaps.bundlers.push('rollup');
+        if ((await findFileByPattern(repoPath, ['tsup.config.'], repoPath)).length > 0) nodejsCaps.bundlers.push('tsup');
+        if (await fileExists(repoPath, '.swcrc')) nodejsCaps.bundlers.push('swc');
+
+        // Monorepo managers
+        if (await fileExists(repoPath, 'turbo.json')) nodejsCaps.monorepo.turbo = true;
+        if (await fileExists(repoPath, 'nx.json')) nodejsCaps.monorepo.nx = true;
+        if (await fileExists(repoPath, '.pnp.cjs')) nodejsCaps.monorepo.yarnBerryPnp = true;
+        
+        if (isNodeProject) {
+            tagsSet.add('nodejs');
+            info.nodejs = nodejsCaps;
         }
 
     } catch (error) {
@@ -962,14 +1041,32 @@ const getPythonCommandParts = async (repoPath: string): Promise<{ executable: st
     }
 };
 
-async function runDelphiCommand(command: string, args: string[], repoPath: string, sender: (channel: string, ...args: any[]) => void, executionId: string) {
-    if (os.platform() !== 'win32') {
-        throw new Error('Delphi tasks can only be run on Windows.');
-    }
-    // Assumes rsvars.bat is in the system's PATH.
-    const fullCommand = `call rsvars.bat && ${command} ${args.join(' ')}`;
-    // The `runChildProcess` function uses shell:true, so we can pass the full command string.
-    await runChildProcess(repoPath, fullCommand, [], sender, executionId);
+// --- Promise-based command executor ---
+function executeCommand(cwd: string, fullCommand: string, sender: (channel: string, ...args: any[]) => void, executionId: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+        sender('task-log', { executionId, message: `$ ${fullCommand}`, level: LogLevel.Command });
+        
+        const child = spawn(fullCommand, [], { cwd, shell: true });
+
+        const stdoutLogger = createLineLogger(executionId, LogLevel.Info, sender);
+        const stderrLogger = createLineLogger(executionId, LogLevel.Info, sender);
+
+        child.stdout.on('data', stdoutLogger.process);
+        child.stderr.on('data', stderrLogger.process);
+        child.on('error', (err) => sender('task-log', { executionId, message: `Spawn error: ${err.message}`, level: LogLevel.Error }));
+        
+        child.on('close', (code) => {
+            stdoutLogger.flush();
+            stderrLogger.flush();
+            if (code !== 0) {
+                sender('task-log', { executionId, message: `Command exited with code ${code}`, level: LogLevel.Error });
+                reject(code ?? 1);
+            } else {
+                sender('task-log', { executionId, message: 'Step completed successfully.', level: LogLevel.Success });
+                resolve(0);
+            }
+        });
+    });
 }
 
 
@@ -985,193 +1082,154 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId }:
         sender('task-step-end', { executionId, exitCode });
     };
 
-    let command: string;
-    let args: string[] = [];
+    try {
+        const projectInfo = await getProjectInfo(repo.localPath);
 
-    // FIX: Directly call the refactored getProjectInfo function instead of misusing ipcMain.handle.
-    const projectInfo = await getProjectInfo(repo.localPath);
-    const pyCaps = projectInfo.python;
+        const run = (cmd: string) => executeCommand(repo.localPath, cmd, sender, executionId);
 
-    switch(step.type) {
-        // Git Steps
-        case TaskStepType.GitPull: command = 'git'; args = ['pull']; break;
-        case TaskStepType.GitFetch: command = 'git'; args = ['fetch']; break;
-        case TaskStepType.GitCheckout:
-            if (!step.branch) { sendLog('Skipping checkout: no branch specified.', LogLevel.Warn); sendEnd(0); return; }
-            command = 'git'; args = ['checkout', step.branch]; break;
-        case TaskStepType.GitStash: command = 'git'; args = ['stash']; break;
-        // SVN Steps
-        case TaskStepType.SvnUpdate: command = 'svn'; args = ['update']; break;
-        // Common Steps
-        case TaskStepType.RunCommand:
-            if (!step.command) { sendLog('Skipping empty command.', LogLevel.Warn); sendEnd(0); return; }
-            const parts = step.command.split(' ');
-            command = parts[0]; args = parts.slice(1); break;
-        
-        // --- Delphi Steps ---
-        case TaskStepType.DelphiBuild:
-            try {
+        switch(step.type) {
+            // Git Steps
+            case TaskStepType.GitPull: await run('git pull'); break;
+            case TaskStepType.GitFetch: await run('git fetch'); break;
+            case TaskStepType.GitCheckout:
+                if (!step.branch) { sendLog('Skipping checkout: no branch specified.', LogLevel.Warn); sendEnd(0); return; }
+                await run(`git checkout ${step.branch}`); break;
+            case TaskStepType.GitStash: await run('git stash'); break;
+            // SVN Steps
+            case TaskStepType.SvnUpdate: await run('svn update'); break;
+            // Common Steps
+            case TaskStepType.RunCommand:
+                if (!step.command) { sendLog('Skipping empty command.', LogLevel.Warn); sendEnd(0); return; }
+                await run(step.command); break;
+            
+            // --- Delphi Steps ---
+            case TaskStepType.DelphiBuild:
                 const projectFile = step.delphiProjectFile || projectInfo.delphi?.projects[0]?.path || projectInfo.delphi?.groups[0];
                 if (!projectFile) throw new Error('No .dproj or .groupproj file found or specified for build step.');
-                
                 const mode = step.delphiBuildMode || 'Build';
                 const config = step.delphiConfiguration || 'Release';
                 const platform = step.delphiPlatform || 'Win32';
-                
-                const buildArgs = [`"${projectFile}"`, `/t:${mode}`, `/p:Configuration=${config}`, `/p:Platform=${platform}`];
-                
-                await runDelphiCommand('msbuild', buildArgs, repo.localPath, sender, executionId);
-                sendEnd(0);
-            } catch (e: any) {
-                sendLog(`Error during Delphi Build: ${e.message}`, LogLevel.Error);
-                sendEnd(1);
-            }
-            return;
-        case TaskStepType.DELPHI_PACKAGE_INNO:
-            try {
-                const scriptFile = step.delphiInstallerScript || projectInfo.delphi?.packaging.innoSetup[0];
-                if (!scriptFile) throw new Error('No Inno Setup script (.iss) file found or specified.');
-                
-                const defines = (step.delphiInstallerDefines || '').split(';').filter(d => d.trim()).map(d => `/d${d.trim()}`);
-                
-                await runDelphiCommand('iscc', [`"${scriptFile}"`, ...defines], repo.localPath, sender, executionId);
-                sendEnd(0);
-            } catch (e: any) {
-                sendLog(`Error during Inno Setup packaging: ${e.message}`, LogLevel.Error);
-                sendEnd(1);
-            }
-            return;
-        case TaskStepType.DELPHI_PACKAGE_NSIS:
-            try {
-                const scriptFile = step.delphiInstallerScript || projectInfo.delphi?.packaging.nsis[0];
-                if (!scriptFile) throw new Error('No NSIS script (.nsi) file found or specified.');
-                
-                const defines = (step.delphiInstallerDefines || '').split(';').filter(d => d.trim()).map(d => `/D${d.trim()}`);
-                
-                await runDelphiCommand('makensis', [...defines, `"${scriptFile}"`], repo.localPath, sender, executionId);
-                sendEnd(0);
-            } catch (e: any) {
-                sendLog(`Error during NSIS packaging: ${e.message}`, LogLevel.Error);
-                sendEnd(1);
-            }
-            return;
-        case TaskStepType.DELPHI_TEST_DUNITX:
-            try {
+                await run(`call rsvars.bat && msbuild "${projectFile}" /t:${mode} /p:Configuration=${config} /p:Platform=${platform}`);
+                break;
+            case TaskStepType.DELPHI_PACKAGE_INNO:
+                const issFile = step.delphiInstallerScript || projectInfo.delphi?.packaging.innoSetup[0];
+                if (!issFile) throw new Error('No Inno Setup script (.iss) file found or specified.');
+                const issDefines = (step.delphiInstallerDefines || '').split(';').filter(d => d.trim()).map(d => `/d${d.trim()}`).join(' ');
+                await run(`call rsvars.bat && iscc "${issFile}" ${issDefines}`);
+                break;
+            case TaskStepType.DELPHI_PACKAGE_NSIS:
+                const nsiFile = step.delphiInstallerScript || projectInfo.delphi?.packaging.nsis[0];
+                if (!nsiFile) throw new Error('No NSIS script (.nsi) file found or specified.');
+                const nsiDefines = (step.delphiInstallerDefines || '').split(';').filter(d => d.trim()).map(d => `/D${d.trim()}`).join(' ');
+                await run(`call rsvars.bat && makensis ${nsiDefines} "${nsiFile}"`);
+                break;
+            case TaskStepType.DELPHI_TEST_DUNITX:
                 const testExe = step.delphiTestExecutable;
                 if (!testExe) throw new Error('Path to DUnitX test executable is not specified.');
+                const outputArgs = step.delphiTestOutputFile ? `--format=JUnit --output="${step.delphiTestOutputFile}"` : '';
+                await run(`"${testExe}" ${outputArgs}`);
+                break;
                 
-                const outputArgs = step.delphiTestOutputFile ? [`--format=JUnit`, `--output="${step.delphiTestOutputFile}"`] : [];
-                
-                // DUnitX tests are executables; they don't strictly need rsvars, but running via the wrapper is harmless and consistent.
-                await runDelphiCommand(`"${testExe}"`, outputArgs, repo.localPath, sender, executionId);
-                sendEnd(0);
-            } catch (e: any) {
-                sendLog(`Error during DUnitX test run: ${e.message}`, LogLevel.Error);
-                sendEnd(1);
-            }
-            return;
-            
-        // --- Python Steps ---
-        case TaskStepType.PYTHON_CREATE_VENV:
-            const globalPy = os.platform() === 'win32' ? 'py' : 'python3';
-            command = globalPy; args = ['-m', 'venv', '.venv']; break;
-        case TaskStepType.PYTHON_INSTALL_DEPS:
-            const { executable: pyExec } = await getPythonCommandParts(repo.localPath);
-            switch(pyCaps?.envManager) {
-                case 'poetry': command = 'poetry'; args = ['install']; break;
-                case 'pdm': command = 'pdm'; args = ['install']; break;
-                case 'pipenv': command = 'pipenv'; args = ['sync', '--dev']; break;
-                case 'conda': command = 'conda'; args = ['env', 'update', '-f', 'environment.yml']; break;
-                default: command = pyExec; args = ['-m', 'pip', 'install', '-r', 'requirements.txt']; break;
-            }
-            break;
-        case TaskStepType.PYTHON_RUN_TESTS:
-             const { executable: testPyExec } = await getPythonCommandParts(repo.localPath);
-             switch(pyCaps?.testFramework) {
-                case 'tox': command = 'tox'; break;
-                case 'nox': command = 'nox'; break;
-                default: command = testPyExec; args = ['-m', 'pytest']; break;
-             }
-             break;
-        case TaskStepType.PYTHON_RUN_BUILD:
-            const { executable: buildPyExec } = await getPythonCommandParts(repo.localPath);
-            switch(pyCaps?.buildBackend) {
-                case 'poetry': command = 'poetry'; args = ['build']; break;
-                case 'pdm': command = 'pdm'; args = ['build']; break;
-                case 'hatch': command = 'hatch'; args = ['build']; break;
-                default: command = buildPyExec; args = ['-m', 'build']; break;
-            }
-            break;
-        // The following steps run all detected tools for their category
-        case TaskStepType.PYTHON_RUN_LINT:
-        case TaskStepType.PYTHON_RUN_FORMAT:
-        case TaskStepType.PYTHON_RUN_TYPECHECK:
-             // These are complex and can run multiple commands. We'll handle them separately.
-             const commandsToRun: { command: string, args: string[] }[] = [];
-             const { executable: toolPyExec } = await getPythonCommandParts(repo.localPath);
-             
-             if (step.type === TaskStepType.PYTHON_RUN_LINT && pyCaps?.linters.includes('ruff')) commandsToRun.push({ command: toolPyExec, args: ['-m', 'ruff', 'check', '.'] });
-             if (step.type === TaskStepType.PYTHON_RUN_LINT && pyCaps?.linters.includes('pylint')) commandsToRun.push({ command: toolPyExec, args: ['-m', 'pylint', './'] });
-             if (step.type === TaskStepType.PYTHON_RUN_FORMAT && pyCaps?.formatters.includes('black')) commandsToRun.push({ command: toolPyExec, args: ['-m', 'black', '.'] });
-             if (step.type === TaskStepType.PYTHON_RUN_FORMAT && pyCaps?.formatters.includes('isort')) commandsToRun.push({ command: toolPyExec, args: ['-m', 'isort', '.'] });
-             if (step.type === TaskStepType.PYTHON_RUN_TYPECHECK && pyCaps?.typeCheckers.includes('mypy')) commandsToRun.push({ command: toolPyExec, args: ['-m', 'mypy', '.'] });
-
-             if (commandsToRun.length === 0) {
-                sendLog(`No tools detected for step ${step.type}. Skipping.`, LogLevel.Warn);
-                sendEnd(0);
-                return;
-             }
-             // Execute commands sequentially
-             (async () => {
-                for (const cmd of commandsToRun) {
-                    try {
-                        await runChildProcess(repo.localPath, cmd.command, cmd.args, sender, executionId);
-                    } catch (code) {
-                        sendEnd(code as number);
-                        return;
-                    }
+            // --- Python Steps ---
+            case TaskStepType.PYTHON_CREATE_VENV:
+                const globalPy = os.platform() === 'win32' ? 'py' : 'python3';
+                await run(`${globalPy} -m venv .venv`); break;
+            case TaskStepType.PYTHON_INSTALL_DEPS:
+                const { executable: pyExec } = await getPythonCommandParts(repo.localPath);
+                switch(projectInfo.python?.envManager) {
+                    case 'poetry': await run('poetry install'); break;
+                    case 'pdm': await run('pdm install'); break;
+                    case 'pipenv': await run('pipenv sync --dev'); break;
+                    case 'conda': await run('conda env update -f environment.yml'); break;
+                    default: await run(`${pyExec} -m pip install -r requirements.txt`); break;
                 }
-                sendEnd(0);
-             })();
-             return; // Important: return to prevent default spawn logic from running
-        default:
-            sendLog(`Unknown step type: ${step.type}`, LogLevel.Error);
-            sendEnd(1);
-            return;
-    }
+                break;
+            case TaskStepType.PYTHON_RUN_TESTS:
+                 const { executable: testPyExec } = await getPythonCommandParts(repo.localPath);
+                 switch(projectInfo.python?.testFramework) {
+                    case 'tox': await run('tox'); break;
+                    case 'nox': await run('nox'); break;
+                    default: await run(`${testPyExec} -m pytest`); break;
+                 }
+                 break;
+            case TaskStepType.PYTHON_RUN_BUILD:
+                const { executable: buildPyExec } = await getPythonCommandParts(repo.localPath);
+                switch(projectInfo.python?.buildBackend) {
+                    case 'poetry': await run('poetry build'); break;
+                    case 'pdm': await run('pdm build'); break;
+                    case 'hatch': await run('hatch build'); break;
+                    default: await run(`${buildPyExec} -m build`); break;
+                }
+                break;
+            case TaskStepType.PYTHON_RUN_LINT:
+            case TaskStepType.PYTHON_RUN_FORMAT:
+            case TaskStepType.PYTHON_RUN_TYPECHECK:
+                 const { executable: toolPyExec } = await getPythonCommandParts(repo.localPath);
+                 if (step.type === TaskStepType.PYTHON_RUN_LINT && projectInfo.python?.linters.includes('ruff')) await run(`${toolPyExec} -m ruff check .`);
+                 if (step.type === TaskStepType.PYTHON_RUN_LINT && projectInfo.python?.linters.includes('pylint')) await run(`${toolPyExec} -m pylint ./`);
+                 if (step.type === TaskStepType.PYTHON_RUN_FORMAT && projectInfo.python?.formatters.includes('black')) await run(`${toolPyExec} -m black .`);
+                 if (step.type === TaskStepType.PYTHON_RUN_FORMAT && projectInfo.python?.formatters.includes('isort')) await run(`${toolPyExec} -m isort .`);
+                 if (step.type === TaskStepType.PYTHON_RUN_TYPECHECK && projectInfo.python?.typeCheckers.includes('mypy')) await run(`${toolPyExec} -m mypy .`);
+                 break;
+            
+            // --- Node.js Steps ---
+            case TaskStepType.NODE_INSTALL_DEPS:
+                const nodeCaps = projectInfo.nodejs;
+                let pmCommand: string;
+                if (nodeCaps?.declaredManager?.startsWith('pnpm')) pmCommand = 'pnpm install --frozen-lockfile';
+                else if (nodeCaps?.packageManagers.pnpm) pmCommand = 'pnpm install --frozen-lockfile';
+                else if (nodeCaps?.packageManagers.yarn) pmCommand = 'yarn install --immutable';
+                else pmCommand = 'npm ci';
+                await run(pmCommand);
+                break;
+            case TaskStepType.NODE_RUN_LINT:
+                if (projectInfo.nodejs?.linters.includes('eslint')) await run('npx eslint . --max-warnings=0');
+                if (projectInfo.nodejs?.linters.includes('prettier')) await run('npx prettier . --check');
+                break;
+            case TaskStepType.NODE_RUN_FORMAT:
+                if (projectInfo.nodejs?.linters.includes('prettier')) await run('npx prettier . --write');
+                if (projectInfo.nodejs?.linters.includes('eslint')) await run('npx eslint . --fix');
+                break;
+            case TaskStepType.NODE_RUN_TYPECHECK:
+                await run('npx tsc --noEmit');
+                break;
+            case TaskStepType.NODE_RUN_TESTS:
+                if (projectInfo.nodejs?.testFrameworks.includes('vitest')) {
+                    await run('npx vitest run --reporter=junit --coverage.enabled');
+                } else {
+                    await run('npx jest --ci --reporters=default --reporters=jest-junit --coverage --coverageReporters=cobertura');
+                }
+                break;
+            case TaskStepType.NODE_RUN_BUILD:
+                let buildCommand: string | null = null;
+                try {
+                    const pkg = JSON.parse(await fs.readFile(path.join(repo.localPath, 'package.json'), 'utf-8'));
+                    if (pkg.scripts?.build) {
+                        const pm = projectInfo.nodejs?.packageManagers.pnpm ? 'pnpm' : (projectInfo.nodejs?.packageManagers.yarn ? 'yarn' : 'npm');
+                        buildCommand = `${pm} run build`;
+                    }
+                } catch (e) { /* ignore parse error */ }
+                
+                if (buildCommand) {
+                    await run(buildCommand);
+                } else {
+                    if (projectInfo.nodejs?.bundlers.includes('vite')) await run('npx vite build');
+                    else if (projectInfo.nodejs?.bundlers.includes('tsup')) await run('npx tsup');
+                    else throw new Error("No 'build' script found in package.json and no known bundler config detected.");
+                }
+                break;
+            default:
+                throw new Error(`Unknown step type: ${step.type}`);
+        }
 
-    runChildProcess(repo.localPath, command, args, sender, executionId)
-        .then(() => sendEnd(0))
-        .catch((code) => sendEnd(code));
+        sendEnd(0);
+    } catch (error: any) {
+        sendLog(`Error during step '${step.type}': ${error.message}`, LogLevel.Error);
+        sendEnd(typeof error === 'number' ? error : 1);
+    }
 });
 
-// Helper function to promisify spawning a child process
-function runChildProcess(cwd: string, command: string, args: string[], sender: (channel: string, ...args: any[]) => void, executionId: string): Promise<number> {
-    return new Promise((resolve, reject) => {
-        const fullCmd = args.length > 0 ? `${command} ${args.join(' ')}` : command;
-        sender('task-log', { executionId, message: `$ ${fullCmd}`, level: LogLevel.Command });
-        
-        const child = spawn(command, args, { cwd, shell: true });
 
-        const stdoutLogger = createLineLogger(executionId, LogLevel.Info, sender);
-        const stderrLogger = createLineLogger(executionId, LogLevel.Info, sender);
-
-        child.stdout.on('data', stdoutLogger.process);
-        child.stderr.on('data', stderrLogger.process);
-        child.on('error', (err) => sender('task-log', { executionId, message: `Spawn error: ${err.message}`, level: LogLevel.Error }));
-        child.on('close', (code) => {
-            stdoutLogger.flush();
-            stderrLogger.flush();
-            if (code !== 0) {
-                sender('task-log', { executionId, message: `Command exited with code ${code}`, level: LogLevel.Error });
-                reject(code ?? 1);
-            } else {
-                sender('task-log', { executionId, message: 'Step completed successfully.', level: LogLevel.Success });
-                resolve(0);
-            }
-        });
-    });
-}
 
 
 // =================================================================

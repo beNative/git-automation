@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -22,6 +22,7 @@ import { useTooltip } from '../../hooks/useTooltip';
 import { useLogger } from '../../hooks/useLogger';
 import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';
 import { PythonIcon } from '../icons/PythonIcon';
+import { NodeIcon } from '../icons/NodeIcon';
 
 interface RepoEditViewProps {
   onSave: (repository: Repository) => void;
@@ -66,6 +67,13 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.PYTHON_RUN_TYPECHECK]: { label: 'Python: Run Type Check', icon: PythonIcon, description: 'Run all detected type checkers (e.g., Mypy).' },
   [TaskStepType.PYTHON_RUN_TESTS]: { label: 'Python: Run Tests', icon: PythonIcon, description: 'Run tests using the detected framework (e.g., Pytest).' },
   [TaskStepType.PYTHON_RUN_BUILD]: { label: 'Python: Build Package', icon: PythonIcon, description: 'Build wheel and sdist using the detected backend.' },
+  // Node.js
+  [TaskStepType.NODE_INSTALL_DEPS]: { label: 'Node: Install Deps', icon: NodeIcon, description: 'Install dependencies using the detected package manager.' },
+  [TaskStepType.NODE_RUN_LINT]: { label: 'Node: Run Linting', icon: NodeIcon, description: 'Run ESLint and Prettier to find issues.' },
+  [TaskStepType.NODE_RUN_FORMAT]: { label: 'Node: Format Code', icon: NodeIcon, description: 'Format code using Prettier and ESLint.' },
+  [TaskStepType.NODE_RUN_TYPECHECK]: { label: 'Node: Type Check', icon: NodeIcon, description: 'Run the TypeScript compiler to check for type errors.' },
+  [TaskStepType.NODE_RUN_TESTS]: { label: 'Node: Run Tests', icon: NodeIcon, description: 'Run unit/integration tests with Jest or Vitest.' },
+  [TaskStepType.NODE_RUN_BUILD]: { label: 'Node: Build Project', icon: NodeIcon, description: 'Run the build script or detected bundler.' },
 };
 
 // Component for a single step in the TaskStepsEditor
@@ -308,6 +316,74 @@ const TaskVariablesEditor: React.FC<{
   );
 }
 
+const NodejsTaskGenerator: React.FC<{
+    nodejsCaps: NodejsCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ nodejsCaps, onAddTask }) => {
+    if (!nodejsCaps) return null;
+    
+    const createInstallTask = () => onAddTask({
+        name: 'Install Dependencies',
+        steps: [{ type: TaskStepType.NODE_INSTALL_DEPS, id: '', enabled: true }]
+    });
+
+    const createCiTask = () => {
+        const steps: Omit<TaskStep, 'id'>[] = [
+            { type: TaskStepType.NODE_INSTALL_DEPS, enabled: true },
+        ];
+        if (nodejsCaps.linters.includes('eslint') || nodejsCaps.linters.includes('prettier')) {
+            steps.push({ type: TaskStepType.NODE_RUN_LINT, enabled: true });
+        }
+        if (nodejsCaps.typescript) {
+            steps.push({ type: TaskStepType.NODE_RUN_TYPECHECK, enabled: true });
+        }
+        if (nodejsCaps.testFrameworks.length > 0) {
+            steps.push({ type: TaskStepType.NODE_RUN_TESTS, enabled: true });
+        }
+        steps.push({ type: TaskStepType.NODE_RUN_BUILD, enabled: true });
+
+        onAddTask({
+            name: 'CI Checks & Build',
+            steps: steps.map(s => ({...s, id: ''}))
+        });
+    };
+
+    let detectedManager = 'npm';
+    if (nodejsCaps.declaredManager) detectedManager = nodejsCaps.declaredManager.split('@')[0];
+    else if (nodejsCaps.packageManagers.pnpm) detectedManager = 'pnpm';
+    else if (nodejsCaps.packageManagers.yarn) detectedManager = 'yarn';
+    else if (nodejsCaps.packageManagers.bun) detectedManager = 'bun';
+
+    const detectedTools = [
+        `Manager: ${detectedManager}`,
+        ...(nodejsCaps.typescript ? ['TypeScript'] : []),
+        ...nodejsCaps.testFrameworks,
+        ...nodejsCaps.linters,
+        ...nodejsCaps.bundlers,
+        ...(nodejsCaps.monorepo.turbo ? ['Turbo'] : []),
+        ...(nodejsCaps.monorepo.nx ? ['NX'] : []),
+    ].map(t => t.charAt(0).toUpperCase() + t.slice(1));
+
+
+    return (
+        <div className="p-3 mb-4 bg-green-50 dark:bg-gray-900/50 rounded-lg border border-green-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <NodeIcon className="h-5 w-5 text-green-500"/>
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Node.js Project Detected</h3>
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                {detectedTools.map(tool => (
+                    <span key={tool} className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 px-2 py-0.5 rounded-full">{tool}</span>
+                ))}
+            </div>
+            <div className="flex gap-2">
+                <button type="button" onClick={createInstallTask} className="text-xs font-medium text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-md">Add Install Task</button>
+                <button type="button" onClick={createCiTask} className="text-xs font-medium text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-md">Add CI/Checks Task</button>
+            </div>
+        </div>
+    );
+};
+
 const PythonTaskGenerator: React.FC<{
     pythonCaps: PythonCapabilities | undefined;
     onAddTask: (task: Partial<Task>) => void;
@@ -537,6 +613,7 @@ const TaskStepsEditor: React.FC<{
         if (type.startsWith('SVN_')) return vcs === VcsType.Svn;
         if (type.startsWith('DELPHI_')) return tags.includes('delphi');
         if (type.startsWith('PYTHON_')) return tags.includes('python');
+        if (type.startsWith('NODE_')) return tags.includes('nodejs');
         // All other steps (like RunCommand) are always available.
         return true;
     });
@@ -582,6 +659,7 @@ const TaskStepsEditor: React.FC<{
           </div>
       )}
       
+      <NodejsTaskGenerator nodejsCaps={projectInfo?.nodejs} onAddTask={onAddTask} />
       <DelphiTaskGenerator delphiCaps={projectInfo?.delphi} onAddTask={onAddTask} />
       <PythonTaskGenerator pythonCaps={projectInfo?.python} onAddTask={onAddTask} />
 

@@ -1,4 +1,4 @@
-// FIX: Removed self-import which caused declaration conflicts.
+// FIX: Defined RepoStatus and BuildHealth enums here to resolve a circular dependency with constants.ts.
 export enum RepoStatus {
   Idle = 'Idle',
   Syncing = 'Syncing',
@@ -123,6 +123,13 @@ export enum TaskStepType {
   PYTHON_RUN_TYPECHECK = 'PYTHON_RUN_TYPECHECK',
   PYTHON_RUN_TESTS = 'PYTHON_RUN_TESTS',
   PYTHON_RUN_BUILD = 'PYTHON_RUN_BUILD',
+  // Node.js-specific steps
+  NODE_INSTALL_DEPS = 'NODE_INSTALL_DEPS',
+  NODE_RUN_LINT = 'NODE_RUN_LINT',
+  NODE_RUN_FORMAT = 'NODE_RUN_FORMAT',
+  NODE_RUN_TYPECHECK = 'NODE_RUN_TYPECHECK',
+  NODE_RUN_TESTS = 'NODE_RUN_TESTS',
+  NODE_RUN_BUILD = 'NODE_RUN_BUILD',
 }
 
 export interface TaskStep {
@@ -238,9 +245,32 @@ export interface DelphiCapabilities {
     };
 }
 
+// --- Node.js Project Types ---
+export interface NodejsCapabilities {
+  engine: string | null;
+  declaredManager: string | null;
+  packageManagers: {
+    pnpm: boolean;
+    yarn: boolean;
+    npm: boolean;
+    bun: boolean;
+  };
+  typescript: boolean;
+  testFrameworks: ('jest' | 'vitest' | 'mocha' | 'playwright' | 'cypress')[];
+  linters: ('eslint' | 'prettier')[];
+  bundlers: ('vite' | 'webpack' | 'rollup' | 'tsup' | 'swc')[];
+  monorepo: {
+    workspaces: boolean;
+    turbo: boolean;
+    nx: boolean;
+    yarnBerryPnp: boolean;
+  };
+}
+
 export interface ProjectInfo {
     tags: string[];
     files: Record<string, string[]>;
     python?: PythonCapabilities;
     delphi?: DelphiCapabilities;
+    nodejs?: NodejsCapabilities;
 }
