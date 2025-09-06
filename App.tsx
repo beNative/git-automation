@@ -634,53 +634,6 @@ const App: React.FC = () => {
     );
   }
 
-
-  const CurrentView = () => {
-    switch (activeView) {
-      case 'settings':
-        return <SettingsView currentSettings={settings} onSave={handleSaveSettings} setToast={setToast} />;
-      case 'info':
-        return <InfoView />;
-      case 'edit-repository':
-        // The key ensures the component re-mounts when switching between editing different repos
-        return <RepoEditView 
-          key={repoToEditId} 
-          repository={repositoryToEdit} 
-          onSave={handleSaveRepo} 
-          onCancel={handleCancelEditRepository}
-          onRefreshState={refreshRepoState}
-          setToast={setToast}
-        />;
-      case 'dashboard':
-      default:
-        return <Dashboard 
-          repositories={repositories} 
-          setRepositories={setRepositories}
-          onOpenTaskSelection={handleOpenTaskSelection} 
-          onRunTask={handleRunTask}
-          onViewLogs={handleViewLogs}
-          onViewHistory={handleViewHistory}
-          onEditRepo={(repoId: string) => handleEditRepository(repoId)}
-          onDeleteRepo={handleDeleteRepo}
-          isProcessing={isProcessing}
-          localPathStates={localPathStates}
-          detectedExecutables={detectedExecutables}
-          detailedStatuses={detailedStatuses}
-          branchLists={branchLists}
-          onSwitchBranch={handleSwitchBranch}
-          onCloneRepo={(repoId) => {
-            const repo = repositories.find(r => r.id === repoId);
-            if (repo) handleCloneRepo(repo);
-          }}
-          onChooseLocationAndClone={handleChooseLocationAndClone}
-          onRunLaunchConfig={handleRunLaunchConfig}
-          onOpenLaunchSelection={handleOpenLaunchSelection}
-          onOpenLocalPath={handleOpenLocalPath}
-          onOpenTerminal={handleOpenTerminal}
-        />;
-    }
-  };
-
   return (
     <IconContext.Provider value={settings.iconSet}>
       <TooltipProvider>
@@ -693,7 +646,51 @@ const App: React.FC = () => {
             isCheckingAll={isCheckingAll}
           />
           <main className={mainContentClass}>
-            <CurrentView />
+            {(() => {
+              switch (activeView) {
+                case 'settings':
+                  return <SettingsView currentSettings={settings} onSave={handleSaveSettings} setToast={setToast} />;
+                case 'info':
+                  return <InfoView />;
+                case 'edit-repository':
+                  // The key ensures the component re-mounts when switching between editing different repos
+                  return <RepoEditView 
+                    key={repoToEditId} 
+                    repository={repositoryToEdit} 
+                    onSave={handleSaveRepo} 
+                    onCancel={handleCancelEditRepository}
+                    onRefreshState={refreshRepoState}
+                    setToast={setToast}
+                  />;
+                case 'dashboard':
+                default:
+                  return <Dashboard 
+                    repositories={repositories} 
+                    setRepositories={setRepositories}
+                    onOpenTaskSelection={handleOpenTaskSelection} 
+                    onRunTask={handleRunTask}
+                    onViewLogs={handleViewLogs}
+                    onViewHistory={handleViewHistory}
+                    onEditRepo={(repoId: string) => handleEditRepository(repoId)}
+                    onDeleteRepo={handleDeleteRepo}
+                    isProcessing={isProcessing}
+                    localPathStates={localPathStates}
+                    detectedExecutables={detectedExecutables}
+                    detailedStatuses={detailedStatuses}
+                    branchLists={branchLists}
+                    onSwitchBranch={handleSwitchBranch}
+                    onCloneRepo={(repoId) => {
+                      const repo = repositories.find(r => r.id === repoId);
+                      if (repo) handleCloneRepo(repo);
+                    }}
+                    onChooseLocationAndClone={handleChooseLocationAndClone}
+                    onRunLaunchConfig={handleRunLaunchConfig}
+                    onOpenLaunchSelection={handleOpenLaunchSelection}
+                    onOpenLocalPath={handleOpenLocalPath}
+                    onOpenTerminal={handleOpenTerminal}
+                  />;
+              }
+            })()}
           </main>
           
           {taskLogState.isOpen && (
