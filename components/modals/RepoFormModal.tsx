@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -75,6 +75,10 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.NODE_RUN_TYPECHECK]: { label: 'Node: Type Check', icon: NodeIcon, description: 'Run the TypeScript compiler to check for type errors.' },
   [TaskStepType.NODE_RUN_TESTS]: { label: 'Node: Run Tests', icon: NodeIcon, description: 'Run unit/integration tests with Jest or Vitest.' },
   [TaskStepType.NODE_RUN_BUILD]: { label: 'Node: Build Project', icon: NodeIcon, description: 'Run the build script or detected bundler.' },
+  // Lazarus/FPC
+  [TaskStepType.LAZARUS_BUILD]: { label: 'Lazarus: Build Project', icon: BeakerIcon, description: 'Build a Lazarus project (.lpi) using lazbuild.' },
+  [TaskStepType.LAZARUS_BUILD_PACKAGE]: { label: 'Lazarus: Build Package', icon: BeakerIcon, description: 'Build a Lazarus package (.lpk) using lazbuild.' },
+  [TaskStepType.FPC_TEST_FPCUNIT]: { label: 'Lazarus: Run FPCUnit Tests', icon: BeakerIcon, description: 'Build and run an FPCUnit test project.' },
 };
 
 // Component for a single step in the TaskStepsEditor
@@ -190,6 +194,66 @@ const TaskStepItem: React.FC<{
             <div>
                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Platform</label>
                 <input type="text" placeholder="e.g., Win32" value={step.delphiPlatform || ''} onChange={(e) => onStepChange(step.id, { delphiPlatform: e.target.value })} className={formInputStyle} />
+            </div>
+        </div>
+      )}
+      {step.type === TaskStepType.LAZARUS_BUILD && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Project File (.lpi)</label>
+                <select
+                    value={step.lazarusProjectFile || ''}
+                    onChange={(e) => onStepChange(step.id, { lazarusProjectFile: e.target.value })}
+                    className={formInputStyle}
+                >
+                    <option value="">Auto-detect</option>
+                    {projectInfo?.lazarus?.projects.map(p => (
+                        <option key={p.path} value={p.path}>{p.path}</option>
+                    ))}
+                </select>
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Build Mode</label>
+                <input type="text" placeholder="e.g., Release" value={step.lazarusBuildMode || ''} onChange={(e) => onStepChange(step.id, { lazarusBuildMode: e.target.value })} className={formInputStyle} />
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Target CPU</label>
+                <input type="text" placeholder="e.g., x86_64" value={step.lazarusCpu || ''} onChange={(e) => onStepChange(step.id, { lazarusCpu: e.target.value })} className={formInputStyle} />
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Target OS</label>
+                <input type="text" placeholder="e.g., win64" value={step.lazarusOs || ''} onChange={(e) => onStepChange(step.id, { lazarusOs: e.target.value })} className={formInputStyle} />
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Widgetset</label>
+                <input type="text" placeholder="e.g., qt5" value={step.lazarusWidgetset || ''} onChange={(e) => onStepChange(step.id, { lazarusWidgetset: e.target.value })} className={formInputStyle} />
+            </div>
+        </div>
+      )}
+      {step.type === TaskStepType.LAZARUS_BUILD_PACKAGE && (
+        <div>
+            <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Package File (.lpk)</label>
+            <select
+                value={step.lazarusPackageFile || ''}
+                onChange={(e) => onStepChange(step.id, { lazarusPackageFile: e.target.value })}
+                className={formInputStyle}
+            >
+                <option value="">Auto-detect</option>
+                {projectInfo?.lazarus?.packages.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                ))}
+            </select>
+        </div>
+      )}
+      {step.type === TaskStepType.FPC_TEST_FPCUNIT && (
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Test Project File (.lpi)</label>
+                <input type="text" placeholder="e.g., tests/MyTests.lpi" value={step.lazarusProjectFile || ''} onChange={(e) => onStepChange(step.id, { lazarusProjectFile: e.target.value })} className={formInputStyle} />
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">JUnit XML Output File (optional)</label>
+                <input type="text" placeholder="e.g., reports/junit.xml" value={step.fpcTestOutputFile || ''} onChange={(e) => onStepChange(step.id, { fpcTestOutputFile: e.target.value })} className={formInputStyle} />
             </div>
         </div>
       )}
@@ -467,9 +531,7 @@ const DelphiTaskGenerator: React.FC<{
             steps: [{
                 type: TaskStepType.DelphiBuild,
                 delphiProjectFile: projectPath,
-                // FIX: Cast 'Build' to its literal type to prevent widening to 'string' by TypeScript,
-                // which was causing a type mismatch against the TaskStep interface.
-                delphiBuildMode: 'Build' as const,
+                delphiBuildMode: 'Build',
                 delphiConfiguration: 'Release',
                 delphiPlatform: 'Win32'
             }].map(s => ({ ...s, id: '', enabled: true }))
@@ -506,6 +568,57 @@ const DelphiTaskGenerator: React.FC<{
                 {delphiCaps.packaging.innoSetup.map(s => (
                      <button key={s} type="button" onClick={() => createInnoTask(s)} className="text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-md">
                         Add Inno Setup Task for {getBasename(s)}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const LazarusTaskGenerator: React.FC<{
+    lazarusCaps: LazarusCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ lazarusCaps, onAddTask }) => {
+    if (!lazarusCaps || (lazarusCaps.projects.length === 0 && lazarusCaps.packages.length === 0)) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+
+    const createBuildTask = (projectPath: string) => {
+        onAddTask({
+            name: `Build ${getBasename(projectPath)}`,
+            steps: [{
+                type: TaskStepType.LAZARUS_BUILD,
+                lazarusProjectFile: projectPath,
+                lazarusBuildMode: 'Release',
+            }].map(s => ({ ...s, id: '', enabled: true }))
+        });
+    };
+    
+    const createBuildPackageTask = (packagePath: string) => {
+        onAddTask({
+            name: `Build Pkg ${getBasename(packagePath)}`,
+            steps: [{
+                type: TaskStepType.LAZARUS_BUILD_PACKAGE,
+                lazarusPackageFile: packagePath,
+            }].map(s => ({ ...s, id: '', enabled: true }))
+        });
+    };
+
+    return (
+        <div className="p-3 mb-4 bg-teal-50 dark:bg-gray-900/50 rounded-lg border border-teal-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <BeakerIcon className="h-5 w-5 text-teal-500"/>
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Lazarus/FPC Project Detected</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+                {lazarusCaps.projects.map(p => (
+                    <button key={p.path} type="button" onClick={() => createBuildTask(p.path)} className="text-xs font-medium text-white bg-teal-600 hover:bg-teal-700 px-3 py-1.5 rounded-md">
+                        Add Build Task for {getBasename(p.path)}
+                    </button>
+                ))}
+                {lazarusCaps.packages.map(p => (
+                    <button key={p} type="button" onClick={() => createBuildPackageTask(p)} className="text-xs font-medium text-white bg-cyan-600 hover:bg-cyan-700 px-3 py-1.5 rounded-md">
+                        Add Build Task for Pkg {getBasename(p)}
                     </button>
                 ))}
             </div>
@@ -590,7 +703,7 @@ const TaskStepsEditor: React.FC<{
   };
   
   const availableSteps = useMemo(() => {
-    const allStepTypes = (Object.keys(STEP_DEFINITIONS) as TaskStepType[]);
+    const allStepTypes = (Object.keys(STEP_DEFINITIONS) as (keyof typeof STEP_DEFINITIONS)[]);
     const vcs = repository?.vcs;
     const tags = projectInfo?.tags || [];
 
@@ -600,6 +713,7 @@ const TaskStepsEditor: React.FC<{
         if (type.startsWith('DELPHI_')) return tags.includes('delphi');
         if (type.startsWith('PYTHON_')) return tags.includes('python');
         if (type.startsWith('NODE_')) return tags.includes('nodejs');
+        if (type.startsWith('LAZARUS_') || type.startsWith('FPC_')) return tags.includes('lazarus');
         // All other steps (like RunCommand) are always available.
         return true;
     });
@@ -635,6 +749,7 @@ const TaskStepsEditor: React.FC<{
       )}
       
       <NodejsTaskGenerator nodejsCaps={projectInfo?.nodejs} onAddTask={onAddTask} />
+      <LazarusTaskGenerator lazarusCaps={projectInfo?.lazarus} onAddTask={onAddTask} />
       <DelphiTaskGenerator delphiCaps={projectInfo?.delphi} onAddTask={onAddTask} />
       <PythonTaskGenerator pythonCaps={projectInfo?.python} onAddTask={onAddTask} />
 
@@ -1062,7 +1177,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             const updated = {...lc, [field]: value};
             // When changing type, reset the other type's data
             if (field === 'type') {
-                if (value === 'command') delete updated.command;
+                if (value === 'command') delete (updated as any).command;
             }
             return updated;
           }

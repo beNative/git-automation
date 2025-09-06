@@ -1,5 +1,4 @@
 import React from 'react';
-
-export type IconSet = 'heroicons' | 'lucide' | 'tabler' | 'feather' | 'remix' | 'phosphor';
+import type { IconSet } from '../types';
 
 export const IconContext = React.createContext<IconSet>('heroicons');

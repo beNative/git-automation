@@ -3,7 +3,7 @@ import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
-import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities } from '../types';
+import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 
@@ -237,6 +237,17 @@ const getTomlSection = (content: string, sectionName: string): string | null => 
     return match ? match[1] : null;
 };
 
+// --- Simple XML parsing helper ---
+const getXmlAttribute = (content: string, elementName: string, attributeName: string): string[] => {
+    const results: string[] = [];
+    const regex = new RegExp(`<${elementName}[^>]*?${attributeName}="([^"]*)"`, 'g');
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+        results.push(match[1]);
+    }
+    return results;
+}
+
 // FIX: Extracted project info logic into a reusable function to fix type errors and allow direct calls from other handlers.
 const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
     if (!repoPath) return { tags: [], files: {}, python: undefined, delphi: undefined, nodejs: undefined };
@@ -248,12 +259,52 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
         python: undefined,
         delphi: undefined,
         nodejs: undefined,
+        lazarus: undefined,
     };
 
     try {
         // VCS Type
         if (await fileExists(repoPath, '.git')) tagsSet.add('git');
         if (await fileExists(repoPath, '.svn')) tagsSet.add('svn');
+
+        // --- Lazarus/FPC Project Detection ---
+        let isLazarusProject = false;
+        const lazarusCaps: LazarusCapabilities = {
+            projects: [],
+            packages: [],
+            make: { hasMakefileFpc: false, hasFpmake: false },
+            tests: { hasFpcUnit: false },
+        };
+        lazarusCaps.packages = await findFilesByExtensionRecursive(repoPath, '.lpk', repoPath);
+        lazarusCaps.make.hasMakefileFpc = await fileExists(repoPath, 'Makefile.fpc');
+        lazarusCaps.make.hasFpmake = await fileExists(repoPath, 'fpmake.pp');
+        const lpiFiles = await findFilesByExtensionRecursive(repoPath, '.lpi', repoPath);
+
+        if (lpiFiles.length > 0 || lazarusCaps.packages.length > 0 || lazarusCaps.make.hasFpmake || lazarusCaps.make.hasMakefileFpc) {
+            isLazarusProject = true;
+        }
+
+        for (const lpi of lpiFiles) {
+            try {
+                const content = await fs.readFile(path.join(repoPath, lpi), 'utf-8');
+                const project: LazarusProject = {
+                    path: lpi,
+                    modes: getXmlAttribute(content, 'Mode', 'Name'),
+                    cpus: [...new Set(getXmlAttribute(content, 'TargetCPU', 'Value'))],
+                    oses: [...new Set(getXmlAttribute(content, 'TargetOS', 'Value'))],
+                    widgetsets: [...new Set(getXmlAttribute(content, 'WidgetSet', 'Name'))],
+                };
+                if (content.toLowerCase().includes('fpcunit')) {
+                    lazarusCaps.tests.hasFpcUnit = true;
+                }
+                lazarusCaps.projects.push(project);
+            } catch (e) { console.error(`Could not parse Lazarus project: ${lpi}`, e); }
+        }
+        
+        if (isLazarusProject) {
+            tagsSet.add('lazarus');
+            info.lazarus = lazarusCaps;
+        }
         
         // --- Delphi Project Detection ---
         let isDelphiProject = false;
@@ -1016,6 +1067,30 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId }:
                 if (!step.command) { sendLog('Skipping empty command.', LogLevel.Warn); sendEnd(0); return; }
                 await run(step.command); break;
             
+            // --- Lazarus/FPC Steps ---
+            case TaskStepType.LAZARUS_BUILD:
+                const lpiFile = step.lazarusProjectFile || projectInfo.lazarus?.projects[0]?.path;
+                if (!lpiFile) throw new Error('No Lazarus project file (.lpi) found or specified.');
+                const lazMode = step.lazarusBuildMode ? `--build-mode=${step.lazarusBuildMode}` : '';
+                const lazCpu = step.lazarusCpu ? `--cpu=${step.lazarusCpu}` : '';
+                const lazOs = step.lazarusOs ? `--os=${step.lazarusOs}` : '';
+                const lazWs = step.lazarusWidgetset ? `--ws=${step.lazarusWidgetset}` : '';
+                await run(`lazbuild ${lazMode} ${lazCpu} ${lazOs} ${lazWs} "${lpiFile}"`);
+                break;
+            case TaskStepType.LAZARUS_BUILD_PACKAGE:
+                const lpkFile = step.lazarusPackageFile || projectInfo.lazarus?.packages[0];
+                if (!lpkFile) throw new Error('No Lazarus package file (.lpk) found or specified.');
+                await run(`lazbuild --build-package "${lpkFile}"`);
+                break;
+            case TaskStepType.FPC_TEST_FPCUNIT:
+                const testProject = step.lazarusProjectFile;
+                if (!testProject) throw new Error('No test project specified for FPCUnit step.');
+                await run(`lazbuild "${testProject}"`);
+                const outputExe = testProject.replace('.lpi', '.exe'); // simple assumption
+                const fpcOutputArgs = step.fpcTestOutputFile ? `--format=xml --output="${step.fpcTestOutputFile}"` : '';
+                await run(`"${outputExe}" ${fpcOutputArgs}`);
+                break;
+                
             // --- Delphi Steps ---
             case TaskStepType.DelphiBuild:
                 const projectFile = step.delphiProjectFile || projectInfo.delphi?.projects[0]?.path || projectInfo.delphi?.groups[0];
