@@ -481,31 +481,26 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
   const logger = useLogger();
   
-  const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => {
-    // This initializer function runs only once when the component mounts.
-    // This is the key to preventing state resets on parent re-renders.
-    if (repository) {
-        return repository;
-    }
-    return NEW_REPO_TEMPLATE;
-  });
+  const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(repository || NEW_REPO_TEMPLATE);
+  const justDiscoveredRef = useRef(false);
 
-  const prevFormDataRef = useRef(formData);
-
-  // This effect decouples the toast notification from the state update that causes it.
+  // This effect is the key. It synchronizes state with the incoming `repository` prop,
+  // but it has a guard to prevent the "flicker and clear" bug.
   useEffect(() => {
-    const wasJustDiscovered = !prevFormDataRef.current.remoteUrl && !!formData.remoteUrl;
-    if (wasJustDiscovered) {
-      // Use setTimeout to push the toast notification to the next event loop tick.
-      // This breaks the React render race condition where the parent's re-render
-      // was overwriting the child's state before it could be committed.
-      setTimeout(() => {
-        setToast({ message: 'Remote URL and name discovered!', type: 'success' });
-      }, 0);
+    // If the discovery function just ran, the flag will be true.
+    if (justDiscoveredRef.current) {
+      // We IGNORE the prop update because we know it's part of the problematic
+      // re-render cycle. We simply reset the flag and keep our current state.
+      console.log('[DIAGNOSTIC] Guard activated. Preventing state reset after discovery.');
+      justDiscoveredRef.current = false;
+      return; // Exit without calling setFormData
     }
-    // Keep a ref to the previous state for the next comparison.
-    prevFormDataRef.current = formData;
-  }, [formData, setToast]);
+
+    // If the flag is not set, we update the form normally when the repository prop changes.
+    // This is for the normal case of switching from editing one repo to another,
+    // which is handled by the `key` prop forcing a remount, but this is good defensive coding.
+    setFormData(repository || NEW_REPO_TEMPLATE);
+  }, [repository]); // This effect ONLY runs when the `repository` prop changes.
 
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => {
@@ -800,8 +795,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         const result = await window.electronAPI.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
         
         if (result && result.url) {
-            // This function now ONLY updates the local form state.
-            // The useEffect hook will handle showing the toast.
+            // Set the guard flag BEFORE updating state to prevent the reset.
+            justDiscoveredRef.current = true;
+            
             setFormData(prev => {
                 const newName = (!prev.name || prev.name.trim() === '')
                     ? result.url.split('/').pop()?.replace(/\.git$/, '') || prev.name
@@ -813,6 +809,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                     name: newName,
                 };
             });
+            setToast({ message: 'Remote URL and name discovered!', type: 'success' });
         } else {
             const errorMsg = `Could not discover URL: ${result.error || 'No remote found.'}`;
             setToast({ message: errorMsg, type: 'error' });
