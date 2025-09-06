@@ -479,13 +479,11 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
 
 
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
-  const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(
-    repository || NEW_REPO_TEMPLATE
-  );
-
-  // This effect correctly synchronizes the form state with the incoming prop.
-  // It only runs when the `repository` prop itself changes (e.g., when the user
-  // switches from editing one repo to creating a new one), not on every re-render.
+  const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
+  
+  // This effect ensures that if the user switches from editing a repo to creating a new one
+  // (or vice-versa), the form state is correctly reset. The parent component's `key` prop
+  // handles the re-mounting, and this effect synchronizes the state on that mount.
   useEffect(() => {
     setFormData(repository || NEW_REPO_TEMPLATE);
   }, [repository]);
