@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo } from '../types';
+import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo } from '../types';
 
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
@@ -48,7 +48,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showSettingsFile: () => ipcRenderer.invoke('show-settings-file'),
 
   // Real Task Execution
-  runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; }) => {
+  runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; task: Task; }) => {
     ipcRenderer.send('run-task-step', args);
   },
 

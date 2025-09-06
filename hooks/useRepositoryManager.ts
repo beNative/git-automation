@@ -118,13 +118,13 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
                   addLogEntry(repoId, 'Stashing changes...', LogLevel.Info);
                   const stashExecutionId = `${stepExecutionId}_stash`;
                   // FIX: Property 'enabled' is missing in type '{ id: string; type: TaskStepType.GitStash; }' but required in type 'TaskStep'.
-                  await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash, enabled: true}, settings, addLogEntry, stashExecutionId);
+                  await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash, enabled: true}, settings, addLogEntry, stashExecutionId, task);
                 }
                 // if 'force' or 'ignored_and_continue', proceed as normal
               }
             }
           }
-          await runRealStep(repo, stepToRun, settings, addLogEntry, stepExecutionId);
+          await runRealStep(repo, stepToRun, settings, addLogEntry, stepExecutionId, task);
         }
       }
 
@@ -283,7 +283,8 @@ const runRealStep = (
     step: TaskStep,
     settings: GlobalSettings,
     addLogEntry: (repoId: string, message: string, level: LogLevel) => void,
-    executionId: string
+    executionId: string,
+    task: Task
 ) => {
   return new Promise<void>((resolve, reject) => {
     const { id: repoId } = repo;
@@ -314,7 +315,7 @@ const runRealStep = (
     window.electronAPI.onTaskLog(handleLog);
     window.electronAPI.onTaskStepEnd(handleEnd);
 
-    window.electronAPI.runTaskStep({ repo, step, settings, executionId });
+    window.electronAPI.runTaskStep({ repo, step, settings, executionId, task });
   });
 };
 

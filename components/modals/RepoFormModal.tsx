@@ -24,6 +24,7 @@ import { PythonIcon } from '../icons/PythonIcon';
 import { NodeIcon } from '../icons/NodeIcon';
 import { FolderOpenIcon } from '../icons/FolderOpenIcon';
 import { DocumentDuplicateIcon } from '../icons/DocumentDuplicateIcon';
+import { ServerIcon } from '../icons/ServerIcon';
 
 interface RepoEditViewProps {
   onSave: (repository: Repository) => void;
@@ -353,7 +354,7 @@ const TaskVariablesEditor: React.FC<{
     <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2 mb-2">
           <VariableIcon className="h-5 w-5 text-gray-500"/>
-          <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Task Variables</h3>
+          <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Task Variables (Substitution)</h3>
         </div>
         <div className="space-y-2">
             {variables.map((variable) => (
@@ -383,6 +384,68 @@ const TaskVariablesEditor: React.FC<{
     </div>
   );
 }
+
+// Component for managing task-level environment variables
+const TaskEnvironmentVariablesEditor: React.FC<{
+  variables: Task['environmentVariables'];
+  onVariablesChange: (variables: Task['environmentVariables']) => void;
+}> = ({ variables = [], onVariablesChange }) => {
+  const handleAddVariable = () => {
+    const newVar = { id: `env_var_${Date.now()}`, key: '', value: '' };
+    onVariablesChange([...variables, newVar]);
+  };
+
+  const handleUpdateVariable = (id: string, field: 'key' | 'value', fieldValue: string) => {
+    const newVariables = variables.map(v => 
+      v.id === id ? { ...v, [field]: fieldValue } : v
+    );
+    onVariablesChange(newVariables);
+  };
+
+  const handleRemoveVariable = (id: string) => {
+    onVariablesChange(variables.filter(v => v.id !== id));
+  };
+  
+  const formInputStyle = "block w-full bg-gray-100 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1 px-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
+
+  return (
+    <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2 mb-2">
+          <ServerIcon className="h-5 w-5 text-gray-500"/>
+          <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Environment Variables</h3>
+        </div>
+        <p className="text-xs text-gray-500 mb-3">
+            These variables are set in the shell environment before step commands are executed. They can be accessed by scripts (e.g., as `process.env.VAR_NAME` in Node.js or `$VAR_NAME` in bash).
+        </p>
+        <div className="space-y-2">
+            {variables.map((variable) => (
+                <div key={variable.id} className="flex items-center space-x-2">
+                    <input 
+                      type="text"
+                      placeholder="KEY"
+                      value={variable.key}
+                      onChange={(e) => handleUpdateVariable(variable.id, 'key', e.target.value)}
+                      className={`${formInputStyle} font-mono`}
+                    />
+                     <span className="text-gray-400">=</span>
+                    <input 
+                      type="text"
+                      placeholder="VALUE (supports ${...} substitution)"
+                      value={variable.value}
+                      onChange={(e) => handleUpdateVariable(variable.id, 'value', e.target.value)}
+                      className={formInputStyle}
+                    />
+                    <button type="button" onClick={() => handleRemoveVariable(variable.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
+                </div>
+            ))}
+        </div>
+         <button type="button" onClick={handleAddVariable} className="mt-3 flex items-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">
+            <PlusIcon className="h-3 w-3 mr-1"/> Add Environment Variable
+        </button>
+    </div>
+  );
+}
+
 
 const NodejsTaskGenerator: React.FC<{
     nodejsCaps: NodejsCapabilities | undefined;
@@ -703,6 +766,10 @@ const TaskStepsEditor: React.FC<{
     setTask({ ...task, variables: vars });
   };
   
+  const handleEnvironmentVariablesChange = (vars: Task['environmentVariables']) => {
+    setTask({ ...task, environmentVariables: vars });
+  };
+  
   const availableSteps = useMemo(() => {
     const allStepTypes = (Object.keys(STEP_DEFINITIONS) as (keyof typeof STEP_DEFINITIONS)[]);
     const vcs = repository?.vcs;
@@ -739,7 +806,10 @@ const TaskStepsEditor: React.FC<{
         </div>
       </div>
       
-      <TaskVariablesEditor variables={task.variables} onVariablesChange={handleVariablesChange} />
+      <div className="space-y-3">
+        <TaskVariablesEditor variables={task.variables} onVariablesChange={handleVariablesChange} />
+        <TaskEnvironmentVariablesEditor variables={task.environmentVariables} onVariablesChange={handleEnvironmentVariablesChange} />
+      </div>
       
       {task.steps.length === 0 && (
           <div className="text-center py-6 px-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
@@ -1105,6 +1175,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         name: template?.name || 'New Task',
         steps: newSteps,
         variables: [],
+        environmentVariables: [],
         showOnDashboard: false,
     };
     const newTasks = [...(formData.tasks || []), newTask];
@@ -1133,7 +1204,11 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         steps: taskToDuplicate.steps.map((step: TaskStep) => ({
             ...step,
             id: `step_${Date.now()}_${Math.random()}`
-        }))
+        })),
+        environmentVariables: (taskToDuplicate.environmentVariables || []).map((envVar: any) => ({
+            ...envVar,
+            id: `env_var_${Date.now()}_${Math.random()}`
+        })),
     };
 
     const newTasks = [...(formData.tasks || [])];

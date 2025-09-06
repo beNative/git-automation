@@ -1,5 +1,5 @@
 import type { IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo } from '../types';
+import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo } from '../types';
 
 export type LocalPathState = AppLocalPathState;
 
@@ -48,6 +48,7 @@ export interface IElectronAPI {
     step: TaskStep;
     settings: GlobalSettings;
     executionId: string;
+    task: Task;
   }) => void;
 
   onTaskLog: (

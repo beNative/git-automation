@@ -127,11 +127,18 @@ export interface TaskVariable {
   value: string;
 }
 
+export interface EnvironmentVariable {
+  id: string;
+  key: string;
+  value: string;
+}
+
 export interface Task {
   id: string;
   name: string;
   steps: TaskStep[];
   variables: TaskVariable[];
+  environmentVariables: EnvironmentVariable[];
   showOnDashboard: boolean;
 }
 

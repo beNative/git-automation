@@ -3,7 +3,7 @@ import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
-import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject } from '../types';
+import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 
@@ -1007,12 +1007,27 @@ const getPythonCommandParts = async (repoPath: string): Promise<{ executable: st
     }
 };
 
+const substituteVariables = (command: string, variables: TaskVariable[] = []): string => {
+  if (!command || !variables || variables.length === 0) {
+    return command;
+  }
+  let result = command;
+  for (const variable of variables) {
+    if (variable.key) {
+      const regex = new RegExp(`\\$\\{${variable.key.trim()}\\}`, 'g');
+      result = result.replace(regex, variable.value);
+    }
+  }
+  result = result.replace(/\${(.*?)}/g, '');
+  return result;
+};
+
 // --- Promise-based command executor ---
-function executeCommand(cwd: string, fullCommand: string, sender: (channel: string, ...args: any[]) => void, executionId: string): Promise<number> {
+function executeCommand(cwd: string, fullCommand: string, sender: (channel: string, ...args: any[]) => void, executionId: string, env: NodeJS.ProcessEnv): Promise<number> {
     return new Promise((resolve, reject) => {
         sender('task-log', { executionId, message: `$ ${fullCommand}`, level: LogLevel.Command });
         
-        const child = spawn(fullCommand, [], { cwd, shell: true });
+        const child = spawn(fullCommand, [], { cwd, shell: true, env });
 
         const stdoutLogger = createLineLogger(executionId, LogLevel.Info, sender);
         const stderrLogger = createLineLogger(executionId, LogLevel.Info, sender);
@@ -1037,7 +1052,7 @@ function executeCommand(cwd: string, fullCommand: string, sender: (channel: stri
 
 
 // --- IPC Handler for running real task steps ---
-ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId }: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; }) => {
+ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, task }: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; task: Task }) => {
     const sender = mainWindow?.webContents.send.bind(mainWindow.webContents);
     if (!sender) return;
 
@@ -1050,8 +1065,19 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId }:
 
     try {
         const projectInfo = await getProjectInfo(repo.localPath);
+        
+        // Construct environment for the child process
+        const env = { ...process.env };
+        if (task.environmentVariables) {
+            for (const envVar of task.environmentVariables) {
+                if (envVar.key) {
+                    // Allow task variables to be substituted into environment variable values
+                    env[envVar.key] = substituteVariables(envVar.value, task.variables);
+                }
+            }
+        }
 
-        const run = (cmd: string) => executeCommand(repo.localPath, cmd, sender, executionId);
+        const run = (cmd: string) => executeCommand(repo.localPath, cmd, sender, executionId, env);
 
         switch(step.type) {
             // Git Steps
