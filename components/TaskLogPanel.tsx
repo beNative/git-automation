@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import type { LogEntry, Repository } from '../types';
-import { LogLevel } from '../types';
+import { LogLevel, RepoStatus } from '../types';
 import { XIcon } from './icons/XIcon';
 
 interface TaskLogPanelProps {
@@ -13,6 +13,7 @@ interface TaskLogPanelProps {
   selectedRepoId: string | null;
   height: number;
   setHeight: (height: number) => void;
+  isProcessing: Set<string>;
 }
 
 const LOG_LEVEL_STYLES: Record<LogLevel, string> = {
@@ -27,7 +28,7 @@ const MIN_HEIGHT = 100; // Minimum pixel height for the panel
 
 const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
   onClosePanel, onCloseTab, onSelectTab, logs, allRepositories,
-  activeRepoIds, selectedRepoId, height, setHeight,
+  activeRepoIds, selectedRepoId, height, setHeight, isProcessing,
 }) => {
   const logContainerRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
@@ -113,18 +114,45 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
               {activeRepoIds.map(repoId => {
                 const repo = allRepositories.find(r => r.id === repoId);
                 const isSelected = repoId === selectedRepoId;
+                const isTaskRunning = isProcessing.has(repoId);
+                const status = repo?.status;
+
+                let tabClasses = 'group flex items-center cursor-pointer border-b-2 pt-2 pb-1.5 px-4 text-sm whitespace-nowrap transition-colors ';
+                let indicator = null;
+
+                if (isTaskRunning) {
+                    indicator = <span className="mr-2 h-2 w-2 shrink-0 bg-blue-500 rounded-full animate-pulse" title="Task is running"></span>;
+                }
+
+                if (isSelected) {
+                    tabClasses += 'border-blue-500 font-medium ';
+                    if (!isTaskRunning && status === RepoStatus.Success) {
+                        tabClasses += 'bg-green-200 dark:bg-green-800/60 text-green-900 dark:text-green-100';
+                    } else if (!isTaskRunning && status === RepoStatus.Failed) {
+                        tabClasses += 'bg-red-200 dark:bg-red-800/60 text-red-900 dark:text-red-100';
+                    } else {
+                        tabClasses += 'bg-gray-100 dark:bg-gray-700/50 text-gray-900 dark:text-white';
+                    }
+                } else { // Not selected
+                    tabClasses += 'border-transparent ';
+                    if (!isTaskRunning && status === RepoStatus.Success) {
+                        tabClasses += 'bg-green-100/70 dark:bg-green-900/40 text-green-800 dark:text-green-200 hover:bg-green-100 dark:hover:bg-green-900/50';
+                    } else if (!isTaskRunning && status === RepoStatus.Failed) {
+                        tabClasses += 'bg-red-100/70 dark:bg-red-900/40 text-red-800 dark:text-red-200 hover:bg-red-100 dark:hover:bg-red-900/50';
+                    } else {
+                        tabClasses += 'text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/80';
+                    }
+                }
+
                 return (
                   <div
                     key={repoId}
                     role="tab"
                     aria-selected={isSelected}
-                    className={`group flex items-center cursor-pointer border-b-2 pt-2 pb-1.5 px-4 text-sm whitespace-nowrap transition-colors ${
-                      isSelected
-                        ? 'border-blue-500 text-gray-900 dark:text-white font-medium bg-gray-100 dark:bg-gray-700/50'
-                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/80'
-                    }`}
+                    className={tabClasses}
                     onClick={() => onSelectTab(repoId)}
                   >
+                    {indicator}
                     <span className="truncate max-w-[150px]">{repo?.name || '...'}</span>
                     <button
                       onClick={(e) => { e.stopPropagation(); onCloseTab(repoId); }}

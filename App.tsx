@@ -686,6 +686,7 @@ const App: React.FC = () => {
               selectedRepoId={taskLogState.selectedId}
               height={taskLogState.height}
               setHeight={(h) => setTaskLogState(p => ({ ...p, height: h }))}
+              isProcessing={isProcessing}
             />
           )}
 
