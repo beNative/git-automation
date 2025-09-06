@@ -614,6 +614,11 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, debouncedHistorySearch, fetchBranches, branchInfo]);
   
+  // --- DEBUG: Add a useEffect to log formData changes ---
+  useEffect(() => {
+    logger.debug("[RepoFormModal] formData state changed.", { formData });
+  }, [formData, logger]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -779,43 +784,57 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   };
   
   const handleDiscoverRemote = useCallback(async () => {
+    logger.debug("[RepoFormModal] handleDiscoverRemote triggered.", { localPath: formData.localPath, vcs: formData.vcs });
+
     if (!formData.localPath) {
         setToast({ message: 'Please provide a local path first.', type: 'info' });
+        logger.warn("[RepoFormModal] handleDiscoverRemote aborted: localPath is empty.");
         return;
     }
 
     try {
         const result = await window.electronAPI.discoverRemoteUrl({ localPath: formData.localPath, vcs: formData.vcs });
         
+        logger.debug("[RepoFormModal] discoverRemoteUrl API returned", { result });
+        
         if (result && result.url) {
             setFormData(prev => {
+                logger.debug("[RepoFormModal] Inside setFormData updater.", { prevState: prev });
+
                 const isNameEmpty = !prev.name || prev.name.trim() === '';
                 let newName = prev.name;
-
+                
+                logger.debug("[RepoFormModal] Deriving new name.", { isNameEmpty });
                 if (isNameEmpty) {
                     const discoveredName = result.url.split('/').pop()?.replace(/\.git$/, '');
                     if (discoveredName) {
                         newName = discoveredName;
+                        logger.debug("[RepoFormModal] Discovered a new name.", { discoveredName });
                     }
                 }
                 
-                // Construct the new state object directly to ensure React detects the change.
-                const newState = {
-                    ...prev,
+                const updates = {
                     remoteUrl: result.url,
                     name: newName,
                 };
                 
+                logger.debug("[RepoFormModal] Calculated updates for form data.", { updates });
+                const newState = { ...prev, ...updates };
+                logger.debug("[RepoFormModal] Returning new state from updater.", { newState });
+
                 return newState;
             });
 
             setToast({ message: 'Remote URL and name discovered!', type: 'success' });
         } else {
-            setToast({ message: `Could not discover URL: ${result.error || 'No remote found.'}`, type: 'error' });
+            const errorMsg = `Could not discover URL: ${result.error || 'No remote found.'}`;
+            setToast({ message: errorMsg, type: 'error' });
+            logger.warn("[RepoFormModal] URL discovery failed", { error: result.error });
         }
     } catch (e: any) {
-        setToast({ message: `Error during discovery: ${e.message}`, type: 'error' });
-        logger.error("Error in handleDiscoverRemote", { error: e });
+        const errorMsg = `Error during discovery: ${e.message}`;
+        setToast({ message: errorMsg, type: 'error' });
+        logger.error("[RepoFormModal] Unhandled error in handleDiscoverRemote", { error: e });
     }
   }, [formData.localPath, formData.vcs, setToast, logger]);
 
