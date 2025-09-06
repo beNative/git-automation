@@ -23,6 +23,7 @@ import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';
 import { PythonIcon } from '../icons/PythonIcon';
 import { NodeIcon } from '../icons/NodeIcon';
 import { FolderOpenIcon } from '../icons/FolderOpenIcon';
+import { DocumentDuplicateIcon } from '../icons/DocumentDuplicateIcon';
 
 interface RepoEditViewProps {
   onSave: (repository: Repository) => void;
@@ -84,9 +85,10 @@ const TaskStepItem: React.FC<{
   onStepChange: (id: string, updates: Partial<TaskStep>) => void;
   onMoveStep: (index: number, direction: 'up' | 'down') => void;
   onRemoveStep: (id: string) => void;
+  onDuplicateStep: (index: number) => void;
   suggestions: ProjectSuggestion[];
   projectInfo: ProjectInfo | null;
-}> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, suggestions, projectInfo }) => {
+}> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, onDuplicateStep, suggestions, projectInfo }) => {
   const logger = useLogger();
   
   const stepDef = STEP_DEFINITIONS[step.type];
@@ -118,6 +120,7 @@ const TaskStepItem: React.FC<{
   const CUSTOM_COMMAND_VALUE = 'custom_command';
   const isEnabled = step.enabled ?? true;
   const toggleTooltip = useTooltip(isEnabled ? 'Disable Step' : 'Enable Step');
+  const duplicateTooltip = useTooltip('Duplicate Step');
 
   return (
     <div className={`bg-white dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
@@ -136,6 +139,7 @@ const TaskStepItem: React.FC<{
           </label>
           <button type="button" onClick={() => onMoveStep(index, 'up')} disabled={index === 0} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowUpIcon className="h-4 w-4" /></button>
           <button type="button" onClick={() => onMoveStep(index, 'down')} disabled={index === totalSteps - 1} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowDownIcon className="h-4 w-4" /></button>
+          <button {...duplicateTooltip} type="button" onClick={() => onDuplicateStep(index)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><DocumentDuplicateIcon className="h-4 w-4" /></button>
           <button type="button" onClick={() => onRemoveStep(step.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
         </div>
       </div>
@@ -569,6 +573,18 @@ const TaskStepsEditor: React.FC<{
     setTask({ ...task, steps: task.steps.filter(s => s.id !== id) });
   };
   
+  const handleDuplicateStep = (index: number) => {
+    const stepToDuplicate = task.steps[index];
+    if (!stepToDuplicate) return;
+    const newStep = {
+        ...stepToDuplicate,
+        id: `step_${Date.now()}_${Math.random()}`
+    };
+    const newSteps = [...task.steps];
+    newSteps.splice(index + 1, 0, newStep);
+    setTask({ ...task, steps: newSteps });
+  };
+  
   const handleVariablesChange = (vars: Task['variables']) => {
     setTask({ ...task, variables: vars });
   };
@@ -632,6 +648,7 @@ const TaskStepsEditor: React.FC<{
             onStepChange={handleStepChange}
             onMoveStep={handleMoveStep}
             onRemoveStep={handleRemoveStep}
+            onDuplicateStep={handleDuplicateStep}
             suggestions={suggestions}
             projectInfo={projectInfo}
           />
@@ -667,14 +684,21 @@ interface TaskListItemProps {
   isSelected: boolean;
   onSelect: (taskId: string) => void;
   onDelete: (taskId: string) => void;
+  onDuplicate: (taskId: string) => void;
 }
 
-const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect, onDelete }) => {
+const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect, onDelete, onDuplicate }) => {
   const deleteTooltip = useTooltip('Delete Task');
+  const duplicateTooltip = useTooltip('Duplicate Task');
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDelete(task.id);
+  };
+  
+  const handleDuplicate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDuplicate(task.id);
   };
 
   return (
@@ -682,14 +706,24 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect,
       <button type="button" onClick={() => onSelect(task.id)} className="w-full text-left px-3 py-2 group">
         <div className="flex justify-between items-start">
           <p className={`font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
-          <button
-            {...deleteTooltip}
-            type="button"
-            onClick={handleDelete}
-            className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50"
-          >
-            <TrashIcon className="h-4 w-4"/>
-          </button>
+          <div className="flex items-center opacity-0 group-hover:opacity-100">
+            <button
+                {...duplicateTooltip}
+                type="button"
+                onClick={handleDuplicate}
+                className="p-1 text-blue-500 hover:text-blue-700 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50"
+            >
+                <DocumentDuplicateIcon className="h-4 w-4"/>
+            </button>
+            <button
+                {...deleteTooltip}
+                type="button"
+                onClick={handleDelete}
+                className="p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50"
+            >
+                <TrashIcon className="h-4 w-4"/>
+            </button>
+          </div>
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{task.steps.length} step(s)</p>
       </button>
@@ -970,6 +1004,29 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       setSelectedTaskId(newTasks.length > 0 ? newTasks[0].id : null);
     }
   };
+  
+  const handleDuplicateTask = (taskId: string) => {
+    const taskToDuplicate = formData.tasks?.find(t => t.id === taskId);
+    if (!taskToDuplicate) return;
+    
+    // Deep copy, assign new IDs to task and steps
+    const newTask = {
+        ...JSON.parse(JSON.stringify(taskToDuplicate)),
+        id: `task_${Date.now()}`,
+        name: `${taskToDuplicate.name} (copy)`,
+        steps: taskToDuplicate.steps.map((step: TaskStep) => ({
+            ...step,
+            id: `step_${Date.now()}_${Math.random()}`
+        }))
+    };
+
+    const newTasks = [...(formData.tasks || [])];
+    const originalIndex = newTasks.findIndex(t => t.id === taskId);
+    newTasks.splice(originalIndex + 1, 0, newTask);
+
+    setFormData(prev => ({...prev, tasks: newTasks}));
+    setSelectedTaskId(newTask.id);
+  };
 
   const handleAddWebLink = () => {
     const newLink: WebLinkConfig = { id: `wl_${Date.now()}`, name: 'New Link', url: 'https://' };
@@ -1138,6 +1195,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                     isSelected={selectedTaskId === task.id}
                                     onSelect={setSelectedTaskId}
                                     onDelete={handleDeleteTask}
+                                    onDuplicate={handleDuplicateTask}
                                 />
                             ))}
                         </ul>
