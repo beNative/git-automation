@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
@@ -481,27 +481,10 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
   const logger = useLogger();
   
+  // Initialize state from props ONCE. The `key` prop on the component in App.tsx
+  // ensures this component is fully remounted (and state is re-initialized) when
+  // switching between different repositories. This avoids the useEffect/prop-sync anti-pattern.
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(repository || NEW_REPO_TEMPLATE);
-  const justDiscoveredRef = useRef(false);
-
-  // This effect is the key. It synchronizes state with the incoming `repository` prop,
-  // but it has a guard to prevent the "flicker and clear" bug.
-  useEffect(() => {
-    // If the discovery function just ran, the flag will be true.
-    if (justDiscoveredRef.current) {
-      // We IGNORE the prop update because we know it's part of the problematic
-      // re-render cycle. We simply reset the flag and keep our current state.
-      console.log('[DIAGNOSTIC] Guard activated. Preventing state reset after discovery.');
-      justDiscoveredRef.current = false;
-      return; // Exit without calling setFormData
-    }
-
-    // If the flag is not set, we update the form normally when the repository prop changes.
-    // This is for the normal case of switching from editing one repo to another,
-    // which is handled by the `key` prop forcing a remount, but this is good defensive coding.
-    setFormData(repository || NEW_REPO_TEMPLATE);
-  }, [repository]); // This effect ONLY runs when the `repository` prop changes.
-
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => {
     if (repository && repository.tasks && repository.tasks.length > 0) {
@@ -795,9 +778,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         const result = await window.electronAPI.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
         
         if (result && result.url) {
-            // Set the guard flag BEFORE updating state to prevent the reset.
-            justDiscoveredRef.current = true;
-            
             setFormData(prev => {
                 const newName = (!prev.name || prev.name.trim() === '')
                     ? result.url.split('/').pop()?.replace(/\.git$/, '') || prev.name
