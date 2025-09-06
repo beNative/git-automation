@@ -129,7 +129,6 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
           color: transparent;
           background-color: transparent;
           caret-color: black;
-          z-index: 1;
           font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
           font-size: 0.875rem; /* text-sm */
           line-height: 1.25rem;
@@ -152,31 +151,33 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
               <p>Loading settings file...</p>
             </div>
           ) : isEditing ? (
-            <div className={`relative w-full flex-1 font-mono text-sm rounded-md border focus-within:ring-2 focus-within:ring-blue-500 ${!isValid ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
-              <textarea
-                ref={textareaRef}
-                className="json-editor-textarea absolute top-0 left-0 w-full h-full p-3 bg-transparent resize-none outline-none overflow-auto"
-                value={editedJson}
-                onChange={handleJsonChange}
-                onScroll={handleScroll}
-                spellCheck="false"
-              />
-              <pre
-                ref={preRef}
-                className="json-editor-pre absolute top-0 left-0 w-full h-full p-3 bg-gray-50 dark:bg-gray-900 overflow-auto whitespace-pre-wrap break-words"
-                aria-hidden="true"
-              >
-                <code dangerouslySetInnerHTML={highlightedCode} />
-              </pre>
-            </div>
+            <>
+              <div className={`relative w-full flex-1 font-mono text-sm rounded-md border focus-within:ring-2 focus-within:ring-blue-500 ${!isValid ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                <textarea
+                  ref={textareaRef}
+                  className="json-editor-textarea absolute top-0 left-0 w-full h-full p-3 bg-transparent resize-none outline-none overflow-auto"
+                  value={editedJson}
+                  onChange={handleJsonChange}
+                  onScroll={handleScroll}
+                  spellCheck="false"
+                />
+                <pre
+                  ref={preRef}
+                  className="json-editor-pre absolute top-0 left-0 w-full h-full p-3 bg-gray-50 dark:bg-gray-900 overflow-auto whitespace-pre-wrap break-words"
+                  aria-hidden="true"
+                >
+                  <code dangerouslySetInnerHTML={highlightedCode} />
+                </pre>
+              </div>
+              {!isValid && (
+                  <p className="font-semibold text-sm text-red-600 dark:text-red-500 mt-2">The JSON syntax is invalid.</p>
+              )}
+            </>
           ) : (
             <pre className="w-full flex-1 font-mono text-sm p-3 rounded-md bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 overflow-auto whitespace-pre-wrap break-words">
               <code dangerouslySetInnerHTML={highlightJson(rawJson)} />
             </pre>
           )}
-           {!isValid && isEditing && (
-                <p className="font-semibold text-lg text-red-600 dark:text-red-500 mt-2">The JSON syntax is invalid.</p>
-            )}
         </div>
       </main>
       <footer className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
