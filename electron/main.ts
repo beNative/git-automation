@@ -396,20 +396,79 @@ ${fileContent}
 });
 
 // --- IPC handler for checking git/svn status ---
-ipcMain.handle('check-vcs-status', async (event, repo: Repository): Promise<{ isDirty: boolean; output: string }> => {
+ipcMain.handle('check-vcs-status', async (event, repo: Repository): Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }> => {
     const command = repo.vcs === VcsType.Git ? 'git status --porcelain' : 'svn status';
+    
+    // This feature is Git-specific. For SVN, return a simplified structure.
+    if (repo.vcs !== VcsType.Git) {
+      return new Promise((resolve) => {
+          exec(command, { cwd: repo.localPath }, (error, stdout, stderr) => {
+              if (error) {
+                  resolve({ isDirty: false, output: stderr, untrackedFiles: [], changedFiles: [] });
+                  return;
+              }
+              const output = stdout.trim();
+              const isDirty = output.length > 0;
+              resolve({ isDirty, output, untrackedFiles: [], changedFiles: isDirty ? [output] : [] });
+          });
+      });
+    }
+
+    // Git-specific logic
     return new Promise((resolve) => {
         exec(command, { cwd: repo.localPath }, (error, stdout, stderr) => {
             if (error) {
-                // If the command fails, consider it not dirty but return the error.
-                resolve({ isDirty: false, output: stderr });
+                resolve({ isDirty: false, output: stderr, untrackedFiles: [], changedFiles: [] });
                 return;
             }
-            const isDirty = stdout.trim().length > 0;
-            resolve({ isDirty, output: stdout });
+            const output = stdout.trim();
+            const isDirty = output.length > 0;
+            const untrackedFiles: string[] = [];
+            const changedFiles: string[] = [];
+            if (isDirty) {
+                output.split('\n').forEach(line => {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine.startsWith('?? ')) {
+                        untrackedFiles.push(trimmedLine.substring(3));
+                    } else {
+                        changedFiles.push(trimmedLine);
+                    }
+                });
+            }
+            resolve({ isDirty, output, untrackedFiles, changedFiles });
         });
     });
 });
+
+// --- IPC handler for adding files to .gitignore, committing, and pushing ---
+ipcMain.handle('ignore-files-and-push', async (event, { repo, filesToIgnore }: { repo: Repository, filesToIgnore: string[] }): Promise<{ success: boolean; error?: string }> => {
+    if (repo.vcs !== VcsType.Git) {
+        return { success: false, error: 'This feature is only available for Git repositories.' };
+    }
+    try {
+        const gitignorePath = path.join(repo.localPath, '.gitignore');
+        
+        // Ensure .gitignore exists
+        try {
+            await fs.access(gitignorePath);
+        } catch {
+            await fs.writeFile(gitignorePath, '', 'utf-8');
+        }
+
+        const contentToAppend = '\n# Added by Git Automation Dashboard\n' + filesToIgnore.join('\n') + '\n';
+        await fs.appendFile(gitignorePath, contentToAppend, 'utf-8');
+        
+        await execAsync('git add .gitignore', { cwd: repo.localPath });
+        await execAsync('git commit -m "chore: Update .gitignore"', { cwd: repo.localPath });
+        await execAsync('git push', { cwd: repo.localPath });
+        
+        return { success: true };
+    } catch (e: any) {
+        console.error('Failed to ignore files and push:', e);
+        return { success: false, error: e.stderr || e.message || 'An unknown error occurred.' };
+    }
+});
+
 
 // --- IPC handler for checking local path ---
 ipcMain.handle('check-local-path', async (event, localPath: string): Promise<LocalPathState> => {

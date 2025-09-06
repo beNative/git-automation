@@ -71,9 +71,10 @@ const App: React.FC = () => {
     isOpen: boolean;
     repo: Repository | null;
     task: Task | null;
-    statusOutput: string;
-    resolve: ((choice: 'stash' | 'force' | 'cancel') => void) | null;
-  }>({ isOpen: false, repo: null, task: null, statusOutput: '', resolve: null });
+    status: { untrackedFiles: string[]; changedFiles: string[]; output: string; } | null;
+    resolve: ((choice: 'stash' | 'force' | 'cancel' | 'ignored_and_continue') => void) | null;
+    isIgnoring: boolean;
+  }>({ isOpen: false, repo: null, task: null, status: null, resolve: null, isIgnoring: false });
 
   const [taskSelectionModal, setTaskSelectionModal] = useState<{
     isOpen: boolean;
@@ -343,9 +344,9 @@ const App: React.FC = () => {
     logger.info(`Running task '${task.name}' on '${repo.name}'`, { repoId, taskId });
     openLogPanelForRepo(repo.id, true);
     
-    const onDirty = (statusOutput: string) => {
-      return new Promise<'stash' | 'force' | 'cancel'>((resolve) => {
-        setDirtyRepoModal({ isOpen: true, repo, task, statusOutput, resolve });
+    const onDirty = (statusResult: { untrackedFiles: string[]; changedFiles: string[]; output: string; }) => {
+      return new Promise<'stash' | 'force' | 'cancel' | 'ignored_and_continue'>((resolve) => {
+        setDirtyRepoModal({ isOpen: true, repo, task, status: statusResult, resolve, isIgnoring: false });
       });
     };
 
@@ -364,12 +365,32 @@ const App: React.FC = () => {
     }
   }, [repositories, settings, runTask, openLogPanelForRepo, refreshRepoState, logger]);
 
-  const handleDirtyRepoChoice = (choice: 'stash' | 'force' | 'cancel') => {
-    logger.debug('User made a choice on dirty repository modal.', { choice });
-    if (dirtyRepoModal.resolve) {
-      dirtyRepoModal.resolve(choice);
+  const handleDirtyRepoChoice = async (choice: 'stash' | 'force' | 'cancel' | 'ignore', filesToIgnore?: string[]) => {
+    const { resolve, repo } = dirtyRepoModal;
+
+    if (choice === 'ignore' && filesToIgnore && repo) {
+      if (filesToIgnore.length === 0) {
+        setToast({ message: 'No files selected to ignore.', type: 'info' });
+        return;
+      }
+      setDirtyRepoModal(prev => ({ ...prev, isIgnoring: true }));
+      try {
+        const result = await window.electronAPI.ignoreFilesAndPush({ repo, filesToIgnore });
+        if (result.success) {
+          setToast({ message: '.gitignore updated and pushed successfully.', type: 'success' });
+          if (resolve) resolve('ignored_and_continue');
+          setDirtyRepoModal({ isOpen: false, repo: null, task: null, status: null, resolve: null, isIgnoring: false });
+        } else {
+          throw new Error(result.error);
+        }
+      } catch (e: any) {
+        setToast({ message: `Failed to update .gitignore: ${e.message}`, type: 'error' });
+        setDirtyRepoModal(prev => ({ ...prev, isIgnoring: false }));
+      }
+    } else if (choice === 'stash' || choice === 'force' || choice === 'cancel') {
+      if (resolve) resolve(choice);
+      setDirtyRepoModal({ isOpen: false, repo: null, task: null, status: null, resolve: null, isIgnoring: false });
     }
-    setDirtyRepoModal({ isOpen: false, repo: null, task: null, statusOutput: '', resolve: null });
   };
 
   const handleOpenTaskSelection = (repoId: string) => {
@@ -714,8 +735,9 @@ const App: React.FC = () => {
 
           <DirtyRepoModal
             isOpen={dirtyRepoModal.isOpen}
-            statusOutput={dirtyRepoModal.statusOutput}
+            status={dirtyRepoModal.status}
             onChoose={handleDirtyRepoChoice}
+            isIgnoring={dirtyRepoModal.isIgnoring}
           />
 
           <TaskSelectionModal

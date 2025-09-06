@@ -64,7 +64,7 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
     repo: Repository,
     task: Task,
     settings: GlobalSettings,
-    onDirty: (statusOutput: string) => Promise<'stash' | 'force' | 'cancel'>
+    onDirty: (statusResult: { untrackedFiles: string[]; changedFiles: string[]; output: string; }) => Promise<'stash' | 'force' | 'cancel' | 'ignored_and_continue'>
   ) => {
     const taskExecutionId = `exec_${repo.id}_${task.id}_${Date.now()}`;
     const { id: repoId } = repo;
@@ -105,7 +105,7 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
             const statusResult = await window.electronAPI?.checkVcsStatus(repo);
             if (statusResult?.isDirty) {
               addLogEntry(repoId, 'Uncommitted changes detected.', LogLevel.Warn);
-              const choice = await onDirty(statusResult.output);
+              const choice = await onDirty(statusResult);
 
               if (choice === 'cancel') {
                  addLogEntry(repoId, 'Task cancelled by user.', LogLevel.Info);
@@ -116,7 +116,7 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
                 const stashExecutionId = `${stepExecutionId}_stash`;
                 await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash}, settings, addLogEntry, stashExecutionId);
               }
-              // if 'force', proceed as normal
+              // if 'force' or 'ignored_and_continue', proceed as normal
             }
           }
           await runRealStep(repo, stepToRun, settings, addLogEntry, stepExecutionId);

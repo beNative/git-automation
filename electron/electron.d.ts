@@ -17,7 +17,7 @@ export interface IElectronAPI {
   getDoc: (docName: string) => Promise<string>;
   getProjectSuggestions: (args: { repoPath: string, repoName: string }) => Promise<ProjectSuggestion[]>;
   getProjectStepSuggestions: (args: { repoPath: string, repoName: string }) => Promise<Omit<TaskStep, 'id'>[]>;
-  checkVcsStatus: (repo: Repository) => Promise<{ isDirty: boolean; output: string }>;
+  checkVcsStatus: (repo: Repository) => Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }>;
   getDetailedVcsStatus: (repo: Repository) => Promise<DetailedStatus | null>;
   getCommitHistory: (repoPath: string, skipCount?: number, searchQuery?: string) => Promise<Commit[]>;
   listBranches: (repoPath: string) => Promise<BranchInfo>;
@@ -25,6 +25,7 @@ export interface IElectronAPI {
   createBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
   deleteBranch: (repoPath: string, branch: string, isRemote: boolean) => Promise<{ success: boolean; error?: string }>;
   mergeBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
+  ignoreFilesAndPush: (args: { repo: Repository; filesToIgnore: string[] }) => Promise<{ success: boolean; error?: string }>;
 
 
   checkLocalPath: (path: string) => Promise<LocalPathState>;
