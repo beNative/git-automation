@@ -784,59 +784,62 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   };
   
   const handleDiscoverRemote = useCallback(async () => {
-    logger.debug("[RepoFormModal] handleDiscoverRemote triggered.", { localPath: formData.localPath, vcs: formData.vcs });
+    console.log('[DIAGNOSTIC] Discover button clicked. Calling handleDiscoverRemote.');
+    // Use a local variable for the check to avoid stale closures in the conditional.
+    const currentLocalPath = formData.localPath;
+    console.log('[DIAGNOSTIC] Current formData state:', formData);
 
-    if (!formData.localPath) {
+    if (!currentLocalPath) {
         setToast({ message: 'Please provide a local path first.', type: 'info' });
-        logger.warn("[RepoFormModal] handleDiscoverRemote aborted: localPath is empty.");
+        console.warn("[DIAGNOSTIC] Aborted: localPath is empty.");
         return;
     }
 
     try {
-        const result = await window.electronAPI.discoverRemoteUrl({ localPath: formData.localPath, vcs: formData.vcs });
+        const result = await window.electronAPI.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
         
-        logger.debug("[RepoFormModal] discoverRemoteUrl API returned", { result });
+        console.log("[DIAGNOSTIC] API returned:", result);
         
         if (result && result.url) {
-            setFormData(prev => {
-                logger.debug("[RepoFormModal] Inside setFormData updater.", { prevState: prev });
+            setToast({ message: 'Remote URL and name discovered!', type: 'success' });
+            
+            // This is the key part. By using the functional update form of setState,
+            // we guarantee we are working with the most up-to-date state,
+            // avoiding any stale closure issues with `formData`.
+            setFormData(prevFormData => {
+                console.log("[DIAGNOSTIC] Inside setFormData updater. Previous state:", prevFormData);
 
-                const isNameEmpty = !prev.name || prev.name.trim() === '';
-                let newName = prev.name;
+                const isNameEmpty = !prevFormData.name || prevFormData.name.trim() === '';
+                let newName = prevFormData.name;
                 
-                logger.debug("[RepoFormModal] Deriving new name.", { isNameEmpty });
                 if (isNameEmpty) {
                     const discoveredName = result.url.split('/').pop()?.replace(/\.git$/, '');
                     if (discoveredName) {
                         newName = discoveredName;
-                        logger.debug("[RepoFormModal] Discovered a new name.", { discoveredName });
                     }
                 }
                 
-                const updates = {
+                const newState = { 
+                    ...prevFormData, 
                     remoteUrl: result.url,
                     name: newName,
                 };
-                
-                logger.debug("[RepoFormModal] Calculated updates for form data.", { updates });
-                const newState = { ...prev, ...updates };
-                logger.debug("[RepoFormModal] Returning new state from updater.", { newState });
 
+                console.log("[DIAGNOSTIC] Calculated new state:", newState);
                 return newState;
             });
 
-            setToast({ message: 'Remote URL and name discovered!', type: 'success' });
         } else {
             const errorMsg = `Could not discover URL: ${result.error || 'No remote found.'}`;
             setToast({ message: errorMsg, type: 'error' });
-            logger.warn("[RepoFormModal] URL discovery failed", { error: result.error });
+            console.warn("[DIAGNOSTIC] URL discovery failed", { error: result.error });
         }
     } catch (e: any) {
         const errorMsg = `Error during discovery: ${e.message}`;
         setToast({ message: errorMsg, type: 'error' });
-        logger.error("[RepoFormModal] Unhandled error in handleDiscoverRemote", { error: e });
+        console.error("[DIAGNOSTIC] Unhandled error in handleDiscoverRemote", e);
     }
-  }, [formData.localPath, formData.vcs, setToast, logger]);
+  }, [formData, setToast]); // Depend on the whole formData object to ensure the function is recreated when any part of it changes.
 
 
   const selectedTask = useMemo(() => {
