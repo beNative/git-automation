@@ -95,62 +95,55 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
 
   return (
     <div
-      className="relative flex-shrink-0 bg-white dark:bg-gray-800 shadow-lg border-t border-gray-200 dark:border-gray-700"
+      className="relative flex-shrink-0 bg-white dark:bg-gray-800 shadow-lg"
       style={{ height: `${height}px` }}
       role="region"
       aria-label="Task Logs"
     >
       <div 
         onMouseDown={handleMouseDown}
-        className="absolute -top-1 left-0 right-0 h-2 cursor-row-resize z-10"
+        className="absolute -top-1 left-0 right-0 h-1 bg-gray-300 dark:bg-gray-600 hover:bg-blue-500 cursor-row-resize z-10 transition-colors"
         aria-label="Resize log panel"
         role="separator"
       />
       
       <div className="h-full flex flex-col">
-        <header className="flex items-center justify-between pl-2 pr-1 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <header className="flex items-center justify-between pr-1 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex-1 overflow-x-auto" role="tablist">
-            <div className="flex items-center">
+            <div className="flex items-center p-2 gap-2">
               {activeRepoIds.map(repoId => {
                 const repo = allRepositories.find(r => r.id === repoId);
                 const isSelected = repoId === selectedRepoId;
                 const isTaskRunning = isProcessing.has(repoId);
                 const status = repo?.status;
 
-                let tabClasses = 'group flex items-center cursor-pointer border-b-2 pt-2 pb-1.5 px-4 text-sm whitespace-nowrap transition-colors ';
                 let indicator = null;
                 const isCompletedWithStatus = !isTaskRunning && (status === RepoStatus.Success || status === RepoStatus.Failed);
 
                 if (isTaskRunning) {
                     indicator = <span className="mr-2 h-2 w-2 shrink-0 bg-blue-500 rounded-full animate-pulse" title="Task is running"></span>;
                 }
-
-                if (isSelected) {
-                    tabClasses += 'border-blue-500 font-medium ';
-                    if (!isTaskRunning && status === RepoStatus.Success) {
-                        tabClasses += 'bg-green-600 text-white dark:bg-green-700';
-                    } else if (!isTaskRunning && status === RepoStatus.Failed) {
-                        tabClasses += 'bg-red-600 text-white dark:bg-red-700';
-                    } else {
-                        tabClasses += 'bg-gray-100 dark:bg-gray-700/50 text-gray-900 dark:text-white';
+                
+                let baseClasses = 'group relative flex items-center cursor-pointer rounded-md border px-3 py-1.5 text-sm whitespace-nowrap transition-all shadow-sm focus:outline-none';
+                let colorClasses = '';
+                let selectedClasses = isSelected ? 'ring-2 ring-offset-2 dark:ring-offset-gray-800 ring-blue-500' : '';
+                
+                if (isCompletedWithStatus) {
+                    if (status === RepoStatus.Success) {
+                        colorClasses = 'bg-green-600 border-green-700 text-white hover:bg-green-700';
+                    } else { // Failed
+                        colorClasses = 'bg-red-600 border-red-700 text-white hover:bg-red-700';
                     }
-                } else { // Not selected
-                    tabClasses += 'border-transparent ';
-                    if (!isTaskRunning && status === RepoStatus.Success) {
-                        tabClasses += 'bg-green-500 dark:bg-green-800 text-white hover:bg-green-600 dark:hover:bg-green-700';
-                    } else if (!isTaskRunning && status === RepoStatus.Failed) {
-                        tabClasses += 'bg-red-500 dark:bg-red-800 text-white hover:bg-red-600 dark:hover:bg-red-700';
-                    } else {
-                        tabClasses += 'text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/80';
-                    }
+                } else {
+                    colorClasses = 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600';
                 }
 
                 return (
-                  <div
+                  <button
                     key={repoId}
                     role="tab"
                     aria-selected={isSelected}
-                    className={tabClasses}
+                    className={`${baseClasses} ${colorClasses} ${selectedClasses}`}
                     onClick={() => onSelectTab(repoId)}
                   >
                     {indicator}
@@ -162,7 +155,7 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
                     >
                       <XIcon className="h-3 w-3" />
                     </button>
-                  </div>
+                  </button>
                 );
               })}
             </div>
