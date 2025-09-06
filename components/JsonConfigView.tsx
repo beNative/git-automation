@@ -132,6 +132,7 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
           font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
           font-size: 0.875rem; /* text-sm */
           line-height: 1.25rem;
+          z-index: 1;
         }
         .dark .json-editor-textarea {
           caret-color: white;
@@ -151,7 +152,7 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
               <p>Loading settings file...</p>
             </div>
           ) : isEditing ? (
-            <>
+            <div className="flex-1 flex flex-col min-h-0">
               <div className={`relative w-full flex-1 font-mono text-sm rounded-md border focus-within:ring-2 focus-within:ring-blue-500 ${!isValid ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
                 <textarea
                   ref={textareaRef}
@@ -170,9 +171,9 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
                 </pre>
               </div>
               {!isValid && (
-                  <p className="font-semibold text-sm text-red-600 dark:text-red-500 mt-2">The JSON syntax is invalid.</p>
+                  <p className="font-semibold text-sm text-red-600 dark:text-red-500 mt-2 flex-shrink-0">The JSON syntax is invalid.</p>
               )}
-            </>
+            </div>
           ) : (
             <pre className="w-full flex-1 font-mono text-sm p-3 rounded-md bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 overflow-auto whitespace-pre-wrap break-words">
               <code dangerouslySetInnerHTML={highlightJson(rawJson)} />
