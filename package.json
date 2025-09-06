@@ -67,8 +67,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "ai-studio-sdk",
-        "repo": "git-automation-dashboard-example"
+        "owner": "Tim Sinaeve",
+        "repo": "https://github.com/beNative/git-automation"
       }
     ]
   }
