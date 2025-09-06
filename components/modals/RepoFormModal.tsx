@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -52,8 +52,13 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.GitCheckout]: { label: 'Git Checkout', icon: ArrowRightOnRectangleIcon, description: 'Switch to a specific branch.' },
   [TaskStepType.GitStash]: { label: 'Git Stash', icon: ArchiveBoxIcon, description: 'Stash uncommitted local changes.' },
   [TaskStepType.SvnUpdate]: { label: 'SVN Update', icon: ArrowDownTrayIcon, description: 'Update working copy to latest revision.' },
-  [TaskStepType.DelphiBuild]: { label: 'Delphi Build', icon: BeakerIcon, description: 'Build a Delphi project using MSBuild.' },
   [TaskStepType.RunCommand]: { label: 'Run Command', icon: CodeBracketIcon, description: 'Execute a custom shell command.' },
+  // Delphi
+  [TaskStepType.DelphiBuild]: { label: 'Delphi Build', icon: BeakerIcon, description: 'Build, rebuild, or clean a Delphi project.' },
+  [TaskStepType.DELPHI_PACKAGE_INNO]: { label: 'Delphi: Package (Inno)', icon: ArchiveBoxIcon, description: 'Create an installer using an Inno Setup script.' },
+  [TaskStepType.DELPHI_PACKAGE_NSIS]: { label: 'Delphi: Package (NSIS)', icon: ArchiveBoxIcon, description: 'Create an installer using an NSIS script.' },
+  [TaskStepType.DELPHI_TEST_DUNITX]: { label: 'Delphi: Run DUnitX Tests', icon: BeakerIcon, description: 'Execute a DUnitX test application.' },
+  // Python
   [TaskStepType.PYTHON_CREATE_VENV]: { label: 'Python: Create Venv', icon: PythonIcon, description: 'Create a .venv virtual environment.' },
   [TaskStepType.PYTHON_INSTALL_DEPS]: { label: 'Python: Install Deps', icon: PythonIcon, description: 'Install dependencies using the detected manager.' },
   [TaskStepType.PYTHON_RUN_LINT]: { label: 'Python: Run Linting', icon: PythonIcon, description: 'Run all detected linters (e.g., Ruff).' },
@@ -133,41 +138,70 @@ const TaskStepItem: React.FC<{
         </div>
       )}
       {step.type === TaskStepType.DelphiBuild && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Project File (.dproj)</label>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Project/Group File</label>
                 <select
                     value={step.delphiProjectFile || ''}
                     onChange={(e) => onStepChange(step.id, { delphiProjectFile: e.target.value })}
                     className={formInputStyle}
                 >
-                    <option value="">Auto-detect ({projectInfo?.files?.dproj?.[0] || 'None found'})</option>
-                    {projectInfo?.files?.dproj?.map(file => (
-                        <option key={file} value={file}>{file}</option>
-                    ))}
+                    <option value="">Auto-detect</option>
+                    <optgroup label="Projects">
+                        {projectInfo?.delphi?.projects.map(p => (
+                            <option key={p.path} value={p.path}>{p.path}</option>
+                        ))}
+                    </optgroup>
+                    <optgroup label="Project Groups">
+                        {projectInfo?.delphi?.groups.map(g => (
+                            <option key={g} value={g}>{g}</option>
+                        ))}
+                    </optgroup>
+                </select>
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Mode</label>
+                <select
+                    value={step.delphiBuildMode || 'Build'}
+                    onChange={(e) => onStepChange(step.id, { delphiBuildMode: e.target.value as any })}
+                    className={formInputStyle}
+                >
+                    <option>Build</option>
+                    <option>Rebuild</option>
+                    <option>Clean</option>
                 </select>
             </div>
             <div>
                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Configuration</label>
-                <select
-                    value={step.delphiConfiguration || 'Release'}
-                    onChange={(e) => onStepChange(step.id, { delphiConfiguration: e.target.value })}
-                    className={formInputStyle}
-                >
-                    <option>Release</option>
-                    <option>Debug</option>
-                </select>
+                <input type="text" placeholder="e.g., Release" value={step.delphiConfiguration || ''} onChange={(e) => onStepChange(step.id, { delphiConfiguration: e.target.value })} className={formInputStyle} />
             </div>
             <div>
                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Platform</label>
-                <select
-                    value={step.delphiPlatform || 'Win32'}
-                    onChange={(e) => onStepChange(step.id, { delphiPlatform: e.target.value })}
-                    className={formInputStyle}
-                >
-                    <option>Win32</option>
-                    <option>Win64</option>
-                </select>
+                <input type="text" placeholder="e.g., Win32" value={step.delphiPlatform || ''} onChange={(e) => onStepChange(step.id, { delphiPlatform: e.target.value })} className={formInputStyle} />
+            </div>
+        </div>
+      )}
+      {(step.type === TaskStepType.DELPHI_PACKAGE_INNO || step.type === TaskStepType.DELPHI_PACKAGE_NSIS) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Installer Script File</label>
+                <input type="text" placeholder="e.g., scripts/installer.iss" value={step.delphiInstallerScript || ''} onChange={(e) => onStepChange(step.id, { delphiInstallerScript: e.target.value })} className={formInputStyle} />
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Defines (semicolon-separated)</label>
+                <input type="text" placeholder="e.g., AppVersion=1.0;Mode=PRO" value={step.delphiInstallerDefines || ''} onChange={(e) => onStepChange(step.id, { delphiInstallerDefines: e.target.value })} className={formInputStyle} />
+            </div>
+        </div>
+      )}
+      {step.type === TaskStepType.DELPHI_TEST_DUNITX && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Test Executable Path</label>
+                <input type="text" placeholder="e.g., bin/Win32/Release/Tests.exe" value={step.delphiTestExecutable || ''} onChange={(e) => onStepChange(step.id, { delphiTestExecutable: e.target.value })} className={formInputStyle} />
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">JUnit XML Output File (optional)</label>
+                <input type="text" placeholder="e.g., reports/junit.xml" value={step.delphiTestOutputFile || ''} onChange={(e) => onStepChange(step.id, { delphiTestOutputFile: e.target.value })} className={formInputStyle} />
             </div>
         </div>
       )}
@@ -339,6 +373,66 @@ const PythonTaskGenerator: React.FC<{
     );
 };
 
+const DelphiTaskGenerator: React.FC<{
+    delphiCaps: DelphiCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ delphiCaps, onAddTask }) => {
+    if (!delphiCaps || (delphiCaps.projects.length === 0 && delphiCaps.groups.length === 0)) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+
+    const createBuildTask = (projectPath: string) => {
+        onAddTask({
+            name: `Build ${getBasename(projectPath)}`,
+            steps: [{
+                type: TaskStepType.DelphiBuild,
+                delphiProjectFile: projectPath,
+                // FIX: Cast 'Build' to its literal type to prevent widening to 'string' by TypeScript,
+                // which was causing a type mismatch against the TaskStep interface.
+                delphiBuildMode: 'Build' as const,
+                delphiConfiguration: 'Release',
+                delphiPlatform: 'Win32'
+            }].map(s => ({ ...s, id: '', enabled: true }))
+        });
+    };
+
+    const createInnoTask = (scriptPath: string) => {
+        onAddTask({
+            name: `Package ${getBasename(scriptPath)}`,
+            steps: [{
+                type: TaskStepType.DELPHI_PACKAGE_INNO,
+                delphiInstallerScript: scriptPath,
+            }].map(s => ({ ...s, id: '', enabled: true }))
+        });
+    };
+
+    return (
+        <div className="p-3 mb-4 bg-indigo-50 dark:bg-gray-900/50 rounded-lg border border-indigo-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <BeakerIcon className="h-5 w-5 text-indigo-500"/>
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Delphi Project Detected</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+                {delphiCaps.projects.map(p => (
+                    <button key={p.path} type="button" onClick={() => createBuildTask(p.path)} className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-md">
+                        Add Build Task for {getBasename(p.path)}
+                    </button>
+                ))}
+                {delphiCaps.groups.map(g => (
+                    <button key={g} type="button" onClick={() => createBuildTask(g)} className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-md">
+                        Add Build Task for Group {getBasename(g)}
+                    </button>
+                ))}
+                {delphiCaps.packaging.innoSetup.map(s => (
+                     <button key={s} type="button" onClick={() => createInnoTask(s)} className="text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-md">
+                        Add Inno Setup Task for {getBasename(s)}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 
 // Component for editing the steps of a single task
 const TaskStepsEditor: React.FC<{
@@ -441,7 +535,7 @@ const TaskStepsEditor: React.FC<{
     return allStepTypes.filter(type => {
         if (type.startsWith('GIT_')) return vcs === VcsType.Git;
         if (type.startsWith('SVN_')) return vcs === VcsType.Svn;
-        if (type === TaskStepType.DelphiBuild) return tags.includes('delphi');
+        if (type.startsWith('DELPHI_')) return tags.includes('delphi');
         if (type.startsWith('PYTHON_')) return tags.includes('python');
         // All other steps (like RunCommand) are always available.
         return true;
@@ -488,6 +582,7 @@ const TaskStepsEditor: React.FC<{
           </div>
       )}
       
+      <DelphiTaskGenerator delphiCaps={projectInfo?.delphi} onAddTask={onAddTask} />
       <PythonTaskGenerator pythonCaps={projectInfo?.python} onAddTask={onAddTask} />
 
       <div className="space-y-3">

@@ -112,6 +112,9 @@ export enum TaskStepType {
   RunCommand = 'RUN_COMMAND',
   // Project-specific
   DelphiBuild = 'DELPHI_BUILD',
+  DELPHI_PACKAGE_INNO = 'DELPHI_PACKAGE_INNO',
+  DELPHI_PACKAGE_NSIS = 'DELPHI_PACKAGE_NSIS',
+  DELPHI_TEST_DUNITX = 'DELPHI_TEST_DUNITX',
   // Python-specific steps
   PYTHON_CREATE_VENV = 'PYTHON_CREATE_VENV',
   PYTHON_INSTALL_DEPS = 'PYTHON_INSTALL_DEPS',
@@ -132,6 +135,13 @@ export interface TaskStep {
   delphiConfiguration?: string;
   delphiPlatform?: string;
   delphiProjectFile?: string;
+  delphiBuildMode?: 'Build' | 'Rebuild' | 'Clean';
+  // Delphi Test specific
+  delphiTestExecutable?: string;
+  delphiTestOutputFile?: string;
+  // Delphi Packaging specific
+  delphiInstallerScript?: string;
+  delphiInstallerDefines?: string;
 }
 
 export interface Task {
@@ -206,8 +216,31 @@ export interface PythonCapabilities {
   hasPrecommit: boolean;
 }
 
+// --- Delphi Project Types ---
+export interface DelphiProject {
+    path: string;
+    platforms: string[];
+    configs: string[];
+    hasDeployment: boolean;
+    hasVersionInfo: boolean;
+}
+
+export interface DelphiCapabilities {
+    projects: DelphiProject[];
+    groups: string[];
+    packaging: {
+        innoSetup: string[];
+        nsis: string[];
+    };
+    hasDUnitX: boolean;
+    packageManagers: {
+        boss: boolean;
+    };
+}
+
 export interface ProjectInfo {
     tags: string[];
     files: Record<string, string[]>;
     python?: PythonCapabilities;
+    delphi?: DelphiCapabilities;
 }

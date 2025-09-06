@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
 import { GoogleGenAI, Type } from '@google/genai';
-import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo } from '../types';
+import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 
@@ -216,12 +216,11 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
     if (!repoPath) return { tags: [], files: {}, python: undefined };
 
     const tagsSet = new Set<string>();
-    const info: {
-        files: Record<string, string[]>;
-        python?: PythonCapabilities;
-    } = {
+    const info: ProjectInfo = {
+        tags: [],
         files: { dproj: [] },
         python: undefined,
+        delphi: undefined,
     };
 
     try {
@@ -232,16 +231,73 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
         // Project files
         const dirContents = await fs.readdir(repoPath);
 
-        // Check for Delphi projects recursively
-        const dprojFiles = await findFilesByExtensionRecursive(repoPath, '.dproj', repoPath);
-        if (dprojFiles.length > 0) {
-            tagsSet.add('delphi');
-            info.files.dproj = dprojFiles;
-        }
-
         if (dirContents.includes('package.json')) {
             tagsSet.add('node');
         }
+
+        // --- Delphi Project Detection ---
+        let isDelphiProject = false;
+        const delphiCaps: DelphiCapabilities = {
+            projects: [],
+            groups: [],
+            packaging: { innoSetup: [], nsis: [] },
+            hasDUnitX: false,
+            packageManagers: { boss: false },
+        };
+
+        const dprojFiles = await findFilesByExtensionRecursive(repoPath, '.dproj', repoPath);
+        delphiCaps.groups = await findFilesByExtensionRecursive(repoPath, '.groupproj', repoPath);
+
+        if (dprojFiles.length > 0 || delphiCaps.groups.length > 0) {
+            isDelphiProject = true;
+        }
+
+        for (const dproj of dprojFiles) {
+            try {
+                const content = await fs.readFile(path.join(repoPath, dproj), 'utf-8');
+                const project: DelphiProject = {
+                    path: dproj,
+                    platforms: [],
+                    configs: [],
+                    hasDeployment: /<DeployManager>/.test(content),
+                    hasVersionInfo: /<VersionInfo/.test(content),
+                };
+                
+                const platformsMatch = content.match(/<Platforms.*?>([\s\S]*?)<\/Platforms>/);
+                if (platformsMatch) {
+                    const platformRegex = /<Platform value="([^"]+)">/g;
+                    let match;
+                    while ((match = platformRegex.exec(platformsMatch[1])) !== null) {
+                        project.platforms.push(match[1]);
+                    }
+                }
+
+                const configsMatch = content.match(/<Configurations>([\s\S]*?)<\/Configurations>/);
+                if (configsMatch) {
+                    const configRegex = /<Config value="([^"]+)">/g;
+                    let match;
+                    while ((match = configRegex.exec(configsMatch[1])) !== null) {
+                        project.configs.push(match[1]);
+                    }
+                }
+                
+                if (dproj.toLowerCase().includes('test')) {
+                    delphiCaps.hasDUnitX = true;
+                }
+
+                delphiCaps.projects.push(project);
+            } catch (e) { console.error(`Could not parse Delphi project: ${dproj}`, e); }
+        }
+
+        delphiCaps.packaging.innoSetup = await findFilesByExtensionRecursive(repoPath, '.iss', repoPath);
+        delphiCaps.packaging.nsis = await findFilesByExtensionRecursive(repoPath, '.nsi', repoPath);
+        delphiCaps.packageManagers.boss = await fileExists(repoPath, 'boss.json');
+        
+        if (isDelphiProject) {
+            tagsSet.add('delphi');
+            info.delphi = delphiCaps;
+        }
+
 
         // --- Python Project Detection ---
         let isPythonProject = false;
@@ -319,7 +375,8 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
         console.error(`Error getting project info for ${repoPath}:`, error);
     }
     
-    return { ...info, tags: Array.from(tagsSet) };
+    info.tags = Array.from(tagsSet);
+    return info;
 };
 
 // --- IPC handler for intelligent project analysis ---
@@ -905,6 +962,16 @@ const getPythonCommandParts = async (repoPath: string): Promise<{ executable: st
     }
 };
 
+async function runDelphiCommand(command: string, args: string[], repoPath: string, sender: (channel: string, ...args: any[]) => void, executionId: string) {
+    if (os.platform() !== 'win32') {
+        throw new Error('Delphi tasks can only be run on Windows.');
+    }
+    // Assumes rsvars.bat is in the system's PATH.
+    const fullCommand = `call rsvars.bat && ${command} ${args.join(' ')}`;
+    // The `runChildProcess` function uses shell:true, so we can pass the full command string.
+    await runChildProcess(repoPath, fullCommand, [], sender, executionId);
+}
+
 
 // --- IPC Handler for running real task steps ---
 ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId }: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; }) => {
@@ -921,7 +988,6 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId }:
     let command: string;
     let args: string[] = [];
 
-    // Fetch project info once for all python steps
     // FIX: Directly call the refactored getProjectInfo function instead of misusing ipcMain.handle.
     const projectInfo = await getProjectInfo(repo.localPath);
     const pyCaps = projectInfo.python;
@@ -941,15 +1007,71 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId }:
             if (!step.command) { sendLog('Skipping empty command.', LogLevel.Warn); sendEnd(0); return; }
             const parts = step.command.split(' ');
             command = parts[0]; args = parts.slice(1); break;
+        
+        // --- Delphi Steps ---
         case TaskStepType.DelphiBuild:
             try {
-                const projectFile = step.delphiProjectFile || (projectInfo.files.dproj && projectInfo.files.dproj.length > 0 ? projectInfo.files.dproj[0] : null);
-                if (!projectFile) throw new Error('No .dproj file found.');
-                command = 'msbuild';
-                args = [ projectFile, '/t:Build', `/p:Configuration=${step.delphiConfiguration || 'Release'}`, `/p:Platform=${step.delphiPlatform || 'Win32'}` ];
-            } catch (e: any) { sendLog(`Error preparing Delphi build: ${e.message}`, LogLevel.Error); sendEnd(1); return; }
-            break;
-        // Python Steps
+                const projectFile = step.delphiProjectFile || projectInfo.delphi?.projects[0]?.path || projectInfo.delphi?.groups[0];
+                if (!projectFile) throw new Error('No .dproj or .groupproj file found or specified for build step.');
+                
+                const mode = step.delphiBuildMode || 'Build';
+                const config = step.delphiConfiguration || 'Release';
+                const platform = step.delphiPlatform || 'Win32';
+                
+                const buildArgs = [`"${projectFile}"`, `/t:${mode}`, `/p:Configuration=${config}`, `/p:Platform=${platform}`];
+                
+                await runDelphiCommand('msbuild', buildArgs, repo.localPath, sender, executionId);
+                sendEnd(0);
+            } catch (e: any) {
+                sendLog(`Error during Delphi Build: ${e.message}`, LogLevel.Error);
+                sendEnd(1);
+            }
+            return;
+        case TaskStepType.DELPHI_PACKAGE_INNO:
+            try {
+                const scriptFile = step.delphiInstallerScript || projectInfo.delphi?.packaging.innoSetup[0];
+                if (!scriptFile) throw new Error('No Inno Setup script (.iss) file found or specified.');
+                
+                const defines = (step.delphiInstallerDefines || '').split(';').filter(d => d.trim()).map(d => `/d${d.trim()}`);
+                
+                await runDelphiCommand('iscc', [`"${scriptFile}"`, ...defines], repo.localPath, sender, executionId);
+                sendEnd(0);
+            } catch (e: any) {
+                sendLog(`Error during Inno Setup packaging: ${e.message}`, LogLevel.Error);
+                sendEnd(1);
+            }
+            return;
+        case TaskStepType.DELPHI_PACKAGE_NSIS:
+            try {
+                const scriptFile = step.delphiInstallerScript || projectInfo.delphi?.packaging.nsis[0];
+                if (!scriptFile) throw new Error('No NSIS script (.nsi) file found or specified.');
+                
+                const defines = (step.delphiInstallerDefines || '').split(';').filter(d => d.trim()).map(d => `/D${d.trim()}`);
+                
+                await runDelphiCommand('makensis', [...defines, `"${scriptFile}"`], repo.localPath, sender, executionId);
+                sendEnd(0);
+            } catch (e: any) {
+                sendLog(`Error during NSIS packaging: ${e.message}`, LogLevel.Error);
+                sendEnd(1);
+            }
+            return;
+        case TaskStepType.DELPHI_TEST_DUNITX:
+            try {
+                const testExe = step.delphiTestExecutable;
+                if (!testExe) throw new Error('Path to DUnitX test executable is not specified.');
+                
+                const outputArgs = step.delphiTestOutputFile ? [`--format=JUnit`, `--output="${step.delphiTestOutputFile}"`] : [];
+                
+                // DUnitX tests are executables; they don't strictly need rsvars, but running via the wrapper is harmless and consistent.
+                await runDelphiCommand(`"${testExe}"`, outputArgs, repo.localPath, sender, executionId);
+                sendEnd(0);
+            } catch (e: any) {
+                sendLog(`Error during DUnitX test run: ${e.message}`, LogLevel.Error);
+                sendEnd(1);
+            }
+            return;
+            
+        // --- Python Steps ---
         case TaskStepType.PYTHON_CREATE_VENV:
             const globalPy = os.platform() === 'win32' ? 'py' : 'python3';
             command = globalPy; args = ['-m', 'venv', '.venv']; break;
@@ -1026,7 +1148,8 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId }:
 // Helper function to promisify spawning a child process
 function runChildProcess(cwd: string, command: string, args: string[], sender: (channel: string, ...args: any[]) => void, executionId: string): Promise<number> {
     return new Promise((resolve, reject) => {
-        sender('task-log', { executionId, message: `$ ${command} ${args.join(' ')}`, level: LogLevel.Command });
+        const fullCmd = args.length > 0 ? `${command} ${args.join(' ')}` : command;
+        sender('task-log', { executionId, message: `$ ${fullCmd}`, level: LogLevel.Command });
         
         const child = spawn(command, args, { cwd, shell: true });
 
