@@ -482,24 +482,26 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const logger = useLogger();
   
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => {
+    // This initializer function runs only once when the component mounts.
+    // This is the key to preventing state resets on parent re-renders.
     if (repository) {
         return repository;
     }
     return NEW_REPO_TEMPLATE;
   });
 
-  // Ref to track the previous remoteUrl to trigger the toast effect
-  const prevRemoteUrlRef = useRef(formData.remoteUrl || '');
+  const prevFormDataRef = useRef(formData);
 
+  // This effect decouples the toast notification from the state update that causes it.
+  // It runs *after* the main state update has been committed.
   useEffect(() => {
-    const currentRemoteUrl = formData.remoteUrl || '';
-    // If the URL changed from nothing to something, it was discovered successfully.
-    if (!prevRemoteUrlRef.current && currentRemoteUrl) {
-      setToast({ message: 'Remote URL and name discovered!', type: 'success' });
+    const wasJustDiscovered = !prevFormDataRef.current.remoteUrl && !!formData.remoteUrl;
+    if (wasJustDiscovered) {
+        setToast({ message: 'Remote URL and name discovered!', type: 'success' });
     }
-    // Update the ref for the next comparison.
-    prevRemoteUrlRef.current = currentRemoteUrl;
-  }, [formData.remoteUrl, setToast]);
+    // Keep a ref to the previous state for the next comparison.
+    prevFormDataRef.current = formData;
+  }, [formData, setToast]);
 
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => {
@@ -794,7 +796,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         const result = await window.electronAPI.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
         
         if (result && result.url) {
-            // Toast is now handled by the useEffect. Just set the form data.
+            // This function now ONLY updates the local form state.
+            // The useEffect hook will handle showing the toast.
             setFormData(prev => {
                 const newName = (!prev.name || prev.name.trim() === '')
                     ? result.url.split('/').pop()?.replace(/\.git$/, '') || prev.name
