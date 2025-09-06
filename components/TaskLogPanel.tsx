@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useCallback, useState } from 'react';
 import type { LogEntry, Repository } from '../types';
 import { LogLevel, RepoStatus } from '../types';
 import { XIcon } from './icons/XIcon';
+import { ArrowPathIcon } from './icons/ArrowPathIcon';
+import { CheckCircleIcon } from './icons/CheckCircleIcon';
+import { XCircleIcon } from './icons/XCircleIcon';
 
 interface TaskLogPanelProps {
   onClosePanel: () => void;
@@ -116,41 +119,67 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
                 const isSelected = repoId === selectedRepoId;
                 const isTaskRunning = isProcessing.has(repoId);
                 const status = repo?.status;
-
-                let indicator = null;
-                const isCompletedWithStatus = !isTaskRunning && (status === RepoStatus.Success || status === RepoStatus.Failed);
+                
+                let IconComponent: React.ComponentType<{ className: string }> | null = null;
+                let textClasses = '';
+                let bgClasses = '';
 
                 if (isTaskRunning) {
-                    indicator = <span className="mr-2 h-2 w-2 shrink-0 bg-blue-500 rounded-full animate-pulse" title="Task is running"></span>;
-                }
-                
-                let baseClasses = 'group relative flex items-center cursor-pointer rounded-md border px-3 py-1.5 text-sm whitespace-nowrap transition-all shadow-sm focus:outline-none';
-                let colorClasses = '';
-                let selectedClasses = isSelected ? 'ring-2 ring-offset-2 dark:ring-offset-gray-800 ring-blue-500' : '';
-                
-                if (isCompletedWithStatus) {
-                    if (status === RepoStatus.Success) {
-                        colorClasses = 'bg-green-600 border-green-700 text-white hover:bg-green-700';
-                    } else { // Failed
-                        colorClasses = 'bg-red-600 border-red-700 text-white hover:bg-red-700';
+                    IconComponent = ArrowPathIcon;
+                    if (isSelected) {
+                        textClasses = 'text-white';
+                        bgClasses = 'bg-blue-600 border-blue-700 hover:bg-blue-700';
+                    } else {
+                        textClasses = 'text-blue-600 dark:text-blue-400';
+                        bgClasses = 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600';
                     }
-                } else {
-                    colorClasses = 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600';
+                } else if (status === RepoStatus.Success) {
+                    IconComponent = CheckCircleIcon;
+                    if (isSelected) {
+                        textClasses = 'text-white';
+                        bgClasses = 'bg-green-600 border-green-700 hover:bg-green-700';
+                    } else {
+                        textClasses = 'text-green-600 dark:text-green-500';
+                        bgClasses = 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600';
+                    }
+                } else if (status === RepoStatus.Failed) {
+                    IconComponent = XCircleIcon;
+                    if (isSelected) {
+                        textClasses = 'text-white';
+                        bgClasses = 'bg-red-600 border-red-700 hover:bg-red-700';
+                    } else {
+                        textClasses = 'text-red-600 dark:text-red-500';
+                        bgClasses = 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600';
+                    }
+                } else { // Idle or other statuses
+                    if (isSelected) {
+                        textClasses = 'text-blue-800 dark:text-blue-300 font-semibold';
+                        bgClasses = 'bg-blue-100 dark:bg-gray-600 border-blue-300 dark:border-gray-500';
+                    } else {
+                        textClasses = 'text-gray-800 dark:text-gray-200';
+                        bgClasses = 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600';
+                    }
                 }
+
+                const baseClasses = 'group relative flex items-center cursor-pointer rounded-md border px-3 py-1.5 text-sm whitespace-nowrap transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500';
+                
+                const closeButtonHoverClass = isSelected && (isTaskRunning || status === RepoStatus.Success || status === RepoStatus.Failed) 
+                    ? 'hover:bg-white/20' 
+                    : 'hover:bg-gray-300 dark:hover:bg-gray-600';
 
                 return (
                   <button
                     key={repoId}
                     role="tab"
                     aria-selected={isSelected}
-                    className={`${baseClasses} ${colorClasses} ${selectedClasses}`}
+                    className={`${baseClasses} ${bgClasses} ${textClasses}`}
                     onClick={() => onSelectTab(repoId)}
                   >
-                    {indicator}
+                    {IconComponent && <IconComponent className={`mr-2 h-4 w-4 shrink-0 ${isTaskRunning ? 'animate-spin' : ''}`} />}
                     <span className="truncate max-w-[150px]">{repo?.name || '...'}</span>
                     <button
                       onClick={(e) => { e.stopPropagation(); onCloseTab(repoId); }}
-                      className={`ml-2 p-0.5 rounded-full opacity-50 group-hover:opacity-100 ${isCompletedWithStatus ? 'hover:bg-white/20' : 'hover:bg-gray-300 dark:hover:bg-gray-600'} transition-colors`}
+                      className={`ml-2 p-0.5 rounded-full opacity-50 group-hover:opacity-100 ${closeButtonHoverClass} transition-colors`}
                       aria-label={`Close tab for ${repo?.name}`}
                     >
                       <XIcon className="h-3 w-3" />
