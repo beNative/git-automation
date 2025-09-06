@@ -4,8 +4,8 @@ import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
 import { GoogleGenAI, Type } from '@google/genai';
-import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry } from '../types';
-import { TaskStepType, LogLevel, VcsType } from '../types';
+import type { Repository, TaskStep, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType } from '../types';
+import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 
 
@@ -397,10 +397,10 @@ ${fileContent}
 
 // --- IPC handler for checking git/svn status ---
 ipcMain.handle('check-vcs-status', async (event, repo: Repository): Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }> => {
-    const command = repo.vcs === VcsType.Git ? 'git status --porcelain' : 'svn status';
+    const command = repo.vcs === VcsTypeEnum.Git ? 'git status --porcelain' : 'svn status';
     
     // This feature is Git-specific. For SVN, return a simplified structure.
-    if (repo.vcs !== VcsType.Git) {
+    if (repo.vcs !== VcsTypeEnum.Git) {
       return new Promise((resolve) => {
           exec(command, { cwd: repo.localPath }, (error, stdout, stderr) => {
               if (error) {
@@ -442,7 +442,7 @@ ipcMain.handle('check-vcs-status', async (event, repo: Repository): Promise<{ is
 
 // --- IPC handler for adding files to .gitignore, committing, and pushing ---
 ipcMain.handle('ignore-files-and-push', async (event, { repo, filesToIgnore }: { repo: Repository, filesToIgnore: string[] }): Promise<{ success: boolean; error?: string }> => {
-    if (repo.vcs !== VcsType.Git) {
+    if (repo.vcs !== VcsTypeEnum.Git) {
         return { success: false, error: 'This feature is only available for Git repositories.' };
     }
     try {
@@ -493,6 +493,46 @@ ipcMain.handle('check-local-path', async (event, localPath: string): Promise<Loc
         return 'missing';
     }
 });
+
+// --- IPC handler for discovering remote URL ---
+ipcMain.handle('discover-remote-url', async (event, { localPath, vcs }: { localPath: string, vcs: VcsType }): Promise<{ url: string | null; error?: string }> => {
+    try {
+      // Verify the path exists and is a repository of the specified type
+      try {
+        await fs.access(localPath);
+        if (vcs === VcsTypeEnum.Git) {
+          await fs.stat(path.join(localPath, '.git'));
+        } else if (vcs === VcsTypeEnum.Svn) {
+          await fs.stat(path.join(localPath, '.svn'));
+        } else {
+          return { url: null, error: `Unsupported VCS type: ${vcs}` };
+        }
+      } catch (e) {
+        return { url: null, error: `The path is not a valid ${vcs} repository.` };
+      }
+  
+      if (vcs === VcsTypeEnum.Git) {
+        const { stdout } = await execAsync('git config --get remote.origin.url', { cwd: localPath });
+        const url = stdout.trim();
+        if (!url) {
+          return { url: null, error: 'Could not find remote "origin" URL.' };
+        }
+        return { url };
+      } else if (vcs === VcsTypeEnum.Svn) {
+        const { stdout } = await execAsync('svn info --show-item url', { cwd: localPath });
+        const url = stdout.trim();
+        if (!url) {
+          return { url: null, error: 'Could not determine repository URL from SVN info.' };
+        }
+        return { url };
+      } else {
+        return { url: null, error: `Unsupported VCS type: ${vcs}` };
+      }
+    } catch (e: any) {
+      console.error(`Error discovering remote URL for ${localPath}:`, e);
+      return { url: null, error: e.stderr || e.message || 'An unknown error occurred.' };
+    }
+  });
 
 // --- IPC handler for showing directory picker ---
 ipcMain.handle('show-directory-picker', async () => {
@@ -713,11 +753,11 @@ ipcMain.on('clone-repository', (event, { repo, executionId }: { repo: Repository
     let args: string[];
     let verb = '';
 
-    if (repo.vcs === VcsType.Git) {
+    if (repo.vcs === VcsTypeEnum.Git) {
         verb = 'Clone';
         command = 'git';
         args = ['clone', repo.remoteUrl, repo.localPath];
-    } else if (repo.vcs === VcsType.Svn) {
+    } else if (repo.vcs === VcsTypeEnum.Svn) {
         verb = 'Checkout';
         command = 'svn';
         args = ['checkout', repo.remoteUrl, repo.localPath];
@@ -901,7 +941,7 @@ const execAsync = (command: string, options: { cwd: string }): Promise<{ stdout:
 // --- Get Detailed Status ---
 ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promise<DetailedStatus | null> => {
   try {
-    if (repo.vcs === VcsType.Git) {
+    if (repo.vcs === VcsTypeEnum.Git) {
       try {
         // Fetch updates from all remotes without changing local branches
         await execAsync('git remote update', { cwd: repo.localPath });
@@ -940,7 +980,7 @@ ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promi
         }
       }
       return { files, branchInfo, isDirty };
-    } else if (repo.vcs === VcsType.Svn) {
+    } else if (repo.vcs === VcsTypeEnum.Svn) {
       const { stdout } = await execAsync('svn status -u', { cwd: repo.localPath });
       const files: VcsFileStatus = { added: 0, modified: 0, deleted: 0, conflicted: 0, untracked: 0, renamed: 0 };
       let updatesAvailable = false;

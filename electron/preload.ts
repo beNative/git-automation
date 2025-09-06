@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry } from '../types';
+import type { Repository, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType } from '../types';
 
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Local Path and Actions
   checkLocalPath: (path: string): Promise<LocalPathState> => ipcRenderer.invoke('check-local-path', path),
+  discoverRemoteUrl: (args: { localPath: string, vcs: VcsType }): Promise<{ url: string | null; error?: string }> => ipcRenderer.invoke('discover-remote-url', args),
   cloneRepository: (args: { repo: Repository, executionId: string }) => ipcRenderer.send('clone-repository', args),
   launchApplication: (args: { repo: Repository, command: string }) => ipcRenderer.invoke('launch-application', args),
   showDirectoryPicker: (): Promise<{ canceled: boolean, filePaths: string[] }> => ipcRenderer.invoke('show-directory-picker'),

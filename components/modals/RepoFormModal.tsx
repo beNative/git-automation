@@ -777,6 +777,25 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
           setToast({ message: `Merge failed: ${result?.error || 'Electron API not available.'}`, type: 'error' });
       }
   };
+  
+  const handleDiscoverRemote = useCallback(async () => {
+    if (!formData.localPath) {
+        setToast({ message: 'Please provide a local path first.', type: 'info' });
+        return;
+    }
+
+    try {
+        const result = await window.electronAPI.discoverRemoteUrl({ localPath: formData.localPath, vcs: formData.vcs });
+        if (result.url) {
+            setFormData(prev => ({ ...prev, remoteUrl: result.url! }));
+            setToast({ message: 'Remote URL discovered!', type: 'success' });
+        } else {
+            setToast({ message: `Could not discover URL: ${result.error || 'No remote found.'}`, type: 'error' });
+        }
+    } catch (e: any) {
+        setToast({ message: `Error: ${e.message}`, type: 'error' });
+    }
+  }, [formData.localPath, formData.vcs, setToast]);
 
 
   const selectedTask = useMemo(() => {
@@ -960,7 +979,30 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             <div><label htmlFor="vcs" className={formLabelStyle}>Version Control System</label><select name="vcs" id="vcs" value={formData.vcs} onChange={handleVcsChange} className={formInputStyle}><option value="git">Git</option><option value="svn">SVN (Subversion)</option></select></div>
             
             <div><label htmlFor="name" className={formLabelStyle}>Repository Name</label><input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className={formInputStyle}/></div>
-            <div><label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label><input type="url" name="remoteUrl" id="remoteUrl" value={formData.remoteUrl} onChange={handleChange} required className={formInputStyle}/></div>
+            <div>
+              <label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="url"
+                  name="remoteUrl"
+                  id="remoteUrl"
+                  value={formData.remoteUrl}
+                  onChange={handleChange}
+                  required
+                  className={`${formInputStyle} mt-0 flex-grow`}
+                />
+                <button
+                  type="button"
+                  onClick={handleDiscoverRemote}
+                  disabled={!formData.localPath || !!formData.remoteUrl}
+                  className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                  aria-label="Discover Remote URL from Local Path"
+                  title="Discover Remote URL from Local Path"
+                >
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                </button>
+              </div>
+            </div>
             <div><label htmlFor="localPath" className={formLabelStyle}>Local Path</label><input type="text" name="localPath" id="localPath" value={formData.localPath} onChange={handleChange} required className={formInputStyle}/></div>
             
             {formData.vcs === 'git' && (

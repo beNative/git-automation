@@ -1,5 +1,5 @@
 import type { IpcRendererEvent } from 'electron';
-import type { Repository, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry } from '../types';
+import type { Repository, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType } from '../types';
 
 export type LocalPathState = AppLocalPathState;
 
@@ -29,6 +29,7 @@ export interface IElectronAPI {
 
 
   checkLocalPath: (path: string) => Promise<LocalPathState>;
+  discoverRemoteUrl: (args: { localPath: string; vcs: VcsType; }) => Promise<{ url: string | null; error?: string }>;
   cloneRepository: (args: { repo: Repository, executionId: string }) => void;
   launchApplication: (args: { repo: Repository, command: string }) => Promise<{ success: boolean; output: string }>;
   showDirectoryPicker: () => Promise<{ canceled: boolean, filePaths: string[] }>;
