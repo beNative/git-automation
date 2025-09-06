@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
@@ -488,6 +488,20 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     return NEW_REPO_TEMPLATE;
   });
 
+  // Ref to track the previous remoteUrl to trigger the toast effect
+  const prevRemoteUrlRef = useRef(formData.remoteUrl || '');
+
+  useEffect(() => {
+    const currentRemoteUrl = formData.remoteUrl || '';
+    // If the URL changed from nothing to something, it was discovered successfully.
+    if (!prevRemoteUrlRef.current && currentRemoteUrl) {
+      setToast({ message: 'Remote URL and name discovered!', type: 'success' });
+    }
+    // Update the ref for the next comparison.
+    prevRemoteUrlRef.current = currentRemoteUrl;
+  }, [formData.remoteUrl, setToast]);
+
+
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => {
     if (repository && repository.tasks && repository.tasks.length > 0) {
         return repository.tasks[0].id;
@@ -780,8 +794,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         const result = await window.electronAPI.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
         
         if (result && result.url) {
-            setToast({ message: 'Remote URL and name discovered!', type: 'success' });
-            
+            // Toast is now handled by the useEffect. Just set the form data.
             setFormData(prev => {
                 const newName = (!prev.name || prev.name.trim() === '')
                     ? result.url.split('/').pop()?.replace(/\.git$/, '') || prev.name
@@ -793,7 +806,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                     name: newName,
                 };
             });
-
         } else {
             const errorMsg = `Could not discover URL: ${result.error || 'No remote found.'}`;
             setToast({ message: errorMsg, type: 'error' });
