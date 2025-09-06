@@ -312,7 +312,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, repository.id)}
       onDragEnd={onDragEnd}
-      className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-blue-500/20 overflow-hidden ${isBeingDragged ? 'opacity-40' : ''} ${isDropTarget ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900' : ''}`}
+      className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-blue-500/20 ${isBeingDragged ? 'opacity-40' : ''} ${isDropTarget ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900' : ''}`}
     >
       <div className="p-4 flex-grow">
         <div className="flex items-start justify-between">
