@@ -4,10 +4,13 @@ import { LogLevel } from '../types';
 import { XIcon } from './icons/XIcon';
 
 interface TaskLogPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
-  logs: LogEntry[];
-  repository: Repository | undefined;
+  onClosePanel: () => void;
+  onCloseTab: (repoId: string) => void;
+  onSelectTab: (repoId: string) => void;
+  logs: Record<string, LogEntry[]>;
+  allRepositories: Repository[];
+  activeRepoIds: string[];
+  selectedRepoId: string | null;
   height: number;
   setHeight: (height: number) => void;
 }
@@ -22,19 +25,23 @@ const LOG_LEVEL_STYLES: Record<LogLevel, string> = {
 
 const MIN_HEIGHT = 100; // Minimum pixel height for the panel
 
-const TaskLogPanel: React.FC<TaskLogPanelProps> = ({ isOpen, onClose, logs, repository, height, setHeight }) => {
+const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
+  onClosePanel, onCloseTab, onSelectTab, logs, allRepositories,
+  activeRepoIds, selectedRepoId, height, setHeight,
+}) => {
   const logContainerRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [statusBarHeight, setStatusBarHeight] = useState(0);
 
+  const selectedRepo = allRepositories.find(r => r.id === selectedRepoId);
+  const selectedLogs = selectedRepoId ? logs[selectedRepoId] || [] : [];
+
   useEffect(() => {
-    // Read the CSS variable for status bar height and convert it to pixels.
     if (typeof window !== 'undefined') {
         try {
             const heightValue = getComputedStyle(document.documentElement).getPropertyValue('--status-bar-height').trim();
             const numericHeight = parseFloat(heightValue);
             let pixelHeight = numericHeight;
-
             if (heightValue.endsWith('rem')) {
                 const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
                 pixelHeight = numericHeight * rootFontSize;
@@ -44,19 +51,17 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({ isOpen, onClose, logs, repo
             setStatusBarHeight(pixelHeight);
         } catch (e) {
             console.error("Could not parse --status-bar-height, falling back to 28px.", e);
-            setStatusBarHeight(28); // Fallback if CSS variable is missing or invalid
+            setStatusBarHeight(28);
         }
     }
   }, []);
 
-  // Auto-scroll to the bottom of the logs when new entries are added
   useEffect(() => {
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
-  }, [logs]);
+  }, [selectedLogs]);
 
-  // Mouse event handlers for resizing
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
@@ -68,16 +73,14 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({ isOpen, onClose, logs, repo
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (isResizing) {
-      const maxHeight = window.innerHeight - 100; // Prevent overlapping the header
+      const maxHeight = window.innerHeight - 100;
       const newHeight = window.innerHeight - e.clientY - statusBarHeight;
-
       if (newHeight >= MIN_HEIGHT && newHeight <= maxHeight) {
         setHeight(newHeight);
       }
     }
   }, [isResizing, setHeight, statusBarHeight]);
-  
-  // Effect to add and remove global event listeners for resizing
+
   useEffect(() => {
     if (isResizing) {
       window.addEventListener('mousemove', handleMouseMove);
@@ -89,27 +92,54 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({ isOpen, onClose, logs, repo
     };
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
-
   return (
     <div
-      className={`fixed bottom-[var(--status-bar-height)] left-0 right-0 z-20 bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700 transition-transform duration-300 ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
+      className="relative flex-shrink-0 bg-white dark:bg-gray-800 shadow-lg border-t border-gray-200 dark:border-gray-700"
       style={{ height: `${height}px` }}
-      aria-hidden={!isOpen}
+      role="region"
+      aria-label="Task Logs"
     >
       <div 
         onMouseDown={handleMouseDown}
-        className="absolute -top-1 left-0 right-0 h-2 cursor-row-resize"
+        className="absolute -top-1 left-0 right-0 h-2 cursor-row-resize z-10"
         aria-label="Resize log panel"
         role="separator"
       />
-
-      <div className="h-full flex flex-col pt-1">
-        <header className="flex items-center justify-between px-4 py-1 flex-shrink-0">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            Task Logs: <span className="text-blue-600 dark:text-blue-400">{repository?.name || '...'}</span>
-          </h2>
+      
+      <div className="h-full flex flex-col">
+        <header className="flex items-center justify-between pl-2 pr-1 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <div className="flex-1 overflow-x-auto" role="tablist">
+            <div className="flex items-center">
+              {activeRepoIds.map(repoId => {
+                const repo = allRepositories.find(r => r.id === repoId);
+                const isSelected = repoId === selectedRepoId;
+                return (
+                  <div
+                    key={repoId}
+                    role="tab"
+                    aria-selected={isSelected}
+                    className={`group flex items-center cursor-pointer border-b-2 pt-2 pb-1.5 px-4 text-sm whitespace-nowrap transition-colors ${
+                      isSelected
+                        ? 'border-blue-500 text-gray-900 dark:text-white font-medium bg-gray-100 dark:bg-gray-700/50'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/80'
+                    }`}
+                    onClick={() => onSelectTab(repoId)}
+                  >
+                    <span className="truncate max-w-[150px]">{repo?.name || '...'}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onCloseTab(repoId); }}
+                      className="ml-2 p-0.5 rounded-full opacity-50 group-hover:opacity-100 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                      aria-label={`Close tab for ${repo?.name}`}
+                    >
+                      <XIcon className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           <button
-            onClick={onClose}
+            onClick={onClosePanel}
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             aria-label="Close log panel"
           >
@@ -119,18 +149,19 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({ isOpen, onClose, logs, repo
 
         <main
           ref={logContainerRef}
-          className="flex-grow px-4 py-2 bg-gray-50 dark:bg-gray-900 overflow-y-auto font-mono text-sm"
+          className="flex-grow p-2 sm:p-4 bg-gray-50 dark:bg-gray-900 overflow-y-auto font-mono text-sm"
           role="log"
         >
-          {logs.map((log, index) => (
+          {selectedLogs.length > 0 ? selectedLogs.map((log, index) => (
             <div key={index} className={`flex ${LOG_LEVEL_STYLES[log.level]}`}>
               <span className="flex-shrink-0 mr-4 text-gray-400 dark:text-gray-600">{new Date(log.timestamp).toLocaleTimeString()}</span>
               <p className="whitespace-pre-wrap break-words">
                 {log.level === LogLevel.Command && '$ '}{log.message}
               </p>
             </div>
-          ))}
-          {logs.length === 0 && <p className="text-gray-500">Waiting for logs...</p>}
+          )) : (
+            <p className="text-gray-500">No logs for {selectedRepo?.name || 'this repository'}.</p>
+          )}
         </main>
       </div>
     </div>

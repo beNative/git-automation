@@ -60,9 +60,10 @@ const App: React.FC = () => {
   const [detailedStatuses, setDetailedStatuses] = useState<Record<string, DetailedStatus | null>>({});
   const [branchLists, setBranchLists] = useState<Record<string, BranchInfo | null>>({});
   
-  const [taskLogPanel, setTaskLogPanel] = useState({
+  const [taskLogState, setTaskLogState] = useState({
     isOpen: false,
-    repoId: null as string | null,
+    activeIds: [] as string[],
+    selectedId: null as string | null,
     height: 300,
   });
 
@@ -313,6 +314,23 @@ const App: React.FC = () => {
     }
   };
 
+  const openLogPanelForRepo = useCallback((repoId: string, clearPreviousLogs: boolean) => {
+    if (clearPreviousLogs) {
+        clearLogs(repoId);
+    }
+    setTaskLogState(prev => {
+        const newActiveIds = prev.activeIds.includes(repoId)
+            ? prev.activeIds
+            : [...prev.activeIds, repoId];
+        return {
+            ...prev,
+            isOpen: true,
+            activeIds: newActiveIds,
+            selectedId: repoId,
+        };
+    });
+  }, [clearLogs]);
+
   const handleRunTask = useCallback(async (repoId: string, taskId: string) => {
     const repo = repositories.find(r => r.id === repoId);
     const task = repo?.tasks.find(t => t.id === taskId);
@@ -323,8 +341,7 @@ const App: React.FC = () => {
     }
 
     logger.info(`Running task '${task.name}' on '${repo.name}'`, { repoId, taskId });
-    clearLogs(repoId);
-    setTaskLogPanel({ isOpen: true, repoId, height: taskLogPanel.height });
+    openLogPanelForRepo(repo.id, true);
     
     const onDirty = (statusOutput: string) => {
       return new Promise<'stash' | 'force' | 'cancel'>((resolve) => {
@@ -345,7 +362,7 @@ const App: React.FC = () => {
     } finally {
         refreshRepoState(repoId); // Refresh status after task run
     }
-  }, [repositories, settings, runTask, clearLogs, taskLogPanel.height, refreshRepoState, logger]);
+  }, [repositories, settings, runTask, openLogPanelForRepo, refreshRepoState, logger]);
 
   const handleDirtyRepoChoice = (choice: 'stash' | 'force' | 'cancel') => {
     logger.debug('User made a choice on dirty repository modal.', { choice });
@@ -363,7 +380,7 @@ const App: React.FC = () => {
   };
 
   const handleViewLogs = (repoId: string) => {
-    setTaskLogPanel({ isOpen: true, repoId, height: taskLogPanel.height });
+    openLogPanelForRepo(repoId, false);
   };
   
   const handleViewHistory = useCallback((repoId: string) => {
@@ -375,8 +392,7 @@ const App: React.FC = () => {
 
   const handleRunLaunchable = useCallback(async (repo: Repository, launchable: Launchable) => {
       logger.info('Running launchable', { repoId: repo.id, launchable });
-      clearLogs(repo.id);
-      setTaskLogPanel({ isOpen: true, repoId: repo.id, height: taskLogPanel.height });
+      openLogPanelForRepo(repo.id, true);
       if (launchable.type === 'manual') {
         if(launchable.config.type === 'command' && launchable.config.command) {
             await launchApplication(repo, launchable.config.command);
@@ -386,7 +402,7 @@ const App: React.FC = () => {
       } else {
         await launchExecutable(repo, launchable.path);
       }
-    }, [launchApplication, launchExecutable, clearLogs, taskLogPanel.height, repositories, detectedExecutables, logger]);
+    }, [launchApplication, launchExecutable, openLogPanelForRepo, repositories, detectedExecutables, logger]);
 
   const handleRunLaunchConfig = useCallback(async (repoId: string, configId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -399,14 +415,13 @@ const App: React.FC = () => {
 
     if (config.type === 'command' && config.command) {
         logger.info('Running launch config (command)', { repoId, config });
-        clearLogs(repoId);
-        setTaskLogPanel({ isOpen: true, repoId, height: taskLogPanel.height });
+        openLogPanelForRepo(repoId, true);
         await launchApplication(repo, config.command);
     } else if (config.type === 'select-executable') {
         logger.info('Opening executable selection for launch config', { repoId, config });
         handleOpenExecutableSelection(repoId, configId);
     }
-  }, [repositories, launchApplication, clearLogs, taskLogPanel.height, detectedExecutables, logger]);
+  }, [repositories, launchApplication, openLogPanelForRepo, detectedExecutables, logger]);
 
   const handleOpenLaunchSelection = useCallback((repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -447,8 +462,7 @@ const App: React.FC = () => {
 
   const handleCloneRepo = useCallback(async (repo: Repository) => {
     logger.info('Cloning repository', { repoId: repo.id, url: repo.remoteUrl });
-    clearLogs(repo.id);
-    setTaskLogPanel({ isOpen: true, repoId: repo.id, height: taskLogPanel.height });
+    openLogPanelForRepo(repo.id, true);
     
     try {
         await cloneRepository(repo);
@@ -459,7 +473,7 @@ const App: React.FC = () => {
         logger.error('Clone failed', { repoId: repo.id, error: e.message });
         setToast({ message: e.message || 'Clone failed!', type: 'error' });
     }
-  }, [cloneRepository, clearLogs, taskLogPanel.height, logger]);
+  }, [cloneRepository, openLogPanelForRepo, logger]);
 
   const handleChooseLocationAndClone = useCallback(async (repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -563,6 +577,33 @@ const App: React.FC = () => {
     }
   }, [activeView]);
 
+  // Log Panel Handlers
+  const handleSelectLogTab = useCallback((repoId: string) => {
+    setTaskLogState(prev => ({ ...prev, selectedId: repoId }));
+  }, []);
+
+  const handleCloseLogTab = useCallback((repoIdToClose: string) => {
+    setTaskLogState(prev => {
+        const newActiveIds = prev.activeIds.filter(id => id !== repoIdToClose);
+
+        if (newActiveIds.length === 0) {
+            return { ...prev, isOpen: false, activeIds: [], selectedId: null };
+        }
+
+        if (prev.selectedId === repoIdToClose) {
+            const closingIndex = prev.activeIds.indexOf(repoIdToClose);
+            const newSelectedId = newActiveIds[Math.max(0, closingIndex - 1)];
+            return { ...prev, activeIds: newActiveIds, selectedId: newSelectedId };
+        }
+
+        return { ...prev, activeIds: newActiveIds };
+    });
+  }, []);
+
+  const handleCloseLogPanel = useCallback(() => {
+    setTaskLogState(prev => ({ ...prev, isOpen: false, activeIds: [], selectedId: null }));
+  }, []);
+
 
   if (isDataLoading) {
     return (
@@ -634,6 +675,20 @@ const App: React.FC = () => {
             <CurrentView />
           </main>
           
+          {taskLogState.isOpen && (
+            <TaskLogPanel
+              onClosePanel={handleCloseLogPanel}
+              onCloseTab={handleCloseLogTab}
+              onSelectTab={handleSelectLogTab}
+              logs={logs}
+              allRepositories={repositories}
+              activeRepoIds={taskLogState.activeIds}
+              selectedRepoId={taskLogState.selectedId}
+              height={taskLogState.height}
+              setHeight={(h) => setTaskLogState(p => ({ ...p, height: h }))}
+            />
+          )}
+
           <StatusBar 
             repoCount={repositories.length} 
             processingCount={isProcessing.size} 
@@ -642,17 +697,6 @@ const App: React.FC = () => {
             appVersion={appVersion}
             onToggleDebugPanel={() => setIsDebugPanelOpen(p => !p)}
           />
-          
-          {taskLogPanel.isOpen && (
-            <TaskLogPanel 
-              isOpen={taskLogPanel.isOpen} 
-              onClose={() => setTaskLogPanel(prev => ({ ...prev, isOpen: false }))}
-              logs={logs[taskLogPanel.repoId || ''] || []}
-              repository={repositories.find(r => r.id === taskLogPanel.repoId)}
-              height={taskLogPanel.height}
-              setHeight={(h) => setTaskLogPanel(p => ({...p, height: h}))}
-            />
-          )}
 
           <DebugPanel 
             isOpen={isDebugPanelOpen}
@@ -707,8 +751,7 @@ const App: React.FC = () => {
             onSelect={(executablePath) => {
               const { repo } = executableSelectionModal;
               if (repo) {
-                  clearLogs(repo.id);
-                  setTaskLogPanel({ isOpen: true, repoId: repo.id, height: taskLogPanel.height });
+                  openLogPanelForRepo(repo.id, true);
                   launchExecutable(repo, executablePath);
               }
               setExecutableSelectionModal({ isOpen: false, repo: null, launchConfig: null, executables: [] });
