@@ -22,6 +22,7 @@ import { useLogger } from '../../hooks/useLogger';
 import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';
 import { PythonIcon } from '../icons/PythonIcon';
 import { NodeIcon } from '../icons/NodeIcon';
+import { FolderOpenIcon } from '../icons/FolderOpenIcon';
 
 interface RepoEditViewProps {
   onSave: (repository: Repository) => void;
@@ -860,6 +861,20 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         setBranchesLoading(false);
     }
   }, [repository, isGitRepo, setToast]);
+
+  // Fetch branch info on mount for the dropdown if possible
+  useEffect(() => {
+    if (repository?.localPath && isGitRepo) {
+      if (branchInfo) return; // Don't re-fetch if we already have the info.
+      const checkPathAndFetch = async () => {
+        const pathState = await window.electronAPI.checkLocalPath(repository.localPath);
+        if (pathState === 'valid') {
+            fetchBranches();
+        }
+      };
+      checkPathAndFetch();
+    }
+  }, [repository, isGitRepo, fetchBranches, branchInfo]);
   
   // Fetch data when a tab becomes active or search term changes
   useEffect(() => {
@@ -1079,6 +1094,13 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   }, [formData.localPath, formData.vcs, setToast]);
 
+  const handleChooseLocalPath = useCallback(async () => {
+    const result = await window.electronAPI.showDirectoryPicker();
+    if (!result.canceled && result.filePaths.length > 0) {
+        setFormData(prev => ({ ...prev, localPath: result.filePaths[0] }));
+    }
+  }, []);
+
 
   const selectedTask = useMemo(() => {
     return formData.tasks?.find(t => t.id === selectedTaskId) || null;
@@ -1092,6 +1114,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     };
   }, [formData.localPath, formData.name, formData.vcs]);
   
+  const hasBranches = branchInfo && (branchInfo.local.length > 0 || branchInfo.remote.length > 0);
 
   const renderTabContent = () => {
     if (!('id' in formData)) {
@@ -1286,11 +1309,57 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 </button>
               </div>
             </div>
-            <div><label htmlFor="localPath" className={formLabelStyle}>Local Path</label><input type="text" name="localPath" id="localPath" value={formData.localPath} onChange={handleChange} required className={formInputStyle}/></div>
+            <div>
+              <label htmlFor="localPath" className={formLabelStyle}>Local Path</label>
+              <div className="flex items-center gap-2 mt-1">
+                <input type="text" name="localPath" id="localPath" value={formData.localPath} onChange={handleChange} required className={`${formInputStyle} mt-0 flex-grow`} />
+                <button
+                    type="button"
+                    onClick={handleChooseLocalPath}
+                    className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex-shrink-0"
+                    aria-label="Choose local path"
+                    title="Choose local path"
+                >
+                    <FolderOpenIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                </button>
+              </div>
+            </div>
             
             {formData.vcs === 'git' && (
               <>
-                <div><label htmlFor="branch" className={formLabelStyle}>Default Branch</label><input type="text" name="branch" id="branch" value={(formData as GitRepository).branch} onChange={handleChange} required className={formInputStyle}/></div>
+                <div>
+                  <label htmlFor="branch" className={formLabelStyle}>Default Branch</label>
+                  {hasBranches ? (
+                      <select 
+                          name="branch" 
+                          id="branch" 
+                          value={(formData as GitRepository).branch} 
+                          onChange={handleChange} 
+                          className={formInputStyle}
+                      >
+                          {branchInfo?.local.length > 0 && (
+                              <optgroup label="Local Branches">
+                                  {branchInfo.local.map(b => <option key={b} value={b}>{b}</option>)}
+                              </optgroup>
+                          )}
+                          {branchInfo?.remote.length > 0 && (
+                              <optgroup label="Remote Branches">
+                                  {branchInfo.remote.map(b => <option key={b} value={b}>{b}</option>)}
+                              </optgroup>
+                          )}
+                      </select>
+                  ) : (
+                      <input 
+                          type="text" 
+                          name="branch" 
+                          id="branch" 
+                          value={(formData as GitRepository).branch} 
+                          onChange={handleChange} 
+                          required 
+                          className={formInputStyle}
+                      />
+                  )}
+                </div>
                 <div className="flex items-start pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex items-center h-5">
                         <input
