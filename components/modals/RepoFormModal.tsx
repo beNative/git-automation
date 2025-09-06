@@ -787,15 +787,29 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     try {
         const result = await window.electronAPI.discoverRemoteUrl({ localPath: formData.localPath, vcs: formData.vcs });
         if (result.url) {
-            setFormData(prev => ({ ...prev, remoteUrl: result.url! }));
-            setToast({ message: 'Remote URL discovered!', type: 'success' });
+            setFormData(prev => {
+                const updates: any = { remoteUrl: result.url };
+                
+                // Suggest repo name if name is empty and url is not empty
+                if (!prev.name && result.url) {
+                    // Heuristic to get repo name from URL. Works for http and git protocols.
+                    // Grabs the last part of the path and removes an optional .git suffix.
+                    const repoName = result.url.split('/').pop()?.replace(/\.git$/, '');
+                    if (repoName) {
+                        updates.name = repoName;
+                    }
+                }
+                
+                return { ...prev, ...updates };
+            });
+            setToast({ message: 'Remote URL and name discovered!', type: 'success' });
         } else {
             setToast({ message: `Could not discover URL: ${result.error || 'No remote found.'}`, type: 'error' });
         }
     } catch (e: any) {
         setToast({ message: `Error: ${e.message}`, type: 'error' });
     }
-  }, [formData.localPath, formData.vcs, setToast]);
+  }, [formData.localPath, formData.name, formData.vcs, setToast]);
 
 
   const selectedTask = useMemo(() => {
@@ -986,7 +1000,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                   type="url"
                   name="remoteUrl"
                   id="remoteUrl"
-                  value={formData.remoteUrl}
+                  value={formData.remoteUrl || ''}
                   onChange={handleChange}
                   required
                   className={`${formInputStyle} mt-0 flex-grow`}
