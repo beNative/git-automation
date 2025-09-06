@@ -119,6 +119,7 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
 
                 let tabClasses = 'group flex items-center cursor-pointer border-b-2 pt-2 pb-1.5 px-4 text-sm whitespace-nowrap transition-colors ';
                 let indicator = null;
+                const isCompletedWithStatus = !isTaskRunning && (status === RepoStatus.Success || status === RepoStatus.Failed);
 
                 if (isTaskRunning) {
                     indicator = <span className="mr-2 h-2 w-2 shrink-0 bg-blue-500 rounded-full animate-pulse" title="Task is running"></span>;
@@ -127,18 +128,18 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
                 if (isSelected) {
                     tabClasses += 'border-blue-500 font-medium ';
                     if (!isTaskRunning && status === RepoStatus.Success) {
-                        tabClasses += 'bg-green-200 dark:bg-green-800/60 text-green-900 dark:text-green-100';
+                        tabClasses += 'bg-green-600 text-white dark:bg-green-700';
                     } else if (!isTaskRunning && status === RepoStatus.Failed) {
-                        tabClasses += 'bg-red-200 dark:bg-red-800/60 text-red-900 dark:text-red-100';
+                        tabClasses += 'bg-red-600 text-white dark:bg-red-700';
                     } else {
                         tabClasses += 'bg-gray-100 dark:bg-gray-700/50 text-gray-900 dark:text-white';
                     }
                 } else { // Not selected
                     tabClasses += 'border-transparent ';
                     if (!isTaskRunning && status === RepoStatus.Success) {
-                        tabClasses += 'bg-green-100/70 dark:bg-green-900/40 text-green-800 dark:text-green-200 hover:bg-green-100 dark:hover:bg-green-900/50';
+                        tabClasses += 'bg-green-500 dark:bg-green-800 text-white hover:bg-green-600 dark:hover:bg-green-700';
                     } else if (!isTaskRunning && status === RepoStatus.Failed) {
-                        tabClasses += 'bg-red-100/70 dark:bg-red-900/40 text-red-800 dark:text-red-200 hover:bg-red-100 dark:hover:bg-red-900/50';
+                        tabClasses += 'bg-red-500 dark:bg-red-800 text-white hover:bg-red-600 dark:hover:bg-red-700';
                     } else {
                         tabClasses += 'text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/80';
                     }
@@ -156,7 +157,7 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
                     <span className="truncate max-w-[150px]">{repo?.name || '...'}</span>
                     <button
                       onClick={(e) => { e.stopPropagation(); onCloseTab(repoId); }}
-                      className="ml-2 p-0.5 rounded-full opacity-50 group-hover:opacity-100 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                      className={`ml-2 p-0.5 rounded-full opacity-50 group-hover:opacity-100 ${isCompletedWithStatus ? 'hover:bg-white/20' : 'hover:bg-gray-300 dark:hover:bg-gray-600'} transition-colors`}
                       aria-label={`Close tab for ${repo?.name}`}
                     >
                       <XIcon className="h-3 w-3" />
