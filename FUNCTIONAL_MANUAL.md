@@ -119,6 +119,8 @@ Click the **cog icon** in the header to access global settings.
     -   **Check for Pre-Releases:** If enabled, the auto-updater will include beta and other pre-release versions when checking for updates.
     -   **Enable Debug Logging:** Controls the verbose internal logging used by the Debug Panel. Disabling this may improve performance.
 
+**Note on Data Safety:** All settings and repository configurations are stored in a safe location on your computer. This means your data will be automatically preserved when the application updates to a new version.
+
 ## 6. The Debug Panel
 
 For advanced troubleshooting, a debug panel is available. You can open it by clicking the **"Debug"** button in the status bar at the very bottom of the window, or by pressing `Ctrl+D` (or `Cmd+D` on macOS).

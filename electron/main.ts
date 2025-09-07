@@ -1,5 +1,3 @@
-
-
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path, { dirname } from 'path';
@@ -22,12 +20,40 @@ if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
-// --- Portable App Data Path ---
-const getAppDataPath = () => {
-  // For portable app behavior, store data next to the executable in production.
-  // In development, continue using the default userData path to avoid cluttering the project root.
-  return app.isPackaged ? path.dirname(app.getPath('exe')) : app.getPath('userData');
+// --- App Data Path Configuration ---
+// User data is stored in the standard OS-specific location, which is persistent across updates.
+const userDataPath = app.getPath('userData');
+
+// --- One-time Migration for Pre-0.2.2 Settings ---
+const migrateSettingsIfNeeded = async () => {
+  // This is for users updating from v0.2.1 or older, where settings.json was stored next to the executable.
+  if (!app.isPackaged) return; // Migration only needed for packaged apps.
+
+  const oldSettingsPath = path.join(path.dirname(app.getPath('exe')), 'settings.json');
+  const newSettingsPath = path.join(userDataPath, 'settings.json');
+
+  try {
+    // If the new settings file already exists, migration is complete or not needed.
+    await fs.access(newSettingsPath);
+    return;
+  } catch (e) {
+    // New file doesn't exist, proceed to check for the old one.
+  }
+
+  try {
+    // Check if the old settings file exists.
+    await fs.access(oldSettingsPath);
+    
+    // If it exists, copy it to the new location.
+    await fs.mkdir(userDataPath, { recursive: true });
+    await fs.copyFile(oldSettingsPath, newSettingsPath);
+    console.log(`[Migration] Successfully migrated settings from ${oldSettingsPath} to ${newSettingsPath}`);
+  } catch (e) {
+    // This is expected for new installations where the old file doesn't exist.
+    // console.log('[Migration] No old settings file found to migrate.');
+  }
 };
+
 
 let mainWindow: BrowserWindow | null = null;
 let logStream: fsSync.WriteStream | null = null;
@@ -35,11 +61,11 @@ let logStream: fsSync.WriteStream | null = null;
 const getLogFilePath = () => {
   const now = new Date();
   const timestamp = now.toISOString().replace(/:/g, '-').replace(/\..+/, '');
-  const logDir = path.join(getAppDataPath(), 'logs');
+  const logDir = path.join(userDataPath, 'logs');
   return path.join(logDir, `git-automation-dashboard-log-${timestamp}.log`);
 };
 
-const settingsPath = path.join(getAppDataPath(), 'settings.json');
+const settingsPath = path.join(userDataPath, 'settings.json');
 let globalSettingsCache: GlobalSettings | null = null;
 
 const DEFAULTS: GlobalSettings = {
@@ -98,8 +124,11 @@ const createWindow = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.on('ready', async () => {
+  // Run migration before anything else that might access settings.
+  await migrateSettingsIfNeeded();
+  
   // Ensure logs directory exists before creating a window or log file
-  const logDir = path.join(getAppDataPath(), 'logs');
+  const logDir = path.join(userDataPath, 'logs');
   fs.mkdir(logDir, { recursive: true }).catch(err => {
       console.error("Could not create logs directory.", err);
   });
@@ -191,6 +220,7 @@ ipcMain.handle('get-all-data', async () => {
 
 ipcMain.on('save-all-data', async (event, data: { globalSettings: GlobalSettings, repositories: Repository[] }) => {
     try {
+        await fs.mkdir(userDataPath, { recursive: true });
         await fs.writeFile(settingsPath, JSON.stringify(data, null, 2));
         globalSettingsCache = data.globalSettings; // Invalidate cache
     } catch (error) {

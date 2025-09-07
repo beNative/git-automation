@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2]
+
+### Fixed
+- **CRITICAL:** Fixed a major bug where `settings.json` was deleted during an auto-update, causing all user settings and repositories to be lost. The application now correctly stores all user data in the standard persistent user data directory. A one-time migration process has been added to automatically move existing settings for users updating from older versions.
+
 ## [0.2.1]
 
 ### Added
