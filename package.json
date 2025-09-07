@@ -66,8 +66,9 @@
     },
     "publish": [
       {
-        "provider": "github",        
-        "repo": "https://github.com/beNative/git-automation.git"
+        "provider": "github",
+        "owner": "beNative",
+        "repo": "git-automation"
       }
     ]
   }

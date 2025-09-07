@@ -1058,7 +1058,8 @@ const substituteVariables = (command: string, variables: TaskVariable[] = []): s
 };
 
 // --- Promise-based command executor ---
-function executeCommand(cwd: string, fullCommand: string, sender: (channel: string, ...args: any[]) => void, executionId: string, env: NodeJS.ProcessEnv): Promise<number> {
+// FIX: Replaced NodeJS.ProcessEnv with a compatible type to resolve namespace issue.
+function executeCommand(cwd: string, fullCommand: string, sender: (channel: string, ...args: any[]) => void, executionId: string, env: { [key: string]: string | undefined }): Promise<number> {
     return new Promise((resolve, reject) => {
         sender('task-log', { executionId, message: `$ ${fullCommand}`, level: LogLevel.Command });
         
