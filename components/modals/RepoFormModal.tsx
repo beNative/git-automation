@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
@@ -33,6 +34,15 @@ interface RepoEditViewProps {
   repository: Repository | null;
   onRefreshState: (repoId: string) => Promise<void>;
   setToast: (toast: { message: string; type: 'success' | 'error' | 'info' } | null) => void;
+  confirmAction: (options: {
+    title: string;
+    message: React.ReactNode;
+    onConfirm: () => void;
+    onCancel?: () => void;
+    confirmText?: string;
+    confirmButtonClass?: string;
+    icon?: React.ReactNode;
+  }) => void;
 }
 
 const NEW_REPO_TEMPLATE: Omit<GitRepository, 'id'> = {
@@ -958,7 +968,7 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
   );
 };
 
-const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast }) => {
+const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction }) => {
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
 
   // Ref to track previous remoteUrl to fire toast only once on discovery
@@ -1184,12 +1194,19 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, [formData.tasks]);
   
   const handleDeleteTask = (taskId: string) => {
-    if (!window.confirm("Are you sure you want to delete this task?")) return;
-    const newTasks = (formData.tasks || []).filter(t => t.id !== taskId);
-    setFormData(prev => ({ ...prev, tasks: newTasks }));
-    if (selectedTaskId === taskId) {
-      setSelectedTaskId(newTasks.length > 0 ? newTasks[0].id : null);
-    }
+    confirmAction({
+        title: "Delete Task",
+        message: "Are you sure you want to delete this task?",
+        confirmText: "Delete",
+        icon: <ExclamationCircleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />,
+        onConfirm: () => {
+            const newTasks = (formData.tasks || []).filter(t => t.id !== taskId);
+            setFormData(prev => ({ ...prev, tasks: newTasks }));
+            if (selectedTaskId === taskId) {
+              setSelectedTaskId(newTasks.length > 0 ? newTasks[0].id : null);
+            }
+        }
+    });
   };
   
   const handleDuplicateTask = (taskId: string) => {
@@ -1283,15 +1300,23 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   };
   
   const handleDeleteBranch = async (branchName: string, isRemote: boolean) => {
-    if (!repository || !window.confirm(`Are you sure you want to delete ${isRemote ? 'remote' : 'local'} branch '${branchName}'?`)) return;
-    const result = await window.electronAPI?.deleteBranch(repository.localPath, branchName, isRemote);
-    if (result?.success) {
-        setToast({ message: `Branch '${branchName}' deleted`, type: 'success' });
-        fetchBranches();
-        onRefreshState(repository.id);
-    } else {
-        setToast({ message: `Error: ${result?.error || 'Electron API not available.'}`, type: 'error' });
-    }
+    if (!repository) return;
+    confirmAction({
+        title: `Delete ${isRemote ? 'Remote' : 'Local'} Branch`,
+        message: `Are you sure you want to delete ${isRemote ? 'remote' : 'local'} branch '${branchName}'?`,
+        confirmText: "Delete",
+        icon: <ExclamationCircleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />,
+        onConfirm: async () => {
+            const result = await window.electronAPI?.deleteBranch(repository.localPath, branchName, isRemote);
+            if (result?.success) {
+                setToast({ message: `Branch '${branchName}' deleted`, type: 'success' });
+                fetchBranches();
+                onRefreshState(repository.id);
+            } else {
+                setToast({ message: `Error: ${result?.error || 'Electron API not available.'}`, type: 'error' });
+            }
+        }
+    });
   };
 
   const handleMergeBranch = async () => {
@@ -1301,16 +1326,24 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         setToast({ message: 'Cannot merge a branch into itself.', type: 'info' });
         return;
       }
-      if (!window.confirm(`Are you sure you want to merge '${branchToMerge}' into '${currentBranch}'?`)) return;
       
-      const result = await window.electronAPI?.mergeBranch(repository.localPath, branchToMerge);
-      if (result?.success) {
-          setToast({ message: `Successfully merged '${branchToMerge}' into '${currentBranch}'`, type: 'success' });
-          fetchBranches();
-          onRefreshState(repository.id);
-      } else {
-          setToast({ message: `Merge failed: ${result?.error || 'Electron API not available.'}`, type: 'error' });
-      }
+      confirmAction({
+          title: "Merge Branch",
+          message: `Are you sure you want to merge '${branchToMerge}' into '${currentBranch}'?`,
+          confirmText: "Merge",
+          icon: <GitBranchIcon className="h-6 w-6 text-green-600 dark:text-green-400" />,
+          confirmButtonClass: 'bg-green-600 hover:bg-green-700 focus:ring-green-500',
+          onConfirm: async () => {
+              const result = await window.electronAPI?.mergeBranch(repository.localPath, branchToMerge);
+              if (result?.success) {
+                  setToast({ message: `Successfully merged '${branchToMerge}' into '${currentBranch}'`, type: 'success' });
+                  fetchBranches();
+                  onRefreshState(repository.id);
+              } else {
+                  setToast({ message: `Merge failed: ${result?.error || 'Electron API not available.'}`, type: 'error' });
+              }
+          }
+      });
   };
   
   const handleDiscoverRemote = useCallback(async () => {

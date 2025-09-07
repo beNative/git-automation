@@ -26,6 +26,8 @@ import { useLogger } from './hooks/useLogger';
 import { useSettings } from './contexts/SettingsContext';
 import ContextMenu from './components/ContextMenu';
 import UpdateBanner from './components/UpdateBanner';
+import ConfirmationModal from './components/modals/ConfirmationModal';
+import { ExclamationTriangleIcon } from './components/icons/ExclamationTriangleIcon';
 
 const App: React.FC = () => {
   const logger = useLogger();
@@ -110,6 +112,52 @@ const App: React.FC = () => {
     isOpen: boolean;
     repo: Repository | null;
   }>({ isOpen: false, repo: null });
+
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: React.ReactNode;
+    onConfirm: () => void;
+    onCancel: () => void;
+    confirmText?: string;
+    confirmButtonClass?: string;
+    icon?: React.ReactNode;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    onCancel: () => {},
+  });
+
+  const handleCloseConfirmationModal = () => {
+    setConfirmationModal(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const confirmAction = useCallback((options: {
+    title: string;
+    message: React.ReactNode;
+    onConfirm: () => void;
+    onCancel?: () => void;
+    confirmText?: string;
+    confirmButtonClass?: string;
+    icon?: React.ReactNode;
+  }) => {
+    setConfirmationModal({
+      isOpen: true,
+      ...options,
+      onConfirm: () => {
+        options.onConfirm();
+        handleCloseConfirmationModal();
+      },
+      onCancel: () => {
+        if (options.onCancel) {
+          options.onCancel();
+        }
+        handleCloseConfirmationModal();
+      },
+    });
+  }, []);
 
   // Effect for app version
   useEffect(() => {
@@ -380,11 +428,18 @@ const App: React.FC = () => {
   };
 
   const handleDeleteRepo = (repoId: string) => {
-    if (window.confirm('Are you sure you want to delete this repository?')) {
-      logger.warn('Deleting repository', { repoId });
-      deleteRepository(repoId);
-      setToast({ message: 'Repository deleted.', type: 'error' });
-    }
+    confirmAction({
+      title: 'Delete Repository',
+      message: 'Are you sure you want to delete this repository? This action cannot be undone.',
+      confirmText: 'Delete',
+      icon: <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400" aria-hidden="true" />,
+      confirmButtonClass: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+      onConfirm: () => {
+        logger.warn('Deleting repository', { repoId });
+        deleteRepository(repoId);
+        setToast({ message: 'Repository deleted.', type: 'error' });
+      }
+    });
   };
 
   const openLogPanelForRepo = useCallback((repoId: string, clearPreviousLogs: boolean) => {
@@ -755,7 +810,7 @@ const App: React.FC = () => {
             {(() => {
               switch (activeView) {
                 case 'settings':
-                  return <SettingsView currentSettings={settings} onSave={handleSaveSettings} setToast={setToast} />;
+                  return <SettingsView currentSettings={settings} onSave={handleSaveSettings} setToast={setToast} confirmAction={confirmAction} />;
                 case 'info':
                   return <InfoView />;
                 case 'edit-repository':
@@ -767,6 +822,7 @@ const App: React.FC = () => {
                     onCancel={handleCancelEditRepository}
                     onRefreshState={refreshRepoState}
                     setToast={setToast}
+                    confirmAction={confirmAction}
                   />;
                 case 'dashboard':
                 default:
@@ -907,6 +963,17 @@ const App: React.FC = () => {
               isOpen={historyModal.isOpen}
               repository={historyModal.repo}
               onClose={() => setHistoryModal({ isOpen: false, repo: null })}
+          />
+          
+          <ConfirmationModal
+            isOpen={confirmationModal.isOpen}
+            title={confirmationModal.title}
+            message={confirmationModal.message}
+            onConfirm={confirmationModal.onConfirm}
+            onCancel={confirmationModal.onCancel}
+            confirmText={confirmationModal.confirmText}
+            confirmButtonClass={confirmationModal.confirmButtonClass}
+            icon={confirmationModal.icon}
           />
 
           <CommandPalette 

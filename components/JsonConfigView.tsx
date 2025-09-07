@@ -4,9 +4,19 @@ import { PencilIcon } from './icons/PencilIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
 import { ArrowDownTrayIcon } from './icons/ArrowDownTrayIcon';
 import { ArrowUpTrayIcon } from './icons/ArrowUpTrayIcon';
+import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
 
 interface JsonConfigViewProps {
   setToast: (toast: { message: string; type: 'success' | 'error' | 'info' } | null) => void;
+  confirmAction: (options: {
+    title: string;
+    message: React.ReactNode;
+    onConfirm: () => void;
+    onCancel?: () => void;
+    confirmText?: string;
+    confirmButtonClass?: string;
+    icon?: React.ReactNode;
+  }) => void;
 }
 
 const highlightJson = (jsonString: string): { __html: string } => {
@@ -36,7 +46,7 @@ const highlightJson = (jsonString: string): { __html: string } => {
 };
 
 
-const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
+const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast, confirmAction }) => {
   const [rawJson, setRawJson] = useState('');
   const [editedJson, setEditedJson] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -125,19 +135,26 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
   };
 
   const handleImportSettings = async () => {
-    if (window.confirm('Importing settings will overwrite your current configuration and restart the application. Are you sure you want to continue?')) {
-      try {
-        const result = await window.electronAPI?.importSettings();
-        if (result.success) {
-          setToast({ message: 'Settings imported successfully! Restarting...', type: 'success' });
-          setTimeout(() => window.location.reload(), 1500);
-        } else if (!result.canceled) {
-          setToast({ message: `Import failed: ${result.error}`, type: 'error' });
+    confirmAction({
+      title: 'Import Settings',
+      message: 'Importing settings will overwrite your current configuration and restart the application. Are you sure you want to continue?',
+      confirmText: 'Import and Restart',
+      icon: <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" aria-hidden="true" />,
+      confirmButtonClass: 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500',
+      onConfirm: async () => {
+        try {
+          const result = await window.electronAPI?.importSettings();
+          if (result.success) {
+            setToast({ message: 'Settings imported successfully! Restarting...', type: 'success' });
+            setTimeout(() => window.location.reload(), 1500);
+          } else if (!result.canceled) {
+            setToast({ message: `Import failed: ${result.error}`, type: 'error' });
+          }
+        } catch (e: any) {
+          setToast({ message: `Import error: ${e.message}`, type: 'error' });
         }
-      } catch (e: any) {
-        setToast({ message: `Import error: ${e.message}`, type: 'error' });
       }
-    }
+    });
   };
   
   const highlightedCode = useMemo(() => highlightJson(editedJson), [editedJson]);

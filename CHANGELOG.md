@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0]
+
+### Changed
+- Replaced all native confirmation dialogs (`window.confirm`) with a custom, consistently styled modal for a more attractive and integrated user experience.
+
 ## [0.2.3]
 
 ### Added

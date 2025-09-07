@@ -12,11 +12,20 @@ interface SettingsViewProps {
   onSave: (settings: GlobalSettings) => void;
   currentSettings: GlobalSettings;
   setToast: (toast: { message: string; type: 'success' | 'error' | 'info' } | null) => void;
+  confirmAction: (options: {
+    title: string;
+    message: React.ReactNode;
+    onConfirm: () => void;
+    onCancel?: () => void;
+    confirmText?: string;
+    confirmButtonClass?: string;
+    icon?: React.ReactNode;
+  }) => void;
 }
 
 type SettingsCategory = 'appearance' | 'behavior' | 'jsonConfig';
 
-const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, setToast }) => {
+const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, setToast, confirmAction }) => {
   const [settings, setSettings] = useState<GlobalSettings>(currentSettings);
   const [isDirty, setIsDirty] = useState(false);
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>('appearance');
@@ -91,7 +100,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
       {/* Right Content Area */}
       <div className="flex-1 flex flex-col min-h-0">
         {activeCategory === 'jsonConfig' ? (
-          <JsonConfigView setToast={setToast} />
+          <JsonConfigView setToast={setToast} confirmAction={confirmAction} />
         ) : (
           <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
             <main className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto">
