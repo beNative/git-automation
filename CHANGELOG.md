@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0]
+
+### Fixed
+- **CRITICAL:** Fixed a persistent and critical bug that prevented drag-and-drop reordering of repository cards within the same category and in the "Uncategorized" section.
+- Fixed an issue where the application would show a blank "Loading settings..." screen when run in a web browser. It now loads instantly with default settings.
+
+### Changed
+- **Category Customization:** Replaced the simple color palette popover with a full-featured modal. Users can now choose from curated themes or select custom background and text colors for each category.
+- **UI Consistency:** Updated all tooltips on category headers to use the same styled component as the rest of the application for a more polished look.
+
 ## [0.7.0]
 
 ### Changed

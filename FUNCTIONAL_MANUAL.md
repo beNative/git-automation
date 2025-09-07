@@ -22,7 +22,7 @@ The dashboard is divided into collapsible sections called categories. This allow
 
 -   **Creating Categories:** Click the "Add Category" button at the bottom of the dashboard to create a new section.
 -   **Renaming & Deleting:** **Double-click** a category's name to edit it. Hover over the title to reveal a **trash icon** for deleting it.
--   **Color Customization:** Hover over a category's title and click the **paintbrush icon**. This opens a popover with a curated palette of predefined color themes, ensuring your dashboard always looks great. A "Reset" button is available to revert to the default theme.
+-   **Color Customization:** Hover over a category's title and click the **paintbrush icon**. This opens a dedicated dialog where you can style the category. You can choose from a curated list of predefined themes for a polished look, or select custom colors for both the background and text using color pickers. A "Reset to Default" button is available to clear any custom styling.
 -   **Collapsing Sections:** Click the chevron icon (▶) next to a category's title to hide or show the repositories within it. This state is saved automatically, so your layout will be preserved the next time you open the app.
 -   **Assigning Repositories:** Simply drag a repository card and drop it onto a category header to assign it.
 -   **Reordering:**
@@ -172,3 +172,6 @@ The application is designed to keep itself up-to-date automatically.
 -   **Checking:** On startup, the dashboard silently checks for a new version from the project's official GitHub repository.
 -   **Downloading:** If a new version is found, a small notification will appear indicating that the download has started. The download happens in the background.
 -   **Installation:** Once the download is complete, a prominent blue banner will appear at the top of the application window. To install the update, simply click the **"Restart & Install"** button. The application will close and restart as the new version.
+
+## 9. Web Mode (Preview)
+When the application is run in a standard web browser (outside of the Electron desktop app), it will load in a "simulation mode" with default settings. This is intended for preview and demonstration purposes, as features that rely on accessing your local file system (like running tasks or cloning repositories) are not available.
