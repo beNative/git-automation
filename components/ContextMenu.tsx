@@ -37,6 +37,19 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ context, onClose, ...actions 
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [submenu, setSubmenu] = useState<string | null>(null);
 
+  const { repo } = context;
+
+  // Hooks must be called unconditionally at the top level.
+  const launchables: Launchable[] = useMemo(() => {
+    if (!repo) {
+        return [];
+    }
+    return [
+        ...(repo.launchConfigs || []).map(config => ({ type: 'manual' as const, config })),
+        ...(actions.detectedExecutables[repo.id] || []).map(path => ({ type: 'detected' as const, path }))
+    ];
+  }, [repo, actions.detectedExecutables]);
+
   useEffect(() => {
     if (context.isOpen && menuRef.current) {
       const menuRect = menuRef.current.getBoundingClientRect();
@@ -53,15 +66,9 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ context, onClose, ...actions 
     }
   }, [context.isOpen, context.x, context.y]);
 
-  if (!context.isOpen || !context.repo) {
+  if (!context.isOpen || !repo) {
     return null;
   }
-
-  const { repo } = context;
-  const launchables: Launchable[] = useMemo(() => [
-    ...(repo.launchConfigs || []).map(config => ({ type: 'manual' as const, config })),
-    ...(actions.detectedExecutables[repo.id] || []).map(path => ({ type: 'detected' as const, path }))
-  ], [repo.launchConfigs, actions.detectedExecutables, repo.id]);
 
   const MenuItem: React.FC<{ icon: React.ReactNode; text: string; onClick?: () => void; disabled?: boolean }> = ({ icon, text, onClick, disabled }) => (
     <button
