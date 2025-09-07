@@ -121,6 +121,14 @@ Click the **cog icon** in the header to access global settings.
 
 **Note on Data Safety:** All settings and repository configurations are stored in a safe location on your computer. This means your data will be automatically preserved when the application updates to a new version.
 
+### Advanced Configuration (JSON)
+
+For advanced users, the settings view includes a **"JSON Config"** tab. This section provides direct access to the `settings.json` file that powers the application.
+
+-   **Edit JSON:** You can directly modify the raw JSON configuration. Be cautious, as invalid JSON will prevent settings from being saved. After saving, the application will restart to apply the changes.
+-   **Export Settings:** Click the "Export Settings" button to save your current `settings.json` file into a `.zip` archive. This is useful for creating backups.
+-   **Import Settings:** Click the "Import Settings" button to load a configuration from a `.zip` archive. You will be prompted for confirmation before your current settings are overwritten. The application will restart automatically to apply the imported configuration.
+
 ## 6. The Debug Panel
 
 For advanced troubleshooting, a debug panel is available. You can open it by clicking the **"Debug"** button in the status bar at the very bottom of the window, or by pressing `Ctrl+D` (or `Cmd+D` on macOS).

@@ -18,6 +18,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Reliable Auto-Updates:** Get notified with a clear banner when a new version is ready and install it with a single click.
 -   **Easy Configuration:** Add new repositories and configure them through a simple, unified form.
 -   **Persistent & Safe Configuration:** All your settings and repository configurations are stored safely in a persistent location, ensuring they are never lost during application updates.
+-   **Settings Import/Export:** Easily back up, restore, or share your complete application configuration using zip files.
 -   **Global Settings:** Customize the application theme, icon set, notifications, and behavior like enabling pre-release updates or choosing your preferred web browser.
 -   **Cross-Platform:** Works on Windows, macOS, and Linux.
 

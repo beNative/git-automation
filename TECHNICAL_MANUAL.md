@@ -9,6 +9,7 @@ This document provides a technical overview of the Git Automation Dashboard appl
 -   **Styling:** Tailwind CSS (via a CDN for simplicity in this version).
 -   **Bundler:** esbuild (for fast and efficient bundling of main, renderer, and preload scripts).
 -   **Packager:** electron-builder (for creating distributable installers and packages).
+-   **Libraries:** `jszip` for handling settings import/export.
 
 ## 2. Project Architecture
 
@@ -26,6 +27,7 @@ The application is split into three main processes, which is standard for Electr
         -   Executing shell commands for task steps.
         -   Executing real Git/SVN commands for advanced features like checking status, fetching commit history, and managing branches (`get-detailed-vcs-status`, `list-branches`, etc.).
         -   Handling requests from the renderer to open web links in the user-specified browser.
+        -   Managing the import and export of settings files using the `jszip` library.
 
 ### Renderer Process
 

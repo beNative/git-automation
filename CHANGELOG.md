@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3]
+
+### Added
+- **Settings Import/Export:** Added the ability to import and export the complete application configuration (`settings.json`) as a `.zip` file from the JSON Configuration screen. This allows for easy backup, restoration, and sharing of setups.
+
 ## [0.2.2]
 
 ### Fixed
