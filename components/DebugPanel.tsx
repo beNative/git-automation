@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useCallback, useState, useContext, useMemo } from 'react';
-import { LoggerContext } from '../contexts/LoggerContext';
-import { DebugLogLevel } from '../types';
+// FIX: Add .tsx extension to module import.
+import { LoggerContext } from '../contexts/LoggerContext.tsx';
+// FIX: Add .ts extension to module import.
+import { DebugLogLevel } from '../types.ts';
 import { XIcon } from './icons/XIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';

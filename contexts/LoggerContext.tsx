@@ -1,6 +1,8 @@
 import React, { createContext, useState, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
-import type { DebugLogEntry, DebugLogLevel } from '../types';
-import { useSettings } from './SettingsContext';
+// FIX: Add .ts extension to module import.
+import type { DebugLogEntry, DebugLogLevel } from '../types.ts';
+// FIX: Add .tsx extension to module import.
+import { useSettings } from './SettingsContext.tsx';
 
 type LogFilters = Record<DebugLogLevel, boolean>;
 

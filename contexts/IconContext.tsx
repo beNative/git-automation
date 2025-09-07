@@ -1,4 +1,5 @@
 import React from 'react';
-import type { IconSet } from '../types';
+// FIX: Add .ts extension to satisfy module resolution
+import type { IconSet } from '../types.ts';
 
 export const IconContext = React.createContext<IconSet>('heroicons');

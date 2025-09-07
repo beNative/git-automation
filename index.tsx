@@ -1,8 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+// FIX: Correctly import from .tsx files
+import App from './App.tsx';
 import { LoggerProvider } from './contexts/LoggerContext';
-import { SettingsProvider } from './contexts/SettingsContext';
+// FIX: Correctly import from .tsx files
+import { SettingsProvider } from './contexts/SettingsContext.tsx';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

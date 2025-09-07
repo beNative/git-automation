@@ -1,5 +1,6 @@
 import React from 'react';
-import type { Repository } from '../../types';
+// FIX: Add .ts extension to satisfy module resolution
+import type { Repository } from '../../types.ts';
 import { CubeTransparentIcon } from '../icons/CubeTransparentIcon';
 import { PlayIcon } from '../icons/PlayIcon';
 import { XIcon } from '../icons/XIcon';

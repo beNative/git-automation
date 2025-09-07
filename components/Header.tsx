@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import type { AppView } from '../types';
+// FIX: Add .ts extension to satisfy module resolution
+import type { AppView } from '../types.ts';
 import { PlusIcon } from './icons/PlusIcon';
 import { CogIcon } from './icons/CogIcon';
 import { InformationCircleIcon } from './icons/InformationCircleIcon';

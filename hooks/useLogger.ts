@@ -1,6 +1,8 @@
 import { useContext, useMemo } from 'react';
-import { LoggerContext } from '../contexts/LoggerContext';
-import { DebugLogLevel } from '../types';
+// FIX: Add .tsx extension to module import.
+import { LoggerContext } from '../contexts/LoggerContext.tsx';
+// FIX: Add .ts extension to module import.
+import { DebugLogLevel } from '../types.ts';
 
 export const useLogger = () => {
   const { addLog } = useContext(LoggerContext);

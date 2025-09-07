@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import type { LogEntry } from '../types';
+// FIX: Add .ts extension to satisfy module resolution
+import type { LogEntry } from '../types.ts';
 import { GitBranchIcon } from './icons/GitBranchIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
 import { BeakerIcon } from './icons/BeakerIcon';

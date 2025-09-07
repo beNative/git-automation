@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0]
+
+### Fixed
+- **CRITICAL:** Rewrote the drag-and-drop state logic to reliably reorder repository cards within the same category and within the "Uncategorized" section. This also fixes the issue where a card could not be dropped into the last position.
+- Fixed a minor bug where the custom color inputs in the category customization modal did not reflect the initial category colors.
+
+### Added
+- **New Category Customization Modal:** Replaced the simple color popover with a dedicated dialog for customizing categories. This new modal includes a curated set of predefined themes as well as an option for choosing custom background and text colors.
+- Added detailed debug logging for all drag-and-drop operations to assist with any future troubleshooting.
+
+### Changed
+- All interactive elements on the category headers now use the same styled tooltip system as the rest of the application for a consistent UI.
+
 ## [0.7.0]
 
 ### Changed

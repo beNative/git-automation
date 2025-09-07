@@ -1,266 +1,76 @@
-import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext, useRef } from 'react';
-import type { GlobalSettings, Repository, Category } from '../types';
-import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
+import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
+import type { GlobalSettings, AllData } from '../types';
+import { useLogger } from '../hooks/useLogger';
 
-interface AppDataContextState {
+// Define the shape of the context value
+interface SettingsContextValue {
   settings: GlobalSettings;
-  saveSettings: (newSettings: GlobalSettings) => void;
-  repositories: Repository[];
-  setRepositories: (repos: Repository[]) => void;
-  addRepository: (repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>) => void;
-  updateRepository: (updatedRepo: Repository) => void;
-  deleteRepository: (repoId: string) => void;
-  isLoading: boolean;
-  categories: Category[];
-  setCategories: (categories: Category[]) => void;
-  addCategory: (name: string) => void;
-  updateCategory: (updatedCategory: Category) => void;
-  deleteCategory: (categoryId: string) => void;
-  moveRepositoryToCategory: (repoId: string, sourceCategoryId: string | null, targetCategoryId: string | null, targetIndex: number) => void;
-  toggleCategoryCollapse: (categoryId: string) => void;
-  toggleAllCategoriesCollapse: () => void;
+  setSettings: (newSettings: GlobalSettings) => void;
+  isLoaded: boolean;
 }
 
-const DEFAULTS: GlobalSettings = {
-    defaultBuildCommand: 'npm run build',
-    notifications: true,
-    simulationMode: true,
-    theme: 'dark',
-    iconSet: 'heroicons',
-    debugLogging: true,
-    allowPrerelease: true,
-    openLinksIn: 'default',
+const DEFAULT_SETTINGS: GlobalSettings = {
+  theme: 'dark',
+  iconSet: 'heroicons',
+  openLinksIn: 'default',
+  notifications: true,
+  simulationMode: false,
+  allowPrerelease: false,
+  debugLogging: true,
 };
 
-const initialState: AppDataContextState = {
-  settings: DEFAULTS,
-  saveSettings: () => {},
-  repositories: [],
-  setRepositories: () => {},
-  addRepository: () => {},
-  updateRepository: () => {},
-  deleteRepository: () => {},
-  isLoading: true,
-  categories: [],
-  setCategories: () => {},
-  addCategory: () => {},
-  updateCategory: () => {},
-  deleteCategory: () => {},
-  moveRepositoryToCategory: () => {},
-  toggleCategoryCollapse: () => {},
-  toggleAllCategoriesCollapse: () => {},
-};
+// Create the context with a default value
+const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
 
-export const SettingsContext = createContext<AppDataContextState>(initialState);
-
-// --- One-time data migration logic, moved from old useRepositoryManager ---
-const migrateRepositories = (repositories: Repository[], settings: GlobalSettings): Repository[] => {
-    if (!repositories) return [];
-    
-    const pkgManager = (settings as any)?.defaultPackageManager || 'npm';
-    
-    return repositories.map(repo => {
-        const migratedRepo: any = {
-          ...repo,
-          vcs: repo.vcs || VcsType.Git, // Default to Git for old data
-          tasks: (repo.tasks || []).map(task => ({
-            ...task,
-            variables: task.variables || [],
-            showOnDashboard: task.showOnDashboard ?? false,
-            steps: (task.steps || []).map(step => {
-              if ((step.type as any) === 'INSTALL_DEPS') {
-                return { ...step, type: TaskStepType.RunCommand, command: `${pkgManager} install` };
-              }
-              if ((step.type as any) === 'RUN_TESTS') {
-                  return { ...step, type: TaskStepType.RunCommand, command: `${pkgManager} test` };
-              }
-              return { ...step, enabled: step.enabled ?? true };
-            })
-          }))
-        };
-        if (migratedRepo.launchCommand && !migratedRepo.launchConfigs) {
-          migratedRepo.launchConfigs = [{
-            id: `lc_${Date.now()}`, name: 'Default Launch', type: 'command',
-            command: migratedRepo.launchCommand, showOnDashboard: true,
-          }];
-        }
-        delete migratedRepo.launchCommand;
-        migratedRepo.launchConfigs = (migratedRepo.launchConfigs || []).map((lc: any) => ({
-          type: 'command', ...lc,
-        }));
-        
-        if (migratedRepo.webLink && (!migratedRepo.webLinks || migratedRepo.webLinks.length === 0)) {
-            migratedRepo.webLinks = [{
-                id: `wl_${Date.now()}`,
-                name: 'Web Link',
-                url: migratedRepo.webLink,
-            }];
-        }
-        delete migratedRepo.webLink;
-
-        return migratedRepo as Repository;
-      });
-}
-
-
+// Create the provider component
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<GlobalSettings>(DEFAULTS);
-  const [repositories, setRepositories] = useState<Repository[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const isInitialLoad = useRef(true);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [settings, setSettingsState] = useState<GlobalSettings>(DEFAULT_SETTINGS);
+  const logger = useLogger();
 
-  // Load all data from main process on startup
+  // Load initial data
   useEffect(() => {
-    if (window.electronAPI?.getAllData) {
-      window.electronAPI.getAllData().then(data => {
-          const loadedSettings = data.globalSettings ? { ...DEFAULTS, ...data.globalSettings } : DEFAULTS;
-          const migratedRepos = migrateRepositories(data.repositories || [], loadedSettings);
-          
-          setSettings(loadedSettings);
-          setRepositories(migratedRepos);
-          setCategories(data.categories || []);
-          setIsLoading(false);
-      }).catch(e => {
-          console.error("Failed to load app data, using defaults.", e);
-          setIsLoading(false);
-      });
-    } else {
-      console.warn("Electron API not found. Running in browser mode or preload script failed. Using default settings.");
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Save all data back to main process when it changes
-  useEffect(() => {
-    if (isLoading || isInitialLoad.current) {
-        // Mark initial load as complete after the first run post-loading.
-        if (!isLoading) {
-            isInitialLoad.current = false;
-        }
-        return;
-    };
-
-    const handler = setTimeout(() => {
-        window.electronAPI?.saveAllData({
-            globalSettings: settings,
-            repositories: repositories,
-            categories: categories
+    if (window.electronAPI) {
+        // We are in Electron
+        window.electronAPI.getInitialData().then((data: AllData) => {
+            if (data && data.globalSettings) {
+                // Merge loaded settings with defaults to handle new properties being added to the app
+                const mergedSettings = { ...DEFAULT_SETTINGS, ...data.globalSettings };
+                setSettingsState(mergedSettings);
+                logger.info("SettingsContext: GlobalSettings loaded.", mergedSettings);
+            } else {
+                logger.warn("SettingsContext: No globalSettings found, using defaults.");
+            }
+            setIsLoaded(true);
+        }).catch(err => {
+            logger.error("SettingsContext: Failed to load initial data, using defaults.", err);
+            setIsLoaded(true); // Still mark as loaded to unblock UI
         });
-    }, 1000); // Debounce saves
+    } else {
+        // We are in a browser, not Electron
+        logger.info("SettingsContext: Running in web mode, using default settings and forcing simulation mode.");
+        setSettingsState({ ...DEFAULT_SETTINGS, simulationMode: true });
+        setIsLoaded(true);
+    }
+  }, [logger]);
 
-    return () => clearTimeout(handler);
-  }, [settings, repositories, categories, isLoading]);
-
-  const saveSettings = useCallback((newSettings: GlobalSettings) => {
-    setSettings(newSettings);
-  }, []);
+  // Wrapper for setSettings to also save to main process
+  const handleSetSettings = useCallback((newSettings: GlobalSettings) => {
+    setSettingsState(newSettings);
+    if (window.electronAPI) {
+        window.electronAPI.saveSettings(newSettings);
+        logger.info("SettingsContext: Settings saved.", newSettings);
+    } else {
+        logger.info("SettingsContext: Settings updated in web mode state.", newSettings);
+    }
+  }, [logger]);
   
-  const addRepository = useCallback((repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>) => {
-    const newRepo: Repository = {
-      id: `repo_${Date.now()}`,
-      status: RepoStatus.Idle,
-      lastUpdated: null,
-      buildHealth: BuildHealth.Unknown,
-      ...repoData
-    } as Repository;
-    setRepositories(prev => [...prev, newRepo]);
-  }, []);
-  
-  const updateRepository = useCallback((updatedRepo: Repository) => {
-    setRepositories(prev => prev.map(repo => (repo.id === updatedRepo.id ? updatedRepo : repo)));
-  }, []);
-  
-  const deleteRepository = useCallback((repoId: string) => {
-    setRepositories(prev => prev.filter(repo => repo.id !== repoId));
-    // Also remove from any category
-    setCategories(prev => {
-        return prev.map(cat => ({
-            ...cat,
-            repositoryIds: cat.repositoryIds.filter(id => id !== repoId),
-        }));
-    });
-  }, []);
-
-  const addCategory = useCallback((name: string) => {
-    const newCategory: Category = {
-      id: `cat_${Date.now()}`,
-      name,
-      repositoryIds: [],
-      collapsed: false,
-      color: undefined,
-      backgroundColor: undefined,
-    };
-    setCategories(prev => [...prev, newCategory]);
-  }, []);
-
-  const updateCategory = useCallback((updatedCategory: Category) => {
-    setCategories(prev => prev.map(cat => cat.id === updatedCategory.id ? updatedCategory : cat));
-  }, []);
-
-  const deleteCategory = useCallback((categoryId: string) => {
-    setCategories(prev => prev.filter(cat => cat.id !== categoryId));
-  }, []);
-
-  const moveRepositoryToCategory = useCallback((repoId: string, sourceCategoryId: string | null, targetCategoryId: string | null, targetIndex: number) => {
-      setCategories(prev => {
-        const newCategories = JSON.parse(JSON.stringify(prev)) as Category[];
-        
-        // Remove from source category
-        if (sourceCategoryId) {
-            const sourceCategory = newCategories.find(c => c.id === sourceCategoryId);
-            if (sourceCategory) {
-                sourceCategory.repositoryIds = sourceCategory.repositoryIds.filter(id => id !== repoId);
-            }
-        }
-
-        // Add to target category at the specified index
-        if (targetCategoryId) {
-            const targetCategory = newCategories.find(c => c.id === targetCategoryId);
-            if (targetCategory) {
-                // Ensure it's not already there
-                targetCategory.repositoryIds = targetCategory.repositoryIds.filter(id => id !== repoId);
-                targetCategory.repositoryIds.splice(targetIndex, 0, repoId);
-            }
-        }
-        
-        return newCategories;
-      });
-  }, []);
-
-  const toggleCategoryCollapse = useCallback((categoryId: string) => {
-    setCategories(prev => prev.map(cat => 
-        cat.id === categoryId ? { ...cat, collapsed: !(cat.collapsed ?? false) } : cat
-    ));
-  }, []);
-  
-  const toggleAllCategoriesCollapse = useCallback(() => {
-    setCategories(prev => {
-      // If at least one category is currently expanded, the action will be to collapse all.
-      // If all categories are already collapsed, the action will be to expand all.
-      const shouldCollapseAll = prev.some(c => !(c.collapsed ?? false));
-      return prev.map(c => ({ ...c, collapsed: shouldCollapseAll }));
-    });
-  }, []);
-
-  const value = useMemo(() => ({
+  // The context value
+  const value = {
     settings,
-    saveSettings,
-    repositories,
-    setRepositories,
-    addRepository,
-    updateRepository,
-    deleteRepository,
-    isLoading,
-    categories,
-    setCategories,
-    addCategory,
-    updateCategory,
-    deleteCategory,
-    moveRepositoryToCategory,
-    toggleCategoryCollapse,
-    toggleAllCategoriesCollapse,
-  }), [settings, saveSettings, repositories, isLoading, categories, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory, toggleCategoryCollapse, toggleAllCategoriesCollapse]);
+    setSettings: handleSetSettings,
+    isLoaded,
+  };
 
   return (
     <SettingsContext.Provider value={value}>
@@ -269,6 +79,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   );
 };
 
-export const useSettings = () => {
-    return useContext(SettingsContext);
+// Create the custom hook
+export const useSettings = (): SettingsContextValue => {
+  const context = useContext(SettingsContext);
+  if (context === undefined) {
+    throw new Error('useSettings must be used within a SettingsProvider');
+  }
+  return context;
 };
