@@ -4,7 +4,7 @@ import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
-import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState } from '../types';
+import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 import JSZip from 'jszip';
@@ -78,6 +78,7 @@ const DEFAULTS: GlobalSettings = {
     debugLogging: true,
     allowPrerelease: true,
     openLinksIn: 'default',
+    githubPat: '',
 };
 
 async function readSettings(): Promise<GlobalSettings> {
@@ -219,6 +220,11 @@ ipcMain.handle('get-all-data', async (): Promise<AppDataContextState> => {
       parsedData.uncategorizedOrder = uncategorizedIds;
     }
     // --- End Migration ---
+
+    // Ensure githubPat exists
+    if (parsedData.globalSettings && typeof parsedData.globalSettings.githubPat === 'undefined') {
+      parsedData.globalSettings.githubPat = '';
+    }
 
     return parsedData;
   } catch (error: any) {
@@ -1717,4 +1723,75 @@ ipcMain.handle('import-settings', async (): Promise<{ success: boolean; error?: 
     console.error('Failed to import settings:', error);
     return { success: false, error: error.message };
   }
+});
+
+// --- GitHub Release Management ---
+
+// Helper to parse owner/repo from various git URLs
+const parseGitHubUrl = (url: string): { owner: string; repo: string } | null => {
+    if (!url) return null;
+    // HTTPS: https://github.com/owner/repo.git
+    let match = url.match(/github\.com[/:]([^/]+)\/([^/.]+)/);
+    if (match) {
+      return { owner: match[1], repo: match[2] };
+    }
+    // SSH: git@github.com:owner/repo.git
+    match = url.match(/git@github\.com:([^/]+)\/([^/.]+)/);
+    if (match) {
+      return { owner: match[1], repo: match[2] };
+    }
+    return null;
+  };
+  
+
+ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<ReleaseInfo | null> => {
+    const settings = await readSettings();
+    if (!settings.githubPat) {
+        // Don't throw, just return null so the UI can show a "token needed" message.
+        console.warn(`[GitHub] Cannot fetch releases for ${repo.name}: GitHub PAT not set.`);
+        return null;
+    }
+    
+    const ownerRepo = parseGitHubUrl(repo.remoteUrl);
+    if (!ownerRepo) {
+        console.warn(`[GitHub] Could not parse owner/repo from URL: ${repo.remoteUrl}`);
+        return null;
+    }
+
+    const { owner, repo: repoName } = ownerRepo;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases/latest`;
+
+    try {
+        const response = await fetch(apiUrl, {
+            headers: {
+                'Authorization': `token ${settings.githubPat}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'X-GitHub-Api-Version': '2022-11-28'
+            }
+        });
+
+        if (response.status === 404) {
+            console.log(`[GitHub] No latest release found for ${owner}/${repoName}.`);
+            return null; // This is a valid state, not an error.
+        }
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            throw new Error(`GitHub API error (${response.status}): ${errorBody.message || 'Unknown error'}`);
+        }
+        
+        const data = await response.json();
+
+        return {
+            tagName: data.tag_name,
+            name: data.name,
+            isDraft: data.draft,
+            isPrerelease: data.prerelease,
+            url: data.html_url,
+        };
+    } catch (error: any) {
+        console.error(`[GitHub] Failed to fetch latest release for ${owner}/${repoName}:`, error);
+        // It's better to return null and let the UI handle it than to crash.
+        return null; 
+    }
 });

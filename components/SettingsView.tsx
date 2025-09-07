@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import type { GlobalSettings } from '../types';
 import { SunIcon } from './icons/SunIcon';
@@ -183,6 +181,19 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                       <h2 className="text-xl font-bold text-gray-900 dark:text-white">Behavior</h2>
                       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure how the application functions.</p>
                       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-6">
+                          <div>
+                              <label htmlFor="githubPat" className="block text-sm font-medium text-gray-700 dark:text-gray-300">GitHub Personal Access Token</label>
+                              <input
+                                type="password"
+                                id="githubPat"
+                                name="githubPat"
+                                value={settings.githubPat || ''}
+                                onChange={handleChange}
+                                className="mt-1 block w-full max-w-md bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                              <p className="mt-1 text-xs text-gray-500">Required for fetching release info. <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Create a fine-grained token</a> with `Read-only` access to `Contents`.</p>
+                          </div>
+
                           <div>
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Open Web Links In</label>
                               <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-md">

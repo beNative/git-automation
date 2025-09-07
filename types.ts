@@ -1,3 +1,7 @@
+// FIX START: Remove self-import causing declaration conflicts.
+// import { RepoStatus, BuildHealth } from "./types";
+// FIX END
+
 // Moved from contexts/IconContext.tsx
 export type IconSet = 'heroicons' | 'lucide' | 'tabler' | 'feather' | 'remix' | 'phosphor';
 
@@ -102,6 +106,7 @@ export interface GlobalSettings {
   debugLogging: boolean;
   allowPrerelease: boolean;
   openLinksIn: 'default' | 'chrome' | 'firefox';
+  githubPat: string;
 }
 
 export interface TaskStep {
@@ -165,6 +170,14 @@ export interface LaunchConfig {
   showOnDashboard: boolean;
 }
 
+export interface ReleaseInfo {
+  tagName: string;
+  name: string;
+  isDraft: boolean;
+  isPrerelease: boolean;
+  url: string;
+}
+
 export interface RepositoryBase {
   id: string;
   name: string;
@@ -176,6 +189,7 @@ export interface RepositoryBase {
   tasks: Task[];
   webLinks: WebLinkConfig[];
   launchConfigs: LaunchConfig[];
+  latestRelease?: ReleaseInfo | null;
 }
 
 export interface GitRepository extends RepositoryBase {

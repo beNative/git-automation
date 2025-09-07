@@ -1,5 +1,5 @@
 import type { IpcRendererEvent } from 'electron';
-import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, UpdateStatusMessage, Category, AppDataContextState } from '../types';
+import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, UpdateStatusMessage, Category, AppDataContextState, ReleaseInfo } from '../types';
 
 export type LocalPathState = AppLocalPathState;
 
@@ -26,6 +26,7 @@ export interface IElectronAPI {
   deleteBranch: (repoPath: string, branch: string, isRemote: boolean) => Promise<{ success: boolean; error?: string }>;
   mergeBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
   ignoreFilesAndPush: (args: { repo: Repository; filesToIgnore: string[] }) => Promise<{ success: boolean; error?: string }>;
+  getLatestRelease: (repo: Repository) => Promise<ReleaseInfo | null>;
 
 
   checkLocalPath: (path: string) => Promise<LocalPathState>;

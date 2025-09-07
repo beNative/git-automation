@@ -33,6 +33,7 @@ const DEFAULTS: GlobalSettings = {
     debugLogging: true,
     allowPrerelease: true,
     openLinksIn: 'default',
+    githubPat: '',
 };
 
 const initialState: AppDataContextState = {
@@ -306,7 +307,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     moveRepositoryToCategory,
     toggleCategoryCollapse,
     toggleAllCategoriesCollapse,
-  }), [settings, saveSettings, repositories, isLoading, categories, uncategorizedOrder, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory, toggleCategoryCollapse, toggleAllCategoriesCollapse]);
+  }), [settings, saveSettings, repositories, isLoading, categories, uncategorizedOrder, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory, toggleCategoryCollapse, toggleAllCategoriesCollapse, addRepository, updateRepository, deleteRepository, setRepositories, setCategories, setUncategorizedOrder]);
 
   return (
     <SettingsContext.Provider value={value}>

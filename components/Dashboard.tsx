@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import type { Repository, Category, LocalPathState, DetailedStatus, BranchInfo, ToastMessage } from '../types';
+import type { Repository, Category, LocalPathState, DetailedStatus, BranchInfo, ToastMessage, ReleaseInfo } from '../types';
 import RepositoryCard from './RepositoryCard';
 import CategoryHeader from './CategoryHeader';
 import { PlusIcon } from './icons/PlusIcon';
@@ -27,6 +27,7 @@ interface DashboardProps {
   detectedExecutables: Record<string, string[]>;
   detailedStatuses: Record<string, DetailedStatus | null>;
   branchLists: Record<string, BranchInfo | null>;
+  latestReleases: Record<string, ReleaseInfo | null>;
   onSwitchBranch: (repoId: string, branch: string) => void;
   onCloneRepo: (repoId: string) => void;
   onChooseLocationAndClone: (repoId: string) => void;
@@ -46,7 +47,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     categories, 
     uncategorizedOrder,
     onAddCategory, 
-    onMoveRepositoryToCategory 
+    onMoveRepositoryToCategory,
+    latestReleases
   } = props;
 
   const logger = useLogger();
@@ -155,9 +157,10 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     localPathState={props.localPathStates[repo.id] || 'checking'}
                     detailedStatus={props.detailedStatuses[repo.id] || null}
                     branchInfo={props.branchLists[repo.id] || null}
+                    latestRelease={latestReleases[repo.id] || null}
                     detectedExecutables={props.detectedExecutables[repo.id] || []}
-                    onDragStart={(e) => handleDragStart(repo.id, categoryId)}
-                    onDragEnd={(e) => { setDraggedRepo(null); setDropIndicator(null); }}
+                    onDragStart={() => handleDragStart(repo.id, categoryId)}
+                    onDragEnd={() => { setDraggedRepo(null); setDropIndicator(null); }}
                     isBeingDragged={isBeingDragged}
                     dropIndicatorPosition={indicator ? indicator.position : null}
                     onDragOver={(e) => handleDragOver(e, categoryId, repo.id)}

@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
-import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category } from './types';
+// FIX START: Import ReleaseInfo type.
+import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category, ReleaseInfo } from './types';
+// FIX END
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
 import RepoEditView from './components/modals/RepoFormModal';
@@ -74,6 +76,9 @@ const App: React.FC = () => {
   // New states for deeper VCS integration
   const [detailedStatuses, setDetailedStatuses] = useState<Record<string, DetailedStatus | null>>({});
   const [branchLists, setBranchLists] = useState<Record<string, BranchInfo | null>>({});
+  // FIX START: Add state for latestReleases to satisfy DashboardProps.
+  const [latestReleases, setLatestReleases] = useState<Record<string, ReleaseInfo | null>>({});
+  // FIX END
   
   const [taskLogState, setTaskLogState] = useState({
     isOpen: false,
@@ -260,6 +265,39 @@ const App: React.FC = () => {
     fetchStatuses();
   }, [repositories, localPathStates, isDataLoading, logger]);
 
+  // FIX START: Add effect to fetch latest releases for repositories.
+  useEffect(() => {
+    if (isDataLoading || !settings.githubPat) {
+      if (!settings.githubPat) {
+        logger.warn('GitHub PAT not set. Skipping release fetch.');
+      }
+      setLatestReleases({}); // Clear if no PAT or still loading
+      return;
+    }
+
+    const fetchReleases = async () => {
+      logger.debug('Fetching latest GitHub releases for valid Git repositories.');
+      const releasePromises = repositories
+        .filter(repo => repo.vcs === VcsType.Git && localPathStates[repo.id] === 'valid')
+        .map(async (repo) => {
+          try {
+            const releaseInfo = await window.electronAPI?.getLatestRelease(repo);
+            return { repoId: repo.id, releaseInfo };
+          } catch (error: any) {
+            logger.error(`Failed to fetch release for ${repo.name}:`, { error: error.message });
+            return { repoId: repo.id, releaseInfo: null }; // Ensure we return a value even on error
+          }
+        });
+
+      const releases = await Promise.all(releasePromises);
+      setLatestReleases(releases.reduce((acc, r) => ({ ...acc, [r.repoId]: r.releaseInfo }), {}));
+      logger.info('GitHub release fetch complete.');
+    };
+
+    fetchReleases();
+  }, [repositories, localPathStates, isDataLoading, logger, settings.githubPat]);
+  // FIX END
+
 
   // Effect to detect executables when paths are validated
   useEffect(() => {
@@ -327,8 +365,13 @@ const App: React.FC = () => {
             logger.info('Branch changed on disk, updating repository state.', { repoId, old: repo.branch, new: branches.current });
             updateRepository({ ...repo, branch: branches.current });
         }
+        // Also refresh release info
+        if (settings.githubPat) {
+            const releaseInfo = await window.electronAPI?.getLatestRelease(repo);
+            setLatestReleases(prev => ({ ...prev, [repoId]: releaseInfo }));
+        }
     }
-  }, [repositories, localPathStates, updateRepository, logger]);
+  }, [repositories, localPathStates, updateRepository, logger, settings.githubPat]);
 
   const handleOpenContextMenu = useCallback((event: React.MouseEvent, repo: Repository) => {
     event.preventDefault();
@@ -873,6 +916,9 @@ const App: React.FC = () => {
                     detectedExecutables={detectedExecutables}
                     detailedStatuses={detailedStatuses}
                     branchLists={branchLists}
+                    // FIX START: Pass latestReleases prop to Dashboard.
+                    latestReleases={latestReleases}
+                    // FIX END
                     onSwitchBranch={handleSwitchBranch}
                     onCloneRepo={(repoId) => {
                       const repo = repositories.find(r => r.id === repoId);

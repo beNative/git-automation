@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
-import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig, WebLinkConfig, ToastMessage } from '../types';
+import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig, WebLinkConfig, ToastMessage, ReleaseInfo } from '../types';
 import { VcsType } from '../types';
 import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
 import { PlayIcon } from './icons/PlayIcon';
@@ -37,6 +37,7 @@ interface RepositoryCardProps {
   localPathState: LocalPathState;
   detailedStatus: DetailedStatus | null;
   branchInfo: BranchInfo | null;
+  latestRelease: ReleaseInfo | null;
   onSwitchBranch: (repoId: string, branch: string) => void;
   detectedExecutables: string[];
   onCloneRepo: (repoId: string) => void;
@@ -305,6 +306,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   localPathState,
   detailedStatus,
   branchInfo,
+  latestRelease,
   onSwitchBranch,
   detectedExecutables,
   onCloneRepo,
@@ -351,6 +353,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const configureTooltip = useTooltip('Configure Repository');
   const deleteTooltip = useTooltip('Delete Repository');
   const refreshTooltip = useTooltip('Refresh Status');
+  const releaseUrlTooltip = useTooltip(latestRelease?.url);
 
   const cardClasses = [
     'relative',
@@ -358,6 +361,48 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
     'transition-all duration-300 hover:shadow-blue-500/20',
     isBeingDragged ? 'opacity-40 scale-95' : 'opacity-100 scale-100',
   ].join(' ');
+  
+  const renderReleaseInfo = () => {
+    if (vcs !== VcsType.Git) return null;
+    let content;
+    if (latestRelease) {
+      const { tagName, isDraft, isPrerelease } = latestRelease;
+      let badge;
+      if (isDraft) {
+        badge = <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200">Draft</span>;
+      } else if (isPrerelease) {
+        badge = <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-200 dark:bg-yellow-700 text-yellow-800 dark:text-yellow-200">Pre-release</span>;
+      } else {
+        badge = <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-200 dark:bg-green-700 text-green-800 dark:text-green-200">Published</span>;
+      }
+      content = (
+        <div className="flex items-center gap-2">
+          <a
+            {...releaseUrlTooltip}
+            href={latestRelease.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => { e.preventDefault(); onOpenWeblink(latestRelease.url); }}
+            className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            {tagName}
+          </a>
+          {badge}
+        </div>
+      );
+    } else if (latestRelease === null) {
+      content = <span className="font-semibold text-gray-400">No releases found.</span>;
+    } else {
+       content = <span className="font-semibold text-gray-400 italic">Checking...</span>;
+    }
+    return (
+        <div className="mt-1 flex items-center justify-between text-sm">
+            <span className="text-gray-400 dark:text-gray-500">Latest Release:</span>
+            {content}
+        </div>
+    );
+  };
+
 
   return (
     <div
@@ -486,6 +531,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 {lastUpdated ? new Date(lastUpdated).toLocaleString() : 'Never'}
             </span>
         </div>
+        {renderReleaseInfo()}
       </div>
       
       <div className="border-t border-gray-200 dark:border-gray-700 p-2 bg-gray-50 dark:bg-gray-800/50">
