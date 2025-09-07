@@ -100,6 +100,8 @@ export interface GlobalSettings {
   theme: 'light' | 'dark';
   iconSet: IconSet;
   debugLogging: boolean;
+  allowPrerelease: boolean;
+  openLinksIn: 'default' | 'chrome' | 'firefox';
 }
 
 export interface TaskStep {

@@ -619,6 +619,21 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleOpenWeblink = useCallback(async (url: string) => {
+    if (!url) {
+      setToast({ message: 'URL is not configured.', type: 'info' });
+      return;
+    }
+    try {
+      const result = await window.electronAPI?.openWeblink(url);
+      if (!result?.success) {
+        setToast({ message: result?.error || 'Failed to open the link.', type: 'error' });
+      }
+    } catch (e: any) {
+      setToast({ message: e.message || 'An error occurred while trying to open the link.', type: 'error' });
+    }
+  }, []);
+
   const handleOpenTerminal = useCallback(async (path: string) => {
     if (!path) {
       setToast({ message: 'Local path is not configured.', type: 'info' });
@@ -778,6 +793,7 @@ const App: React.FC = () => {
                     onRunLaunchConfig={handleRunLaunchConfig}
                     onOpenLaunchSelection={handleOpenLaunchSelection}
                     onOpenLocalPath={handleOpenLocalPath}
+                    onOpenWeblink={handleOpenWeblink}
                     onOpenTerminal={handleOpenTerminal}
                     setToast={setToast}
                     onOpenContextMenu={handleOpenContextMenu}

@@ -40,6 +40,37 @@ const getLogFilePath = () => {
 };
 
 const settingsPath = path.join(getAppDataPath(), 'settings.json');
+let globalSettingsCache: GlobalSettings | null = null;
+
+const DEFAULTS: GlobalSettings = {
+    defaultBuildCommand: 'npm run build',
+    notifications: true,
+    simulationMode: true,
+    theme: 'dark',
+    iconSet: 'heroicons',
+    debugLogging: true,
+    allowPrerelease: true,
+    openLinksIn: 'default',
+};
+
+async function readSettings(): Promise<GlobalSettings> {
+    if (globalSettingsCache) {
+        return globalSettingsCache;
+    }
+    try {
+        const data = await fs.readFile(settingsPath, 'utf-8');
+        const parsedData = JSON.parse(data);
+        if (parsedData && parsedData.globalSettings) {
+            const settings = { ...DEFAULTS, ...parsedData.globalSettings };
+            globalSettingsCache = settings;
+            return settings;
+        }
+    } catch (error) {
+        // File not found or invalid, return defaults.
+    }
+    globalSettingsCache = DEFAULTS;
+    return DEFAULTS;
+}
 
 const createWindow = () => {
   // Create the browser window.
@@ -66,19 +97,20 @@ const createWindow = () => {
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-app.on('ready', () => {
+app.on('ready', async () => {
   // Ensure logs directory exists before creating a window or log file
   const logDir = path.join(getAppDataPath(), 'logs');
   fs.mkdir(logDir, { recursive: true }).catch(err => {
       console.error("Could not create logs directory.", err);
   });
   createWindow();
+  
+  const settings = await readSettings();
 
   // --- Auto-updater logic ---
   if (app.isPackaged) {
-    console.log('App is packaged, initializing auto-updater.');
-    
-    autoUpdater.allowPrerelease = true;
+    console.log(`Configuring auto-updater. allowPrerelease: ${settings.allowPrerelease}`);
+    autoUpdater.allowPrerelease = settings.allowPrerelease ?? true;
 
     autoUpdater.on('checking-for-update', () => {
         console.log('Checking for update...');
@@ -160,6 +192,7 @@ ipcMain.handle('get-all-data', async () => {
 ipcMain.on('save-all-data', async (event, data: { globalSettings: GlobalSettings, repositories: Repository[] }) => {
     try {
         await fs.writeFile(settingsPath, JSON.stringify(data, null, 2));
+        globalSettingsCache = data.globalSettings; // Invalidate cache
     } catch (error) {
         console.error("Failed to save settings file:", error);
     }
@@ -763,6 +796,57 @@ ipcMain.handle('open-local-path', async (event, localPath: string) => {
     return { success: false, error: error.message };
   }
 });
+
+ipcMain.handle('open-weblink', async (event, url: string): Promise<{ success: boolean; error?: string, warning?: string }> => {
+    try {
+        const settings = await readSettings();
+        const browser = settings.openLinksIn || 'default';
+
+        if (browser === 'default') {
+            await shell.openExternal(url);
+            return { success: true };
+        }
+
+        const currentPlatform = os.platform();
+        let command: string | null = null;
+        let args: string[] = [url];
+
+        if (currentPlatform === 'win32') {
+            command = 'start';
+            args.unshift(browser); // `start chrome "url"`
+        } else if (currentPlatform === 'darwin') { // macOS
+            command = 'open';
+            const browserApp = browser === 'chrome' ? 'Google Chrome' : 'Firefox';
+            args.unshift(browserApp);
+            args.unshift('-a'); // `open -a "Google Chrome" "url"`
+        } else { // Linux
+            command = browser === 'chrome' ? 'google-chrome' : 'firefox';
+        }
+
+        if (command) {
+            const child = spawn(command, args, { detached: true, shell: true });
+            child.on('error', (err) => {
+                console.error(`Failed to open link in ${browser}, falling back to default. Error:`, err);
+                shell.openExternal(url);
+            });
+            child.unref();
+            return { success: true };
+        } else {
+            // Fallback for unsupported platforms or configs
+            await shell.openExternal(url);
+            return { success: true };
+        }
+    } catch (error: any) {
+        console.error('Failed to open weblink:', error);
+        try {
+            await shell.openExternal(url);
+            return { success: true, warning: 'Preferred browser failed, opened in default.' };
+        } catch (fallbackError: any) {
+            return { success: false, error: fallbackError.message };
+        }
+    }
+});
+
 
 // --- IPC handler for opening a terminal ---
 ipcMain.handle('open-terminal', async (event, localPath: string): Promise<{ success: boolean; error?: string }> => {

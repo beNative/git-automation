@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import type { GlobalSettings } from '../types';
 import { SunIcon } from './icons/SunIcon';
@@ -44,6 +45,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
   
   const handleIconSetChange = (iconSet: IconSet) => {
     setSettings(prev => ({...prev, iconSet}));
+  };
+
+  const handleBrowserChange = (browser: GlobalSettings['openLinksIn']) => {
+    setSettings(prev => ({...prev, openLinksIn: browser}));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -168,7 +173,16 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                   <section>
                       <h2 className="text-xl font-bold text-gray-900 dark:text-white">Behavior</h2>
                       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure how the application functions.</p>
-                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-6">
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Open Web Links In</label>
+                              <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-md">
+                                  <button type="button" onClick={() => handleBrowserChange('default')} className={`${iconSetButtonBase} ${settings.openLinksIn === 'default' ? iconSetButtonActive : iconSetButtonInactive}`}>System Default</button>
+                                  <button type="button" onClick={() => handleBrowserChange('chrome')} className={`${iconSetButtonBase} ${settings.openLinksIn === 'chrome' ? iconSetButtonActive : iconSetButtonInactive}`}>Chrome</button>
+                                  <button type="button" onClick={() => handleBrowserChange('firefox')} className={`${iconSetButtonBase} ${settings.openLinksIn === 'firefox' ? iconSetButtonActive : iconSetButtonInactive}`}>Firefox</button>
+                              </div>
+                          </div>
+
                           <div className="flex items-start">
                               <div className="flex items-center h-5"><input id="notifications" name="notifications" type="checkbox" checked={settings.notifications} onChange={handleChange} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
                               <div className="ml-3 text-sm">
@@ -182,6 +196,14 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                               <div className="ml-3 text-sm">
                                   <label htmlFor="simulationMode" className="font-medium text-gray-700 dark:text-gray-300">Enable Simulation Mode</label>
                                   <p className="text-gray-500">If enabled, tasks will be simulated and will not affect your local file system. Disable to run real commands.</p>
+                              </div>
+                          </div>
+
+                          <div className="flex items-start">
+                              <div className="flex items-center h-5"><input id="allowPrerelease" name="allowPrerelease" type="checkbox" checked={settings.allowPrerelease} onChange={handleChange} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
+                              <div className="ml-3 text-sm">
+                                  <label htmlFor="allowPrerelease" className="font-medium text-gray-700 dark:text-gray-300">Check for Pre-Releases</label>
+                                  <p className="text-gray-500">If enabled, the auto-updater will include beta versions when checking for updates.</p>
                               </div>
                           </div>
 

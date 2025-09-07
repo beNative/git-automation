@@ -20,6 +20,8 @@ const DEFAULTS: GlobalSettings = {
     theme: 'dark',
     iconSet: 'heroicons',
     debugLogging: true,
+    allowPrerelease: true,
+    openLinksIn: 'default',
 };
 
 const initialState: AppDataContextState = {

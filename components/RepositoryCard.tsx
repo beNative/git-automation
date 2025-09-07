@@ -43,6 +43,7 @@ interface RepositoryCardProps {
   onRunLaunchConfig: (repoId: string, configId: string) => void;
   onOpenLaunchSelection: (repoId: string) => void;
   onOpenLocalPath: (path: string) => void;
+  onOpenWeblink: (url: string) => void;
   onOpenTerminal: (path: string) => void;
   isBeingDragged: boolean;
   isDropTarget: boolean;
@@ -273,21 +274,21 @@ const LaunchConfigButton: React.FC<{
   );
 };
 
-const WebLinkButton: React.FC<{ link: WebLinkConfig }> = ({ link }) => {
+const WebLinkButton: React.FC<{ link: WebLinkConfig; onOpen: (url: string) => void }> = ({ link, onOpen }) => {
   const tooltip = useTooltip(link.url);
   const { hideTooltip } = useContext(TooltipContext);
   return (
-    <a
+    <button
       {...tooltip}
-      href={link.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={hideTooltip}
+      onClick={() => {
+        hideTooltip();
+        onOpen(link.url);
+      }}
       className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
     >
       <ArrowTopRightOnSquareIcon className="h-3 w-3 mr-1.5" />
       <span className="truncate">{link.name}</span>
-    </a>
+    </button>
   );
 };
 
@@ -311,6 +312,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onRunLaunchConfig,
   onOpenLaunchSelection,
   onOpenLocalPath,
+  onOpenWeblink,
   onOpenTerminal,
   isBeingDragged,
   isDropTarget,
@@ -386,7 +388,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
         <div className="mt-2 space-y-1.5 text-sm text-gray-500 dark:text-gray-400">
           <div className="flex items-center gap-2">
             <GlobeAltIcon className="h-4 w-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-            <a href={remoteUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:text-blue-500 dark:hover:text-blue-400 transition-colors flex-grow">{remoteUrl}</a>
+            <button onClick={() => onOpenWeblink(remoteUrl)} className="truncate hover:text-blue-500 dark:hover:text-blue-400 transition-colors flex-grow text-left">{remoteUrl}</button>
             <CopyButton textToCopy={remoteUrl} tooltipText="Copy URL" setToast={setToast} />
           </div>
           {isPathSet && (
@@ -424,7 +426,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
         {webLinks && webLinks.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {webLinks.map(link => (
-              <WebLinkButton key={link.id} link={link} />
+              <WebLinkButton key={link.id} link={link} onOpen={onOpenWeblink} />
             ))}
           </div>
         )}

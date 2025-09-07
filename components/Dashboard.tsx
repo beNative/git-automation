@@ -23,6 +23,7 @@ interface DashboardProps {
   onRunLaunchConfig: (repoId: string, configId: string) => void;
   onOpenLaunchSelection: (repoId: string) => void;
   onOpenLocalPath: (path: string) => void;
+  onOpenWeblink: (url: string) => void;
   onOpenTerminal: (path: string) => void;
   setToast: (toast: ToastMessage | null) => void;
   onOpenContextMenu: (event: React.MouseEvent, repo: Repository) => void;
@@ -49,6 +50,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onRunLaunchConfig,
   onOpenLaunchSelection,
   onOpenLocalPath,
+  onOpenWeblink,
   onOpenTerminal,
   setToast,
   onOpenContextMenu,
@@ -136,6 +138,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           onRunLaunchConfig={onRunLaunchConfig}
           onOpenLaunchSelection={onOpenLaunchSelection}
           onOpenLocalPath={onOpenLocalPath}
+          onOpenWeblink={onOpenWeblink}
           onOpenTerminal={onOpenTerminal}
           isBeingDragged={repo.id === draggedRepoId}
           isDropTarget={repo.id === dropTargetId}
