@@ -1,10 +1,8 @@
 
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-// FIX: Add .ts extension to satisfy module resolution
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities } from '../../types.ts';
-// FIX: Add .ts extension to satisfy module resolution
-import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types.ts';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities } from '../../types';
+import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { ArrowLeftIcon } from '../icons/ArrowLeftIcon';
@@ -178,14 +176,12 @@ const TaskStepItem: React.FC<{
                 >
                     <option value="">Auto-detect</option>
                     <optgroup label="Projects">
-                        {/* FIX: Add guard to prevent calling map on undefined */}
-                        {(projectInfo?.delphi?.projects || []).map(p => (
+                        {projectInfo?.delphi?.projects.map(p => (
                             <option key={p.path} value={p.path}>{p.path}</option>
                         ))}
                     </optgroup>
                     <optgroup label="Project Groups">
-                        {/* FIX: Add guard to prevent calling map on undefined */}
-                        {(projectInfo?.delphi?.groups || []).map(g => (
+                        {projectInfo?.delphi?.groups.map(g => (
                             <option key={g} value={g}>{g}</option>
                         ))}
                     </optgroup>
@@ -223,7 +219,7 @@ const TaskStepItem: React.FC<{
                     className={formInputStyle}
                 >
                     <option value="">Auto-detect</option>
-                    {(projectInfo?.lazarus?.projects || []).map(p => (
+                    {projectInfo?.lazarus?.projects.map(p => (
                         <option key={p.path} value={p.path}>{p.path}</option>
                     ))}
                 </select>
@@ -255,7 +251,7 @@ const TaskStepItem: React.FC<{
                 className={formInputStyle}
             >
                 <option value="">Auto-detect</option>
-                {(projectInfo?.lazarus?.packages || []).map(p => (
+                {projectInfo?.lazarus?.packages.map(p => (
                     <option key={p} value={p}>{p}</option>
                 ))}
             </select>

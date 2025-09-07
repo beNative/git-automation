@@ -1,5 +1,4 @@
-// FIX: Add .ts extension to satisfy module resolution
-import { RepoStatus, BuildHealth } from "./types.ts";
+import { RepoStatus, BuildHealth } from "./types";
 
 export const STATUS_COLORS: Record<RepoStatus, string> = {
   [RepoStatus.Idle]: 'bg-gray-500',

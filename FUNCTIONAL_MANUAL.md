@@ -21,12 +21,12 @@ The header also contains a **"Check Updates"** button to check all repositories 
 The dashboard is divided into collapsible sections called categories. This allows you to group related projects (e.g., by technology, client, or status).
 
 -   **Creating Categories:** Click the "Add Category" button at the bottom of the dashboard to create a new section.
--   **Renaming & Deleting:** **Double-click** a category's name to edit it. Hover over the title to reveal a **trash icon** and other controls, which have helpful tooltips.
--   **Color Customization:** Hover over a category's title and click the **paintbrush icon**. This opens a dedicated dialog where you can choose from a curated palette of predefined color themes, or select fully custom background and text colors for ultimate personalization. A "Reset to Default" button is also available.
+-   **Renaming & Deleting:** **Double-click** a category's name to edit it. Hover over the title to reveal a **trash icon** for deleting it.
+-   **Color Customization:** Hover over a category's title and click the **paintbrush icon**. This opens a popover with a curated palette of predefined color themes, ensuring your dashboard always looks great. A "Reset" button is available to revert to the default theme.
 -   **Collapsing Sections:** Click the chevron icon (▶) next to a category's title to hide or show the repositories within it. This state is saved automatically, so your layout will be preserved the next time you open the app.
 -   **Assigning Repositories:** Simply drag a repository card and drop it onto a category header to assign it.
 -   **Reordering:**
-    -   **Repositories:** Drag and drop repository cards to reorder them within or between categories. This is now fully functional for all scenarios, including within the "Uncategorized" section and dropping items into the last position. When reordering, a blue indicator bar will show you exactly where the card will be dropped.
+    -   **Repositories:** Drag and drop repository cards to reorder them within or between categories. When reordering, a blue indicator bar will show you exactly where the card will be dropped.
     -   **Categories:** Drag and drop category headers using the grip handle (⋮⋮) to reorder the sections themselves.
 -   **Uncategorized Section:** Any repository not assigned to a category will automatically appear in a default "Uncategorized" section.
 

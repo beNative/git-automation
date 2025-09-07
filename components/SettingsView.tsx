@@ -1,12 +1,10 @@
 
 
 import React, { useState, useEffect } from 'react';
-// FIX: Add .ts extension to satisfy module resolution
-import type { GlobalSettings } from '../types.ts';
+import type { GlobalSettings } from '../types';
 import { SunIcon } from './icons/SunIcon';
 import { MoonIcon } from './icons/MoonIcon';
-// FIX: Add .ts extension to satisfy module resolution
-import type { IconSet } from '../types.ts';
+import type { IconSet } from '../types';
 import { CodeBracketIcon } from './icons/CodeBracketIcon';
 import JsonConfigView from './JsonConfigView';
 

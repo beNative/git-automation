@@ -1,6 +1,5 @@
 import React from 'react';
-// FIX: Add .ts extension to module import.
-import type { Repository, LaunchConfig } from '../../types.ts';
+import type { Repository, LaunchConfig } from '../../types';
 import { CubeIcon } from '../icons/CubeIcon';
 import { XIcon } from '../icons/XIcon';
 import { LightningBoltIcon } from '../icons/LightningBoltIcon';

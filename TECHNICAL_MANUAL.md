@@ -46,15 +46,14 @@ The application is split into three main processes, which is standard for Electr
 
 ## 3. State Management and Data Flow
 
--   **Primary State:** The root `App.tsx` component manages the entire application state, including the list of repositories, global settings, dashboard categories, the active view, and the state of modals and panels. UI-specific state, such as the position and visibility of the right-click `ContextMenu`, is also managed here to ensure a single source of truth.
--   **Drag-and-Drop Logic:** To fix critical reordering bugs, the drag-and-drop state management was significantly refactored. The `SettingsContext` now manages repository order changes through a robust `moveRepositoryToCategory` function that correctly handles all cases: moving between categories, reordering within a category, and moving/reordering items in the "Uncategorized" list. This was enabled by adding an `uncategorizedOrder` array to the persisted data structure.
+-   **Primary State:** The root `App.tsx` component manages the entire application state, including the list of repositories, global settings, **dashboard categories**, the active view, and the state of modals and panels. UI-specific state, such as the position and visibility of the right-click `ContextMenu`, is also managed here to ensure a single source of truth.
 -   **VCS State:** `App.tsx` also holds state for `detailedStatuses` and `branchLists` which are fetched periodically and after tasks complete to keep the UI in sync with the file system.
 -   **Parallel Task Execution:** To support running multiple tasks concurrently, a unique `executionId` is generated for each task run. This ID is passed between the renderer and main processes, allowing log output (`task-log`) and completion events (`task-step-end`) to be correctly routed to the appropriate repository and UI components without conflict.
--   **Component Architecture:** Key components include `CategoryHeader.tsx` for managing category sections, the new `CategoryColorModal.tsx` for handling theme customization, and a heavily refactored `Dashboard.tsx` that now handles complex drag-and-drop logic for both repositories and categories.
+-   **Component Architecture:** Key new components include `CategoryHeader.tsx` for managing category sections and a heavily refactored `Dashboard.tsx` that now handles complex drag-and-drop logic for both repositories and categories.
 
 ### Data Persistence
 
-All application data, including repositories, categories, and global settings, is persisted to a single `settings.json` file.
+All application data, including repositories, **categories,** and global settings, is persisted to a single `settings.json` file.
 
 -   **Location:** The file is stored in the standard application user data directory for your operating system (e.g., `%APPDATA%` on Windows, `~/Library/Application Support` on macOS). This ensures that user settings are preserved across application updates.
 -   **Management:** A `SettingsProvider` context handles loading this data on startup and saving it whenever it changes. The context was expanded to include functions for creating, updating, deleting, and reordering categories (`addCategory`, `updateCategory`, etc.), as well as managing their collapsed state (`toggleCategoryCollapse`, `toggleAllCategoriesCollapse`). The `Category` data structure now includes a `collapsed` property, as well as optional `color` and `backgroundColor` fields, which are also saved to `settings.json` to persist the UI state across sessions.

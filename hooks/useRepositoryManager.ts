@@ -1,10 +1,7 @@
 
-
 import { useState, useCallback } from 'react';
-// FIX: Add .ts extension to satisfy module resolution
-import type { Repository, LogEntry, Task, GlobalSettings, TaskStep, GitRepository } from '../types.ts';
-// FIX: Add .ts extension to satisfy module resolution
-import { RepoStatus, BuildHealth, LogLevel, TaskStepType, VcsType } from '../types.ts';
+import type { Repository, LogEntry, Task, GlobalSettings, TaskStep, GitRepository } from '../types';
+import { RepoStatus, BuildHealth, LogLevel, TaskStepType, VcsType } from '../types';
 
 // --- Simulation logic moved from the now-obsolete automationService ---
 const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -106,7 +103,7 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
 
           // Check for dirty repo before git pull (Git only)
           if (step.type === TaskStepType.GitPull && repo.vcs === VcsType.Git) {
-            if ((repo as GitRepository).ignoreDirty) {
+            if (repo.ignoreDirty) {
               addLogEntry(repoId, `Skipping dirty repository check due to repository setting.`, LogLevel.Warn);
             } else {
               const statusResult = await window.electronAPI?.checkVcsStatus(repo);

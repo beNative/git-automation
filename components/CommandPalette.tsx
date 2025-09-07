@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-// FIX: Add .ts extension to satisfy module resolution
-import type { Repository, AppView } from '../types.ts';
+import type { Repository, AppView } from '../types';
 import { HomeIcon } from './icons/HomeIcon';
 import { CogIcon } from './icons/CogIcon';
 import { InformationCircleIcon } from './icons/InformationCircleIcon';

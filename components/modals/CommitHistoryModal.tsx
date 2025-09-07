@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// FIX: Add .ts extension to module import.
-import type { Repository, Commit } from '../../types.ts';
+import type { Repository, Commit } from '../../types';
 import { ClockIcon } from '../icons/ClockIcon';
 import { XIcon } from '../icons/XIcon';
 import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';

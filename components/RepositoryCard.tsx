@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
-// FIX: Add .ts extension to satisfy module resolution
-import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig, WebLinkConfig, ToastMessage } from '../types.ts';
-// FIX: Add .ts extension to satisfy module resolution
-import { VcsType } from '../types.ts';
+import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig, WebLinkConfig, ToastMessage } from '../types';
+import { VcsType } from '../types';
 import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
 import { PlayIcon } from './icons/PlayIcon';
 import { DocumentTextIcon } from './icons/DocumentTextIcon';

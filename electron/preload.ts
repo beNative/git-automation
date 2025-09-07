@@ -1,74 +1,86 @@
-import { contextBridge, ipcRenderer } from 'electron';
-import type { GlobalSettings, Repository, AllData, TaskStep, Task, DebugLogEntry, LogLevel } from '../types';
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, Category } from '../types';
 
-const electronAPI = {
-  // Data loading/saving
-  getInitialData: (): Promise<AllData> => ipcRenderer.invoke('get-initial-data'),
-  saveRepositories: (repositories: Repository[]) => ipcRenderer.invoke('save-repositories', repositories),
-  saveSettings: (settings: GlobalSettings) => ipcRenderer.invoke('save-settings', settings),
-  saveAllData: (allData: AllData) => ipcRenderer.invoke('save-all-data', allData),
-  getRawSettingsJson: (): Promise<string> => ipcRenderer.invoke('get-raw-settings-json'),
+const taskLogChannel = 'task-log';
+const taskStepEndChannel = 'task-step-end';
 
+
+contextBridge.exposeInMainWorld('electronAPI', {
   // App Info
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version'),
-  installUpdate: () => ipcRenderer.invoke('install-update'),
-  onUpdateAvailable: (callback: () => void) => {
-    ipcRenderer.on('update-available', callback);
-    return () => ipcRenderer.removeListener('update-available', callback);
-  },
-  onDataLoaded: (callback: (data: AllData) => void) => {
-    ipcRenderer.once('data-loaded', (event, data) => callback(data));
-  },
-  removeDataLoadedListener: () => ipcRenderer.removeAllListeners('data-loaded'),
   
-  // External interaction
-  openLocalPath: (path: string) => ipcRenderer.invoke('open-local-path', path),
-  openTerminal: (path: string) => ipcRenderer.invoke('open-terminal', path),
-  openWeblink: (url: string, browser?: string) => ipcRenderer.invoke('open-weblink', url, browser),
-  showDirectoryPicker: () => ipcRenderer.invoke('show-directory-picker'),
-  showSettingsFile: () => ipcRenderer.invoke('show-settings-file'),
-  
-  // VCS Operations (mocked in main for this example)
-  getCommitHistory: (repoPath: string, skip: number, search: string) => ipcRenderer.invoke('get-commit-history', repoPath, skip, search),
-  listBranches: (repoPath: string) => ipcRenderer.invoke('list-branches', repoPath),
-  checkVcsStatus: (repo: Repository) => ipcRenderer.invoke('check-vcs-status', repo),
-  createBranch: (repoPath: string, branchName: string) => ipcRenderer.invoke('create-branch', repoPath, branchName),
-  deleteBranch: (repoPath: string, branchName: string, isRemote: boolean) => ipcRenderer.invoke('delete-branch', repoPath, branchName, isRemote),
-  mergeBranch: (repoPath: string, branchName: string) => ipcRenderer.invoke('merge-branch', repoPath, branchName),
-  discoverRemoteUrl: (args: { localPath: string; vcs: string; }) => ipcRenderer.invoke('discover-remote-url', args),
+  // App Data
+  getAllData: (): Promise<{ globalSettings: GlobalSettings; repositories: Repository[]; categories: Category[] }> => ipcRenderer.invoke('get-all-data'),
+  saveAllData: (data: { globalSettings: GlobalSettings; repositories: Repository[]; categories: Category[] }) => ipcRenderer.send('save-all-data', data),
 
-  // Task Execution
-  runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings, executionId: string, task: Task }) => ipcRenderer.send('run-task-step', args),
-  cloneRepository: (args: { repo: Repository; executionId: string }) => ipcRenderer.send('clone-repository', args),
-  onTaskLog: (callback: (event: any, data: { executionId: string, message: string, level: LogLevel }) => void) => ipcRenderer.on('task-log', callback),
-  onTaskStepEnd: (callback: (event: any, data: { executionId: string, exitCode: number }) => void) => ipcRenderer.on('task-step-end', callback),
-  removeTaskLogListener: (callback: (...args: any[]) => void) => ipcRenderer.removeListener('task-log', callback),
-  removeTaskStepEndListener: (callback: (...args: any[]) => void) => ipcRenderer.removeListener('task-step-end', callback),
-
-  // Launching
-  launchApplication: (args: { repo: Repository; command: string }) => ipcRenderer.invoke('launch-application', args),
-  launchExecutable: (args: { repoPath: string; executablePath: string; }) => ipcRenderer.invoke('launch-executable', args),
-  
-  // Project analysis
-  getProjectInfo: (repoPath: string) => ipcRenderer.invoke('get-project-info', repoPath),
-  getProjectSuggestions: (args: { repoPath: string, repoName: string }) => ipcRenderer.invoke('get-project-suggestions', args),
-  checkLocalPath: (path: string) => ipcRenderer.invoke('check-local-path', path),
-  
-  // Docs
+  // Documentation
   getDoc: (docName: string): Promise<string> => ipcRenderer.invoke('get-doc', docName),
+  
+  // Smart Scripts
+  getProjectInfo: (repoPath: string): Promise<ProjectInfo> => ipcRenderer.invoke('get-project-info', repoPath),
+  getProjectSuggestions: (args: { repoPath: string, repoName: string }): Promise<ProjectSuggestion[]> => ipcRenderer.invoke('get-project-suggestions', args),
 
-  // Debug Logging
-  logToFileInit: () => ipcRenderer.send('log-to-file-init'),
-  logToFileWrite: (log: DebugLogEntry) => ipcRenderer.send('log-to-file-write', log),
-  logToFileClose: () => ipcRenderer.send('log-to-file-close'),
+  // Version Control
+  checkVcsStatus: (repo: Repository): Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }> => ipcRenderer.invoke('check-vcs-status', repo),
+  getDetailedVcsStatus: (repo: Repository): Promise<DetailedStatus | null> => ipcRenderer.invoke('get-detailed-vcs-status', repo),
+  getCommitHistory: (repoPath: string, skipCount?: number, searchQuery?: string): Promise<Commit[]> => ipcRenderer.invoke('get-commit-history', repoPath, skipCount, searchQuery),
+  listBranches: (repoPath: string): Promise<BranchInfo> => ipcRenderer.invoke('list-branches', repoPath),
+  checkoutBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('checkout-branch', repoPath, branch),
+  createBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('create-branch', repoPath, branch),
+  deleteBranch: (repoPath: string, branch: string, isRemote: boolean): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('delete-branch', repoPath, branch, isRemote),
+  mergeBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('merge-branch', repoPath, branch),
+  ignoreFilesAndPush: (args: { repo: Repository, filesToIgnore: string[] }): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('ignore-files-and-push', args),
 
-  // Import/Export
+
+  // Local Path and Actions
+  checkLocalPath: (path: string): Promise<LocalPathState> => ipcRenderer.invoke('check-local-path', path),
+  discoverRemoteUrl: (args: { localPath: string, vcs: VcsType }): Promise<{ url: string | null; error?: string }> => ipcRenderer.invoke('discover-remote-url', args),
+  cloneRepository: (args: { repo: Repository, executionId: string }) => ipcRenderer.send('clone-repository', args),
+  launchApplication: (args: { repo: Repository, command: string }) => ipcRenderer.invoke('launch-application', args),
+  showDirectoryPicker: (): Promise<{ canceled: boolean, filePaths: string[] }> => ipcRenderer.invoke('show-directory-picker'),
+  pathJoin: (...args: string[]): Promise<string> => ipcRenderer.invoke('path-join', ...args),
+  detectExecutables: (repoPath: string): Promise<string[]> => ipcRenderer.invoke('detect-executables', repoPath),
+  launchExecutable: (args: { repoPath: string, executablePath: string }): Promise<{ success: boolean; output: string }> => ipcRenderer.invoke('launch-executable', args),
+  openLocalPath: (path: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('open-local-path', path),
+  openWeblink: (url: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('open-weblink', url),
+  openTerminal: (path: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('open-terminal', path),
+
+  // JSON Config
+  getRawSettingsJson: (): Promise<string> => ipcRenderer.invoke('get-raw-settings-json'),
+  showSettingsFile: () => ipcRenderer.invoke('show-settings-file'),
   exportSettings: () => ipcRenderer.invoke('export-settings'),
   importSettings: () => ipcRenderer.invoke('import-settings'),
 
-  removeUpdateAvailableListener: () => ipcRenderer.removeAllListeners('update-available'),
-};
+  // Real Task Execution
+  runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; task: Task; }) => {
+    ipcRenderer.send('run-task-step', args);
+  },
 
-contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+  onTaskLog: (callback: (event: IpcRendererEvent, data: { executionId: string, message: string, level: LogLevel}) => void) => {
+    ipcRenderer.on(taskLogChannel, callback);
+  },
+  removeTaskLogListener: (callback: (event: IpcRendererEvent, data: { executionId: string, message: string, level: LogLevel}) => void) => {
+    ipcRenderer.removeListener(taskLogChannel, callback);
+  },
 
-export type ElectronAPI = typeof electronAPI;
+  onTaskStepEnd: (callback: (event: IpcRendererEvent, data: { executionId: string, exitCode: number }) => void) => {
+    ipcRenderer.on(taskStepEndChannel, callback);
+  },
+  removeTaskStepEndListener: (callback: (event: IpcRendererEvent, data: { executionId: string, exitCode: number }) => void) => {
+    ipcRenderer.removeListener(taskStepEndChannel, callback);
+  },
+
+  // --- Debug Logging to File ---
+  logToFileInit: () => ipcRenderer.send('log-to-file-init'),
+  logToFileClose: () => ipcRenderer.send('log-to-file-close'),
+  logToFileWrite: (log: DebugLogEntry) => ipcRenderer.send('log-to-file-write', log),
+
+  // Auto Update
+  restartAndInstallUpdate: () => ipcRenderer.send('restart-and-install-update'),
+  onUpdateStatusChange: (callback: (event: IpcRendererEvent, data: any) => void) => {
+    ipcRenderer.on('update-status-change', callback);
+  },
+  removeUpdateStatusChangeListener: (callback: (event: IpcRendererEvent, data: any) => void) => {
+    ipcRenderer.removeListener('update-status-change', callback);
+  },
+});
