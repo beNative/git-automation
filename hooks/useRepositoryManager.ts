@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import type { Repository, LogEntry, Task, GlobalSettings, TaskStep, GitRepository } from '../types';
 import { RepoStatus, BuildHealth, LogLevel, TaskStepType, VcsType } from '../types';
@@ -117,7 +118,6 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
                 } else if (choice === 'stash') {
                   addLogEntry(repoId, 'Stashing changes...', LogLevel.Info);
                   const stashExecutionId = `${stepExecutionId}_stash`;
-                  // FIX: Property 'enabled' is missing in type '{ id: string; type: TaskStepType.GitStash; }' but required in type 'TaskStep'.
                   await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash, enabled: true}, settings, addLogEntry, stashExecutionId, task);
                 }
                 // if 'force' or 'ignored_and_continue', proceed as normal

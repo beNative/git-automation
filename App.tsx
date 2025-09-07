@@ -870,7 +870,6 @@ const App: React.FC = () => {
                   openLogPanelForRepo(repo.id, true);
                   launchExecutable(repo, executablePath);
               }
-              // FIX: Called state variable instead of setter.
               setExecutableSelectionModal({ isOpen: false, repo: null, launchConfig: null, executables: [] });
             }}
           />

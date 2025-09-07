@@ -1,3 +1,4 @@
+
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path, { dirname } from 'path';
@@ -76,6 +77,8 @@ app.on('ready', () => {
   if (app.isPackaged) {
     console.log('App is packaged, initializing auto-updater.');
     
+    autoUpdater.allowPrerelease = true;
+
     autoUpdater.on('checking-for-update', () => {
         console.log('Checking for update...');
         mainWindow?.webContents.send('update-status-change', { status: 'checking', message: 'Checking for updates...' });
@@ -283,9 +286,7 @@ const getXmlAttribute = (content: string, elementName: string, attributeName: st
     return results;
 }
 
-// FIX: Extracted project info logic into a reusable function to fix type errors and allow direct calls from other handlers.
 const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
-    // FIX: Property 'dproj' is missing in type '{}' but required in type '{ dproj: string[]; }'.
     if (!repoPath) return { tags: [], files: { dproj: [] }, python: undefined, delphi: undefined, nodejs: undefined, lazarus: undefined };
 
     const tagsSet = new Set<string>();
@@ -1058,7 +1059,6 @@ const substituteVariables = (command: string, variables: TaskVariable[] = []): s
 };
 
 // --- Promise-based command executor ---
-// FIX: Replaced NodeJS.ProcessEnv with a compatible type to resolve namespace issue.
 function executeCommand(cwd: string, fullCommand: string, sender: (channel: string, ...args: any[]) => void, executionId: string, env: { [key: string]: string | undefined }): Promise<number> {
     return new Promise((resolve, reject) => {
         sender('task-log', { executionId, message: `$ ${fullCommand}`, level: LogLevel.Command });

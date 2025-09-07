@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
@@ -594,8 +595,7 @@ const DelphiTaskGenerator: React.FC<{
             steps: [{
                 type: TaskStepType.DelphiBuild,
                 delphiProjectFile: projectPath,
-// FIX: Type 'string' is not assignable to type '"Build" | "Rebuild" | "Clean"'. Cast to prevent type widening.
-                delphiBuildMode: 'Build' as 'Build' | 'Rebuild' | 'Clean',
+                delphiBuildMode: 'Build' as 'Build',
                 delphiConfiguration: 'Release',
                 delphiPlatform: 'Win32'
             }].map(s => ({ ...s, id: '', enabled: true }))
