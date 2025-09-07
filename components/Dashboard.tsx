@@ -101,10 +101,10 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   const handleDropOnRepo = (e: React.DragEvent, dropTargetRepoId: string) => {
     e.preventDefault();
     if (!draggedItem || draggedItem.type !== 'repo' || !dropIndicator) return;
-    
+
     const { id: draggedRepoId, sourceCategoryId } = draggedItem;
 
-    // Find target category
+    // Find target category based on the drop target repository
     let targetCategoryId: string | null = null;
     let targetCategoryRepos: Repository[] = uncategorizedRepos;
     for (const [catId, repos] of categorizedRepos.entries()) {
@@ -115,29 +115,52 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         }
     }
 
-    let targetIndex = targetCategoryRepos.findIndex(r => r.id === dropTargetRepoId);
-    if (dropIndicator.position === 'after') {
-        targetIndex++;
-    }
+    // Case 1: Reordering within the same list (either a category or uncategorized)
+    if (sourceCategoryId === targetCategoryId) {
+        if (sourceCategoryId === null) {
+            // Reordering within "Uncategorized" list
+            const categorizedIds = new Set(categories.flatMap(cat => cat.repositoryIds));
+            const categorizedItems = repositories.filter(r => categorizedIds.has(r.id));
+            let uncategorizedItems = repositories.filter(r => !categorizedIds.has(r.id));
+            
+            const draggedIndex = uncategorizedItems.findIndex(r => r.id === draggedRepoId);
+            if (draggedIndex === -1) return;
+            
+            const [removed] = uncategorizedItems.splice(draggedIndex, 1);
+            
+            let targetIndexInUncategorized = uncategorizedItems.findIndex(r => r.id === dropTargetRepoId);
+            if (dropIndicator.position === 'after') {
+                targetIndexInUncategorized++;
+            }
+            
+            uncategorizedItems.splice(targetIndexInUncategorized, 0, removed);
+            props.setRepositories([...categorizedItems, ...uncategorizedItems]);
 
-    // Handle reordering within uncategorized list
-    if (sourceCategoryId === null && targetCategoryId === null) {
-        const newRepos = [...repositories];
-        const draggedGlobalIndex = newRepos.findIndex(r => r.id === draggedRepoId);
-        if (draggedGlobalIndex === -1) return;
-        
-        const [removed] = newRepos.splice(draggedGlobalIndex, 1);
+        } else {
+            // Reordering within a specific category
+            const category = props.categories.find(c => c.id === sourceCategoryId);
+            if (!category) return;
+            
+            const newRepoIds = [...category.repositoryIds];
+            const draggedIndex = newRepoIds.indexOf(draggedRepoId);
+            if (draggedIndex === -1) return;
 
-        const targetGlobalIndex = newRepos.findIndex(r => r.id === dropTargetRepoId);
-        let finalIndex = targetGlobalIndex;
-        if (dropIndicator.position === 'after') {
-            finalIndex++;
+            const [removed] = newRepoIds.splice(draggedIndex, 1);
+
+            let targetIndex = newRepoIds.indexOf(dropTargetRepoId);
+            if (dropIndicator.position === 'after') {
+                targetIndex++;
+            }
+            newRepoIds.splice(targetIndex, 0, removed);
+            
+            props.onUpdateCategory({ ...category, repositoryIds: newRepoIds });
         }
-        
-        newRepos.splice(finalIndex, 0, removed);
-        props.setRepositories(newRepos);
     } else {
-        // Handle all moves involving categories
+        // Case 2: Moving between different lists
+        let targetIndex = targetCategoryRepos.findIndex(r => r.id === dropTargetRepoId);
+        if (dropIndicator.position === 'after') {
+            targetIndex++;
+        }
         props.onMoveRepositoryToCategory(draggedRepoId, sourceCategoryId, targetCategoryId, targetIndex);
     }
     
