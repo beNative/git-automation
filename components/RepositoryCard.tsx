@@ -22,6 +22,7 @@ import { useTooltip } from '../hooks/useTooltip';
 import { TooltipContext } from '../contexts/TooltipContext';
 import { ArrowTopRightOnSquareIcon } from './icons/ArrowTopRightOnSquareIcon';
 import { ClipboardIcon } from './icons/ClipboardIcon';
+import { ArrowPathIcon } from './icons/ArrowPathIcon';
 
 
 interface RepositoryCardProps {
@@ -349,6 +350,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const logsTooltip = useTooltip('View Logs');
   const configureTooltip = useTooltip('Configure Repository');
   const deleteTooltip = useTooltip('Delete Repository');
+  const refreshTooltip = useTooltip('Refresh Status');
 
   const cardClasses = [
     'relative',
@@ -372,12 +374,23 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
       <div className="p-4 flex-grow">
         <div className="flex items-start justify-between">
           <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate">{name}</h3>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <div
               className={`px-2 py-1 text-xs font-semibold rounded-full text-white ${STATUS_COLORS[status]}`}
             >
               {status}
             </div>
+            <button
+                {...refreshTooltip}
+                onClick={() => {
+                  hideTooltip();
+                  onRefreshRepoState(id);
+                }}
+                disabled={isProcessing}
+                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900/50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ArrowPathIcon className={`h-4 w-4 ${isProcessing ? 'animate-spin' : ''}`} />
+            </button>
             <button
                 {...configureTooltip}
                 onClick={() => {
