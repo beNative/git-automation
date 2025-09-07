@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
-import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig, WebLinkConfig } from '../types';
+import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig, WebLinkConfig, ToastMessage } from '../types';
 import { VcsType } from '../types';
 import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
 import { PlayIcon } from './icons/PlayIcon';
@@ -21,6 +21,7 @@ import { ClockIcon } from './icons/ClockIcon';
 import { useTooltip } from '../hooks/useTooltip';
 import { TooltipContext } from '../contexts/TooltipContext';
 import { ArrowTopRightOnSquareIcon } from './icons/ArrowTopRightOnSquareIcon';
+import { ClipboardIcon } from './icons/ClipboardIcon';
 
 
 interface RepositoryCardProps {
@@ -51,6 +52,9 @@ interface RepositoryCardProps {
   onDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
   onDrop: (e: React.DragEvent<HTMLDivElement>, repoId: string) => void;
   onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
+  setToast: (toast: ToastMessage | null) => void;
+  onContextMenu: (event: React.MouseEvent, repo: Repository) => void;
+  onRefreshRepoState: (repoId: string) => void;
 }
 
 const BranchSwitcher: React.FC<{
@@ -148,6 +152,30 @@ const BranchSwitcher: React.FC<{
 };
 
 // --- Sub-components to fix Rules of Hooks violations ---
+
+const CopyButton: React.FC<{ textToCopy: string; tooltipText: string; setToast: (toast: ToastMessage | null) => void; }> = ({ textToCopy, tooltipText, setToast }) => {
+  const tooltip = useTooltip(tooltipText);
+  const { hideTooltip } = useContext(TooltipContext);
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    hideTooltip();
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      setToast({ message: 'Copied to clipboard!', type: 'success' });
+    }, (err) => {
+      setToast({ message: `Failed to copy: ${err}`, type: 'error' });
+    });
+  };
+
+  return (
+    <button
+      {...tooltip}
+      onClick={handleCopy}
+      className="p-1 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 flex-shrink-0"
+    >
+      <ClipboardIcon className="h-4 w-4" />
+    </button>
+  );
+};
 
 const CloneToPathButton: React.FC<{
   cloneVerb: string;
@@ -292,6 +320,9 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onDragLeave,
   onDrop,
   onDragEnd,
+  setToast,
+  onContextMenu,
+  onRefreshRepoState,
 }) => {
   const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, tasks, launchConfigs, localPath, webLinks } = repository;
   
@@ -329,6 +360,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, repository.id)}
       onDragEnd={onDragEnd}
+      onContextMenu={(e) => onContextMenu(e, repository)}
       className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-blue-500/20 ${isBeingDragged ? 'opacity-40' : ''} ${isDropTarget ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900' : ''}`}
     >
       <div className="p-4 flex-grow">
@@ -352,23 +384,25 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
         )}
 
         <div className="mt-2 space-y-1.5 text-sm text-gray-500 dark:text-gray-400">
-          <div className="flex items-center">
-            <GlobeAltIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
-            <a href={remoteUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:text-blue-500 dark:hover:text-blue-400 transition-colors">{remoteUrl}</a>
+          <div className="flex items-center gap-2">
+            <GlobeAltIcon className="h-4 w-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+            <a href={remoteUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:text-blue-500 dark:hover:text-blue-400 transition-colors flex-grow">{remoteUrl}</a>
+            <CopyButton textToCopy={remoteUrl} tooltipText="Copy URL" setToast={setToast} />
           </div>
           {isPathSet && (
-            <div className="flex items-center">
-                <FolderIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+            <div className="flex items-center gap-2">
+                <FolderIcon className="h-4 w-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
                 <button
                     {...localPathTooltip}
                     onClick={() => {
                       hideTooltip();
                       onOpenLocalPath(localPath);
                     }} 
-                    className="truncate text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors focus:outline-none"
+                    className="truncate text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors focus:outline-none flex-grow"
                 >
                     {localPath}
                 </button>
+                <CopyButton textToCopy={localPath} tooltipText="Copy Path" setToast={setToast} />
             </div>
           )}
           <div className="flex items-center">

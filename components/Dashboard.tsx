@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Repository, LocalPathState, DetailedStatus, BranchInfo } from '../types';
+import type { Repository, LocalPathState, DetailedStatus, BranchInfo, ToastMessage } from '../types';
 import RepositoryCard from './RepositoryCard';
 import { PlusCircleIcon } from './icons/PlusCircleIcon';
 
@@ -24,6 +24,9 @@ interface DashboardProps {
   onOpenLaunchSelection: (repoId: string) => void;
   onOpenLocalPath: (path: string) => void;
   onOpenTerminal: (path: string) => void;
+  setToast: (toast: ToastMessage | null) => void;
+  onOpenContextMenu: (event: React.MouseEvent, repo: Repository) => void;
+  onRefreshRepoState: (repoId: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -47,6 +50,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   onOpenLaunchSelection,
   onOpenLocalPath,
   onOpenTerminal,
+  setToast,
+  onOpenContextMenu,
+  onRefreshRepoState,
 }) => {
   const [draggedRepoId, setDraggedRepoId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
@@ -139,6 +145,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onDragEnd={handleDragEnd}
+          setToast={setToast}
+          onContextMenu={onOpenContextMenu}
+          onRefreshRepoState={onRefreshRepoState}
         />
       ))}
     </div>

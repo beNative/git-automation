@@ -1,6 +1,7 @@
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
-import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage } from './types';
+import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage } from './types';
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
 import RepoEditView from './components/modals/RepoFormModal';
@@ -22,6 +23,7 @@ import { TooltipProvider } from './contexts/TooltipContext';
 import Tooltip from './components/Tooltip';
 import { useLogger } from './hooks/useLogger';
 import { useSettings } from './contexts/SettingsContext';
+import ContextMenu from './components/ContextMenu';
 
 const App: React.FC = () => {
   const logger = useLogger();
@@ -47,7 +49,7 @@ const App: React.FC = () => {
   } = useRepositoryManager({ repositories, updateRepository });
   
   const [repoToEditId, setRepoToEditId] = useState<string | 'new' | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const [activeView, setActiveView] = useState<AppView>('dashboard');
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isDebugPanelOpen, setIsDebugPanelOpen] = useState(false);
@@ -66,6 +68,13 @@ const App: React.FC = () => {
     selectedId: null as string | null,
     height: 300,
   });
+
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    x: number;
+    y: number;
+    repo: Repository | null;
+  }>({ isOpen: false, x: 0, y: 0, repo: null });
 
   const [dirtyRepoModal, setDirtyRepoModal] = useState<{
     isOpen: boolean;
@@ -260,6 +269,37 @@ const App: React.FC = () => {
         }
     }
   }, [repositories, localPathStates, updateRepository, logger]);
+
+  const handleOpenContextMenu = useCallback((event: React.MouseEvent, repo: Repository) => {
+    event.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      x: event.clientX,
+      y: event.clientY,
+      repo: repo,
+    });
+  }, []);
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(prev => ({ ...prev, isOpen: false, repo: null }));
+  }, []);
+
+  useEffect(() => {
+    if (contextMenu.isOpen) {
+      const handleClick = () => handleCloseContextMenu();
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          handleCloseContextMenu();
+        }
+      };
+      window.addEventListener('click', handleClick);
+      window.addEventListener('keydown', handleEscape);
+      return () => {
+        window.removeEventListener('click', handleClick);
+        window.removeEventListener('keydown', handleEscape);
+      };
+    }
+  }, [contextMenu.isOpen, handleCloseContextMenu]);
 
   const handleCheckAllForUpdates = useCallback(async () => {
     const validRepos = repositories.filter(r => localPathStates[r.id] === 'valid');
@@ -653,6 +693,16 @@ const App: React.FC = () => {
     setTaskLogState(prev => ({ ...prev, isOpen: false, activeIds: [], selectedId: null }));
   }, []);
 
+  const handleRunTaskAndClose = (repoId: string, taskId: string) => {
+    handleRunTask(repoId, taskId);
+    handleCloseContextMenu();
+  };
+
+  const handleRunLaunchableAndClose = (repo: Repository, launchable: Launchable) => {
+    handleRunLaunchable(repo, launchable);
+    handleCloseContextMenu();
+  }
+
 
   if (isDataLoading) {
     return (
@@ -716,6 +766,9 @@ const App: React.FC = () => {
                     onOpenLaunchSelection={handleOpenLaunchSelection}
                     onOpenLocalPath={handleOpenLocalPath}
                     onOpenTerminal={handleOpenTerminal}
+                    setToast={setToast}
+                    onOpenContextMenu={handleOpenContextMenu}
+                    onRefreshRepoState={refreshRepoState}
                   />;
               }
             })()}
@@ -757,6 +810,21 @@ const App: React.FC = () => {
               onClose={() => setToast(null)}
             />
           )}
+
+          <ContextMenu
+            context={contextMenu}
+            onClose={handleCloseContextMenu}
+            onRunTask={handleRunTaskAndClose}
+            onRunLaunchable={handleRunLaunchableAndClose}
+            onRefreshRepoState={refreshRepoState}
+            onOpenLocalPath={handleOpenLocalPath}
+            onOpenTerminal={handleOpenTerminal}
+            onViewLogs={handleViewLogs}
+            onViewHistory={handleViewHistory}
+            onEditRepo={handleEditRepository}
+            onDeleteRepo={handleDeleteRepo}
+            detectedExecutables={detectedExecutables}
+          />
 
           <DirtyRepoModal
             isOpen={dirtyRepoModal.isOpen}
@@ -802,6 +870,7 @@ const App: React.FC = () => {
                   openLogPanelForRepo(repo.id, true);
                   launchExecutable(repo, executablePath);
               }
+              // FIX: Called state variable instead of setter.
               setExecutableSelectionModal({ isOpen: false, repo: null, launchConfig: null, executables: [] });
             }}
           />

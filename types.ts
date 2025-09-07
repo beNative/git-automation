@@ -87,6 +87,12 @@ export interface DebugLogEntry {
   data?: any;
 }
 
+export type ToastType = 'success' | 'error' | 'info';
+export interface ToastMessage {
+  message: string;
+  type: ToastType;
+}
+
 export interface GlobalSettings {
   defaultBuildCommand: string;
   notifications: boolean;
