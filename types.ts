@@ -1,5 +1,3 @@
-// FIX: Removed self-import of RepoStatus and BuildHealth to resolve declaration conflicts.
-
 // Moved from contexts/IconContext.tsx
 export type IconSet = 'heroicons' | 'lucide' | 'tabler' | 'feather' | 'remix' | 'phosphor';
 
@@ -249,6 +247,8 @@ export interface Category {
   name: string;
   repositoryIds: string[];
   collapsed?: boolean;
+  color?: string;
+  backgroundColor?: string;
 }
 
 

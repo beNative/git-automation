@@ -188,6 +188,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       name,
       repositoryIds: [],
       collapsed: false,
+      color: undefined,
+      backgroundColor: undefined,
     };
     setCategories(prev => [...prev, newCategory]);
   }, []);

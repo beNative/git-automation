@@ -245,18 +245,19 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
           <section 
             key={category.id} 
             aria-labelledby={`category-title-${category.id}`}
+            style={{ backgroundColor: category.backgroundColor }}
             onDragOver={(e) => handleDragOver(e, { type: 'category', id: category.id })}
             onDragEnter={(e) => handleDragEnterCategory(e, category.id)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => draggedItem?.type === 'repo' ? handleDropOnCategory(e, category.id) : handleDropOnCategoryReorder(e, category.id)}
-            className={`p-3 rounded-lg transition-all ${dropTargetId === category.id ? 'bg-blue-500/10 ring-2 ring-blue-500' : ''}`}
+            className={`p-3 rounded-lg transition-all ${dropTargetId === category.id && !category.backgroundColor ? 'bg-blue-500/10' : ''} ${dropTargetId === category.id ? 'ring-2 ring-blue-500' : ''}`}
           >
             <CategoryHeader
               category={category}
               repoCount={repos.length}
               isCollapsed={category.collapsed ?? false}
               onToggleCollapse={() => props.onToggleCategoryCollapse(category.id)}
-              onUpdateName={(name) => props.onUpdateCategory({ ...category, name })}
+              onUpdate={(updates) => props.onUpdateCategory({ ...category, ...updates })}
               onDelete={() => props.onDeleteCategory(category.id)}
               onDragStart={(e) => handleDragStart(e, { type: 'category', id: category.id, sourceCategoryId: null })}
               onDragEnd={handleDragEnd}
