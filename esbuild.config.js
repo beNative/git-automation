@@ -39,7 +39,7 @@ const mainConfig = {
     format: 'cjs',
     sourcemap: !isProd,
     minify: isProd,
-    external: ['electron', 'electron-squirrel-startup', '@google/genai'], // Exclude electron, built-ins, and genai from bundle
+    external: ['electron', 'electron-squirrel-startup', '@google/genai', 'jszip'], // Exclude electron, built-ins, and genai from bundle
     define: {
         'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
         // API_KEY is needed in main process for AI features
@@ -115,7 +115,7 @@ function createProdPackageJson() {
         dependencies: {}
     };
 
-    const mainExternals = ['@google/genai', 'electron-squirrel-startup'];
+    const mainExternals = ['@google/genai', 'electron-squirrel-startup', 'jszip'];
     for (const dep of mainExternals) {
         if (rootPackageJson.dependencies[dep]) {
             prodPackageJson.dependencies[dep] = rootPackageJson.dependencies[dep];

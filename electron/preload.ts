@@ -48,6 +48,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // JSON Config
   getRawSettingsJson: (): Promise<string> => ipcRenderer.invoke('get-raw-settings-json'),
   showSettingsFile: () => ipcRenderer.invoke('show-settings-file'),
+  exportSettings: () => ipcRenderer.invoke('export-settings'),
+  importSettings: () => ipcRenderer.invoke('import-settings'),
 
   // Real Task Execution
   runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; task: Task; }) => {

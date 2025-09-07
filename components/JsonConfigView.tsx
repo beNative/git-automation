@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { FolderOpenIcon } from './icons/FolderOpenIcon';
 import { PencilIcon } from './icons/PencilIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
+import { ArrowDownTrayIcon } from './icons/ArrowDownTrayIcon';
+import { ArrowUpTrayIcon } from './icons/ArrowUpTrayIcon';
 
 interface JsonConfigViewProps {
   setToast: (toast: { message: string; type: 'success' | 'error' | 'info' } | null) => void;
@@ -108,6 +110,35 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
       setIsValid(true);
       setIsEditing(false);
   }
+
+  const handleExportSettings = async () => {
+    try {
+      const result = await window.electronAPI?.exportSettings();
+      if (result.success) {
+        setToast({ message: `Settings exported successfully.`, type: 'success' });
+      } else if (!result.canceled) {
+        setToast({ message: `Export failed: ${result.error}`, type: 'error' });
+      }
+    } catch (e: any) {
+      setToast({ message: `Export error: ${e.message}`, type: 'error' });
+    }
+  };
+
+  const handleImportSettings = async () => {
+    if (window.confirm('Importing settings will overwrite your current configuration and restart the application. Are you sure you want to continue?')) {
+      try {
+        const result = await window.electronAPI?.importSettings();
+        if (result.success) {
+          setToast({ message: 'Settings imported successfully! Restarting...', type: 'success' });
+          setTimeout(() => window.location.reload(), 1500);
+        } else if (!result.canceled) {
+          setToast({ message: `Import failed: ${result.error}`, type: 'error' });
+        }
+      } catch (e: any) {
+        setToast({ message: `Import error: ${e.message}`, type: 'error' });
+      }
+    }
+  };
   
   const highlightedCode = useMemo(() => highlightJson(editedJson), [editedJson]);
 
@@ -184,13 +215,27 @@ const JsonConfigView: React.FC<JsonConfigViewProps> = ({ setToast }) => {
         </div>
       </main>
       <footer className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-        <div>
+        <div className="flex items-center gap-3">
             <button
                 onClick={handleOpenFileLocation}
                 className="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
             >
                 <FolderOpenIcon className="h-5 w-5 mr-2" />
                 Open File Location
+            </button>
+            <button
+                onClick={handleExportSettings}
+                className="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+            >
+                <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+                Export Settings
+            </button>
+            <button
+                onClick={handleImportSettings}
+                className="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+            >
+                <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
+                Import Settings
             </button>
         </div>
         <div className="flex items-center gap-3">

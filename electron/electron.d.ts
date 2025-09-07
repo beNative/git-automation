@@ -43,6 +43,8 @@ export interface IElectronAPI {
   // JSON Config
   getRawSettingsJson: () => Promise<string>;
   showSettingsFile: () => void;
+  exportSettings: () => Promise<{ success: boolean; filePath?: string; error?: string; canceled?: boolean }>;
+  importSettings: () => Promise<{ success: boolean; error?: string; canceled?: boolean }>;
   
   runTaskStep: (args: {
     repo: Repository;

@@ -7,6 +7,7 @@ import { spawn, exec, execFile } from 'child_process';
 import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
+import JSZip from 'jszip';
 
 
 declare const require: (id: string) => any;
@@ -1628,4 +1629,80 @@ ipcMain.on('log-to-file-write', (event, log: DebugLogEntry) => {
         const dataStr = log.data ? `\n\tData: ${JSON.stringify(log.data, null, 2).replace(/\n/g, '\n\t')}` : '';
         logStream.write(`[${new Date(log.timestamp).toISOString()}][${log.level}] ${log.message}${dataStr}\n`);
     }
+});
+
+// --- Settings Import/Export Handlers ---
+ipcMain.handle('export-settings', async (): Promise<{ success: boolean; filePath?: string; error?: string; canceled?: boolean }> => {
+  if (!mainWindow) return { success: false, error: 'Main window not available' };
+  
+  try {
+    const data = await fs.readFile(settingsPath, 'utf-8');
+    
+    const zip = new JSZip();
+    zip.file('settings.json', data);
+    
+    const content = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+    
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Export Settings',
+      defaultPath: `git-automation-dashboard-settings-${new Date().toISOString().split('T')[0]}.zip`,
+      filters: [{ name: 'Zip Archives', extensions: ['zip'] }]
+    });
+
+    if (canceled || !filePath) {
+      return { success: false, canceled: true };
+    }
+    
+    await fs.writeFile(filePath, content);
+    
+    return { success: true, filePath };
+  } catch (error: any) {
+    console.error('Failed to export settings:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('import-settings', async (): Promise<{ success: boolean; error?: string; canceled?: boolean }> => {
+  if (!mainWindow) return { success: false, error: 'Main window not available' };
+  
+  try {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Import Settings',
+      properties: ['openFile'],
+      filters: [{ name: 'Zip Archives', extensions: ['zip'] }]
+    });
+    
+    if (canceled || filePaths.length === 0) {
+      return { success: false, canceled: true };
+    }
+    
+    const filePath = filePaths[0];
+    const zipData = await fs.readFile(filePath);
+    
+    const zip = await JSZip.loadAsync(zipData);
+    const settingsFile = zip.file('settings.json');
+    
+    if (!settingsFile) {
+      return { success: false, error: 'The selected zip file does not contain a "settings.json" file.' };
+    }
+    
+    const settingsContent = await settingsFile.async('string');
+    
+    // Validate JSON before writing
+    try {
+      const parsed = JSON.parse(settingsContent);
+       if (typeof parsed.globalSettings === 'undefined' || typeof parsed.repositories === 'undefined') {
+        return { success: false, error: 'The imported "settings.json" is missing required "globalSettings" or "repositories" keys.' };
+      }
+    } catch (e) {
+      return { success: false, error: 'The "settings.json" file inside the zip is not valid JSON.' };
+    }
+    
+    await fs.writeFile(settingsPath, settingsContent, 'utf-8');
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to import settings:', error);
+    return { success: false, error: error.message };
+  }
 });
