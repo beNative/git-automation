@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.9]
+
+### Added
+- **Context Menu:** A right-click context menu has been added to repository cards, providing quick access to all common actions (run tasks, open folder, view logs, etc.).
+- **Copy to Clipboard:** Added one-click copy buttons for the Remote URL and Local Path on each repository card for convenience.
+
+### Fixed
+- Fixed a bug where the auto-updater would fail if the latest GitHub release was marked as a pre-release. The updater is now configured to allow pre-releases.
+- Fixed a critical React rendering error ("white screen") that occurred when trying to open the context menu due to a violation of the Rules of Hooks.
+- Corrected several minor TypeScript errors and potential bugs throughout the frontend and main process code for improved stability.
+
 ## [0.1.7]
 
 ### Added

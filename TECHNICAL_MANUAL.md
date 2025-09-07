@@ -42,8 +42,8 @@ The application is split into three main processes, which is standard for Electr
 
 ## 3. State Management and Data Flow
 
--   **Primary State:** The root `App.tsx` component manages the entire application state, including the list of repositories, global settings, the active view, and the state of modals and panels. The state for the task log panel (`taskLogState`) was refactored to manage an array of active tabs, allowing the UI to display logs from multiple concurrent processes.
--   **Persistence:** The `repositories` array and `globalSettings` object are persisted to `localStorage` on any change, acting as the application's simple database.
+-   **Primary State:** The root `App.tsx` component manages the entire application state, including the list of repositories, global settings, the active view, and the state of modals and panels. UI-specific state, such as the position and visibility of the right-click `ContextMenu`, is also managed here to ensure a single source of truth.
+-   **Persistence:** All application data, including repositories and global settings, is persisted to a single `settings.json` file in the application's user data directory. A `SettingsProvider` context handles loading this data on startup and saving it whenever it changes.
 -   **VCS State:** `App.tsx` also holds state for `detailedStatuses` and `branchLists` which are fetched periodically and after tasks complete to keep the UI in sync with the file system.
 -   **Parallel Task Execution:** To support running multiple tasks concurrently, a unique `executionId` is generated for each task run. This ID is passed between the renderer and main processes, allowing log output (`task-log`) and completion events (`task-step-end`) to be correctly routed to the appropriate repository and UI components without conflict.
 

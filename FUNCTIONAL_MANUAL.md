@@ -22,7 +22,7 @@ Each card gives you an at-a-glance overview of a repository:
 
 -   **Name:** The custom name you assigned to the repository.
 -   **Status:** The current state of the repository (e.g., `Idle`, `Syncing`, `Success`, `Failed`).
--   **Remote URL:** The Git or SVN remote URL, which is also a clickable link.
+-   **Remote URL & Local Path:** The Git/SVN remote URL and the local path on your machine. Each has a **copy icon** next to it for quickly copying the path to your clipboard.
 -   **Branch/VCS:** For Git, this is a dropdown menu to view and switch between all local and remote branches. For SVN, it just indicates the VCS type.
 -   **Visual Status:** For Git repos, shows if you are ahead/behind the remote and a summary of changed files (e.g., `+1 ~2` for 1 added, 2 modified).
 -   **"Updates Available" Indicator:** Appears below the branch/VCS info if there are changes on the remote that you can pull or update.
@@ -31,14 +31,25 @@ Each card gives you an at-a-glance overview of a repository:
 
 ### Card Actions
 
-Each card has a set of action buttons:
+Each card has a set of action buttons at the bottom:
 
 -   **Task Buttons:** Any task marked with "Show on dashboard" will appear as its own button for one-click execution.
 -   **More Tasks (Play Icon):** If there are more tasks available, this button opens a modal to select any of the repository's tasks to run.
+-   **Open in Terminal (Terminal Icon):** Opens the repository's local folder in your system's default terminal.
 -   **View Logs (Document Icon):** Opens the resizable log panel to show previous logs for this repository.
 -   **View History (Clock Icon):** Opens a modal displaying the 30 most recent commits for this repository.
 -   **Configure (Pencil Icon):** Opens the repository configuration view.
 -   **Delete (Trash Icon):** Permanently removes the repository from the dashboard after a confirmation prompt.
+
+### Right-Click Context Menu
+
+For faster access, you can **right-click** on any repository card to bring up a context menu. This menu provides quick access to all the main actions without needing to move your mouse to the bottom of the card, including:
+- Checking for updates.
+- Running specific tasks (from a submenu).
+- Launching configured applications (from a submenu).
+- Opening the local folder or terminal.
+- Viewing logs and history.
+- Configuring or deleting the repository.
 
 ## 3. Managing Repositories and Tasks
 
