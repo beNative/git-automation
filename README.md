@@ -14,6 +14,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **One-Click Update Check:** A "Check Updates" button fetches the latest information from all remotes, showing an "Updates Available" indicator on repositories that are behind.
 -   **Detailed Git Status:** See ahead/behind status and a summary of file changes directly on the dashboard.
 -   **Branch Management:** Quickly switch branches from the dashboard, or view, create, delete, and merge branches in the configuration view.
+-   **GitHub Release Status:** See the latest release version and status (draft, pre-release) for your projects directly on the dashboard.
 -   **Commit History:** View the 30 most recent commits for any repository.
 -   **Tabbed & Integrated Log Panel:** Monitor the output of every command in a detailed, resizable, and tabbed log panel that integrates smoothly into the main view.
 -   **Advanced Debugging:** A powerful debug console with log filtering and a save-to-file feature for in-depth troubleshooting.

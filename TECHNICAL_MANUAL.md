@@ -27,6 +27,7 @@ The application is split into three main processes, which is standard for Electr
         -   Executing shell commands for task steps.
         -   Executing real Git/SVN commands for advanced features like checking status, fetching commit history, and managing branches (`get-detailed-vcs-status`, `list-branches`, etc.).
         -   Handling requests from the renderer to open web links in the user-specified browser.
+        -   Fetching the latest release information for a repository from the GitHub API using a user-provided Personal Access Token (`get-latest-release`).
         -   Managing the import and export of settings files using the `jszip` library.
 
 ### Renderer Process

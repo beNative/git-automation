@@ -45,6 +45,7 @@ Each card gives you an at-a-glance overview of a repository:
 -   **Metadata:**
     -   **Build Health:** The status of the last build (`Healthy`, `Failing`, `Unknown`).
     -   **Last Updated:** The timestamp of the last automation, neatly aligned on the right.
+    -   **Latest Release (Git only):** If a GitHub PAT is configured in settings, this shows the version tag of the latest GitHub release and its status (e.g., `Published`, `Draft`, `Pre-release`).
 
 ### Card Actions
 
@@ -126,6 +127,7 @@ Click the **cog icon** in the header to access global settings.
 
 -   **Appearance:** Choose between a `Light` and `Dark` theme, and select from multiple icon sets.
 -   **Behavior:**
+    -   **GitHub Personal Access Token:** A secure field to store your GitHub Personal Access Token (PAT). This token is required for features that interact with the GitHub API, such as fetching the latest release information for your repositories. A link is provided to help you create a token with the necessary permissions.
     -   **Open Web Links In:** Choose whether to open web links in your system's default browser, or force them to open in Chrome or Firefox.
     -   **Enable Notifications:** Toggle on/off the toast notifications.
     -   **Enable Simulation Mode:** This is a critical safety feature.

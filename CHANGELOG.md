@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0]
+
+### Added
+- **GitHub Release Integration (Phase 1):** The dashboard now displays the latest GitHub release information directly on each repository card, including the version tag and status badges for "Published," "Pre-release," or "Draft." This requires a GitHub Personal Access Token to be configured in the settings.
+
 ## [0.8.1]
 
 ### Fixed
