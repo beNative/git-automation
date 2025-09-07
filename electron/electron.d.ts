@@ -71,6 +71,7 @@ export interface IElectronAPI {
   logToFileWrite: (log: DebugLogEntry) => void;
 
   // Auto Update
+  restartAndInstallUpdate: () => void;
   onUpdateStatusChange: (
     callback: (event: IpcRendererEvent, data: UpdateStatusMessage) => void
   ) => void;

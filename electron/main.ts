@@ -1,4 +1,5 @@
 
+
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path, { dirname } from 'path';
@@ -100,7 +101,7 @@ app.on('ready', () => {
     });
     autoUpdater.on('update-downloaded', (info) => {
         console.log('Update downloaded.', info);
-        mainWindow?.webContents.send('update-status-change', { status: 'downloaded', message: `Update v${info.version} downloaded. It will be installed on restart.` });
+        mainWindow?.webContents.send('update-status-change', { status: 'downloaded', message: `Update v${info.version} downloaded. Restart to install.` });
     });
 
     // Check for updates
@@ -133,6 +134,11 @@ app.on('activate', () => {
 // --- IPC Handler for fetching app version ---
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
+});
+
+// --- IPC handler to trigger restart & update ---
+ipcMain.on('restart-and-install-update', () => {
+  autoUpdater.quitAndInstall();
 });
 
 

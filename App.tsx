@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
 import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage } from './types';
@@ -24,6 +25,7 @@ import Tooltip from './components/Tooltip';
 import { useLogger } from './hooks/useLogger';
 import { useSettings } from './contexts/SettingsContext';
 import ContextMenu from './components/ContextMenu';
+import UpdateBanner from './components/UpdateBanner';
 
 const App: React.FC = () => {
   const logger = useLogger();
@@ -57,6 +59,7 @@ const App: React.FC = () => {
   const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
   const [appVersion, setAppVersion] = useState<string>('');
   const [isCheckingAll, setIsCheckingAll] = useState(false);
+  const [updateReady, setUpdateReady] = useState(false);
 
   // New states for deeper VCS integration
   const [detailedStatuses, setDetailedStatuses] = useState<Record<string, DetailedStatus | null>>({});
@@ -126,6 +129,7 @@ const App: React.FC = () => {
                 break;
             case 'downloaded':
                 setToast({ message: data.message, type: 'success' });
+                setUpdateReady(true);
                 break;
             case 'error':
                 setToast({ message: data.message, type: 'error' });
@@ -632,6 +636,14 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleRestartAndUpdate = useCallback(() => {
+    if (window.electronAPI?.restartAndInstallUpdate) {
+        window.electronAPI.restartAndInstallUpdate();
+    } else {
+        setToast({ message: 'Could not restart. Please restart the app manually.', type: 'error' });
+    }
+  }, []);
+
 
   const latestLog = useMemo(() => {
     const allLogs = Object.values(logs).flat();
@@ -723,6 +735,7 @@ const App: React.FC = () => {
             onCheckAllForUpdates={handleCheckAllForUpdates}
             isCheckingAll={isCheckingAll}
           />
+          {updateReady && <UpdateBanner onInstall={handleRestartAndUpdate} />}
           <main className={mainContentClass}>
             {(() => {
               switch (activeView) {

@@ -73,6 +73,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   logToFileWrite: (log: DebugLogEntry) => ipcRenderer.send('log-to-file-write', log),
 
   // Auto Update
+  restartAndInstallUpdate: () => ipcRenderer.send('restart-and-install-update'),
   onUpdateStatusChange: (callback: (event: IpcRendererEvent, data: any) => void) => {
     ipcRenderer.on('update-status-change', callback);
   },
