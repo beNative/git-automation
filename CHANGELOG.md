@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1]
+
+### Added
+- **Configurable Auto-Updates:** Added a setting to enable or disable checking for pre-release versions.
+- **Configurable Browser:** Added a setting to choose which browser (System Default, Chrome, or Firefox) is used to open web links.
+
 ## [0.2.0]
 
 ### Fixed

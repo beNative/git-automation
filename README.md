@@ -17,7 +17,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Advanced Debugging:** A powerful debug console with log filtering and a save-to-file feature for in-depth troubleshooting.
 -   **Reliable Auto-Updates:** Get notified with a clear banner when a new version is ready and install it with a single click.
 -   **Easy Configuration:** Add new repositories and configure them through a simple, unified form.
--   **Global Settings:** Customize the default package manager (`npm` or `yarn`), theme, and more.
+-   **Global Settings:** Customize the application theme, icon set, notifications, and behavior like enabling pre-release updates or choosing your preferred web browser.
 -   **Cross-Platform:** Works on Windows, macOS, and Linux.
 
 ## Quick Start

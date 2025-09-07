@@ -22,7 +22,7 @@ Each card gives you an at-a-glance overview of a repository:
 
 -   **Name:** The custom name you assigned to the repository.
 -   **Status:** The current state of the repository (e.g., `Idle`, `Syncing`, `Success`, `Failed`).
--   **Remote URL & Local Path:** The Git/SVN remote URL and the local path on your machine. Each has a **copy icon** next to it for quickly copying the path to your clipboard.
+-   **Remote URL & Local Path:** The Git/SVN remote URL and the local path on your machine. Each has a **copy icon** next to it for quickly copying the path to your clipboard. Clicking the web link will open it in your configured browser.
 -   **Branch/VCS:** For Git, this is a dropdown menu to view and switch between all local and remote branches. For SVN, it just indicates the VCS type.
 -   **Visual Status:** For Git repos, shows if you are ahead/behind the remote and a summary of changed files (e.g., `+1 ~2` for 1 added, 2 modified).
 -   **"Updates Available" Indicator:** Appears below the branch/VCS info if there are changes on the remote that you can pull or update.
@@ -111,11 +111,13 @@ Click the **cog icon** in the header to access global settings.
 
 -   **Appearance:** Choose between a `Light` and `Dark` theme, and select from multiple icon sets.
 -   **Behavior:**
-    -   **Default Package Manager:** Choose between `npm` and `yarn`. The `Install Dependencies` task step will use this selection.
+    -   **Open Web Links In:** Choose whether to open web links in your system's default browser, or force them to open in Chrome or Firefox.
     -   **Enable Notifications:** Toggle on/off the toast notifications.
     -   **Enable Simulation Mode:** This is a critical safety feature.
         -   When **enabled (default)**, tasks are only simulated. The log panel will show the commands that *would* run, but no changes will be made to your local files.
         -   When **disabled**, the application will execute real `git`, `svn`, `npm`, and other shell commands. **Disable with caution.**
+    -   **Check for Pre-Releases:** If enabled, the auto-updater will include beta and other pre-release versions when checking for updates.
+    -   **Enable Debug Logging:** Controls the verbose internal logging used by the Debug Panel. Disabling this may improve performance.
 
 ## 6. The Debug Panel
 

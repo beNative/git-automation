@@ -20,10 +20,12 @@ The application is split into three main processes, which is standard for Electr
 -   **Responsibilities:**
     -   Manages the application lifecycle (`app` events).
     -   Creates and manages `BrowserWindow` instances (the application's windows).
+    -   Reads user settings on startup to configure features like the auto-updater's pre-release channel.
     -   Handles native OS interactions (dialogs, file system access).
     -   Listens for and responds to IPC (Inter-Process Communication) events. This includes:
         -   Executing shell commands for task steps.
         -   Executing real Git/SVN commands for advanced features like checking status, fetching commit history, and managing branches (`get-detailed-vcs-status`, `list-branches`, etc.).
+        -   Handling requests from the renderer to open web links in the user-specified browser.
 
 ### Renderer Process
 
@@ -72,13 +74,14 @@ To publish a new version for manual download:
 
 The application is configured to automatically check for updates on startup using the `electron-updater` library.
 
--   **Update Source:** It checks for new releases published on the project's [GitHub Releases page](https://github.com/ai-studio-sdk/git-automation-dashboard-example/releases). The configuration in `package.json` allows it to find pre-releases as well.
+-   **Update Source:** It checks for new releases published on the project's GitHub Releases page. The behavior is controlled by the "Check for Pre-Releases" setting.
 -   **Process:**
-    1.  The `autoUpdater` in the Main Process (`electron/main.ts`) checks for updates.
-    2.  It sends IPC messages (`update-status-change`) to the Renderer Process to display toast notifications for events like 'checking' and 'downloading'.
-    3.  When the `update-downloaded` event is received, the Renderer Process (`App.tsx`) sets a state variable to display the `UpdateBanner` component.
-    4.  When the user clicks the "Restart & Install" button on the banner, the Renderer calls `window.electronAPI.restartAndInstallUpdate()`.
-    5.  This triggers an IPC event (`restart-and-install-update`) which causes the Main Process to call `autoUpdater.quitAndInstall()`, which handles the update process reliably.
+    1.  On startup, the Main Process (`electron/main.ts`) reads the user's settings to determine whether to allow pre-releases.
+    2.  The `autoUpdater` is configured accordingly and checks for updates.
+    3.  It sends IPC messages (`update-status-change`) to the Renderer Process to display toast notifications for events like 'checking' and 'downloading'.
+    4.  When the `update-downloaded` event is received, the Renderer Process (`App.tsx`) sets a state variable to display the `UpdateBanner` component.
+    5.  When the user clicks the "Restart & Install" button on the banner, the Renderer calls `window.electronAPI.restartAndInstallUpdate()`.
+    6.  This triggers an IPC event (`restart-and-install-update`) which causes the Main Process to call `autoUpdater.quitAndInstall()`, which handles the update process reliably.
 -   **Publishing a New Version:** To publish a new release, a developer with repository access must:
     1.  Ensure the `version` in `package.json` is incremented.
     2.  Create a `GH_TOKEN` (GitHub Personal Access Token) with `repo` scopes and make it available as an environment variable.
