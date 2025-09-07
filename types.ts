@@ -241,6 +241,14 @@ export interface ProjectSuggestion {
   group: string;
 }
 
+// --- Dashboard Categories ---
+export interface Category {
+  id: string;
+  name: string;
+  repositoryIds: string[];
+}
+
+
 // --- Project Intelligence Types ---
 
 export interface PythonCapabilities {

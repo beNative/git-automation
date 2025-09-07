@@ -1,5 +1,5 @@
 import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext, useRef } from 'react';
-import type { GlobalSettings, Repository } from '../types';
+import type { GlobalSettings, Repository, Category } from '../types';
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
 
 interface AppDataContextState {
@@ -11,6 +11,12 @@ interface AppDataContextState {
   updateRepository: (updatedRepo: Repository) => void;
   deleteRepository: (repoId: string) => void;
   isLoading: boolean;
+  categories: Category[];
+  setCategories: (categories: Category[]) => void;
+  addCategory: (name: string) => void;
+  updateCategory: (updatedCategory: Category) => void;
+  deleteCategory: (categoryId: string) => void;
+  moveRepositoryToCategory: (repoId: string, sourceCategoryId: string | null, targetCategoryId: string | null, targetIndex: number) => void;
 }
 
 const DEFAULTS: GlobalSettings = {
@@ -33,6 +39,12 @@ const initialState: AppDataContextState = {
   updateRepository: () => {},
   deleteRepository: () => {},
   isLoading: true,
+  categories: [],
+  setCategories: () => {},
+  addCategory: () => {},
+  updateCategory: () => {},
+  deleteCategory: () => {},
+  moveRepositoryToCategory: () => {},
 };
 
 export const SettingsContext = createContext<AppDataContextState>(initialState);
@@ -90,6 +102,7 @@ const migrateRepositories = (repositories: Repository[], settings: GlobalSetting
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<GlobalSettings>(DEFAULTS);
   const [repositories, setRepositories] = useState<Repository[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const isInitialLoad = useRef(true);
 
@@ -102,6 +115,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
           
           setSettings(loadedSettings);
           setRepositories(migratedRepos);
+          setCategories(data.categories || []);
           setIsLoading(false);
       }).catch(e => {
           console.error("Failed to load app data, using defaults.", e);
@@ -126,12 +140,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const handler = setTimeout(() => {
         window.electronAPI?.saveAllData({
             globalSettings: settings,
-            repositories: repositories
+            repositories: repositories,
+            categories: categories
         });
     }, 1000); // Debounce saves
 
     return () => clearTimeout(handler);
-  }, [settings, repositories, isLoading]);
+  }, [settings, repositories, categories, isLoading]);
 
   const saveSettings = useCallback((newSettings: GlobalSettings) => {
     setSettings(newSettings);
@@ -154,6 +169,56 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   
   const deleteRepository = useCallback((repoId: string) => {
     setRepositories(prev => prev.filter(repo => repo.id !== repoId));
+    // Also remove from any category
+    setCategories(prev => {
+        return prev.map(cat => ({
+            ...cat,
+            repositoryIds: cat.repositoryIds.filter(id => id !== repoId),
+        }));
+    });
+  }, []);
+
+  const addCategory = useCallback((name: string) => {
+    const newCategory: Category = {
+      id: `cat_${Date.now()}`,
+      name,
+      repositoryIds: [],
+    };
+    setCategories(prev => [...prev, newCategory]);
+  }, []);
+
+  const updateCategory = useCallback((updatedCategory: Category) => {
+    setCategories(prev => prev.map(cat => cat.id === updatedCategory.id ? updatedCategory : cat));
+  }, []);
+
+  const deleteCategory = useCallback((categoryId: string) => {
+    setCategories(prev => prev.filter(cat => cat.id !== categoryId));
+  }, []);
+
+  const moveRepositoryToCategory = useCallback((repoId: string, sourceCategoryId: string | null, targetCategoryId: string | null, targetIndex: number) => {
+      setCategories(prev => {
+        const newCategories = JSON.parse(JSON.stringify(prev)) as Category[];
+        
+        // Remove from source category
+        if (sourceCategoryId) {
+            const sourceCategory = newCategories.find(c => c.id === sourceCategoryId);
+            if (sourceCategory) {
+                sourceCategory.repositoryIds = sourceCategory.repositoryIds.filter(id => id !== repoId);
+            }
+        }
+
+        // Add to target category at the specified index
+        if (targetCategoryId) {
+            const targetCategory = newCategories.find(c => c.id === targetCategoryId);
+            if (targetCategory) {
+                // Ensure it's not already there
+                targetCategory.repositoryIds = targetCategory.repositoryIds.filter(id => id !== repoId);
+                targetCategory.repositoryIds.splice(targetIndex, 0, repoId);
+            }
+        }
+        
+        return newCategories;
+      });
   }, []);
 
   const value = useMemo(() => ({
@@ -165,7 +230,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     updateRepository,
     deleteRepository,
     isLoading,
-  }), [settings, saveSettings, repositories, setRepositories, addRepository, updateRepository, deleteRepository, isLoading]);
+    categories,
+    setCategories,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    moveRepositoryToCategory,
+  }), [settings, saveSettings, repositories, isLoading, categories, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory]);
 
   return (
     <SettingsContext.Provider value={value}>

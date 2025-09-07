@@ -4,7 +4,7 @@ import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
-import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject } from '../types';
+import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 import JSZip from 'jszip';
@@ -212,14 +212,14 @@ ipcMain.handle('get-all-data', async () => {
   } catch (error: any) {
     // If file doesn't exist or is invalid, return empty structure
     if (error.code === 'ENOENT') {
-      return { globalSettings: null, repositories: [] };
+      return { globalSettings: null, repositories: [], categories: [] };
     }
     console.error("Failed to read settings file:", error);
-    return { globalSettings: null, repositories: [] };
+    return { globalSettings: null, repositories: [], categories: [] };
   }
 });
 
-ipcMain.on('save-all-data', async (event, data: { globalSettings: GlobalSettings, repositories: Repository[] }) => {
+ipcMain.on('save-all-data', async (event, data: { globalSettings: GlobalSettings, repositories: Repository[], categories: Category[] }) => {
     try {
         await fs.mkdir(userDataPath, { recursive: true });
         await fs.writeFile(settingsPath, JSON.stringify(data, null, 2));
@@ -236,7 +236,7 @@ ipcMain.handle('get-raw-settings-json', async () => {
   } catch (error: any) {
     if (error.code === 'ENOENT') {
       // If file doesn't exist, return a prettified empty structure.
-      return JSON.stringify({ globalSettings: null, repositories: [] }, null, 2);
+      return JSON.stringify({ globalSettings: null, repositories: [], categories: [] }, null, 2);
     }
     console.error("Failed to read settings file:", error);
     throw error; // Let the renderer handle the error

@@ -1,8 +1,6 @@
-
-
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
-import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage } from './types';
+import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category } from './types';
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
 import RepoEditView from './components/modals/RepoFormModal';
@@ -39,7 +37,13 @@ const App: React.FC = () => {
     addRepository,
     updateRepository,
     deleteRepository,
-    isLoading: isDataLoading 
+    isLoading: isDataLoading,
+    categories,
+    setCategories,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    moveRepositoryToCategory,
   } = useSettings();
 
   const {
@@ -829,6 +833,24 @@ const App: React.FC = () => {
                   return <Dashboard 
                     repositories={repositories} 
                     setRepositories={setRepositories}
+                    categories={categories}
+                    onAddCategory={addCategory}
+                    onUpdateCategory={updateCategory}
+                    onDeleteCategory={(catId) => {
+                      confirmAction({
+                        title: 'Delete Category',
+                        message: 'Are you sure you want to delete this category? Repositories within it will become uncategorized.',
+                        confirmText: 'Delete',
+                        icon: <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400" aria-hidden="true" />,
+                        confirmButtonClass: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+                        onConfirm: () => {
+                          deleteCategory(catId);
+                          setToast({ message: 'Category deleted.', type: 'info' });
+                        }
+                      });
+                    }}
+                    onSetCategories={setCategories}
+                    onMoveRepositoryToCategory={moveRepositoryToCategory}
                     onOpenTaskSelection={handleOpenTaskSelection} 
                     onRunTask={handleRunTask}
                     onViewLogs={handleViewLogs}

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0]
+
+### Added
+- **Dashboard Categories:** Major feature allowing repositories to be organized into customizable, collapsible sections on the dashboard.
+- Full drag-and-drop support for reordering repositories, reordering categories, and assigning repositories to categories.
+- Categories can be created, renamed, and deleted directly from the dashboard UI.
+
+### Fixed
+- Fixed a `ReferenceError` related to `uncategorizedRepos` initialization that could prevent the dashboard from rendering.
+
 ## [0.3.0]
 
 ### Changed

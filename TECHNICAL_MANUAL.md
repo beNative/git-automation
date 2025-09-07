@@ -46,16 +46,17 @@ The application is split into three main processes, which is standard for Electr
 
 ## 3. State Management and Data Flow
 
--   **Primary State:** The root `App.tsx` component manages the entire application state, including the list of repositories, global settings, the active view, and the state of modals and panels. UI-specific state, such as the position and visibility of the right-click `ContextMenu`, is also managed here to ensure a single source of truth.
+-   **Primary State:** The root `App.tsx` component manages the entire application state, including the list of repositories, global settings, **dashboard categories**, the active view, and the state of modals and panels. UI-specific state, such as the position and visibility of the right-click `ContextMenu`, is also managed here to ensure a single source of truth.
 -   **VCS State:** `App.tsx` also holds state for `detailedStatuses` and `branchLists` which are fetched periodically and after tasks complete to keep the UI in sync with the file system.
 -   **Parallel Task Execution:** To support running multiple tasks concurrently, a unique `executionId` is generated for each task run. This ID is passed between the renderer and main processes, allowing log output (`task-log`) and completion events (`task-step-end`) to be correctly routed to the appropriate repository and UI components without conflict.
+-   **Component Architecture:** Key new components include `CategoryHeader.tsx` for managing category sections and a heavily refactored `Dashboard.tsx` that now handles complex drag-and-drop logic for both repositories and categories.
 
 ### Data Persistence
 
-All application data, including repositories and global settings, is persisted to a single `settings.json` file.
+All application data, including repositories, **categories,** and global settings, is persisted to a single `settings.json` file.
 
 -   **Location:** The file is stored in the standard application user data directory for your operating system (e.g., `%APPDATA%` on Windows, `~/Library/Application Support` on macOS). This ensures that user settings are preserved across application updates.
--   **Management:** A `SettingsProvider` context handles loading this data on startup and saving it whenever it changes.
+-   **Management:** A `SettingsProvider` context handles loading this data on startup and saving it whenever it changes. The context was expanded to include functions for creating, updating, deleting, and reordering categories (`addCategory`, `updateCategory`, etc.).
 -   **Migration:** A one-time migration process runs on startup to move `settings.json` for users updating from versions prior to `0.2.2`, where the file was incorrectly stored next to the application executable.
 
 ## 4. Development Workflow

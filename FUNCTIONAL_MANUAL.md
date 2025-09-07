@@ -12,9 +12,22 @@ The application is organized into three main views, which you can switch between
 
 ## 2. The Main Dashboard
 
-The dashboard is the central hub of the application. It displays all your configured repositories as individual cards. You can run tasks on multiple repositories at the same time. Starting a long build on one project won't stop you from running a quick update on another.
+The dashboard is the central hub of the application. It displays all your configured repositories as individual cards, now organized into categories. You can run tasks on multiple repositories at the same time. Starting a long build on one project won't stop you from running a quick update on another.
 
 The header also contains a **"Check Updates"** button. Clicking this will check all of your repositories for new changes on their remotes.
+
+### Organizing with Categories
+
+The dashboard is divided into collapsible sections called categories. This allows you to group related projects (e.g., by technology, client, or status).
+
+-   **Creating Categories:** Click the "Add Category" button at the bottom of the dashboard to create a new section.
+-   **Renaming & Deleting:** Hover over a category's title to reveal buttons for renaming (pencil icon) and deleting (trash icon).
+-   **Collapsing Sections:** Click the chevron icon (▶) next to a category's title to hide or show the repositories within it.
+-   **Assigning Repositories:** Simply drag a repository card and drop it onto a category header to assign it.
+-   **Reordering:**
+    -   **Repositories:** Drag and drop repository cards to reorder them within or between categories.
+    -   **Categories:** Drag and drop category headers using the grip handle (⋮⋮) to reorder the sections themselves.
+-   **Uncategorized Section:** Any repository not assigned to a category will automatically appear in a default "Uncategorized" section.
 
 ### Repository Card
 
