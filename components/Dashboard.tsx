@@ -148,7 +148,6 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             const isBeingDragged = draggedRepo?.repoId === repo.id;
             const indicator = dropIndicator?.repoId === repo.id && dropIndicator?.categoryId === categoryId ? dropIndicator : null;
             return (
-// FIX START: Remove wrapper div and pass props explicitly to RepositoryCard to fix type errors.
                 <RepositoryCard
                     key={repo.id}
                     repository={repo}
@@ -157,8 +156,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     detailedStatus={props.detailedStatuses[repo.id] || null}
                     branchInfo={props.branchLists[repo.id] || null}
                     detectedExecutables={props.detectedExecutables[repo.id] || []}
-                    onDragStart={() => handleDragStart(repo.id, categoryId)}
-                    onDragEnd={() => { setDraggedRepo(null); setDropIndicator(null); }}
+                    onDragStart={(e) => handleDragStart(repo.id, categoryId)}
+                    onDragEnd={(e) => { setDraggedRepo(null); setDropIndicator(null); }}
                     isBeingDragged={isBeingDragged}
                     dropIndicatorPosition={indicator ? indicator.position : null}
                     onDragOver={(e) => handleDragOver(e, categoryId, repo.id)}
@@ -183,7 +182,6 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     setToast={props.setToast}
                     onRefreshRepoState={props.onRefreshRepoState}
                 />
-// FIX END
             );
         })}
     </div>

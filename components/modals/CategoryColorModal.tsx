@@ -33,6 +33,10 @@ const PREDEFINED_THEMES = [
 const CategoryColorModal: React.FC<CategoryColorModalProps> = ({ isOpen, onClose, onSave, currentBgColor, currentTextColor }) => {
   const [bgColor, setBgColor] = useState(currentBgColor || '');
   const [textColor, setTextColor] = useState(currentTextColor || '');
+  
+  // FIX: Hooks must be called unconditionally at the top level of the component.
+  const customBgTooltip = useTooltip('Custom background color');
+  const customTextTooltip = useTooltip('Custom text color');
 
   if (!isOpen) {
     return null;
@@ -50,9 +54,6 @@ const CategoryColorModal: React.FC<CategoryColorModalProps> = ({ isOpen, onClose
       setBgColor(theme.bg);
       setTextColor(theme.text);
   };
-  
-  const customBgTooltip = useTooltip('Custom background color');
-  const customTextTooltip = useTooltip('Custom text color');
 
 
   return (

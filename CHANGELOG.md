@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1]
+
+### Fixed
+- **CRITICAL:** Fixed a crash (React error #310) that occurred when opening the "Customize Color" modal for a category. This was caused by a violation of the Rules of Hooks.
+- Fixed several TypeScript type errors related to event handlers in the Dashboard component, improving code stability.
+
 ## [0.8.0]
 
 ### Fixed
