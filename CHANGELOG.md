@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1]
+
+### Fixed
+- Fixed an issue where GitHub release information was not consistently shown for all repositories. The application now correctly fetches the latest available release, including pre-releases.
+
 ## [0.9.0]
 
 ### Added

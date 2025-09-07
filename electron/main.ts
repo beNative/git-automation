@@ -1759,7 +1759,7 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
     }
 
     const { owner, repo: repoName } = ownerRepo;
-    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases/latest`;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases?per_page=1`;
 
     try {
         const response = await fetch(apiUrl, {
@@ -1770,11 +1770,6 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
             }
         });
 
-        if (response.status === 404) {
-            console.log(`[GitHub] No latest release found for ${owner}/${repoName}.`);
-            return null; // This is a valid state, not an error.
-        }
-
         if (!response.ok) {
             const errorBody = await response.json();
             throw new Error(`GitHub API error (${response.status}): ${errorBody.message || 'Unknown error'}`);
@@ -1782,12 +1777,19 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
         
         const data = await response.json();
 
+        if (!data || data.length === 0) {
+            console.log(`[GitHub] No releases found for ${owner}/${repoName}.`);
+            return null;
+        }
+
+        const latestRelease = data[0];
+
         return {
-            tagName: data.tag_name,
-            name: data.name,
-            isDraft: data.draft,
-            isPrerelease: data.prerelease,
-            url: data.html_url,
+            tagName: latestRelease.tag_name,
+            name: latestRelease.name,
+            isDraft: latestRelease.draft,
+            isPrerelease: latestRelease.prerelease,
+            url: latestRelease.html_url,
         };
     } catch (error: any) {
         console.error(`[GitHub] Failed to fetch latest release for ${owner}/${repoName}:`, error);
