@@ -45,7 +45,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status }) => {
   const updatesTooltip = useTooltip('Updates available to pull/update');
 
   return (
-    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs mt-1.5">
+    <div className="flex items-center justify-end flex-wrap gap-x-3 gap-y-1 text-xs">
        {hasUpdates && (
         <span
           // @ts-ignore

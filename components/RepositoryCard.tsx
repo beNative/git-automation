@@ -411,20 +411,24 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 <CopyButton textToCopy={localPath} tooltipText="Copy Path" setToast={setToast} />
             </div>
           )}
-          <div className="flex items-center">
-            {vcs === VcsType.Git ? (
-              <>
-                <GitBranchIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
-                <BranchSwitcher repoId={id} branchInfo={branchInfo} onSwitchBranch={onSwitchBranch} />
-              </>
-            ) : (
-              <>
-                <SvnIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
-                <span>SVN Repository</span>
-              </>
-            )}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center min-w-0">
+              {vcs === VcsType.Git ? (
+                <>
+                  <GitBranchIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                  <BranchSwitcher repoId={id} branchInfo={branchInfo} onSwitchBranch={onSwitchBranch} />
+                </>
+              ) : (
+                <>
+                  <SvnIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                  <span className="truncate">SVN Repository</span>
+                </>
+              )}
+            </div>
+            <div className="flex-shrink-0 ml-4">
+              {isPathValid && detailedStatus && <StatusIndicator status={detailedStatus} />}
+            </div>
           </div>
-          {isPathValid && detailedStatus && <StatusIndicator status={detailedStatus} />}
         </div>
         
         {webLinks && webLinks.length > 0 && (
