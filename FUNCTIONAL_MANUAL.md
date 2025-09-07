@@ -21,8 +21,8 @@ The header also contains a **"Check Updates"** button to check all repositories 
 The dashboard is divided into collapsible sections called categories. This allows you to group related projects (e.g., by technology, client, or status).
 
 -   **Creating Categories:** Click the "Add Category" button at the bottom of the dashboard to create a new section.
--   **Renaming & Deleting:** Hover over a category's title to reveal buttons for renaming (pencil icon) and deleting (trash icon).
--   **Color Customization:** Hover over a category's title and click the new paintbrush icon to open a color picker. You can set a custom font color and background color for each category, allowing for better visual organization.
+-   **Renaming & Deleting:** **Double-click** a category's name to edit it. Hover over the title to reveal a **trash icon** for deleting it.
+-   **Color Customization:** Hover over a category's title and click the **paintbrush icon**. This opens a popover with a curated palette of predefined color themes, ensuring your dashboard always looks great. A "Reset" button is available to revert to the default theme.
 -   **Collapsing Sections:** Click the chevron icon (▶) next to a category's title to hide or show the repositories within it. This state is saved automatically, so your layout will be preserved the next time you open the app.
 -   **Assigning Repositories:** Simply drag a repository card and drop it onto a category header to assign it.
 -   **Reordering:**
@@ -34,14 +34,17 @@ The dashboard is divided into collapsible sections called categories. This allow
 
 Each card gives you an at-a-glance overview of a repository:
 
--   **Name:** The custom name you assigned to the repository.
--   **Status:** The current state of the repository (e.g., `Idle`, `Syncing`, `Success`, `Failed`).
--   **Remote URL & Local Path:** The Git/SVN remote URL and the local path on your machine. Each has a **copy icon** next to it for quickly copying the path to your clipboard. Clicking the web link will open it in your configured browser.
--   **Branch/VCS:** For Git, this is a dropdown menu to view and switch between all local and remote branches. For SVN, it just indicates the VCS type.
--   **Visual Status:** For Git repos, shows if you are ahead/behind the remote and a summary of changed files (e.g., `+1 ~2` for 1 added, 2 modified).
--   **"Updates Available" Indicator:** Appears below the branch/VCS info if there are changes on the remote that you can pull or update.
--   **Build Health:** The status of the last build (`Healthy`, `Failing`, `Unknown`).
--   **Last Updated:** The timestamp of the last time an automation was run.
+-   **Header:** Contains the repository name, its current status (e.g., `Idle`, `Success`), and a row of action icons:
+    -   **Refresh:** Manually fetches the latest status from the remote. The icon spins when any operation is in progress.
+    -   **Configure (pencil icon):** Opens the repository configuration view.
+    -   **Delete (trash icon):** Removes the repository from the dashboard.
+-   **Remote URL & Local Path:** The repository's remote URL and local path, each with a copy-to-clipboard button.
+-   **Branch & Status Line:** A single line containing:
+    -   **Branch Selector (Git only):** A dropdown to view and switch between branches.
+    -   **Status Indicators:** At a glance, see if updates are available, how far ahead/behind the remote you are, and a summary of local file changes.
+-   **Metadata:**
+    -   **Build Health:** The status of the last build (`Healthy`, `Failing`, `Unknown`).
+    -   **Last Updated:** The timestamp of the last automation, neatly aligned on the right.
 
 ### Card Actions
 
@@ -52,8 +55,6 @@ Each card has a set of action buttons at the bottom:
 -   **Open in Terminal (Terminal Icon):** Opens the repository's local folder in your system's default terminal.
 -   **View Logs (Document Icon):** Opens the resizable log panel to show previous logs for this repository.
 -   **View History (Clock Icon):** Opens a modal displaying the 30 most recent commits for this repository.
--   **Configure (Pencil Icon):** Opens the repository configuration view.
--   **Delete (Trash Icon):** Permanently removes the repository from the dashboard after a confirmation prompt.
 
 ### Right-Click Context Menu
 
@@ -153,7 +154,18 @@ This panel shows internal application logs, which can be helpful for diagnosing 
 -   **Save to File:** Clicking the "Save logs to file" icon will start writing all subsequent debug logs to a timestamped file on your computer. This is useful for capturing detailed information over a longer session to share in a bug report. Click the button again to stop logging to the file.
 -   **Resizing:** Like the Task Log Panel, you can click and drag the top border to resize it.
 
-## 7. Automatic Updates
+## 7. Command Palette
+
+For keyboard-centric users, the application features a powerful command palette.
+
+-   **Activation:** Press `Ctrl+K` (or `Cmd+K` on macOS) from anywhere in the app to open it.
+-   **Functionality:**
+    -   Quickly search for and navigate to any view (Dashboard, Settings, Info).
+    -   Find and run any task on any repository without using the mouse.
+    -   Add a new repository.
+-   **Navigation:** Use the **Up and Down arrow keys** to select a command and press **Enter** to execute it. The list will automatically scroll to keep your selection in view. Press **Escape** to close the palette.
+
+## 8. Automatic Updates
 
 The application is designed to keep itself up-to-date automatically.
 

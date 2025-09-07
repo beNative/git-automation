@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Repository, AppView } from '../types';
 import { HomeIcon } from './icons/HomeIcon';
 import { CogIcon } from './icons/CogIcon';
@@ -35,6 +35,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const commandListRef = useRef<HTMLUListElement>(null);
 
   const allCommands = useMemo<Command[]>(() => {
     const navCommands: Command[] = [
@@ -94,7 +95,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
         e.preventDefault();
         onClose();
     }
-  }, [activeIndex, filteredCommands, onClose]);
+  }, [filteredCommands, activeIndex, onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -104,6 +105,16 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
       };
     }
   }, [isOpen, handleKeyDown]);
+  
+  // Effect to scroll the active item into view
+  useEffect(() => {
+    if (isOpen && commandListRef.current) {
+        const activeElement = commandListRef.current.querySelector(`#cmd-${activeIndex}`);
+        if (activeElement) {
+            activeElement.scrollIntoView({ block: 'nearest' });
+        }
+    }
+  }, [activeIndex, isOpen]);
   
   // Reset search when palette is closed
   useEffect(() => {
@@ -117,7 +128,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center pt-20 bg-black/50 backdrop-blur-sm" onMouseDown={onClose} role="dialog" aria-modal="true">
       <div 
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-xl mx-4 flex flex-col max-h-[60vh] ring-1 ring-black/5"
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-3xl mx-4 flex flex-col max-h-[70vh] ring-1 ring-black/5"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center p-3 border-b border-gray-200 dark:border-gray-700">
@@ -132,7 +143,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                 aria-label="Search commands"
             />
         </div>
-        <ul className="overflow-y-auto" role="listbox">
+        <ul ref={commandListRef} className="overflow-y-auto" role="listbox">
             {filteredCommands.length === 0 && (
                 <li className="px-4 py-3 text-sm text-center text-gray-500 dark:text-gray-400">No results found.</li>
             )}

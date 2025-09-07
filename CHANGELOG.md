@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0]
+
+### Changed
+- **UI/UX Refinements:**
+  - Improved the repository card layout for better readability and quicker access to actions. Moved status indicators, action buttons, and added a manual refresh button.
+  - Enhanced the Command Palette with a larger interface and full keyboard navigation support.
+  - Streamlined category management by enabling double-click to rename and replacing the color picker with a curated set of predefined color themes.
+
 ## [0.6.0]
 
 ### Added

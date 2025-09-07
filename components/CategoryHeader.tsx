@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { Category } from '../types';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { TrashIcon } from './icons/TrashIcon';
-import { PencilIcon } from './icons/PencilIcon';
 import { GripVerticalIcon } from './icons/GripVerticalIcon';
 import { PaintBrushIcon } from './icons/PaintBrushIcon';
+import { CheckIcon } from './icons/CheckIcon';
 
 interface CategoryHeaderProps {
   category: Category;
@@ -16,6 +16,18 @@ interface CategoryHeaderProps {
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void;
 }
+
+const COLOR_PALETTES: { name: string; bg: string; text: string }[] = [
+  { name: 'Rose', bg: '#FFF1F2', text: '#E11D48' },
+  { name: 'Orange', bg: '#FFF7ED', text: '#F97316' },
+  { name: 'Amber', bg: '#FFFBEB', text: '#D97706' },
+  { name: 'Green', bg: '#F0FDF4', text: '#16A34A' },
+  { name: 'Sky', bg: '#F0F9FF', text: '#0284C7' },
+  { name: 'Violet', bg: '#F5F3FF', text: '#7C3AED' },
+  { name: 'Slate', bg: '#F8FAFC', text: '#475569' },
+  { name: 'Dark Slate', bg: '#1E293B', text: '#E2E8F0' },
+];
+
 
 const CategoryHeader: React.FC<CategoryHeaderProps> = ({
   category, repoCount, isCollapsed, onToggleCollapse, onUpdate, onDelete, onDragStart, onDragEnd
@@ -64,6 +76,16 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = ({
       setIsEditing(false);
     }
   };
+
+  const handleSelectPalette = (palette: { bg: string; text: string; }) => {
+    onUpdate({ backgroundColor: palette.bg, color: palette.text });
+    setIsColorPickerOpen(false);
+  };
+
+  const handleResetPalette = () => {
+    onUpdate({ backgroundColor: undefined, color: undefined });
+    setIsColorPickerOpen(false);
+  }
   
   const headerStyle = {
       color: category.color,
@@ -89,7 +111,7 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = ({
             className={`text-xl font-bold bg-transparent border-b-2 border-blue-500 focus:outline-none ${!category.color ? defaultTextColorClass : ''}`}
           />
         ) : (
-          <h2 onClick={() => setIsEditing(true)} id={`category-title-${category.id}`} style={headerStyle} className={`text-xl font-bold cursor-pointer ${!category.color ? defaultTextColorClass : ''}`}>{category.name}</h2>
+          <h2 onDoubleClick={() => setIsEditing(true)} id={`category-title-${category.id}`} style={headerStyle} className={`text-xl font-bold cursor-pointer ${!category.color ? defaultTextColorClass : ''}`}>{category.name}</h2>
         )}
         <span className="text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full px-2.5 py-0.5">
           {repoCount}
@@ -101,29 +123,30 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = ({
                 <PaintBrushIcon className="h-4 w-4 text-gray-500" />
             </button>
             {isColorPickerOpen && (
-                <div ref={colorPickerRef} className="absolute top-full right-0 mt-2 p-3 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10 w-60 space-y-3">
-                    <div>
-                        <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Text Color</label>
-                        <div className="flex items-center gap-2 mt-1">
-                            <input type="color" value={category.color || '#000000'} onChange={e => onUpdate({ color: e.target.value })} className="h-8 w-8 p-0 border-none rounded cursor-pointer bg-transparent" />
-                            <span className="font-mono text-sm text-gray-700 dark:text-gray-300">{category.color || 'Default'}</span>
-                            <button onClick={() => onUpdate({ color: undefined })} className="ml-auto text-xs text-blue-600 hover:underline">Reset</button>
-                        </div>
+                <div ref={colorPickerRef} className="absolute top-full right-0 mt-2 p-3 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10 w-64 space-y-3">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Category Theme</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {COLOR_PALETTES.map(palette => {
+                        const isSelected = category.backgroundColor === palette.bg && category.color === palette.text;
+                        return (
+                          <button 
+                              key={palette.name}
+                              onClick={() => handleSelectPalette(palette)}
+                              className="w-full aspect-square rounded-md flex items-center justify-center relative focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-all"
+                              style={{ backgroundColor: palette.bg }}
+                              title={palette.name}
+                          >
+                              {isSelected && <CheckIcon className="h-6 w-6" style={{ color: palette.text }} />}
+                          </button>
+                        )
+                      })}
                     </div>
-                     <div>
-                        <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Background Color</label>
-                        <div className="flex items-center gap-2 mt-1">
-                            <input type="color" value={category.backgroundColor || '#ffffff'} onChange={e => onUpdate({ backgroundColor: e.target.value })} className="h-8 w-8 p-0 border-none rounded cursor-pointer bg-transparent" />
-                            <span className="font-mono text-sm text-gray-700 dark:text-gray-300">{category.backgroundColor || 'Default'}</span>
-                            <button onClick={() => onUpdate({ backgroundColor: undefined })} className="ml-auto text-xs text-blue-600 hover:underline">Reset</button>
-                        </div>
-                    </div>
+                    <button onClick={handleResetPalette} className="w-full text-center text-sm font-medium py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-gray-700 dark:text-gray-200">
+                      Reset to Default
+                    </button>
                 </div>
             )}
         </div>
-        <button onClick={() => setIsEditing(true)} className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" title="Rename category">
-          <PencilIcon className="h-4 w-4 text-gray-500" />
-        </button>
         <button onClick={onDelete} className="p-1.5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50" title="Delete category">
           <TrashIcon className="h-4 w-4 text-red-500" />
         </button>
