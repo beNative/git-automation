@@ -1,5 +1,5 @@
 import type { IpcRendererEvent } from 'electron';
-import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, UpdateStatusMessage, Category } from '../types';
+import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, UpdateStatusMessage, Category, AppDataContextState } from '../types';
 
 export type LocalPathState = AppLocalPathState;
 
@@ -12,8 +12,8 @@ export interface ProjectSuggestion {
 
 export interface IElectronAPI {
   getAppVersion: () => Promise<string>;
-  getAllData: () => Promise<{ globalSettings: GlobalSettings; repositories: Repository[]; categories: Category[] }>;
-  saveAllData: (data: { globalSettings: GlobalSettings; repositories: Repository[]; categories: Category[] }) => void;
+  getAllData: () => Promise<AppDataContextState>;
+  saveAllData: (data: AppDataContextState) => void;
   getDoc: (docName: string) => Promise<string>;
   getProjectInfo: (repoPath: string) => Promise<ProjectInfo>;
   getProjectSuggestions: (args: { repoPath: string, repoName: string }) => Promise<ProjectSuggestion[]>;

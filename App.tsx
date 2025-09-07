@@ -40,6 +40,8 @@ const App: React.FC = () => {
     isLoading: isDataLoading,
     categories,
     setCategories,
+    uncategorizedOrder,
+    setUncategorizedOrder,
     addCategory,
     updateCategory,
     deleteCategory,
@@ -841,8 +843,8 @@ const App: React.FC = () => {
                 default:
                   return <Dashboard 
                     repositories={repositories} 
-                    setRepositories={setRepositories}
                     categories={categories}
+                    uncategorizedOrder={uncategorizedOrder}
                     onAddCategory={addCategory}
                     onUpdateCategory={updateCategory}
                     onDeleteCategory={(catId) => {
@@ -858,7 +860,6 @@ const App: React.FC = () => {
                         }
                       });
                     }}
-                    onSetCategories={setCategories}
                     onMoveRepositoryToCategory={moveRepositoryToCategory}
                     onToggleCategoryCollapse={toggleCategoryCollapse}
                     onOpenTaskSelection={handleOpenTaskSelection} 

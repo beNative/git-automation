@@ -1,6 +1,7 @@
 import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext, useRef } from 'react';
 import type { GlobalSettings, Repository, Category } from '../types';
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
+import { useLogger } from '../hooks/useLogger';
 
 interface AppDataContextState {
   settings: GlobalSettings;
@@ -13,10 +14,12 @@ interface AppDataContextState {
   isLoading: boolean;
   categories: Category[];
   setCategories: (categories: Category[]) => void;
+  uncategorizedOrder: string[];
+  setUncategorizedOrder: (order: string[]) => void;
   addCategory: (name: string) => void;
   updateCategory: (updatedCategory: Category) => void;
   deleteCategory: (categoryId: string) => void;
-  moveRepositoryToCategory: (repoId: string, sourceCategoryId: string | null, targetCategoryId: string | null, targetIndex: number) => void;
+  moveRepositoryToCategory: (repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => void;
   toggleCategoryCollapse: (categoryId: string) => void;
   toggleAllCategoriesCollapse: () => void;
 }
@@ -43,6 +46,8 @@ const initialState: AppDataContextState = {
   isLoading: true,
   categories: [],
   setCategories: () => {},
+  uncategorizedOrder: [],
+  setUncategorizedOrder: () => {},
   addCategory: () => {},
   updateCategory: () => {},
   deleteCategory: () => {},
@@ -104,9 +109,11 @@ const migrateRepositories = (repositories: Repository[], settings: GlobalSetting
 
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const logger = useLogger();
   const [settings, setSettings] = useState<GlobalSettings>(DEFAULTS);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [uncategorizedOrder, setUncategorizedOrder] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const isInitialLoad = useRef(true);
 
@@ -120,6 +127,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
           setSettings(loadedSettings);
           setRepositories(migratedRepos);
           setCategories(data.categories || []);
+          setUncategorizedOrder(data.uncategorizedOrder || []); // Load the new order
           setIsLoading(false);
       }).catch(e => {
           console.error("Failed to load app data, using defaults.", e);
@@ -134,7 +142,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   // Save all data back to main process when it changes
   useEffect(() => {
     if (isLoading || isInitialLoad.current) {
-        // Mark initial load as complete after the first run post-loading.
         if (!isLoading) {
             isInitialLoad.current = false;
         }
@@ -145,12 +152,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         window.electronAPI?.saveAllData({
             globalSettings: settings,
             repositories: repositories,
-            categories: categories
+            categories: categories,
+            uncategorizedOrder: uncategorizedOrder,
         });
-    }, 1000); // Debounce saves
+    }, 1000);
 
     return () => clearTimeout(handler);
-  }, [settings, repositories, categories, isLoading]);
+  }, [settings, repositories, categories, uncategorizedOrder, isLoading]);
 
   const saveSettings = useCallback((newSettings: GlobalSettings) => {
     setSettings(newSettings);
@@ -165,6 +173,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       ...repoData
     } as Repository;
     setRepositories(prev => [...prev, newRepo]);
+    // Add new repo to the start of the uncategorized list
+    setUncategorizedOrder(prev => [newRepo.id, ...prev]);
   }, []);
   
   const updateRepository = useCallback((updatedRepo: Repository) => {
@@ -173,13 +183,14 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   
   const deleteRepository = useCallback((repoId: string) => {
     setRepositories(prev => prev.filter(repo => repo.id !== repoId));
-    // Also remove from any category
+    // Also remove from any category and uncategorized list
     setCategories(prev => {
         return prev.map(cat => ({
             ...cat,
             repositoryIds: cat.repositoryIds.filter(id => id !== repoId),
         }));
     });
+    setUncategorizedOrder(prev => prev.filter(id => id !== repoId));
   }, []);
 
   const addCategory = useCallback((name: string) => {
@@ -199,34 +210,69 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, []);
 
   const deleteCategory = useCallback((categoryId: string) => {
+    const categoryToDelete = categories.find(c => c.id === categoryId);
+    if (!categoryToDelete) return;
+
+    // Move repos from the deleted category to the top of the uncategorized list
+    setUncategorizedOrder(prev => [...categoryToDelete.repositoryIds, ...prev]);
+    // Remove the category itself
     setCategories(prev => prev.filter(cat => cat.id !== categoryId));
-  }, []);
+  }, [categories]);
 
-  const moveRepositoryToCategory = useCallback((repoId: string, sourceCategoryId: string | null, targetCategoryId: string | null, targetIndex: number) => {
-      setCategories(prev => {
-        const newCategories = JSON.parse(JSON.stringify(prev)) as Category[];
+  const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => {
+    logger.debug('moveRepositoryToCategory triggered', { repoId, sourceId, targetId, targetIndex });
+    
+    // Optimistically update state
+    setCategories(prevCategories => {
+        let newCategories = JSON.parse(JSON.stringify(prevCategories)) as Category[];
         
-        // Remove from source category
-        if (sourceCategoryId) {
-            const sourceCategory = newCategories.find(c => c.id === sourceCategoryId);
-            if (sourceCategory) {
-                sourceCategory.repositoryIds = sourceCategory.repositoryIds.filter(id => id !== repoId);
-            }
-        }
+        setUncategorizedOrder(prevUncategorized => {
+            let newUncategorized = [...prevUncategorized];
 
-        // Add to target category at the specified index
-        if (targetCategoryId) {
-            const targetCategory = newCategories.find(c => c.id === targetCategoryId);
-            if (targetCategory) {
-                // Ensure it's not already there
-                targetCategory.repositoryIds = targetCategory.repositoryIds.filter(id => id !== repoId);
-                targetCategory.repositoryIds.splice(targetIndex, 0, repoId);
+            // 1. Find and remove the repo from its source list
+            let foundInSource = false;
+            if (sourceId === 'uncategorized') {
+                const index = newUncategorized.indexOf(repoId);
+                if (index > -1) {
+                    newUncategorized.splice(index, 1);
+                    foundInSource = true;
+                }
+            } else {
+                const sourceCategory = newCategories.find(c => c.id === sourceId);
+                if (sourceCategory) {
+                    const index = sourceCategory.repositoryIds.indexOf(repoId);
+                    if (index > -1) {
+                        sourceCategory.repositoryIds.splice(index, 1);
+                        foundInSource = true;
+                    }
+                }
             }
-        }
+
+            if (!foundInSource) {
+              logger.error('DND Error: repoId not found in source list.', { repoId, sourceId });
+              // abort state update
+              return prevUncategorized;
+            }
+
+            // 2. Add the repo to its target list at the correct index
+            if (targetId === 'uncategorized') {
+                newUncategorized.splice(targetIndex, 0, repoId);
+            } else {
+                const targetCategory = newCategories.find(c => c.id === targetId);
+                if (targetCategory) {
+                    targetCategory.repositoryIds.splice(targetIndex, 0, repoId);
+                } else {
+                   logger.error('DND Error: target category not found', { targetId });
+                }
+            }
+
+            return newUncategorized;
+        });
         
         return newCategories;
-      });
-  }, []);
+    });
+
+  }, [logger]);
 
   const toggleCategoryCollapse = useCallback((categoryId: string) => {
     setCategories(prev => prev.map(cat => 
@@ -236,8 +282,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   
   const toggleAllCategoriesCollapse = useCallback(() => {
     setCategories(prev => {
-      // If at least one category is currently expanded, the action will be to collapse all.
-      // If all categories are already collapsed, the action will be to expand all.
       const shouldCollapseAll = prev.some(c => !(c.collapsed ?? false));
       return prev.map(c => ({ ...c, collapsed: shouldCollapseAll }));
     });
@@ -254,13 +298,15 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     isLoading,
     categories,
     setCategories,
+    uncategorizedOrder,
+    setUncategorizedOrder,
     addCategory,
     updateCategory,
     deleteCategory,
     moveRepositoryToCategory,
     toggleCategoryCollapse,
     toggleAllCategoriesCollapse,
-  }), [settings, saveSettings, repositories, isLoading, categories, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory, toggleCategoryCollapse, toggleAllCategoriesCollapse]);
+  }), [settings, saveSettings, repositories, isLoading, categories, uncategorizedOrder, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory, toggleCategoryCollapse, toggleAllCategoriesCollapse]);
 
   return (
     <SettingsContext.Provider value={value}>

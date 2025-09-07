@@ -1,19 +1,18 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import type { Repository, Category, LocalPathState, DetailedStatus, BranchInfo, ToastMessage } from '../types';
 import RepositoryCard from './RepositoryCard';
 import CategoryHeader from './CategoryHeader';
 import { PlusIcon } from './icons/PlusIcon';
+import { useLogger } from '../hooks/useLogger';
 
-// Define props based on App.tsx usage
 interface DashboardProps {
   repositories: Repository[];
-  setRepositories: (repos: Repository[]) => void;
   categories: Category[];
+  uncategorizedOrder: string[];
   onAddCategory: (name: string) => void;
   onUpdateCategory: (category: Category) => void;
   onDeleteCategory: (categoryId: string) => void;
-  onSetCategories: (categories: Category[]) => void;
-  onMoveRepositoryToCategory: (repoId: string, sourceCategoryId: string | null, targetCategoryId: string | null, targetIndex: number) => void;
+  onMoveRepositoryToCategory: (repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => void;
   onToggleCategoryCollapse: (categoryId: string) => void;
   
   // Pass-through props for RepositoryCard
@@ -45,10 +44,12 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   const { 
     repositories, 
     categories, 
+    uncategorizedOrder,
     onAddCategory, 
     onMoveRepositoryToCategory 
   } = props;
 
+  const logger = useLogger();
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [draggedRepo, setDraggedRepo] = useState<{ repoId: string; sourceCategoryId: string | null } | null>(null);
@@ -68,7 +69,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>, categoryId: string | null, repoId: string | null) => {
     e.preventDefault();
-    if (!draggedRepo || draggedRepo.repoId === repoId) {
+    if (!draggedRepo || (draggedRepo.repoId === repoId && categoryId === draggedRepo.sourceCategoryId)) {
         setDropIndicator(null);
         return;
     }
@@ -80,56 +81,74 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     setDropIndicator({ categoryId, repoId, position });
   }, [draggedRepo]);
 
-  const handleDragLeave = useCallback(() => {
-    // A small timeout helps prevent flickering when moving between elements
-    setTimeout(() => setDropIndicator(null), 100);
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    // If the mouse moves to a child element, it will trigger a leave then an over on the child.
+    // A small timeout helps prevent flickering.
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+        setDropIndicator(null);
+    }
   }, []);
   
   const handleDrop = useCallback((targetCategoryId: string | null, targetRepoId: string | null) => {
     if (!draggedRepo) return;
   
-    let targetIndex = -1;
+    const { repoId, sourceCategoryId } = draggedRepo;
+    const sourceId = sourceCategoryId ?? 'uncategorized';
+    const targetId = targetCategoryId ?? 'uncategorized';
+
     const targetCategory = categories.find(c => c.id === targetCategoryId);
-    const targetRepoIds = targetCategory ? targetCategory.repositoryIds : repositories.filter(r => !categories.some(c => c.repositoryIds.includes(r.id))).map(r => r.id);
-  
-    if (targetRepoId) {
-      const idx = targetRepoIds.indexOf(targetRepoId);
-      if (dropIndicator?.position === 'after') {
-        targetIndex = idx + 1;
-      } else {
-        targetIndex = idx;
-      }
-    } else {
-      // Dropped on a category header or empty uncategorized area
-      targetIndex = targetRepoIds.length;
+    const targetList = targetCategory ? targetCategory.repositoryIds : uncategorizedOrder;
+
+    let targetIndex = 0;
+
+    if (targetRepoId) { // Dropped on a repository card
+        const indexInList = targetList.indexOf(targetRepoId);
+        if (indexInList === -1) {
+            console.error("Drop target repo not found in its own list. Aborting drop.");
+            return;
+        }
+        targetIndex = (dropIndicator?.position === 'after') ? indexInList + 1 : indexInList;
+    } else { // Dropped on a category header or empty zone
+        targetIndex = targetList.length;
     }
+    
+    // The core fix: adjust the index if we're reordering *within* the same list
+    // and moving an item downwards. The removal of the item from its original
+    // position will shift the indices of subsequent items.
+    if (sourceId === targetId) {
+        const sourceList = (sourceCategoryId ? categories.find(c => c.id === sourceCategoryId)?.repositoryIds : uncategorizedOrder) || [];
+        const sourceIndex = sourceList.indexOf(repoId);
+        if (sourceIndex > -1 && sourceIndex < targetIndex) {
+            targetIndex--;
+        }
+    }
+    
+    logger.debug('handleDrop: Dispatching move action', { repoId, sourceId, targetId, targetIndex, targetRepoId, position: dropIndicator?.position });
+    onMoveRepositoryToCategory(repoId, sourceId, targetId, targetIndex);
   
-    onMoveRepositoryToCategory(draggedRepo.repoId, draggedRepo.sourceCategoryId, targetCategoryId, targetIndex);
     setDraggedRepo(null);
     setDropIndicator(null);
-  }, [draggedRepo, categories, repositories, onMoveRepositoryToCategory, dropIndicator]);
+  }, [draggedRepo, categories, uncategorizedOrder, onMoveRepositoryToCategory, dropIndicator, logger]);
 
 
-  const getReposForCategory = (categoryId: string | null): Repository[] => {
-    if (categoryId === null) { // Uncategorized
-      const categorizedRepoIds = new Set(categories.flatMap(c => c.repositoryIds));
-      return repositories.filter(repo => !categorizedRepoIds.has(repo.id));
-    }
-    const category = categories.find(c => c.id === categoryId);
-    if (!category) return [];
-    
-    // Map IDs to actual repo objects, preserving order.
-    return category.repositoryIds
-      .map(id => repositories.find(repo => repo.id === id))
-      .filter((repo): repo is Repository => repo !== undefined);
-  };
+  const reposById = useMemo(() => 
+    repositories.reduce((acc, repo) => {
+        acc[repo.id] = repo;
+        return acc;
+    }, {} as Record<string, Repository>),
+    [repositories]
+  );
   
-  const renderRepoList = (repos: Repository[], categoryId: string | null) => (
+  const renderRepoList = (repoIds: string[], categoryId: string | null) => (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {repos.map((repo) => {
+        {repoIds.map((repoId) => {
+            const repo = reposById[repoId];
+            if (!repo) return null; // Should not happen if data is consistent
+
             const isBeingDragged = draggedRepo?.repoId === repo.id;
-            const indicator = dropIndicator?.repoId === repo.id ? dropIndicator : null;
+            const indicator = dropIndicator?.repoId === repo.id && dropIndicator?.categoryId === categoryId ? dropIndicator : null;
             return (
+// FIX START: Remove wrapper div and pass props explicitly to RepositoryCard to fix type errors.
                 <RepositoryCard
                     key={repo.id}
                     repository={repo}
@@ -139,46 +158,74 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     branchInfo={props.branchLists[repo.id] || null}
                     detectedExecutables={props.detectedExecutables[repo.id] || []}
                     onDragStart={() => handleDragStart(repo.id, categoryId)}
-                    onDragOver={(e) => handleDragOver(e, categoryId, repo.id)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={() => handleDrop(categoryId, repo.id)}
                     onDragEnd={() => { setDraggedRepo(null); setDropIndicator(null); }}
                     isBeingDragged={isBeingDragged}
                     dropIndicatorPosition={indicator ? indicator.position : null}
-                    // Pass all other props down
-                    {...props}
+                    onDragOver={(e) => handleDragOver(e, categoryId, repo.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => { e.stopPropagation(); handleDrop(categoryId, repo.id); }}
+                    onContextMenu={(e) => props.onOpenContextMenu(e, repo)}
+                    // Pass all other props down from DashboardProps to RepositoryCardProps
+                    onOpenTaskSelection={props.onOpenTaskSelection}
+                    onRunTask={props.onRunTask}
+                    onViewLogs={props.onViewLogs}
+                    onViewHistory={props.onViewHistory}
+                    onEditRepo={props.onEditRepo}
+                    onDeleteRepo={props.onDeleteRepo}
+                    onSwitchBranch={props.onSwitchBranch}
+                    onCloneRepo={props.onCloneRepo}
+                    onChooseLocationAndClone={props.onChooseLocationAndClone}
+                    onRunLaunchConfig={props.onRunLaunchConfig}
+                    onOpenLaunchSelection={props.onOpenLaunchSelection}
+                    onOpenLocalPath={props.onOpenLocalPath}
+                    onOpenWeblink={props.onOpenWeblink}
+                    onOpenTerminal={props.onOpenTerminal}
+                    setToast={props.setToast}
+                    onRefreshRepoState={props.onRefreshRepoState}
                 />
+// FIX END
             );
         })}
     </div>
   );
 
-  const uncategorizedRepos = getReposForCategory(null);
+  const uncategorizedRepos = useMemo(() => 
+    uncategorizedOrder.map(id => reposById[id]).filter(Boolean),
+    [uncategorizedOrder, reposById]
+  );
 
   return (
     <div className="space-y-6">
       {categories.map(category => {
-        const categoryRepos = getReposForCategory(category.id);
+        const categoryRepoIds = category.repositoryIds;
         return (
-          <div key={category.id}>
+          <div key={category.id} className="p-3 rounded-lg" style={{backgroundColor: category.backgroundColor}}>
             <CategoryHeader 
                 category={category}
-                repoCount={categoryRepos.length}
+                repoCount={categoryRepoIds.length}
                 onUpdate={props.onUpdateCategory}
                 onDelete={props.onDeleteCategory}
                 onToggleCollapse={props.onToggleCategoryCollapse}
-                onDragOver={(e) => handleDragOver(e, category.id, null)}
-                onDrop={() => handleDrop(category.id, null)}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDropIndicator({ categoryId: category.id, repoId: null, position: 'after' }); }}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => { e.stopPropagation(); handleDrop(category.id, null); }}
             />
             {!(category.collapsed ?? false) && (
-              <div className="mt-3">
-                {renderRepoList(categoryRepos, category.id)}
-                {categoryRepos.length === 0 && (
-                  <div 
-                    className="p-6 text-center text-gray-500 border-2 border-dashed rounded-lg"
-                    onDragOver={(e) => handleDragOver(e, category.id, null)}
-                    onDrop={() => handleDrop(category.id, null)}
-                  >
+              <div 
+                className="mt-3"
+                onDragOver={(e) => { 
+                    if (categoryRepoIds.length === 0) {
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                        setDropIndicator({ categoryId: category.id, repoId: null, position: 'after' });
+                    }
+                }}
+                onDragLeave={(e) => handleDragLeave(e)}
+                onDrop={(e) => { e.stopPropagation(); handleDrop(category.id, null); }}
+              >
+                {renderRepoList(categoryRepoIds, category.id)}
+                {categoryRepoIds.length === 0 && (
+                  <div className="p-6 text-center text-gray-500 border-2 border-dashed rounded-lg">
                     Drag repositories here to add them to this category.
                   </div>
                 )}
@@ -189,20 +236,29 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
       })}
 
       <div>
-        <h2 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mb-3">Uncategorized</h2>
-        {renderRepoList(uncategorizedRepos, null)}
-        {uncategorizedRepos.length === 0 && (
-          <div 
-            className="p-6 text-center text-gray-500 border-2 border-dashed rounded-lg"
-            onDragOver={(e) => handleDragOver(e, null, null)}
-            onDrop={() => handleDrop(null, null)}
-          >
-            No uncategorized repositories.
-          </div>
-        )}
+        <h2 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mb-3 px-2">Uncategorized</h2>
+        <div 
+            className="min-h-[5rem]"
+            onDragOver={(e) => { 
+                if (uncategorizedRepos.length === 0) {
+                    e.preventDefault(); 
+                    e.stopPropagation(); 
+                    setDropIndicator({ categoryId: null, repoId: null, position: 'after' });
+                }
+            }}
+            onDragLeave={(e) => handleDragLeave(e)}
+            onDrop={(e) => { e.stopPropagation(); handleDrop(null, null); }}
+        >
+            {renderRepoList(uncategorizedOrder, null)}
+            {uncategorizedRepos.length === 0 && (
+            <div className="p-6 text-center text-gray-500 border-2 border-dashed rounded-lg">
+                No uncategorized repositories.
+            </div>
+            )}
+        </div>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 px-2">
         {isAddingCategory ? (
           <div className="flex items-center gap-2">
             <input

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { XIcon } from '../icons/XIcon';
 import { PaintBrushIcon } from '../icons/PaintBrushIcon';
 import { CheckIcon } from '../icons/CheckIcon';
+import { useTooltip } from '../../hooks/useTooltip';
 
 interface CategoryColorModalProps {
   isOpen: boolean;
@@ -11,16 +12,23 @@ interface CategoryColorModalProps {
   currentTextColor?: string;
 }
 
-const PRESET_COLORS = [
-  // Pastels
-  '#A7F3D0', '#BAE6FD', '#FBCFE8', '#FDE68A', '#DDD6FE', '#FECACA',
-  // Brights
-  '#10B981', '#0EA5E9', '#EC4899', '#F59E0B', '#8B5CF6', '#EF4444',
-  // Darks
-  '#064E3B', '#0C4A6E', '#831843', '#78350F', '#4C1D95', '#7F1D1D'
+const PREDEFINED_THEMES = [
+  // Muted Tones
+  { bg: '#EFF6FF', text: '#1E40AF' }, // Blue
+  { bg: '#F0FDF4', text: '#166534' }, // Green
+  { bg: '#FFFBEB', text: '#B45309' }, // Amber
+  { bg: '#FEF2F2', text: '#991B1B' }, // Red
+  { bg: '#F5F3FF', text: '#5B21B6' }, // Violet
+  { bg: '#FDF2F8', text: '#9D2463' }, // Pink
+  // Dark Tones
+  { bg: '#1E3A8A', text: '#DBEAFE' }, // Dark Blue
+  { bg: '#14532D', text: '#D1FAE5' }, // Dark Green
+  { bg: '#78350F', text: '#FEF3C7' }, // Dark Amber
+  { bg: '#7F1D1D', text: '#FEE2E2' }, // Dark Red
+  { bg: '#4C1D95', text: '#EDE9FE' }, // Dark Violet
+  { bg: '#831843', text: '#FCE7F3' }, // Dark Pink
 ];
 
-const PRESET_TEXT_COLORS = ['#FFFFFF', '#000000'];
 
 const CategoryColorModal: React.FC<CategoryColorModalProps> = ({ isOpen, onClose, onSave, currentBgColor, currentTextColor }) => {
   const [bgColor, setBgColor] = useState(currentBgColor || '');
@@ -35,9 +43,17 @@ const CategoryColorModal: React.FC<CategoryColorModalProps> = ({ isOpen, onClose
   };
   
   const handleReset = () => {
-      setBgColor('');
-      setTextColor('');
+    onSave({ background: undefined, text: undefined });
   }
+  
+  const handleThemeSelect = (theme: { bg: string, text: string }) => {
+      setBgColor(theme.bg);
+      setTextColor(theme.text);
+  };
+  
+  const customBgTooltip = useTooltip('Custom background color');
+  const customTextTooltip = useTooltip('Custom text color');
+
 
   return (
     <div
@@ -48,7 +64,7 @@ const CategoryColorModal: React.FC<CategoryColorModalProps> = ({ isOpen, onClose
       onMouseDown={onClose}
     >
       <div
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm mx-4 transform transition-all"
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 transform transition-all"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -65,29 +81,42 @@ const CategoryColorModal: React.FC<CategoryColorModalProps> = ({ isOpen, onClose
 
         <div className="p-5 space-y-4">
             <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Background Color</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Predefined Themes</label>
                 <div className="mt-2 grid grid-cols-6 gap-2">
-                    {PRESET_COLORS.map(color => (
-                        <button key={color} onClick={() => setBgColor(color)} className="h-8 w-8 rounded-full border-2" style={{ backgroundColor: color, borderColor: bgColor === color ? '#3b82f6' : 'transparent' }} />
-                    ))}
+                    {PREDEFINED_THEMES.map((theme, index) => {
+                        const isSelected = bgColor === theme.bg && textColor === theme.text;
+                        return (
+                            <button 
+                                key={index} 
+                                onClick={() => handleThemeSelect(theme)} 
+                                className={`h-10 w-10 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'border-blue-500 scale-110' : 'border-transparent'}`} 
+                                style={{ backgroundColor: theme.bg, color: theme.text }}
+                            >
+                                {isSelected && <CheckIcon className="h-5 w-5" />}
+                            </button>
+                        )
+                    })}
                 </div>
-                <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="mt-2 w-full h-8 p-1 border border-gray-300 dark:border-gray-600 rounded-md" />
             </div>
-             <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Text Color</label>
-                <div className="mt-2 flex items-center gap-2">
-                    {PRESET_TEXT_COLORS.map(color => (
-                        <button key={color} onClick={() => setTextColor(color)} className="h-8 w-8 rounded-full border-2 flex items-center justify-center" style={{ backgroundColor: color, borderColor: textColor === color ? '#3b82f6' : 'transparent' }}>
-                            {textColor === color && <CheckIcon className={`h-5 w-5 ${color === '#FFFFFF' ? 'text-black' : 'text-white'}`} />}
-                        </button>
-                    ))}
-                     <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="w-full h-8 p-1 border border-gray-300 dark:border-gray-600 rounded-md" />
+
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Custom Background</label>
+                    <div {...customBgTooltip} className="mt-2">
+                        <input type="color" value={bgColor || '#ffffff'} onChange={(e) => setBgColor(e.target.value)} className="w-full h-10 p-1 border border-gray-300 dark:border-gray-600 rounded-md cursor-pointer" />
+                    </div>
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Custom Text</label>
+                     <div {...customTextTooltip} className="mt-2">
+                        <input type="color" value={textColor || '#000000'} onChange={(e) => setTextColor(e.target.value)} className="w-full h-10 p-1 border border-gray-300 dark:border-gray-600 rounded-md cursor-pointer" />
+                     </div>
                 </div>
             </div>
             
             <div>
                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Preview</label>
-                 <div className="mt-2 p-3 rounded-md text-lg font-bold" style={{ backgroundColor: bgColor, color: textColor }}>
+                 <div className="mt-2 p-3 rounded-md text-lg font-bold transition-colors" style={{ backgroundColor: bgColor || 'transparent', color: textColor || 'inherit' }}>
                      Category Preview Text
                  </div>
             </div>

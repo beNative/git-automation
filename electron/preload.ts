@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, Category } from '../types';
+import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, Category, AppDataContextState } from '../types';
 
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
@@ -10,8 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version'),
   
   // App Data
-  getAllData: (): Promise<{ globalSettings: GlobalSettings; repositories: Repository[]; categories: Category[] }> => ipcRenderer.invoke('get-all-data'),
-  saveAllData: (data: { globalSettings: GlobalSettings; repositories: Repository[]; categories: Category[] }) => ipcRenderer.send('save-all-data', data),
+  getAllData: (): Promise<AppDataContextState> => ipcRenderer.invoke('get-all-data'),
+  saveAllData: (data: AppDataContextState) => ipcRenderer.send('save-all-data', data),
 
   // Documentation
   getDoc: (docName: string): Promise<string> => ipcRenderer.invoke('get-doc', docName),

@@ -251,6 +251,13 @@ export interface Category {
   backgroundColor?: string;
 }
 
+export interface AppDataContextState {
+  globalSettings: GlobalSettings;
+  repositories: Repository[];
+  categories: Category[];
+  uncategorizedOrder: string[]; // <-- New field to fix DnD
+}
+
 
 // --- Project Intelligence Types ---
 
