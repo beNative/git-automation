@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { AppView } from '../types';
 import { PlusIcon } from './icons/PlusIcon';
 import { CogIcon } from './icons/CogIcon';
@@ -6,6 +6,8 @@ import { InformationCircleIcon } from './icons/InformationCircleIcon';
 import { HomeIcon } from './icons/HomeIcon';
 import { useTooltip } from '../hooks/useTooltip';
 import { CloudArrowDownIcon } from './icons/CloudArrowDownIcon';
+import { ArrowsPointingInIcon } from './icons/ArrowsPointingInIcon';
+import { ArrowsPointingOutIcon } from './icons/ArrowsPointingOutIcon';
 
 interface HeaderProps {
   onNewRepo: () => void;
@@ -13,9 +15,11 @@ interface HeaderProps {
   onSetView: (view: AppView) => void;
   onCheckAllForUpdates: () => void;
   isCheckingAll: boolean;
+  onToggleAllCategories: () => void;
+  canCollapseAll: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView, onCheckAllForUpdates, isCheckingAll }) => {
+const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView, onCheckAllForUpdates, isCheckingAll, onToggleAllCategories, canCollapseAll }) => {
   const navButtonStyle = "p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors";
   
   const activeDashboardStyle = "p-2 rounded-full bg-red-600 dark:bg-red-700 text-white";
@@ -26,21 +30,41 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView, onChe
 
   const isEditing = activeView === 'edit-repository';
 
+  const titleConfig = useMemo(() => {
+    switch(activeView) {
+        case 'dashboard': return { text: 'Dashboard', color: 'text-red-600 dark:text-red-500' };
+        case 'settings': return { text: 'Settings', color: 'text-green-600 dark:text-green-500' };
+        case 'info': return { text: 'Info', color: 'text-blue-600 dark:text-blue-400' };
+        case 'edit-repository': return { text: 'Editing Repository', color: 'text-gray-700 dark:text-gray-300' };
+        default: return { text: '', color: '' };
+    }
+  }, [activeView]);
+
   const dashboardTooltip = useTooltip('Dashboard');
   const settingsTooltip = useTooltip('Settings');
   const infoTooltip = useTooltip('Information');
   const checkUpdatesTooltip = useTooltip('Check all repositories for updates');
+  const expandCollapseTooltip = useTooltip(canCollapseAll ? 'Collapse all categories' : 'Expand all categories');
 
   return (
     <header className="bg-gray-200/80 dark:bg-gray-800/80 backdrop-blur-sm sticky top-0 z-20 shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6">
         <div className="flex items-center justify-between h-14">
           <div className="flex items-center">
-            <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">Repository Automation Dashboard</h1>
+            <h1 className={`text-xl font-bold ${titleConfig.color}`}>{titleConfig.text}</h1>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-2">
             {activeView === 'dashboard' && (
               <>
+                <button
+                  {...expandCollapseTooltip}
+                  onClick={onToggleAllCategories}
+                  disabled={isEditing}
+                  className="flex items-center justify-center px-3 py-1.5 sm:px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-500 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {canCollapseAll ? <ArrowsPointingInIcon className="h-5 w-5 mr-0 sm:mr-2" /> : <ArrowsPointingOutIcon className="h-5 w-5 mr-0 sm:mr-2" />}
+                  <span className="hidden sm:inline">{canCollapseAll ? 'Collapse' : 'Expand'} All</span>
+                </button>
                 <button
                   {...checkUpdatesTooltip}
                   onClick={onCheckAllForUpdates}

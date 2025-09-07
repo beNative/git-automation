@@ -5,7 +5,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 ## Core Features
 
 -   **Centralized Dashboard:** View the status, branch, and build health of all your repositories in one place.
--   **Customizable Dashboard Categories:** Organize your repositories into collapsible sections with full drag-and-drop support.
+-   **Customizable Dashboard Categories:** Organize your repositories into collapsible sections with full drag-and-drop support and a global expand/collapse control.
 -   **Multi-VCS Support:** Manage both Git and Subversion (SVN) repositories seamlessly.
 -   **Repository-Specific Tasks:** Create custom, multi-step automation scripts (e.g., pull/update, install, build) for each repository.
 -   **Quick Actions:** Copy repository URLs/paths with a single click and access all common actions via a right-click context menu.
@@ -18,6 +18,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Advanced Debugging:** A powerful debug console with log filtering and a save-to-file feature for in-depth troubleshooting.
 -   **Reliable Auto-Updates:** Get notified with a clear banner when a new version is ready and install it with a single click.
 -   **Easy Configuration:** Add new repositories and configure them through a simple, unified form.
+-   **Persistent UI State:** The application remembers your dashboard layout, including the collapsed state of categories, between sessions.
 -   **Persistent & Safe Configuration:** All your settings and repository configurations are stored safely in a persistent location, ensuring they are never lost during application updates.
 -   **Settings Import/Export:** Easily back up, restore, or share your complete application configuration using zip files.
 -   **Global Settings:** Customize the application theme, icon set, notifications, and behavior like enabling pre-release updates or choosing your preferred web browser.

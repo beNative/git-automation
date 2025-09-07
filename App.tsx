@@ -44,6 +44,8 @@ const App: React.FC = () => {
     updateCategory,
     deleteCategory,
     moveRepositoryToCategory,
+    toggleCategoryCollapse,
+    toggleAllCategoriesCollapse,
   } = useSettings();
 
   const {
@@ -732,6 +734,11 @@ const App: React.FC = () => {
     return repositories.find(r => r.id === repoToEditId) || null;
   }, [repoToEditId, repositories]);
 
+  const canCollapseAll = useMemo(() => 
+    categories.length > 0 && categories.some(c => !(c.collapsed ?? false)),
+    [categories]
+  );
+
   useEffect(() => {
     logger.debug(`App view changed to: ${activeView}`, { view: activeView, repoToEditId });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -808,6 +815,8 @@ const App: React.FC = () => {
             onSetView={setActiveView}
             onCheckAllForUpdates={handleCheckAllForUpdates}
             isCheckingAll={isCheckingAll}
+            onToggleAllCategories={toggleAllCategoriesCollapse}
+            canCollapseAll={canCollapseAll}
           />
           {updateReady && <UpdateBanner onInstall={handleRestartAndUpdate} />}
           <main className={mainContentClass}>
@@ -851,6 +860,7 @@ const App: React.FC = () => {
                     }}
                     onSetCategories={setCategories}
                     onMoveRepositoryToCategory={moveRepositoryToCategory}
+                    onToggleCategoryCollapse={toggleCategoryCollapse}
                     onOpenTaskSelection={handleOpenTaskSelection} 
                     onRunTask={handleRunTask}
                     onViewLogs={handleViewLogs}

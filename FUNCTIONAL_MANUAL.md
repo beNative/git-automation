@@ -4,7 +4,7 @@ This manual provides a detailed walkthrough of all the features available in the
 
 ## 1. Navigating the Application
 
-The application is organized into three main views, which you can switch between using the icons in the top-right of the header:
+The application is organized into three main views, which you can switch between using the icons in the top-right of the header. The header also features a dynamic title that changes color and text to reflect the current view.
 
 -   **Dashboard (Home Icon):** The main screen where you can see and interact with all your repository cards.
 -   **Settings (Cog Icon):** Where you can configure global application settings.
@@ -14,7 +14,7 @@ The application is organized into three main views, which you can switch between
 
 The dashboard is the central hub of the application. It displays all your configured repositories as individual cards, now organized into categories. You can run tasks on multiple repositories at the same time. Starting a long build on one project won't stop you from running a quick update on another.
 
-The header also contains a **"Check Updates"** button. Clicking this will check all of your repositories for new changes on their remotes.
+The header also contains a **"Check Updates"** button to check all repositories for remote changes, and a button to **Expand/Collapse All** categories for quick layout management.
 
 ### Organizing with Categories
 
@@ -22,10 +22,10 @@ The dashboard is divided into collapsible sections called categories. This allow
 
 -   **Creating Categories:** Click the "Add Category" button at the bottom of the dashboard to create a new section.
 -   **Renaming & Deleting:** Hover over a category's title to reveal buttons for renaming (pencil icon) and deleting (trash icon).
--   **Collapsing Sections:** Click the chevron icon (▶) next to a category's title to hide or show the repositories within it.
+-   **Collapsing Sections:** Click the chevron icon (▶) next to a category's title to hide or show the repositories within it. This state is saved automatically, so your layout will be preserved the next time you open the app.
 -   **Assigning Repositories:** Simply drag a repository card and drop it onto a category header to assign it.
 -   **Reordering:**
-    -   **Repositories:** Drag and drop repository cards to reorder them within or between categories.
+    -   **Repositories:** Drag and drop repository cards to reorder them within or between categories. When reordering, a blue indicator bar will show you exactly where the card will be dropped.
     -   **Categories:** Drag and drop category headers using the grip handle (⋮⋮) to reorder the sections themselves.
 -   **Uncategorized Section:** Any repository not assigned to a category will automatically appear in a default "Uncategorized" section.
 

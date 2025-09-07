@@ -46,12 +46,11 @@ interface RepositoryCardProps {
   onOpenWeblink: (url: string) => void;
   onOpenTerminal: (path: string) => void;
   isBeingDragged: boolean;
-  isDropTarget: boolean;
-  onDragStart: (e: React.DragEvent<HTMLDivElement>, repoId: string) => void;
+  dropIndicatorPosition: 'before' | 'after' | null;
+  onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragEnter: (e: React.DragEvent<HTMLDivElement>, repoId: string) => void;
   onDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDrop: (e: React.DragEvent<HTMLDivElement>, repoId: string) => void;
+  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
   setToast: (toast: ToastMessage | null) => void;
   onContextMenu: (event: React.MouseEvent, repo: Repository) => void;
@@ -315,10 +314,9 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onOpenWeblink,
   onOpenTerminal,
   isBeingDragged,
-  isDropTarget,
+  dropIndicatorPosition,
   onDragStart,
   onDragOver,
-  onDragEnter,
   onDragLeave,
   onDrop,
   onDragEnd,
@@ -352,19 +350,25 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const configureTooltip = useTooltip('Configure Repository');
   const deleteTooltip = useTooltip('Delete Repository');
 
+  const cardClasses = [
+    'relative',
+    'bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col',
+    'transition-all duration-300 hover:shadow-blue-500/20',
+    isBeingDragged ? 'opacity-40 scale-95' : 'opacity-100 scale-100',
+  ].join(' ');
 
   return (
     <div
       draggable="true"
-      onDragStart={(e) => onDragStart(e, repository.id)}
+      onDragStart={onDragStart}
       onDragOver={onDragOver}
-      onDragEnter={(e) => onDragEnter(e, repository.id)}
       onDragLeave={onDragLeave}
-      onDrop={(e) => onDrop(e, repository.id)}
+      onDrop={onDrop}
       onDragEnd={onDragEnd}
       onContextMenu={(e) => onContextMenu(e, repository)}
-      className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-300 hover:shadow-blue-500/20 ${isBeingDragged ? 'opacity-40' : ''} ${isDropTarget ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900' : ''}`}
+      className={cardClasses}
     >
+      {dropIndicatorPosition === 'before' && <div className="absolute top-0 bottom-0 -left-2 w-1.5 bg-blue-500 rounded-full" />}
       <div className="p-4 flex-grow">
         <div className="flex items-start justify-between">
           <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate">{name}</h3>
@@ -567,6 +571,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             </div>
         </div>
       </div>
+      {dropIndicatorPosition === 'after' && <div className="absolute top-0 bottom-0 -right-2 w-1.5 bg-blue-500 rounded-full" />}
     </div>
   );
 };

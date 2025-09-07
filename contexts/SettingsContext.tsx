@@ -17,6 +17,8 @@ interface AppDataContextState {
   updateCategory: (updatedCategory: Category) => void;
   deleteCategory: (categoryId: string) => void;
   moveRepositoryToCategory: (repoId: string, sourceCategoryId: string | null, targetCategoryId: string | null, targetIndex: number) => void;
+  toggleCategoryCollapse: (categoryId: string) => void;
+  toggleAllCategoriesCollapse: () => void;
 }
 
 const DEFAULTS: GlobalSettings = {
@@ -45,6 +47,8 @@ const initialState: AppDataContextState = {
   updateCategory: () => {},
   deleteCategory: () => {},
   moveRepositoryToCategory: () => {},
+  toggleCategoryCollapse: () => {},
+  toggleAllCategoriesCollapse: () => {},
 };
 
 export const SettingsContext = createContext<AppDataContextState>(initialState);
@@ -183,6 +187,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       id: `cat_${Date.now()}`,
       name,
       repositoryIds: [],
+      collapsed: false,
     };
     setCategories(prev => [...prev, newCategory]);
   }, []);
@@ -221,6 +226,21 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       });
   }, []);
 
+  const toggleCategoryCollapse = useCallback((categoryId: string) => {
+    setCategories(prev => prev.map(cat => 
+        cat.id === categoryId ? { ...cat, collapsed: !(cat.collapsed ?? false) } : cat
+    ));
+  }, []);
+  
+  const toggleAllCategoriesCollapse = useCallback(() => {
+    setCategories(prev => {
+      // If at least one category is currently expanded, the action will be to collapse all.
+      // If all categories are already collapsed, the action will be to expand all.
+      const shouldCollapseAll = prev.some(c => !(c.collapsed ?? false));
+      return prev.map(c => ({ ...c, collapsed: shouldCollapseAll }));
+    });
+  }, []);
+
   const value = useMemo(() => ({
     settings,
     saveSettings,
@@ -236,7 +256,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     updateCategory,
     deleteCategory,
     moveRepositoryToCategory,
-  }), [settings, saveSettings, repositories, isLoading, categories, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory]);
+    toggleCategoryCollapse,
+    toggleAllCategoriesCollapse,
+  }), [settings, saveSettings, repositories, isLoading, categories, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory, toggleCategoryCollapse, toggleAllCategoriesCollapse]);
 
   return (
     <SettingsContext.Provider value={value}>

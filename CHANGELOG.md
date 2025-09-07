@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0]
+
+### Added
+- A new button in the header to expand or collapse all dashboard categories at once.
+
+### Changed
+- The collapsed/expanded state of dashboard categories is now saved and persists between application restarts.
+- Improved the visual feedback for dragging and dropping repository cards. A clear indicator bar now shows exactly where a card will be placed.
+- Replaced the static header title with a dynamic, color-coded title that changes based on the active view (Dashboard, Settings, Info).
+
 ## [0.4.0]
 
 ### Added
