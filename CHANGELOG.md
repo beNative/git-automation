@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0]
+
+### Added
+- **Category Color Customization:** Added the ability to configure custom font and background colors for each dashboard category via a new color picker popover.
+
 ## [0.5.0]
 
 ### Added

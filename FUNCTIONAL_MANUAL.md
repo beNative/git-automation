@@ -22,6 +22,7 @@ The dashboard is divided into collapsible sections called categories. This allow
 
 -   **Creating Categories:** Click the "Add Category" button at the bottom of the dashboard to create a new section.
 -   **Renaming & Deleting:** Hover over a category's title to reveal buttons for renaming (pencil icon) and deleting (trash icon).
+-   **Color Customization:** Hover over a category's title and click the new paintbrush icon to open a color picker. You can set a custom font color and background color for each category, allowing for better visual organization.
 -   **Collapsing Sections:** Click the chevron icon (▶) next to a category's title to hide or show the repositories within it. This state is saved automatically, so your layout will be preserved the next time you open the app.
 -   **Assigning Repositories:** Simply drag a repository card and drop it onto a category header to assign it.
 -   **Reordering:**

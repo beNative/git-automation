@@ -1,28 +1,21 @@
-import React, { useState, useRef, useEffect, useContext } from 'react';
-import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig, WebLinkConfig, ToastMessage } from '../types';
-import { VcsType } from '../types';
-import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
+
+import React, { useMemo, useState } from 'react';
+import type { Repository, LocalPathState, DetailedStatus, BranchInfo, ToastMessage, VcsType as VcsTypeEnum } from '../types';
+import { STATUS_COLORS } from '../constants';
+import { useTooltip } from '../hooks/useTooltip';
+import { StatusIndicator } from './StatusIndicator';
+import { GitBranchIcon } from './icons/GitBranchIcon';
+import { SvnIcon } from './icons/SvnIcon';
 import { PlayIcon } from './icons/PlayIcon';
-import { DocumentTextIcon } from './icons/DocumentTextIcon';
 import { PencilIcon } from './icons/PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
-import { GitBranchIcon } from './icons/GitBranchIcon';
-import { GlobeAltIcon } from './icons/GlobeAltIcon';
-import { SvnIcon } from './icons/SvnIcon';
-import { ArrowDownTrayIcon } from './icons/ArrowDownTrayIcon';
-import { ExclamationCircleIcon } from './icons/ExclamationCircleIcon';
-import { LightningBoltIcon } from './icons/LightningBoltIcon';
-import { FolderPlusIcon } from './icons/FolderPlusIcon';
 import { FolderIcon } from './icons/FolderIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
-import { StatusIndicator } from './StatusIndicator';
-import { ChevronDownIcon } from './icons/ChevronDownIcon';
-import { ClockIcon } from './icons/ClockIcon';
-import { useTooltip } from '../hooks/useTooltip';
-import { TooltipContext } from '../contexts/TooltipContext';
+import { ArrowPathIcon } from './icons/ArrowPathIcon';
+import { RocketLaunchIcon } from './icons/RocketLaunchIcon';
 import { ArrowTopRightOnSquareIcon } from './icons/ArrowTopRightOnSquareIcon';
-import { ClipboardIcon } from './icons/ClipboardIcon';
-
+import { SparklesIcon } from './icons/SparklesIcon';
+import { CubeTransparentIcon } from './icons/CubeTransparentIcon';
 
 interface RepositoryCardProps {
   repository: Repository;
@@ -45,533 +38,200 @@ interface RepositoryCardProps {
   onOpenLocalPath: (path: string) => void;
   onOpenWeblink: (url: string) => void;
   onOpenTerminal: (path: string) => void;
-  isBeingDragged: boolean;
-  dropIndicatorPosition: 'before' | 'after' | null;
-  onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
   setToast: (toast: ToastMessage | null) => void;
   onContextMenu: (event: React.MouseEvent, repo: Repository) => void;
   onRefreshRepoState: (repoId: string) => void;
+  isBeingDragged: boolean;
+  dropIndicatorPosition: 'before' | 'after' | null;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragLeave: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
 }
 
-const BranchSwitcher: React.FC<{
-  repoId: string,
-  branchInfo: BranchInfo | null,
-  onSwitchBranch: (repoId: string, branch: string) => void
-}> = ({ repoId, branchInfo, onSwitchBranch }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [opensUp, setOpensUp] = useState(false);
-    const wrapperRef = useRef<HTMLDivElement>(null);
-    const DROPDOWN_HEIGHT = 240; // Approx height for max-h-60
+const RepositoryCard: React.FC<RepositoryCardProps> = (props) => {
+  const { repository, localPathState, detailedStatus, branchInfo, isProcessing } = props;
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [wrapperRef]);
-
-    if (!branchInfo) return null;
-
-    const { local, remote, current } = branchInfo;
-    
-    // Don't offer to check out remote branches if a local branch of the same name already exists.
-    const remoteBranchesToOffer = remote.filter(rBranch => {
-        const localEquivalent = rBranch.split('/').slice(1).join('/');
-        return !local.includes(localEquivalent);
-    });
-
-    const otherLocalBranches = local.filter(b => b !== current);
-    const hasOptions = otherLocalBranches.length > 0 || remoteBranchesToOffer.length > 0;
-
-    const handleClick = () => {
-        if (!hasOptions) return;
-
-        if (wrapperRef.current) {
-            const rect = wrapperRef.current.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - rect.bottom;
-            if (spaceBelow < DROPDOWN_HEIGHT && rect.top > DROPDOWN_HEIGHT) {
-                setOpensUp(true);
-            } else {
-                setOpensUp(false);
-            }
-        }
-        setIsOpen(prev => !prev);
-    };
-
-    return (
-        <div className="relative inline-block text-left" ref={wrapperRef}>
-            <button
-                type="button"
-                className="inline-flex items-center justify-center w-full rounded-md disabled:cursor-not-allowed"
-                onClick={handleClick}
-                disabled={!hasOptions}
-            >
-                <span className="truncate max-w-[150px] sm:max-w-[200px]">{current}</span>
-                <ChevronDownIcon className={`ml-1 -mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {isOpen && hasOptions && (
-                <div className={`${opensUp ? 'origin-bottom-right bottom-full mb-2' : 'origin-top-right mt-2'} absolute right-0 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-30`}>
-                    <div className="py-1 max-h-60 overflow-y-auto" role="menu" aria-orientation="vertical">
-                        {otherLocalBranches.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Local</div>}
-                        {otherLocalBranches.map(branch => (
-                            <button
-                                key={`local-${branch}`}
-                                onClick={() => { onSwitchBranch(repoId, branch); setIsOpen(false); }}
-                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                role="menuitem"
-                            >
-                                {branch}
-                            </button>
-                        ))}
-                        {remoteBranchesToOffer.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase border-t border-gray-200 dark:border-gray-700">Remote</div>}
-                        {remoteBranchesToOffer.map(branch => {
-                             return (
-                                <button
-                                    key={`remote-${branch}`}
-                                    onClick={() => { onSwitchBranch(repoId, branch); setIsOpen(false); }}
-                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                    role="menuitem"
-                                >
-                                    {branch}
-                                </button>
-                            )
-                        })}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
-// --- Sub-components to fix Rules of Hooks violations ---
-
-const CopyButton: React.FC<{ textToCopy: string; tooltipText: string; setToast: (toast: ToastMessage | null) => void; }> = ({ textToCopy, tooltipText, setToast }) => {
-  const tooltip = useTooltip(tooltipText);
-  const { hideTooltip } = useContext(TooltipContext);
-  const handleCopy = (e: React.MouseEvent) => {
+  const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    hideTooltip();
-    navigator.clipboard.writeText(textToCopy).then(() => {
-      setToast({ message: 'Copied to clipboard!', type: 'success' });
-    }, (err) => {
-      setToast({ message: `Failed to copy: ${err}`, type: 'error' });
-    });
+    setIsRefreshing(true);
+    await props.onRefreshRepoState(repository.id);
+    setIsRefreshing(false);
   };
 
-  return (
-    <button
-      {...tooltip}
-      onClick={handleCopy}
-      className="p-1 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 flex-shrink-0"
-    >
-      <ClipboardIcon className="h-4 w-4" />
-    </button>
-  );
-};
+  const VcsIcon = repository.vcs === 'git' ? GitBranchIcon : SvnIcon;
 
-const CloneToPathButton: React.FC<{
-  cloneVerb: string;
-  remoteUrl: string;
-  localPath: string;
-  isProcessing: boolean;
-  onClone: () => void;
-}> = ({ cloneVerb, remoteUrl, localPath, isProcessing, onClone }) => {
-  const tooltip = useTooltip(`${cloneVerb} from ${remoteUrl} to ${localPath}`);
-  const { hideTooltip } = useContext(TooltipContext);
-  return (
-    <button
-      {...tooltip}
-      onClick={() => {
-        hideTooltip();
-        onClone();
-      }}
-      disabled={isProcessing}
-      className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-    >
-      <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
-      {cloneVerb} Repo
-    </button>
-  );
-};
+  const dashboardTasks = useMemo(() => repository.tasks.filter(t => t.showOnDashboard), [repository.tasks]);
+  const dashboardLaunchConfigs = useMemo(() => (repository.launchConfigs || []).filter(lc => lc.showOnDashboard), [repository.launchConfigs]);
 
-const ChooseLocationButton: React.FC<{
-  cloneVerb: string;
-  isProcessing: boolean;
-  onChooseLocation: () => void;
-}> = ({ cloneVerb, isProcessing, onChooseLocation }) => {
-  const tooltip = useTooltip(`Choose location and ${cloneVerb.toLowerCase()}`);
-  const { hideTooltip } = useContext(TooltipContext);
-  return (
-    <button
-      {...tooltip}
-      onClick={() => {
-        hideTooltip();
-        onChooseLocation();
-      }}
-      disabled={isProcessing}
-      className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-    >
-      <FolderPlusIcon className="h-4 w-4 mr-1.5" />
-      Setup & {cloneVerb}
-    </button>
-  );
-};
-
-const TaskButton: React.FC<{
-  task: Task;
-  isPathValid: boolean;
-  isProcessing: boolean;
-  onRunTask: () => void;
-}> = ({ task, isPathValid, isProcessing, onRunTask }) => {
-  const tooltip = useTooltip(!isPathValid ? 'Local path is not valid' : `Run Task: ${task.name}`);
-  const { hideTooltip } = useContext(TooltipContext);
-  return (
-    <button
-      {...tooltip}
-      onClick={() => {
-        hideTooltip();
-        onRunTask();
-      }}
-      disabled={isProcessing || !isPathValid}
-      className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-    >
-      <PlayIcon className="h-4 w-4 mr-1" />
-      <span className="truncate">{task.name}</span>
-    </button>
-  );
-};
-
-const LaunchConfigButton: React.FC<{
-  config: LaunchConfig;
-  isPathValid: boolean;
-  isProcessing: boolean;
-  onRunLaunchConfig: () => void;
-}> = ({ config, isPathValid, isProcessing, onRunLaunchConfig }) => {
-  const tooltip = useTooltip(!isPathValid ? 'Local path is not valid' : `Launch: ${config.name}`);
-  const { hideTooltip } = useContext(TooltipContext);
-  return (
-    <button
-      {...tooltip}
-      onClick={() => {
-        hideTooltip();
-        onRunLaunchConfig();
-      }}
-      disabled={isProcessing || !isPathValid}
-      className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-    >
-      <LightningBoltIcon className="h-4 w-4 mr-1" />
-      <span className="truncate">{config.name}</span>
-    </button>
-  );
-};
-
-const WebLinkButton: React.FC<{ link: WebLinkConfig; onOpen: (url: string) => void }> = ({ link, onOpen }) => {
-  const tooltip = useTooltip(link.url);
-  const { hideTooltip } = useContext(TooltipContext);
-  return (
-    <button
-      {...tooltip}
-      onClick={() => {
-        hideTooltip();
-        onOpen(link.url);
-      }}
-      className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-    >
-      <ArrowTopRightOnSquareIcon className="h-3 w-3 mr-1.5" />
-      <span className="truncate">{link.name}</span>
-    </button>
-  );
-};
-
-
-const RepositoryCard: React.FC<RepositoryCardProps> = ({
-  repository,
-  onOpenTaskSelection,
-  onRunTask,
-  onViewLogs,
-  onViewHistory,
-  onEditRepo,
-  onDeleteRepo,
-  isProcessing,
-  localPathState,
-  detailedStatus,
-  branchInfo,
-  onSwitchBranch,
-  detectedExecutables,
-  onCloneRepo,
-  onChooseLocationAndClone,
-  onRunLaunchConfig,
-  onOpenLaunchSelection,
-  onOpenLocalPath,
-  onOpenWeblink,
-  onOpenTerminal,
-  isBeingDragged,
-  dropIndicatorPosition,
-  onDragStart,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  onDragEnd,
-  setToast,
-  onContextMenu,
-  onRefreshRepoState,
-}) => {
-  const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, tasks, launchConfigs, localPath, webLinks } = repository;
-  
-  const isPathValid = localPathState === 'valid';
-  const isPathMissing = localPathState === 'missing';
-  const isPathSet = localPath && localPath.trim() !== '';
-  const cloneVerb = vcs === VcsType.Svn ? 'Checkout' : 'Clone';
-
-  const tasksToShowOnCard = (tasks || []).filter(t => t.showOnDashboard).slice(0, 4);
-  const hasMoreTasks = (tasks || []).length > tasksToShowOnCard.length;
-
-  const launchConfigsToShowOnCard = (launchConfigs || []).filter(lc => lc.showOnDashboard).slice(0, 4);
-  const unpinnedLaunchConfigs = (launchConfigs || []).filter(lc => !lc.showOnDashboard);
-  const hasMoreLaunchOptions = unpinnedLaunchConfigs.length > 0 || (detectedExecutables && detectedExecutables.length > 0);
-  
-  const { hideTooltip } = useContext(TooltipContext);
-
-  // Tooltips
-  const localPathTooltip = useTooltip(`Open: ${localPath}`);
-  const moreTasksTooltip = useTooltip('Select a task to run...');
-  const moreLaunchTooltip = useTooltip('More launch options...');
-  const terminalTooltip = useTooltip(!isPathValid ? "Local path must be valid to open terminal" : "Open in Terminal");
-  const historyTooltip = useTooltip(!isPathValid ? "Local path must be valid to view history" : "View Commit History");
-  const logsTooltip = useTooltip('View Logs');
-  const configureTooltip = useTooltip('Configure Repository');
-  const deleteTooltip = useTooltip('Delete Repository');
+  const hasMoreLaunchOptions = useMemo(() => {
+    const unpinnedConfigs = (repository.launchConfigs || []).filter(lc => !lc.showOnDashboard);
+    return unpinnedConfigs.length > 0 || props.detectedExecutables.length > 0;
+  }, [repository.launchConfigs, props.detectedExecutables]);
 
   const cardClasses = [
-    'relative',
-    'bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col',
-    'transition-all duration-300 hover:shadow-blue-500/20',
-    isBeingDragged ? 'opacity-40 scale-95' : 'opacity-100 scale-100',
+    "relative group bg-white dark:bg-gray-800 rounded-lg shadow-md transition-all duration-200 border-2 border-transparent flex flex-col",
+    props.isBeingDragged ? "opacity-50" : "opacity-100",
+    isProcessing ? "ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900" : "",
   ].join(' ');
+
+  const nameTooltip = useTooltip(repository.name);
+  const vcsTooltip = useTooltip(repository.vcs === 'git' ? 'Git' : 'SVN');
+  const pathTooltip = useTooltip(repository.localPath);
+  const statusTooltip = useTooltip(`Status: ${repository.status}`);
+  const refreshTooltip = useTooltip('Refresh status');
+  const editTooltip = useTooltip('Configure repository');
+  const deleteTooltip = useTooltip('Delete repository');
+  const moreTasksTooltip = useTooltip('Show all tasks');
+  const moreLaunchablesTooltip = useTooltip('Show more launch options');
 
   return (
     <div
-      draggable="true"
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
-      onDragEnd={onDragEnd}
-      onContextMenu={(e) => onContextMenu(e, repository)}
+      draggable
+      onDragStart={props.onDragStart}
+      onDragEnd={props.onDragEnd}
+      onContextMenu={(e) => props.onContextMenu(e, repository)}
+      onDragOver={props.onDragOver}
+      onDragLeave={props.onDragLeave}
+      onDrop={props.onDrop}
       className={cardClasses}
     >
-      {dropIndicatorPosition === 'before' && <div className="absolute top-0 bottom-0 -left-2 w-1.5 bg-blue-500 rounded-full" />}
+      {props.dropIndicatorPosition === 'before' && <div className="absolute top-[-0.5rem] left-0 right-0 h-1 bg-green-500 rounded-full animate-pulse" />}
+      {props.dropIndicatorPosition === 'after' && <div className="absolute bottom-[-0.5rem] left-0 right-0 h-1 bg-green-500 rounded-full animate-pulse" />}
+
+      {/* Main card content */}
       <div className="p-4 flex-grow">
+        {/* Header */}
         <div className="flex items-start justify-between">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate">{name}</h3>
-          <div
-            className={`px-2 py-1 text-xs font-semibold rounded-full text-white ${STATUS_COLORS[status]}`}
-          >
-            {status}
+          <div className="flex items-center min-w-0">
+            <span {...vcsTooltip} className="mr-2 flex-shrink-0">
+                <VcsIcon className="h-6 w-6 text-gray-400" />
+            </span>
+            <h3 {...nameTooltip} className="text-lg font-bold text-gray-800 dark:text-gray-200 truncate pr-2">
+              {repository.name}
+            </h3>
+          </div>
+          <div className="flex items-center flex-shrink-0 space-x-1">
+            <div {...statusTooltip} className={`px-2 py-0.5 text-xs font-semibold text-white rounded-full ${STATUS_COLORS[repository.status]}`}>
+              {repository.status}
+            </div>
+            <button {...refreshTooltip} onClick={handleRefresh} className="p-1 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+              <ArrowPathIcon className={`h-4 w-4 ${isRefreshing || isProcessing ? 'animate-spin' : ''}`} />
+            </button>
+            <button {...editTooltip} onClick={() => props.onEditRepo(repository.id)} className="p-1 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                <PencilIcon className="h-4 w-4" />
+            </button>
+            <button {...deleteTooltip} onClick={() => props.onDeleteRepo(repository.id)} className="p-1 rounded-full text-red-500 hover:bg-red-100 dark:hover:bg-red-900 transition-colors">
+                <TrashIcon className="h-4 w-4" />
+            </button>
           </div>
         </div>
-        
-        {localPathState === 'not_a_repo' && (
-            <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/40 rounded-md text-xs text-yellow-700 dark:text-yellow-300 flex items-center">
-                <ExclamationCircleIcon className="h-4 w-4 mr-2 flex-shrink-0"/>
-                <span className="truncate">Local path exists but is not a valid repository.</span>
-            </div>
-        )}
-        {localPathState === 'checking' && (
-             <div className="mt-2 text-xs text-gray-400 italic">Checking local path...</div>
-        )}
 
-        <div className="mt-2 space-y-1.5 text-sm text-gray-500 dark:text-gray-400">
-          <div className="flex items-center gap-2">
-            <GlobeAltIcon className="h-4 w-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-            <button onClick={() => onOpenWeblink(remoteUrl)} className="truncate hover:text-blue-500 dark:hover:text-blue-400 transition-colors flex-grow text-left">{remoteUrl}</button>
-            <CopyButton textToCopy={remoteUrl} tooltipText="Copy URL" setToast={setToast} />
-          </div>
-          {isPathSet && (
-            <div className="flex items-center gap-2">
-                <FolderIcon className="h-4 w-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                <button
-                    {...localPathTooltip}
-                    onClick={() => {
-                      hideTooltip();
-                      onOpenLocalPath(localPath);
-                    }} 
-                    className="truncate text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors focus:outline-none flex-grow"
-                >
-                    {localPath}
-                </button>
-                <CopyButton textToCopy={localPath} tooltipText="Copy Path" setToast={setToast} />
+        {/* Path and Branch info */}
+        {localPathState === 'valid' && (
+          <div className="mt-2 text-sm text-gray-500 dark:text-gray-400 space-y-1">
+            <div className="flex items-center cursor-pointer" onClick={() => props.onOpenLocalPath(repository.localPath)}>
+              <FolderIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+              <p {...pathTooltip} className="font-mono truncate hover:underline">{repository.localPath}</p>
             </div>
-          )}
-          <div className="flex items-center">
-            {vcs === VcsType.Git ? (
-              <>
-                <GitBranchIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
-                <BranchSwitcher repoId={id} branchInfo={branchInfo} onSwitchBranch={onSwitchBranch} />
-              </>
-            ) : (
-              <>
-                <SvnIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
-                <span>SVN Repository</span>
-              </>
+            {repository.vcs === 'git' && branchInfo && (
+              <div className="flex items-center">
+                <GitBranchIcon className="h-4 w-4 mr-2 flex-shrink-0"/>
+                <select
+                  value={branchInfo.current || ''}
+                  onChange={(e) => props.onSwitchBranch(repository.id, e.target.value)}
+                  className="bg-transparent border-0 focus:ring-0 p-0 text-sm font-medium text-blue-600 dark:text-blue-400 cursor-pointer"
+                >
+                  <optgroup label="Local Branches">
+                    {branchInfo.local.map(b => <option key={b} value={b}>{b}</option>)}
+                  </optgroup>
+                  <optgroup label="Remote Branches">
+                    {branchInfo.remote.map(b => <option key={b} value={b}>{`origin/${b}`}</option>)}
+                  </optgroup>
+                </select>
+              </div>
             )}
           </div>
-          {isPathValid && detailedStatus && <StatusIndicator status={detailedStatus} />}
-        </div>
-        
-        {webLinks && webLinks.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {webLinks.map(link => (
-              <WebLinkButton key={link.id} link={link} onOpen={onOpenWeblink} />
-            ))}
-          </div>
         )}
 
-        <div className="mt-3 flex items-center justify-between text-sm">
-          <span className="text-gray-400 dark:text-gray-500">Build Health:</span>
-          <span className={`font-semibold ${BUILD_HEALTH_COLORS[buildHealth]}`}>
-            {buildHealth}
-          </span>
-        </div>
-      </div>
-      
-      <div className="border-t border-gray-200 dark:border-gray-700 p-2 bg-gray-50 dark:bg-gray-800/50">
-          <p className="text-xs text-gray-400 dark:text-gray-500 text-center mb-2">
-            Last updated: {lastUpdated ? new Date(lastUpdated).toLocaleString() : 'Never'}
-          </p>
-          <div className="flex justify-between items-center gap-1">
-            <div className="flex-1 flex flex-wrap gap-2 items-center">
-               {isPathMissing ? (
-                    isPathSet ? (
-                        <CloneToPathButton
-                            cloneVerb={cloneVerb}
-                            remoteUrl={remoteUrl}
-                            localPath={localPath}
-                            isProcessing={isProcessing}
-                            onClone={() => onCloneRepo(id)}
-                        />
-                    ) : (
-                        <ChooseLocationButton
-                            cloneVerb={cloneVerb}
-                            isProcessing={isProcessing}
-                            onChooseLocation={() => onChooseLocationAndClone(id)}
-                        />
-                    )
-               ) : (
-                <>
-                  {tasksToShowOnCard.map(task => (
-                      <TaskButton
-                          key={task.id}
-                          task={task}
-                          isPathValid={isPathValid}
-                          isProcessing={isProcessing}
-                          onRunTask={() => onRunTask(id, task.id)}
-                      />
-                  ))}
-                  {launchConfigsToShowOnCard.map(config => (
-                      <LaunchConfigButton
-                          key={config.id}
-                          config={config}
-                          isPathValid={isPathValid}
-                          isProcessing={isProcessing}
-                          onRunLaunchConfig={() => onRunLaunchConfig(id, config.id)}
-                      />
-                  ))}
-                </>
-               )}
-            </div>
+        {/* Status indicator */}
+        {localPathState === 'valid' && detailedStatus && <StatusIndicator status={detailedStatus} />}
 
-            <div className="flex items-center space-x-0.5">
-                {isPathValid && hasMoreTasks && (
-                  <button
-                    {...moreTasksTooltip}
-                    onClick={() => {
-                      hideTooltip();
-                      onOpenTaskSelection(id);
-                    }}
-                    className="p-1.5 text-green-500 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-full transition-colors disabled:opacity-50"
-                    disabled={isProcessing}
-                  >
-                    <PlayIcon className="h-5 w-5" />
-                  </button>
-                )}
-                {isPathValid && hasMoreLaunchOptions && (
-                    <button
-                      {...moreLaunchTooltip}
-                      onClick={() => {
-                        hideTooltip();
-                        onOpenLaunchSelection(id);
-                      }}
-                      className="p-1.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors disabled:opacity-50"
-                      disabled={isProcessing}
-                    >
-                      <LightningBoltIcon className="h-5 w-5" />
-                    </button>
-                )}
-                <button
-                  {...terminalTooltip}
-                  onClick={() => {
-                    hideTooltip();
-                    onOpenTerminal(localPath);
-                  }}
-                  disabled={!isPathValid}
-                  className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <TerminalIcon className="h-5 w-5" />
-                </button>
-                <button
-                  {...historyTooltip}
-                  onClick={() => {
-                    hideTooltip();
-                    onViewHistory(id);
-                  }}
-                  disabled={!isPathValid}
-                  className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
-                >
-                  <ClockIcon className="h-5 w-5" />
-                </button>
-                <button
-                  {...logsTooltip}
-                  onClick={() => {
-                    hideTooltip();
-                    onViewLogs(id);
-                  }} 
-                  className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-                >
-                  <DocumentTextIcon className="h-5 w-5" />
-                </button>
-                <button
-                  {...configureTooltip}
-                  onClick={() => {
-                    hideTooltip();
-                    onEditRepo(id);
-                  }} 
-                  className="p-1.5 text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-full transition-colors"
-                >
-                  <PencilIcon className="h-5 w-5" />
-                </button>
-                <button
-                  {...deleteTooltip}
-                  onClick={() => {
-                    hideTooltip();
-                    onDeleteRepo(id);
-                  }} 
-                  className="p-1.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors"
-                >
-                  <TrashIcon className="h-5 w-5" />
-                </button>
+        {/* Invalid path state */}
+        {localPathState !== 'valid' && (
+          <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/40 rounded-lg text-sm text-yellow-800 dark:text-yellow-300">
+            <p className="font-semibold">Local path is {localPathState}.</p>
+            <div className="mt-2 flex gap-2">
+                <button onClick={() => props.onCloneRepo(repository.id)} className="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-xs">Clone here</button>
+                <button onClick={() => props.onChooseLocationAndClone(repository.id)} className="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-xs">Clone to...</button>
+                <button onClick={() => props.onEditRepo(repository.id)} className="px-2 py-1 border border-yellow-500 text-yellow-700 dark:text-yellow-200 rounded hover:bg-yellow-100 dark:hover:bg-yellow-800/50 text-xs">Set Path</button>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer with actions */}
+      <div className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 rounded-b-lg">
+        <div className="flex flex-wrap items-center gap-2">
+          {dashboardTasks.map(task => (
+            <button
+              key={task.id}
+              onClick={() => props.onRunTask(repository.id, task.id)}
+              disabled={localPathState !== 'valid' || isProcessing}
+              className="flex items-center px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <PlayIcon className="h-4 w-4 mr-1.5" />
+              {task.name}
+            </button>
+          ))}
+          {repository.tasks.length > dashboardTasks.length && (
+            <button
+              {...moreTasksTooltip}
+              onClick={() => props.onOpenTaskSelection(repository.id)}
+              disabled={localPathState !== 'valid' || isProcessing}
+              className="flex items-center px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <CubeTransparentIcon className="h-4 w-4" />
+            </button>
+          )}
+
+          {dashboardLaunchConfigs.map(config => (
+              <button
+                key={config.id}
+                onClick={() => props.onRunLaunchConfig(repository.id, config.id)}
+                disabled={localPathState !== 'valid' || isProcessing}
+                className="flex items-center px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RocketLaunchIcon className="h-4 w-4 mr-1.5"/>
+                {config.name}
+              </button>
+          ))}
+          
+          {hasMoreLaunchOptions && (
+            <button
+              {...moreLaunchablesTooltip}
+              onClick={() => props.onOpenLaunchSelection(repository.id)}
+              disabled={localPathState !== 'valid' || isProcessing}
+              className="flex items-center px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <SparklesIcon className="h-4 w-4" />
+            </button>
+          )}
+
+          <div className="flex-grow"></div>
+          
+          {(repository.webLinks || []).map(link => (
+              <button key={link.id} {...useTooltip(link.url)} onClick={() => props.onOpenWeblink(link.url)} className="p-1.5 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+              </button>
+          ))}
+          <button {...useTooltip('Open in Terminal')} onClick={() => props.onOpenTerminal(repository.localPath)} disabled={localPathState !== 'valid'} className="p-1.5 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+              <TerminalIcon className="h-4 w-4" />
+          </button>
         </div>
       </div>
-      {dropIndicatorPosition === 'after' && <div className="absolute top-0 bottom-0 -right-2 w-1.5 bg-blue-500 rounded-full" />}
     </div>
   );
 };
