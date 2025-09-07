@@ -126,3 +126,11 @@ This panel shows internal application logs, which can be helpful for diagnosing 
 -   **Log Filtering:** The header of the panel has buttons to toggle the visibility of different log levels (`DEBUG`, `INFO`, `WARN`, `ERROR`). This allows you to focus only on the messages you're interested in.
 -   **Save to File:** Clicking the "Save logs to file" icon will start writing all subsequent debug logs to a timestamped file on your computer. This is useful for capturing detailed information over a longer session to share in a bug report. Click the button again to stop logging to the file.
 -   **Resizing:** Like the Task Log Panel, you can click and drag the top border to resize it.
+
+## 7. Automatic Updates
+
+The application is designed to keep itself up-to-date automatically.
+
+-   **Checking:** On startup, the dashboard silently checks for a new version from the project's official GitHub repository.
+-   **Downloading:** If a new version is found, a small notification will appear indicating that the download has started. The download happens in the background.
+-   **Installation:** Once the download is complete, a prominent blue banner will appear at the top of the application window. To install the update, simply click the **"Restart & Install"** button. The application will close and restart as the new version.

@@ -70,10 +70,15 @@ To publish a new version for manual download:
 3.  **Publish Release:** Go to your repository's "Releases" page on GitHub, create a new release, and upload the generated installer files.
 ## 7. Automatic Updates
 
-The application is configured to automatically check for updates on startup.
+The application is configured to automatically check for updates on startup using the `electron-updater` library.
 
--   **Update Source:** It checks for new releases published on the project's [GitHub Releases page](https://github.com/ai-studio-sdk/git-automation-dashboard-example/releases).
--   **Process:** When a new version is found, it is downloaded in the background. You will receive a notification when the download is complete. The update will be automatically installed the next time you quit and restart the application.
+-   **Update Source:** It checks for new releases published on the project's [GitHub Releases page](https://github.com/ai-studio-sdk/git-automation-dashboard-example/releases). The configuration in `package.json` allows it to find pre-releases as well.
+-   **Process:**
+    1.  The `autoUpdater` in the Main Process (`electron/main.ts`) checks for updates.
+    2.  It sends IPC messages (`update-status-change`) to the Renderer Process to display toast notifications for events like 'checking' and 'downloading'.
+    3.  When the `update-downloaded` event is received, the Renderer Process (`App.tsx`) sets a state variable to display the `UpdateBanner` component.
+    4.  When the user clicks the "Restart & Install" button on the banner, the Renderer calls `window.electronAPI.restartAndInstallUpdate()`.
+    5.  This triggers an IPC event (`restart-and-install-update`) which causes the Main Process to call `autoUpdater.quitAndInstall()`, which handles the update process reliably.
 -   **Publishing a New Version:** To publish a new release, a developer with repository access must:
     1.  Ensure the `version` in `package.json` is incremented.
     2.  Create a `GH_TOKEN` (GitHub Personal Access Token) with `repo` scopes and make it available as an environment variable.

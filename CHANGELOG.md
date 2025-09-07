@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0]
+
+### Fixed
+- **Auto-Update Installation:** Fixed a critical bug where downloaded updates were not installed upon restarting the application.
+
+### Added
+- **Update Installation Banner:** When an update is downloaded, a prominent banner now appears at the top of the application with a "Restart & Install" button, providing a clear and reliable way to apply updates.
+
 ## [0.1.9]
 
 ### Added

@@ -15,6 +15,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Commit History:** View the 30 most recent commits for any repository.
 -   **Tabbed & Integrated Log Panel:** Monitor the output of every command in a detailed, resizable, and tabbed log panel that integrates smoothly into the main view.
 -   **Advanced Debugging:** A powerful debug console with log filtering and a save-to-file feature for in-depth troubleshooting.
+-   **Reliable Auto-Updates:** Get notified with a clear banner when a new version is ready and install it with a single click.
 -   **Easy Configuration:** Add new repositories and configure them through a simple, unified form.
 -   **Global Settings:** Customize the default package manager (`npm` or `yarn`), theme, and more.
 -   **Cross-Platform:** Works on Windows, macOS, and Linux.
