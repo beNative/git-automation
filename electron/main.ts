@@ -79,6 +79,8 @@ const DEFAULTS: GlobalSettings = {
     allowPrerelease: true,
     openLinksIn: 'default',
     githubPat: '',
+    gitExecutablePath: '',
+    svnExecutablePath: '',
 };
 
 async function readSettings(): Promise<GlobalSettings> {
@@ -682,9 +684,53 @@ ipcMain.handle('get-project-suggestions', async (event, { repoPath, repoName }: 
   return suggestions;
 });
 
+// --- Promise-based command executor ---
+const execAsync = (command: string, options: { cwd: string }): Promise<{ stdout: string, stderr: string }> => {
+  return new Promise((resolve, reject) => {
+    exec(command, options, (error, stdout, stderr) => {
+      if (error) {
+        // For git log, even if there's an error (e.g. empty repo), we might get stderr but no actual error object.
+        // We reject only on a true error object.
+        return reject(error);
+      }
+      resolve({ stdout, stderr });
+    });
+  });
+};
+
+const execFileAsync = (file: string, args: string[], options: { cwd: string }): Promise<{ stdout: string, stderr: string }> => {
+    return new Promise((resolve, reject) => {
+        execFile(file, args, options, (error, stdout, stderr) => {
+            if (error) {
+                return reject(error);
+            }
+            resolve({ stdout, stderr });
+        });
+    });
+};
+
+// --- Helper for resolving executable paths ---
+const getExecutableCommand = (vcsType: VcsType, settings: GlobalSettings, quoted = true): string => {
+    let path: string | undefined;
+    if (vcsType === VcsTypeEnum.Git) {
+        path = settings.gitExecutablePath;
+    } else if (vcsType === VcsTypeEnum.Svn) {
+        path = settings.svnExecutablePath;
+    }
+
+    if (path) {
+        return quoted ? `"${path}"` : path;
+    }
+    return vcsType; // Fallback to 'git' or 'svn'
+};
+
+
 // --- IPC handler for checking git/svn status ---
 ipcMain.handle('check-vcs-status', async (event, repo: Repository): Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }> => {
-    const command = repo.vcs === VcsTypeEnum.Git ? 'git status --porcelain' : 'svn status';
+    const settings = await readSettings();
+    const command = repo.vcs === VcsTypeEnum.Git 
+      ? `${getExecutableCommand(repo.vcs, settings)} status --porcelain` 
+      : `${getExecutableCommand(repo.vcs, settings)} status`;
     
     // This feature is Git-specific. For SVN, return a simplified structure.
     if (repo.vcs !== VcsTypeEnum.Git) {
@@ -733,6 +779,8 @@ ipcMain.handle('ignore-files-and-push', async (event, { repo, filesToIgnore }: {
         return { success: false, error: 'This feature is only available for Git repositories.' };
     }
     try {
+        const settings = await readSettings();
+        const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
         const gitignorePath = path.join(repo.localPath, '.gitignore');
         
         // Ensure .gitignore exists
@@ -745,9 +793,9 @@ ipcMain.handle('ignore-files-and-push', async (event, { repo, filesToIgnore }: {
         const contentToAppend = '\n# Added by Git Automation Dashboard\n' + filesToIgnore.join('\n') + '\n';
         await fs.appendFile(gitignorePath, contentToAppend, 'utf-8');
         
-        await execAsync('git add .gitignore', { cwd: repo.localPath });
-        await execAsync('git commit -m "chore: Update .gitignore"', { cwd: repo.localPath });
-        await execAsync('git push', { cwd: repo.localPath });
+        await execAsync(`${gitCmd} add .gitignore`, { cwd: repo.localPath });
+        await execAsync(`${gitCmd} commit -m "chore: Update .gitignore"`, { cwd: repo.localPath });
+        await execAsync(`${gitCmd} push`, { cwd: repo.localPath });
         
         return { success: true };
     } catch (e: any) {
@@ -784,6 +832,7 @@ ipcMain.handle('check-local-path', async (event, localPath: string): Promise<Loc
 // --- IPC handler for discovering remote URL ---
 ipcMain.handle('discover-remote-url', async (event, { localPath, vcs }: { localPath: string, vcs: VcsType }): Promise<{ url: string | null; error?: string }> => {
     try {
+      const settings = await readSettings();
       // Verify the path exists and is a repository of the specified type
       try {
         await fs.access(localPath);
@@ -798,15 +847,16 @@ ipcMain.handle('discover-remote-url', async (event, { localPath, vcs }: { localP
         return { url: null, error: `The path is not a valid ${vcs} repository.` };
       }
   
+      const cmd = getExecutableCommand(vcs, settings);
       if (vcs === VcsTypeEnum.Git) {
-        const { stdout } = await execAsync('git config --get remote.origin.url', { cwd: localPath });
+        const { stdout } = await execAsync(`${cmd} config --get remote.origin.url`, { cwd: localPath });
         const url = stdout.trim();
         if (!url) {
           return { url: null, error: 'Could not find remote "origin" URL.' };
         }
         return { url };
       } else if (vcs === VcsTypeEnum.Svn) {
-        const { stdout } = await execAsync('svn info --show-item url', { cwd: localPath });
+        const { stdout } = await execAsync(`${cmd} info --show-item url`, { cwd: localPath });
         const url = stdout.trim();
         if (!url) {
           return { url: null, error: 'Could not determine repository URL from SVN info.' };
@@ -829,6 +879,40 @@ ipcMain.handle('show-directory-picker', async () => {
     title: 'Select a parent directory for the repository'
   });
 });
+
+// --- IPC handler for showing file picker ---
+ipcMain.handle('show-file-picker', async () => {
+  if (!mainWindow) return { canceled: true, filePaths: [] };
+  return await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    title: 'Select Executable File'
+  });
+});
+
+// --- IPC handlers for executable paths ---
+ipcMain.handle('test-executable-path', async (event, { path: execPath, vcsType }: { path: string; vcsType: 'git' | 'svn' }): Promise<{ success: boolean; version?: string; error?: string }> => {
+  if (!execPath) return { success: false, error: 'No path provided.' };
+  const args = vcsType === 'git' ? ['--version'] : ['--version', '--quiet'];
+  try {
+    const { stdout } = await execFileAsync(execPath, args, { cwd: os.homedir() });
+    return { success: true, version: stdout.trim() };
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Execution failed' };
+  }
+});
+
+ipcMain.handle('autodetect-executable-path', async (event, vcsType: 'git' | 'svn'): Promise<string | null> => {
+    const command = vcsType;
+    const checkCommand = os.platform() === 'win32' ? `where ${command}` : `which ${command}`;
+    try {
+        const { stdout } = await execAsync(checkCommand, { cwd: os.homedir() });
+        return stdout.split(/[\r\n]/)[0].trim();
+    } catch (e) {
+        console.warn(`Could not autodetect ${command}: not found in PATH.`);
+        return null;
+    }
+});
+
 
 // --- IPC handler for path joining ---
 ipcMain.handle('path-join', async (event, ...args: string[]) => {
@@ -1076,9 +1160,11 @@ const createLineLogger = (
 
 
 // --- IPC handler for cloning a repo ---
-ipcMain.on('clone-repository', (event, { repo, executionId }: { repo: Repository, executionId: string }) => {
+ipcMain.on('clone-repository', async (event, { repo, executionId }: { repo: Repository, executionId: string }) => {
     const sender = mainWindow?.webContents.send.bind(mainWindow.webContents);
     if (!sender) return;
+
+    const settings = await readSettings();
 
     const sendLog = (message: string, level: LogLevel) => {
         sender('task-log', { executionId, message, level });
@@ -1093,11 +1179,11 @@ ipcMain.on('clone-repository', (event, { repo, executionId }: { repo: Repository
 
     if (repo.vcs === VcsTypeEnum.Git) {
         verb = 'Clone';
-        command = 'git';
+        command = getExecutableCommand(repo.vcs, settings, false);
         args = ['clone', repo.remoteUrl, repo.localPath];
     } else if (repo.vcs === VcsTypeEnum.Svn) {
         verb = 'Checkout';
-        command = 'svn';
+        command = getExecutableCommand(repo.vcs, settings, false);
         args = ['checkout', repo.remoteUrl, repo.localPath];
     } else {
         sendLog(`Cloning/Checking out is not supported for this VCS type: '${(repo as Repository).vcs}'.`, LogLevel.Error);
@@ -1112,7 +1198,7 @@ ipcMain.on('clone-repository', (event, { repo, executionId }: { repo: Repository
     fs.mkdir(parentDir, { recursive: true }).then(() => {
         const child = spawn(command, args, {
             cwd: parentDir,
-            shell: true,
+            shell: os.platform() === 'win32',
         });
 
         const stdoutLogger = createLineLogger(executionId, LogLevel.Info, sender);
@@ -1240,6 +1326,8 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
 
     try {
         const projectInfo = await getProjectInfo(repo.localPath);
+        const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
+        const svnCmd = getExecutableCommand(VcsTypeEnum.Svn, settings);
         
         // Construct environment for the child process
         const env = { ...process.env };
@@ -1256,14 +1344,14 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
 
         switch(step.type) {
             // Git Steps
-            case TaskStepType.GitPull: await run('git pull'); break;
-            case TaskStepType.GitFetch: await run('git fetch'); break;
+            case TaskStepType.GitPull: await run(`${gitCmd} pull`); break;
+            case TaskStepType.GitFetch: await run(`${gitCmd} fetch`); break;
             case TaskStepType.GitCheckout:
                 if (!step.branch) { sendLog('Skipping checkout: no branch specified.', LogLevel.Warn); sendEnd(0); return; }
-                await run(`git checkout ${step.branch}`); break;
-            case TaskStepType.GitStash: await run('git stash'); break;
+                await run(`${gitCmd} checkout ${step.branch}`); break;
+            case TaskStepType.GitStash: await run(`${gitCmd} stash`); break;
             // SVN Steps
-            case TaskStepType.SvnUpdate: await run('svn update'); break;
+            case TaskStepType.SvnUpdate: await run(`${svnCmd} update`); break;
             // Common Steps
             case TaskStepType.RunCommand:
                 if (!step.command) { sendLog('Skipping empty command.', LogLevel.Warn); sendEnd(0); return; }
@@ -1427,31 +1515,23 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
 // --- NEW IPC Handlers for Deep VCS Integration ---
 // =================================================================
 
-const execAsync = (command: string, options: { cwd: string }): Promise<{ stdout: string, stderr: string }> => {
-  return new Promise((resolve, reject) => {
-    exec(command, options, (error, stdout, stderr) => {
-      if (error) {
-        // For git log, even if there's an error (e.g. empty repo), we might get stderr but no actual error object.
-        // We reject only on a true error object.
-        return reject(error);
-      }
-      resolve({ stdout, stderr });
-    });
-  });
-};
+
 
 // --- Get Detailed Status ---
 ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promise<DetailedStatus | null> => {
   try {
+    const settings = await readSettings();
+    const cmd = getExecutableCommand(repo.vcs, settings);
+
     if (repo.vcs === VcsTypeEnum.Git) {
       try {
         // Fetch updates from all remotes without changing local branches
-        await execAsync('git remote update', { cwd: repo.localPath });
+        await execAsync(`${cmd} remote update`, { cwd: repo.localPath });
       } catch (fetchError: any) {
         // Log the error but continue, as status can still be useful with stale data
         console.warn(`'git remote update' failed for ${repo.name}. Status may be stale. Error: ${fetchError.stderr || fetchError.message}`);
       }
-      const { stdout } = await execAsync('git status --porcelain=v2 --branch', { cwd: repo.localPath });
+      const { stdout } = await execAsync(`${cmd} status --porcelain=v2 --branch`, { cwd: repo.localPath });
       const files: VcsFileStatus = { added: 0, modified: 0, deleted: 0, conflicted: 0, untracked: 0, renamed: 0 };
       let branchInfo: DetailedStatus['branchInfo'] = undefined;
       let isDirty = false;
@@ -1483,7 +1563,7 @@ ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promi
       }
       return { files, branchInfo, isDirty };
     } else if (repo.vcs === VcsTypeEnum.Svn) {
-      const { stdout } = await execAsync('svn status -u', { cwd: repo.localPath });
+      const { stdout } = await execAsync(`${cmd} status -u`, { cwd: repo.localPath });
       const files: VcsFileStatus = { added: 0, modified: 0, deleted: 0, conflicted: 0, untracked: 0, renamed: 0 };
       let updatesAvailable = false;
       let isDirty = false;
@@ -1524,6 +1604,8 @@ ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promi
 // --- Get Commit History (Git only) ---
 ipcMain.handle('get-commit-history', async (event, repoPath: string, skipCount?: number, searchQuery?: string): Promise<Commit[]> => {
     try {
+        const settings = await readSettings();
+        const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
         const SEPARATOR = '_||_';
         const format = `%H${SEPARATOR}%h${SEPARATOR}%an${SEPARATOR}%ar${SEPARATOR}%B`;
         const skip = skipCount && Number.isInteger(skipCount) && skipCount > 0 ? `--skip=${skipCount}` : '';
@@ -1532,7 +1614,7 @@ ipcMain.handle('get-commit-history', async (event, repoPath: string, skipCount?:
         const search = searchQuery ? `--grep="${searchQuery.replace(/"/g, '\\"')}" -i --all-match` : '';
         
         // Use -z to separate commits with a NUL character, as messages can contain newlines
-        const { stdout } = await execAsync(`git log --pretty=format:"${format}" -z -n 100 ${skip} ${search}`, { cwd: repoPath });
+        const { stdout } = await execAsync(`${gitCmd} log --pretty=format:"${format}" -z -n 100 ${skip} ${search}`, { cwd: repoPath });
         
         if (!stdout) return [];
         
@@ -1559,7 +1641,9 @@ ipcMain.handle('get-commit-history', async (event, repoPath: string, skipCount?:
 // --- List Branches (Git only) ---
 ipcMain.handle('list-branches', async (event, repoPath: string): Promise<BranchInfo> => {
     try {
-        const { stdout } = await execAsync('git branch -a', { cwd: repoPath });
+        const settings = await readSettings();
+        const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
+        const { stdout } = await execAsync(`${gitCmd} branch -a`, { cwd: repoPath });
         const branches: BranchInfo = { local: [], remote: [], current: null };
         stdout.split('\n').forEach(line => {
             line = line.trim();
@@ -1584,7 +1668,9 @@ ipcMain.handle('list-branches', async (event, repoPath: string): Promise<BranchI
 
 const simpleGitCommand = async (repoPath: string, command: string): Promise<{ success: boolean; error?: string }> => {
     try {
-        await execAsync(command, { cwd: repoPath });
+        const settings = await readSettings();
+        const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
+        await execAsync(`${gitCmd} ${command}`, { cwd: repoPath });
         return { success: true };
     } catch (e: any) {
         return { success: false, error: e.stderr || e.message };
@@ -1597,21 +1683,21 @@ ipcMain.handle('checkout-branch', (e, repoPath: string, branch: string) => {
     if (branch.includes('/')) {
         // This is for checking out a new local branch tracking a remote one.
         // `git checkout --track origin/main` creates a local branch 'main' and checks it out.
-        return simpleGitCommand(repoPath, `git checkout --track ${branch}`);
+        return simpleGitCommand(repoPath, `checkout --track ${branch}`);
     }
     // This is for switching to an existing local branch
-    return simpleGitCommand(repoPath, `git checkout ${branch}`);
+    return simpleGitCommand(repoPath, `checkout ${branch}`);
 });
-ipcMain.handle('create-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `git checkout -b ${branch}`));
+ipcMain.handle('create-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `checkout -b ${branch}`));
 ipcMain.handle('delete-branch', (e, repoPath: string, branch: string, isRemote: boolean) => {
     if (isRemote) {
         const remoteName = 'origin'; // This is a simplification
-        return simpleGitCommand(repoPath, `git push ${remoteName} --delete ${branch}`);
+        return simpleGitCommand(repoPath, `push ${remoteName} --delete ${branch}`);
     } else {
-        return simpleGitCommand(repoPath, `git branch -d ${branch}`);
+        return simpleGitCommand(repoPath, `branch -d ${branch}`);
     }
 });
-ipcMain.handle('merge-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `git merge ${branch}`));
+ipcMain.handle('merge-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `merge ${branch}`));
 
 
 // --- Log to file handlers ---

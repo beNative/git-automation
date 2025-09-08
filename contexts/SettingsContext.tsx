@@ -34,6 +34,8 @@ const DEFAULTS: GlobalSettings = {
     allowPrerelease: true,
     openLinksIn: 'default',
     githubPat: '',
+    gitExecutablePath: '',
+    svnExecutablePath: '',
 };
 
 const initialState: AppDataContextState = {

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0]
+
+### Added
+- **Executable Path Configuration:** In Settings > Behavior, you can now specify the exact path to the `git` and `svn` executables. This makes the application more robust for users who do not have these tools in their system's default `PATH`.
+- **Executable Path Helpers:** The new configuration section includes buttons to:
+    - **Auto-detect:** Automatically find the executable if it's in the `PATH`.
+    - **Browse:** Open a file picker to locate the executable manually.
+    - **Test:** Verify that the specified path is valid and works correctly.
+
 ## [0.9.1]
 
 ### Fixed

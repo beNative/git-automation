@@ -23,6 +23,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Persistent UI State:** The application remembers your dashboard layout, including the collapsed state of categories, between sessions.
 -   **Persistent & Safe Configuration:** All your settings and repository configurations are stored safely in a persistent location, ensuring they are never lost during application updates.
 -   **Settings Import/Export:** Easily back up, restore, or share your complete application configuration using zip files.
+-   **Robust Executable Handling:** Manually configure paths to your Git/SVN executables, with auto-detect and testing, ensuring the app works in any environment.
 -   **Global Settings:** Customize the application theme, icon set, notifications, and behavior like enabling pre-release updates or choosing your preferred web browser.
 -   **Cross-Platform:** Works on Windows, macOS, and Linux.
 

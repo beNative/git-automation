@@ -34,6 +34,9 @@ export interface IElectronAPI {
   cloneRepository: (args: { repo: Repository, executionId: string }) => void;
   launchApplication: (args: { repo: Repository, command: string }) => Promise<{ success: boolean; output: string }>;
   showDirectoryPicker: () => Promise<{ canceled: boolean, filePaths: string[] }>;
+  showFilePicker: () => Promise<{ canceled: boolean; filePaths: string[] }>;
+  testExecutablePath: (args: { path: string; vcsType: 'git' | 'svn' }) => Promise<{ success: boolean; version?: string; error?: string }>;
+  autodetectExecutablePath: (vcsType: 'git' | 'svn') => Promise<string | null>;
   pathJoin: (...args: string[]) => Promise<string>;
   detectExecutables: (repoPath: string) => Promise<string[]>;
   launchExecutable: (args: { repoPath: string, executablePath: string }) => Promise<{ success: boolean; output: string }>;

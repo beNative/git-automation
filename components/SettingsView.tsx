@@ -5,6 +5,10 @@ import { MoonIcon } from './icons/MoonIcon';
 import type { IconSet } from '../types';
 import { CodeBracketIcon } from './icons/CodeBracketIcon';
 import JsonConfigView from './JsonConfigView';
+import { FolderOpenIcon } from './icons/FolderOpenIcon';
+import { SparklesIcon } from './icons/SparklesIcon';
+import { BeakerIcon } from './icons/BeakerIcon';
+import { useTooltip } from '../hooks/useTooltip';
 
 interface SettingsViewProps {
   onSave: (settings: GlobalSettings) => void;
@@ -66,6 +70,49 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
   const handleCancel = () => {
       setSettings(currentSettings);
   };
+  
+  const handleBrowse = async (vcsType: 'git' | 'svn') => {
+    const result = await window.electronAPI.showFilePicker();
+    if (!result.canceled && result.filePaths.length > 0) {
+        const path = result.filePaths[0];
+        setSettings(prev => ({
+            ...prev,
+            [vcsType === 'git' ? 'gitExecutablePath' : 'svnExecutablePath']: path,
+        }));
+    }
+  };
+
+  const handleAutodetect = async (vcsType: 'git' | 'svn') => {
+      const path = await window.electronAPI.autodetectExecutablePath(vcsType);
+      if (path) {
+          setSettings(prev => ({
+              ...prev,
+              [vcsType === 'git' ? 'gitExecutablePath' : 'svnExecutablePath']: path,
+          }));
+          setToast({ message: `${vcsType.toUpperCase()} executable found at: ${path}`, type: 'success' });
+      } else {
+          setToast({ message: `Could not automatically find ${vcsType.toUpperCase()} executable in system PATH.`, type: 'info' });
+      }
+  };
+
+  const handleTest = async (vcsType: 'git' | 'svn') => {
+      const path = vcsType === 'git' ? settings.gitExecutablePath : settings.svnExecutablePath;
+      if (!path) {
+          const result = await window.electronAPI.testExecutablePath({ path: vcsType, vcsType });
+          if (result.success) {
+            setToast({ message: `Success! Found in PATH. Version: ${result.version}`, type: 'success' });
+          } else {
+            setToast({ message: `Executable not found in PATH and no custom path is set.`, type: 'error' });
+          }
+          return;
+      }
+      const result = await window.electronAPI.testExecutablePath({ path, vcsType });
+      if (result.success) {
+          setToast({ message: `Success! Version: ${result.version}`, type: 'success' });
+      } else {
+          setToast({ message: `Test failed: ${result.error}`, type: 'error' });
+      }
+  };
 
   const iconSetButtonBase = "flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md transition-colors";
   const iconSetButtonActive = "bg-white dark:bg-gray-700 shadow text-blue-700 dark:text-blue-400";
@@ -74,6 +121,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
   const navLinkBase = "w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800";
   const navLinkActive = "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white";
   const navLinkInactive = "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50";
+  
+  const formInputStyle = "block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
+  const actionButtonStyle = "p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 text-gray-600 dark:text-gray-300";
 
 
   return (
@@ -234,6 +284,33 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                                   <p className="text-gray-500">Enable verbose application logging. Disabling this may improve performance and resolve render loops.</p>
                               </div>
                           </div>
+                          
+                          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Executable Paths</h3>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Specify the full path to your version control executables if they are not in your system's PATH.
+                            </p>
+                            <div className="mt-4 space-y-4 max-w-2xl">
+                                <div>
+                                    <label htmlFor="gitExecutablePath" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Git Executable Path</label>
+                                    <div className="mt-1 flex items-center gap-2">
+                                        <input type="text" id="gitExecutablePath" name="gitExecutablePath" value={settings.gitExecutablePath || ''} onChange={handleChange} placeholder="e.g., C:\Program Files\Git\bin\git.exe" className={formInputStyle}/>
+                                        <button type="button" onClick={() => handleBrowse('git')} className={actionButtonStyle} title="Browse..."><FolderOpenIcon className="h-5 w-5"/></button>
+                                        <button type="button" onClick={() => handleAutodetect('git')} className={actionButtonStyle} title="Auto-detect"><SparklesIcon className="h-5 w-5"/></button>
+                                        <button type="button" onClick={() => handleTest('git')} className={actionButtonStyle} title="Test Path"><BeakerIcon className="h-5 w-5"/></button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label htmlFor="svnExecutablePath" className="block text-sm font-medium text-gray-700 dark:text-gray-300">SVN Executable Path</label>
+                                    <div className="mt-1 flex items-center gap-2">
+                                        <input type="text" id="svnExecutablePath" name="svnExecutablePath" value={settings.svnExecutablePath || ''} onChange={handleChange} placeholder="e.g., C:\Program Files\TortoiseSVN\bin\svn.exe" className={formInputStyle}/>
+                                        <button type="button" onClick={() => handleBrowse('svn')} className={actionButtonStyle} title="Browse..."><FolderOpenIcon className="h-5 w-5"/></button>
+                                        <button type="button" onClick={() => handleAutodetect('svn')} className={actionButtonStyle} title="Auto-detect"><SparklesIcon className="h-5 w-5"/></button>
+                                        <button type="button" onClick={() => handleTest('svn')} className={actionButtonStyle} title="Test Path"><BeakerIcon className="h-5 w-5"/></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                       </div>
                   </section>
               )}

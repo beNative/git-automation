@@ -24,8 +24,9 @@ The application is split into three main processes, which is standard for Electr
     -   Reads user settings on startup to configure features like the auto-updater's pre-release channel.
     -   Handles native OS interactions (dialogs, file system access).
     -   Listens for and responds to IPC (Inter-Process Communication) events. This includes:
-        -   Executing shell commands for task steps.
+        -   Executing shell commands for task steps. All Git/SVN command execution now uses user-configured executable paths from settings, falling back to the system `PATH` if not specified.
         -   Executing real Git/SVN commands for advanced features like checking status, fetching commit history, and managing branches (`get-detailed-vcs-status`, `list-branches`, etc.).
+        -   Handling new IPC calls for executable path management (file picker, auto-detection, testing).
         -   Handling requests from the renderer to open web links in the user-specified browser.
         -   Fetching the latest release information for a repository from the GitHub API using a user-provided Personal Access Token (`get-latest-release`).
         -   Managing the import and export of settings files using the `jszip` library.
@@ -43,7 +44,7 @@ The application is split into three main processes, which is standard for Electr
 -   **Entry Point:** `electron/preload.ts`
 -   **Responsibilities:**
     -   Acts as a secure bridge between the Renderer and Main processes.
-    -   Uses `contextBridge` to expose a safe, limited API (`window.electronAPI`) to the renderer.
+    -   Uses `contextBridge` to expose a safe, limited API (`window.electronAPI`) to the renderer. This includes functions like `showFilePicker`, `testExecutablePath`, and `autodetectExecutablePath`.
 
 ## 3. State Management and Data Flow
 

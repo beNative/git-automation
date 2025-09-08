@@ -107,6 +107,8 @@ export interface GlobalSettings {
   allowPrerelease: boolean;
   openLinksIn: 'default' | 'chrome' | 'firefox';
   githubPat: string;
+  gitExecutablePath: string;
+  svnExecutablePath: string;
 }
 
 export interface TaskStep {

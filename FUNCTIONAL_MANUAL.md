@@ -135,6 +135,10 @@ Click the **cog icon** in the header to access global settings.
         -   When **disabled**, the application will execute real `git`, `svn`, `npm`, and other shell commands. **Disable with caution.**
     -   **Check for Pre-Releases:** If enabled, the auto-updater will include beta and other pre-release versions when checking for updates.
     -   **Enable Debug Logging:** Controls the verbose internal logging used by the Debug Panel. Disabling this may improve performance.
+    -   **Executable Paths:** This new section allows you to specify the full file path to your `git` and `svn` executables. This is crucial if they are installed in a non-standard location and not available in your system's `PATH`.
+        -   **Browse (`📁` icon):** Opens a system file picker to help you locate the executable file (e.g., `git.exe`).
+        -   **Auto-detect (`✨` icon):** Attempts to automatically find the executable in your system's `PATH` and fills in the field for you.
+        -   **Test (`🧪` icon):** Runs a version command on the specified path to verify that it is a valid and working executable, providing instant feedback.
 
 **Note on Data Safety:** All settings and repository configurations are stored in a safe location on your computer. This means your data will be automatically preserved when the application updates to a new version.
 
