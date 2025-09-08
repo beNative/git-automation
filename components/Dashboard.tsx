@@ -94,16 +94,19 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   }, [draggedRepo]);
   
   const handleDragOverCategory = useCallback((e: React.DragEvent<HTMLDivElement>, categoryId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!draggedCategoryId || draggedCategoryId === categoryId) {
-        setCategoryDropIndicator(null);
-        return;
+    // ONLY handle this event if a category is being dragged over a DIFFERENT category.
+    if (draggedCategoryId && draggedCategoryId !== categoryId) {
+      e.preventDefault();
+      e.stopPropagation(); // Stop this event from going further.
+      const targetElement = e.currentTarget;
+      const rect = targetElement.getBoundingClientRect();
+      const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+      setCategoryDropIndicator({ categoryId, position });
+    } else {
+      // If we are dragging a repo, or dragging a category over itself, do nothing here.
+      // Let the event propagate to child elements which have their own onDragOver handlers for repos.
+      setCategoryDropIndicator(null);
     }
-    const targetElement = e.currentTarget;
-    const rect = targetElement.getBoundingClientRect();
-    const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
-    setCategoryDropIndicator({ categoryId, position });
   }, [draggedCategoryId]);
 
   const handleDragLeave = useCallback(() => {
@@ -225,9 +228,24 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         const categoryRepoIds = category.repositoryIds;
         const showDropIndicatorBefore = categoryDropIndicator?.categoryId === category.id && categoryDropIndicator.position === 'before';
         const showDropIndicatorAfter = categoryDropIndicator?.categoryId === category.id && categoryDropIndicator.position === 'after';
+        const isBeingDragged = draggedCategoryId === category.id;
+
         return (
-          <div key={category.id}>
-             {showDropIndicatorBefore && <div className="h-2 my-2 bg-blue-500 rounded-lg animate-pulse" />}
+          <div
+            key={category.id}
+            className={`transition-opacity duration-300 ${isBeingDragged ? 'opacity-40' : 'opacity-100'}`}
+            onDragOver={(e) => handleDragOverCategory(e, category.id)}
+            onDrop={(e) => {
+              // Only handle the drop if a category was being dragged.
+              if (draggedCategoryId) {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDrop('category', category.id);
+              }
+            }}
+            onDragLeave={handleDragLeave}
+          >
+             {showDropIndicatorBefore && <div className="h-2 my-2 bg-blue-500 rounded-lg" />}
               <div className="p-3 rounded-lg" style={{backgroundColor: category.backgroundColor}}>
                 <CategoryHeader 
                     category={category}
@@ -239,11 +257,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     onToggleCollapse={props.onToggleCategoryCollapse}
                     onMoveCategory={props.onMoveCategory}
                     onDragStart={() => handleDragStartCategory(category.id)}
-                    onDragOver={(e) => handleDragOverCategory(e, category.id)}
                     onDropRepo={() => handleDrop('category', category.id)}
-                    onDropCategory={() => handleDrop('category', category.id)}
                     onDragEnd={() => { setDraggedCategoryId(null); setCategoryDropIndicator(null); }}
-                    onDragLeave={handleDragLeave}
                 />
                 {!(category.collapsed ?? false) && (
                   <div 
@@ -265,7 +280,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                   </div>
                 )}
               </div>
-            {showDropIndicatorAfter && <div className="h-2 my-2 bg-blue-500 rounded-lg animate-pulse" />}
+            {showDropIndicatorAfter && <div className="h-2 my-2 bg-blue-500 rounded-lg" />}
           </div>
         );
       })}

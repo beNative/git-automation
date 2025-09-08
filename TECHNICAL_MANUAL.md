@@ -51,7 +51,7 @@ The application is split into three main processes, which is standard for Electr
 -   **Primary State:** The root `App.tsx` component manages the entire application state, including the list of repositories, global settings, **dashboard categories**, the active view, and the state of modals and panels. UI-specific state, such as the position and visibility of the right-click `ContextMenu`, is also managed here to ensure a single source of truth.
 -   **VCS State:** `App.tsx` also holds state for `detailedStatuses` and `branchLists` which are fetched periodically and after tasks complete to keep the UI in sync with the file system.
 -   **Parallel Task Execution:** To support running multiple tasks concurrently, a unique `executionId` is generated for each task run. This ID is passed between the renderer and main processes, allowing log output (`task-log`) and completion events (`task-step-end`) to be correctly routed to the appropriate repository and UI components without conflict.
--   **Component Architecture:** Key new components include `CategoryHeader.tsx` for managing category sections, a new `CategoryColorModal.tsx` for a comprehensive customization experience, and a heavily refactored `Dashboard.tsx` that now handles complex drag-and-drop logic.
+-   **Component Architecture:** Key new components include `CategoryHeader.tsx` for managing category sections, a new `CategoryColorModal.tsx` for a comprehensive customization experience, and a heavily refactored `Dashboard.tsx` that now handles complex drag-and-drop logic. Event handlers in `Dashboard.tsx` are carefully scoped to manage nested drop zones, ensuring that dragging a repository over a category does not conflict with dragging a category over another category.
 
 ### Data Persistence
 

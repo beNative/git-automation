@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.0]
+
+### Fixed
+- **Category Drag-and-Drop:** Fixed a critical event propagation bug that prevented categories from being reordered correctly via drag-and-drop.
+
 ## [0.11.0]
 
 ### Fixed

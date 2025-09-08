@@ -6,7 +6,7 @@ import { PencilIcon } from './icons/PencilIcon';
 import { PaintBrushIcon } from './icons/PaintBrushIcon';
 import CategoryColorModal from './modals/CategoryColorModal';
 import { GripVerticalIcon } from './icons/GripVerticalIcon';
-import { useTooltip } from '../hooks/useTooltip';
+import { useTooltip } from '../../hooks/useTooltip';
 import { ArrowUpIcon } from './icons/ArrowUpIcon';
 import { ArrowDownIcon } from './icons/ArrowDownIcon';
 
@@ -20,11 +20,8 @@ interface CategoryHeaderProps {
   onToggleCollapse: (categoryId: string) => void;
   onMoveCategory: (categoryId: string, direction: 'up' | 'down') => void;
   onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
   onDropRepo: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDropCategory: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
 }
 
 const CategoryHeader: React.FC<CategoryHeaderProps> = (props) => {
@@ -73,22 +70,25 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = (props) => {
 
   return (
     <div
-      draggable="true"
-      onDragStart={props.onDragStart}
-      onDragEnd={props.onDragEnd}
       onDragOver={(e) => {
-        props.onDragOver(e); // For category reordering
-        props.onDropRepo(e); // For dropping a repo onto the header
+        // This allows this element to be a drop target for repositories
+        e.preventDefault();
       }}
       onDrop={(e) => {
+        // Handle repo drop
+        e.preventDefault();
         e.stopPropagation();
-        props.onDropCategory(e);
         props.onDropRepo(e);
       }}
-      onDragLeave={props.onDragLeave}
       className={`group flex items-center p-0.5 rounded-lg transition-colors ${hasCustomBg ? '' : 'bg-gray-200 dark:bg-gray-800'}`}
     >
-      <div {...dragTooltip} className="p-1.5 cursor-move text-gray-400 dark:text-gray-500">
+      <div 
+        {...dragTooltip} 
+        draggable="true"
+        onDragStart={props.onDragStart}
+        onDragEnd={props.onDragEnd}
+        className="p-1.5 cursor-move text-gray-400 dark:text-gray-500 touch-none"
+      >
         <GripVerticalIcon className="h-5 w-5" />
       </div>
       <button onClick={() => onToggleCollapse(category.id)} className="flex items-center flex-grow text-left p-1.5" style={customStyle}>
