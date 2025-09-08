@@ -7,19 +7,28 @@ import { PaintBrushIcon } from './icons/PaintBrushIcon';
 import CategoryColorModal from './modals/CategoryColorModal';
 import { GripVerticalIcon } from './icons/GripVerticalIcon';
 import { useTooltip } from '../hooks/useTooltip';
+import { ArrowUpIcon } from './icons/ArrowUpIcon';
+import { ArrowDownIcon } from './icons/ArrowDownIcon';
 
 interface CategoryHeaderProps {
   category: Category;
   repoCount: number;
+  isFirst: boolean;
+  isLast: boolean;
   onUpdate: (category: Category) => void;
   onDelete: (categoryId: string) => void;
   onToggleCollapse: (categoryId: string) => void;
+  onMoveCategory: (categoryId: string, direction: 'up' | 'down') => void;
+  onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDropRepo: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDropCategory: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
 }
 
-const CategoryHeader: React.FC<CategoryHeaderProps> = ({ category, repoCount, onUpdate, onDelete, onToggleCollapse, onDragOver, onDrop, onDragLeave }) => {
+const CategoryHeader: React.FC<CategoryHeaderProps> = (props) => {
+  const { category, repoCount, isFirst, isLast, onUpdate, onDelete, onToggleCollapse, onMoveCategory } = props;
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(category.name);
   const [isColorModalOpen, setIsColorModalOpen] = useState(false);
@@ -28,6 +37,8 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = ({ category, repoCount, on
   const colorizeTooltip = useTooltip('Customize color');
   const editTooltip = useTooltip('Rename category');
   const deleteTooltip = useTooltip('Delete category');
+  const moveUpTooltip = useTooltip('Move category up');
+  const moveDownTooltip = useTooltip('Move category down');
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEditedName(e.target.value);
@@ -62,11 +73,19 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = ({ category, repoCount, on
 
   return (
     <div
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-// FIX START: Add onDragLeave handler to the div.
-      onDragLeave={onDragLeave}
-// FIX END
+      draggable="true"
+      onDragStart={props.onDragStart}
+      onDragEnd={props.onDragEnd}
+      onDragOver={(e) => {
+        props.onDragOver(e); // For category reordering
+        props.onDropRepo(e); // For dropping a repo onto the header
+      }}
+      onDrop={(e) => {
+        e.stopPropagation();
+        props.onDropCategory(e);
+        props.onDropRepo(e);
+      }}
+      onDragLeave={props.onDragLeave}
       className={`group flex items-center p-0.5 rounded-lg transition-colors ${hasCustomBg ? '' : 'bg-gray-200 dark:bg-gray-800'}`}
     >
       <div {...dragTooltip} className="p-1.5 cursor-move text-gray-400 dark:text-gray-500">
@@ -94,6 +113,8 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = ({ category, repoCount, on
       </button>
 
       <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity pr-2" style={customStyle}>
+        <button {...moveUpTooltip} onClick={() => onMoveCategory(category.id, 'up')} disabled={isFirst} className={`p-1.5 rounded-full disabled:opacity-30 ${hasCustomBg ? 'hover:bg-black/20' : 'hover:bg-gray-300 dark:hover:bg-gray-700'}`}><ArrowUpIcon className="h-4 w-4" /></button>
+        <button {...moveDownTooltip} onClick={() => onMoveCategory(category.id, 'down')} disabled={isLast} className={`p-1.5 rounded-full disabled:opacity-30 ${hasCustomBg ? 'hover:bg-black/20' : 'hover:bg-gray-300 dark:hover:bg-gray-700'}`}><ArrowDownIcon className="h-4 w-4" /></button>
         <button {...colorizeTooltip} onClick={() => setIsColorModalOpen(true)} className={`p-1.5 rounded-full ${hasCustomBg ? 'hover:bg-black/20' : 'hover:bg-gray-300 dark:hover:bg-gray-700'}`}><PaintBrushIcon className="h-4 w-4" /></button>
         <button {...editTooltip} onClick={() => setIsEditing(true)} className={`p-1.5 rounded-full ${hasCustomBg ? 'hover:bg-black/20' : 'hover:bg-gray-300 dark:hover:bg-gray-700'}`}><PencilIcon className="h-4 w-4" /></button>
         <button {...deleteTooltip} onClick={() => onDelete(category.id)} className={`p-1.5 rounded-full ${hasCustomBg ? 'hover:bg-black/20' : 'hover:bg-gray-300 dark:hover:bg-gray-700'}`}><TrashIcon className="h-4 w-4" /></button>

@@ -22,6 +22,8 @@ interface AppDataContextState {
   moveRepositoryToCategory: (repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => void;
   toggleCategoryCollapse: (categoryId: string) => void;
   toggleAllCategoriesCollapse: () => void;
+  moveCategory: (categoryId: string, direction: 'up' | 'down') => void;
+  reorderCategories: (draggedId: string, targetId: string, position: 'before' | 'after') => void;
 }
 
 const DEFAULTS: GlobalSettings = {
@@ -57,6 +59,8 @@ const initialState: AppDataContextState = {
   moveRepositoryToCategory: () => {},
   toggleCategoryCollapse: () => {},
   toggleAllCategoriesCollapse: () => {},
+  moveCategory: () => {},
+  reorderCategories: () => {},
 };
 
 export const SettingsContext = createContext<AppDataContextState>(initialState);
@@ -289,6 +293,45 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       return prev.map(c => ({ ...c, collapsed: shouldCollapseAll }));
     });
   }, []);
+  
+  const moveCategory = useCallback((categoryId: string, direction: 'up' | 'down') => {
+      setCategories(prev => {
+          const index = prev.findIndex(c => c.id === categoryId);
+          if (index === -1) return prev;
+          if (direction === 'up' && index === 0) return prev;
+          if (direction === 'down' && index === prev.length - 1) return prev;
+  
+          const newCategories = [...prev];
+          const targetIndex = direction === 'up' ? index - 1 : index + 1;
+          // Simple swap
+          [newCategories[index], newCategories[targetIndex]] = [newCategories[targetIndex], newCategories[index]];
+          return newCategories;
+      });
+  }, []);
+
+  const reorderCategories = useCallback((draggedId: string, targetId: string, position: 'before' | 'after') => {
+      setCategories(prev => {
+          const newCategories = [...prev];
+          const draggedIndex = newCategories.findIndex(c => c.id === draggedId);
+          if (draggedIndex === -1) return prev;
+
+          const [draggedItem] = newCategories.splice(draggedIndex, 1);
+          
+          let targetIndex = newCategories.findIndex(c => c.id === targetId);
+          if (targetIndex === -1) { // Failsafe
+              newCategories.splice(draggedIndex, 0, draggedItem);
+              return newCategories;
+          }
+
+          if (position === 'after') {
+              targetIndex++;
+          }
+          newCategories.splice(targetIndex, 0, draggedItem);
+          
+          return newCategories;
+      });
+  }, []);
+
 
   const value = useMemo(() => ({
     settings,
@@ -309,7 +352,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     moveRepositoryToCategory,
     toggleCategoryCollapse,
     toggleAllCategoriesCollapse,
-  }), [settings, saveSettings, repositories, isLoading, categories, uncategorizedOrder, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory, toggleCategoryCollapse, toggleAllCategoriesCollapse, addRepository, updateRepository, deleteRepository, setRepositories, setCategories, setUncategorizedOrder]);
+    moveCategory,
+    reorderCategories,
+  }), [settings, saveSettings, repositories, isLoading, categories, uncategorizedOrder, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory, toggleCategoryCollapse, toggleAllCategoriesCollapse, moveCategory, reorderCategories, addRepository, updateRepository, deleteRepository, setRepositories, setCategories, setUncategorizedOrder]);
 
   return (
     <SettingsContext.Provider value={value}>

@@ -50,6 +50,8 @@ const App: React.FC = () => {
     moveRepositoryToCategory,
     toggleCategoryCollapse,
     toggleAllCategoriesCollapse,
+    moveCategory,
+    reorderCategories,
   } = useSettings();
 
   const {
@@ -905,6 +907,8 @@ const App: React.FC = () => {
                     }}
                     onMoveRepositoryToCategory={moveRepositoryToCategory}
                     onToggleCategoryCollapse={toggleCategoryCollapse}
+                    onMoveCategory={moveCategory}
+                    onReorderCategories={reorderCategories}
                     onOpenTaskSelection={handleOpenTaskSelection} 
                     onRunTask={handleRunTask}
                     onViewLogs={handleViewLogs}
