@@ -5,10 +5,10 @@ This application provides a simple, powerful dashboard to manage and automate th
 ## Core Features
 
 -   **Centralized Dashboard:** View the status, branch, and build health of all your repositories in one place.
--   **Customizable Dashboard Categories:** Organize your repositories into collapsible sections with configurable colors (via a new modal with presets and custom pickers), full drag-and-drop support (for both repositories and categories) with alternative up/down reorder buttons, and a global expand/collapse control.
+-   **Customizable Dashboard Categories:** Organize your repositories into collapsible sections with configurable colors, full drag-and-drop support (for both repositories and categories), and alternative up/down reorder buttons.
 -   **Multi-VCS Support:** Manage both Git and Subversion (SVN) repositories seamlessly.
 -   **Repository-Specific Tasks:** Create custom, multi-step automation scripts (e.g., pull/update, install, build) for each repository.
--   **Quick Actions:** Manually refresh repository state, copy URLs/paths with a single click, and access all common actions via a right-click context menu.
+-   **Quick Actions:** Manually refresh repository state, copy URLs/paths with a single click, access all common actions via a right-click context menu, and reorder repositories with up/down buttons.
 -   **Powerful Command Palette:** Quickly access any action, task, or repository using a keyboard-driven command palette (`Ctrl/Cmd+K`).
 -   **Parallel Execution:** Run tasks on multiple repositories at the same time without waiting.
 -   **One-Click Update Check:** A "Check Updates" button fetches the latest information from all remotes, showing an "Updates Available" indicator on repositories that are behind.

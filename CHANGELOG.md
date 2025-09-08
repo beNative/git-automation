@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.0]
+
+### Fixed
+- **Repository Drag-and-Drop:** Fixed a long-standing bug that prevented repository cards from being correctly reordered via drag-and-drop. The state management has been refactored to be more robust and atomic.
+
+### Added
+- **Reordering Buttons:** Added Up and Down arrow buttons to repository cards, appearing on hover. This provides an alternative, accessible way to reorder them within their categories.
+
 ## [0.13.0]
 
 ### Added

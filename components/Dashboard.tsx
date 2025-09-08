@@ -13,6 +13,7 @@ interface DashboardProps {
   onUpdateCategory: (category: Category) => void;
   onDeleteCategory: (categoryId: string) => void;
   onMoveRepositoryToCategory: (repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => void;
+  onMoveRepository: (repoId: string, direction: 'up' | 'down') => void;
   onToggleCategoryCollapse: (categoryId: string) => void;
   onMoveCategory: (categoryId: string, direction: 'up' | 'down') => void;
   onReorderCategories: (draggedId: string, targetId: string, position: 'before' | 'after') => void;
@@ -137,14 +138,6 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             const targetList = targetCategory ? targetCategory.repositoryIds : uncategorizedOrder;
             targetIndex = targetList.length;
         }
-
-        if (sourceId === targetCategoryId) {
-            const sourceList = (sourceCategoryId ? categories.find(c => c.id === sourceCategoryId)?.repositoryIds : uncategorizedOrder) || [];
-            const sourceIndex = sourceList.indexOf(repoId);
-            if (sourceIndex > -1 && sourceIndex < targetIndex) {
-                targetIndex--;
-            }
-        }
         
         onMoveRepositoryToCategory(repoId, sourceId, targetCategoryId, targetIndex);
 
@@ -170,7 +163,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   
   const renderRepoList = (repoIds: string[], categoryId: string | null) => (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {repoIds.map((repoId) => {
+        {repoIds.map((repoId, index) => {
             const repo = reposById[repoId];
             if (!repo) return null; // Should not happen if data is consistent
 
@@ -194,6 +187,9 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     onDragLeave={handleDragLeave}
                     onDrop={() => handleDrop('repo', repo.id)}
                     onContextMenu={(e) => props.onOpenContextMenu(e, repo)}
+                    onMoveRepository={props.onMoveRepository}
+                    isFirstInList={index === 0}
+                    isLastInList={index === repoIds.length - 1}
                     // Pass all other props down from DashboardProps to RepositoryCardProps
                     onEditRepo={(repoId) => props.onOpenRepoForm(repoId)}
                     onOpenTaskSelection={props.onOpenTaskSelection}

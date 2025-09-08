@@ -23,6 +23,8 @@ import { TooltipContext } from '../contexts/TooltipContext';
 import { ArrowTopRightOnSquareIcon } from './icons/ArrowTopRightOnSquareIcon';
 import { ClipboardIcon } from './icons/ClipboardIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
+import { ArrowUpIcon } from './icons/ArrowUpIcon';
+import { ArrowDownIcon } from './icons/ArrowDownIcon';
 
 
 interface RepositoryCardProps {
@@ -33,6 +35,9 @@ interface RepositoryCardProps {
   onViewHistory: (repoId: string) => void;
   onEditRepo: (repoId: string) => void;
   onDeleteRepo: (repoId: string) => void;
+  onMoveRepository: (repoId: string, direction: 'up' | 'down') => void;
+  isFirstInList: boolean;
+  isLastInList: boolean;
   isProcessing: boolean;
   localPathState: LocalPathState;
   detailedStatus: DetailedStatus | null;
@@ -302,6 +307,9 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onViewHistory,
   onEditRepo,
   onDeleteRepo,
+  onMoveRepository,
+  isFirstInList,
+  isLastInList,
   isProcessing,
   localPathState,
   detailedStatus,
@@ -353,6 +361,8 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const configureTooltip = useTooltip('Configure Repository');
   const deleteTooltip = useTooltip('Delete Repository');
   const refreshTooltip = useTooltip('Refresh Status');
+  const moveUpTooltip = useTooltip('Move Up');
+  const moveDownTooltip = useTooltip('Move Down');
   const releaseUrlTooltip = useTooltip(latestRelease?.url);
 
   const cardClasses = [
@@ -424,6 +434,10 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
               className={`px-2 py-1 text-xs font-semibold rounded-full text-white ${STATUS_COLORS[status]}`}
             >
               {status}
+            </div>
+            <div className="flex items-center group-hover:opacity-100 opacity-0 transition-opacity">
+                <button {...moveUpTooltip} onClick={() => onMoveRepository(id, 'up')} disabled={isFirstInList} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900/50 rounded-full transition-colors disabled:opacity-30"><ArrowUpIcon className="h-4 w-4"/></button>
+                <button {...moveDownTooltip} onClick={() => onMoveRepository(id, 'down')} disabled={isLastInList} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900/50 rounded-full transition-colors disabled:opacity-30"><ArrowDownIcon className="h-4 w-4"/></button>
             </div>
             <button
                 {...refreshTooltip}

@@ -51,6 +51,7 @@ const App: React.FC = () => {
     updateCategory,
     deleteCategory,
     moveRepositoryToCategory,
+    moveRepository,
     toggleCategoryCollapse,
     toggleAllCategoriesCollapse,
     moveCategory,
@@ -926,6 +927,7 @@ const App: React.FC = () => {
                       });
                     }}
                     onMoveRepositoryToCategory={moveRepositoryToCategory}
+                    onMoveRepository={moveRepository}
                     onToggleCategoryCollapse={toggleCategoryCollapse}
                     onMoveCategory={moveCategory}
                     onReorderCategories={reorderCategories}

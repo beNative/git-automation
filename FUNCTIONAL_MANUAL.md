@@ -26,7 +26,9 @@ The dashboard is divided into collapsible sections called categories. This allow
 -   **Collapsing Sections:** Click the chevron icon (▶) next to a category's title to hide or show the repositories within it. This state is saved automatically, so your layout will be preserved the next time you open the app.
 -   **Assigning Repositories:** Simply drag a repository card and drop it onto a category header to assign it.
 -   **Reordering:**
-    -   **Repositories:** Drag and drop repository cards to reorder them within or between categories. When reordering, a blue indicator bar will show you exactly where the card will be dropped.
+    -   **Repositories:** You can reorder repositories in two ways:
+        1.  **Drag-and-Drop:** Drag and drop repository cards to reorder them within or between categories. A blue indicator bar will show you exactly where the card will be dropped.
+        2.  **Buttons:** Hover over a repository card to reveal **up and down arrow buttons** in its header. Use these for a simple, click-based way to reorder cards within their list.
     -   **Categories:** Drag and drop category headers using the grip handle (⋮⋮) to reorder the sections themselves. In addition to dragging, you can use the **up and down arrow buttons** that appear when hovering over a category header to reorder categories one position at a time. This provides an easy and accessible alternative.
 -   **Uncategorized Section:** Any repository not assigned to a category will automatically appear in a default "Uncategorized" section.
 
@@ -35,6 +37,7 @@ The dashboard is divided into collapsible sections called categories. This allow
 Each card gives you an at-a-glance overview of a repository:
 
 -   **Header:** Contains the repository name, its current status (e.g., `Idle`, `Success`), and a row of action icons:
+    -   **Reorder Arrows:** (On hover) Move the card up or down in its current list.
     -   **Refresh:** Manually fetches the latest status from the remote. The icon spins when any operation is in progress.
     -   **Configure (pencil icon):** Opens the repository configuration view.
     -   **Delete (trash icon):** Removes the repository from the dashboard.
