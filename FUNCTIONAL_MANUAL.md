@@ -150,7 +150,19 @@ For advanced users, the settings view includes a **"JSON Config"** tab. This sec
 -   **Export Settings:** Click the "Export Settings" button to save your current `settings.json` file into a `.zip` archive. This is useful for creating backups.
 -   **Import Settings:** Click the "Import Settings" button to load a configuration from a `.zip` archive. You will be prompted for confirmation before your current settings are overwritten. The application will restart automatically to apply the imported configuration.
 
-## 6. The Debug Panel
+## 6. The Status Bar
+
+The status bar is located at the very bottom of the application window and provides at-a-glance information and quick access to tools.
+
+-   **Repo & Task Count:** The left side displays the total number of repositories and the number of tasks currently running.
+-   **Latest Log:** The center of the bar shows the most recent log message from any task.
+-   **Simulation Mode Indicator:** Appears when Simulation Mode is active in the settings.
+-   **Debug Panel:** Click the **"Debug"** button or press `Ctrl+D` (or `Cmd+D` on macOS) to toggle the debug panel.
+-   **Command Palette Hint:** A reminder of the `Ctrl+K` (or `Cmd+K`) shortcut.
+-   **App Version & About Dialog:** Displays the current application version. **Clicking the version number** will open the "About" dialog, which contains application credits and copyright information.
+-   **Clock:** The current time.
+
+## 7. The Debug Panel
 
 For advanced troubleshooting, a debug panel is available. You can open it by clicking the **"Debug"** button in the status bar at the very bottom of the window, or by pressing `Ctrl+D` (or `Cmd+D` on macOS).
 
@@ -160,7 +172,7 @@ This panel shows internal application logs, which can be helpful for diagnosing 
 -   **Save to File:** Clicking the "Save logs to file" icon will start writing all subsequent debug logs to a timestamped file on your computer. This is useful for capturing detailed information over a longer session to share in a bug report. Click the button again to stop logging to the file.
 -   **Resizing:** Like the Task Log Panel, you can click and drag the top border to resize it.
 
-## 7. Command Palette
+## 8. Command Palette
 
 For keyboard-centric users, the application features a powerful command palette.
 
@@ -171,7 +183,7 @@ For keyboard-centric users, the application features a powerful command palette.
     -   Add a new repository.
 -   **Navigation:** Use the **Up and Down arrow keys** to select a command and press **Enter** to execute it. The list will automatically scroll to keep your selection in view. Press **Escape** to close the palette.
 
-## 8. Automatic Updates
+## 9. Automatic Updates
 
 The application is designed to keep itself up-to-date automatically.
 
@@ -179,5 +191,5 @@ The application is designed to keep itself up-to-date automatically.
 -   **Downloading:** If a new version is found, a small notification will appear indicating that the download has started. The download happens in the background.
 -   **Installation:** Once the download is complete, a prominent blue banner will appear at the top of the application window. To install the update, simply click the **"Restart & Install"** button. The application will close and restart as the new version.
 
-## 9. Web Mode (Preview)
+## 10. Web Mode (Preview)
 When the application is run in a standard web browser (outside of the Electron desktop app), it will load in a "simulation mode" with default settings. This is intended for preview and demonstration purposes, as features that rely on accessing your local file system (like running tasks or cloning repositories) are not available.

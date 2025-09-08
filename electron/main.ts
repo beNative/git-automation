@@ -1845,7 +1845,9 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
     }
 
     const { owner, repo: repoName } = ownerRepo;
-    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases?per_page=1`;
+    // Fetch a list of releases instead of just the latest one to apply logic.
+    // The API sorts by creation date descending, so the first one is the newest.
+    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases`;
 
     try {
         const response = await fetch(apiUrl, {
@@ -1861,14 +1863,30 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
             throw new Error(`GitHub API error (${response.status}): ${errorBody.message || 'Unknown error'}`);
         }
         
-        const data = await response.json();
+        const allReleases = await response.json();
 
-        if (!data || data.length === 0) {
+        if (!allReleases || allReleases.length === 0) {
             console.log(`[GitHub] No releases found for ${owner}/${repoName}.`);
             return null;
         }
 
-        const latestRelease = data[0];
+        // Find the latest release to display.
+        // We always show the latest release if it's a draft.
+        // Otherwise, we respect the 'allowPrerelease' setting.
+        const latestRelease = allReleases.find((release: any) => {
+            if (release.draft) {
+                return true; // Always include drafts if they are visible via API
+            }
+            if (!settings.allowPrerelease && release.prerelease) {
+                return false; // Skip if it's a pre-release and the setting is off
+            }
+            return true; // It's a full, published release
+        });
+        
+        if (!latestRelease) {
+            console.log(`[GitHub] No releases found for ${owner}/${repoName} that match settings (e.g., allowPrerelease).`);
+            return null;
+        }
 
         return {
             tagName: latestRelease.tag_name,

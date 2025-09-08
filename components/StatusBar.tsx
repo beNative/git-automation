@@ -15,6 +15,7 @@ interface StatusBarProps {
     latestLog: LogEntry | null;
     appVersion: string;
     onToggleDebugPanel: () => void;
+    onOpenAboutModal: () => void;
 }
 
 const Clock: React.FC = () => {
@@ -26,7 +27,7 @@ const Clock: React.FC = () => {
     return <>{time.toLocaleTimeString()}</>;
 };
 
-const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog, appVersion, onToggleDebugPanel }) => {
+const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog, appVersion, onToggleDebugPanel, onOpenAboutModal }) => {
     const LOG_LEVEL_COLOR_CLASSES: Record<string, string> = {
         info: 'text-gray-500 dark:text-gray-400',
         command: 'text-blue-500 dark:text-blue-400',
@@ -42,6 +43,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
     const debugPanelTooltip = useTooltip('Toggle Debug Panel (Ctrl+D)');
     const timeTooltip = useTooltip('Current Time');
     const latestLogTooltip = useTooltip(latestLog?.message || '');
+    const aboutTooltip = useTooltip('About this application');
 
     return (
         <footer className="h-[var(--status-bar-height)] bg-gray-200 dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700 flex items-center justify-between px-3 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0 z-10">
@@ -102,7 +104,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                 {appVersion && (
                     <>
                         <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                        <span>v{appVersion}</span>
+                        <button {...aboutTooltip} onClick={onOpenAboutModal} className="hover:text-blue-500 transition-colors">
+                            v{appVersion}
+                        </button>
                     </>
                 )}
                 

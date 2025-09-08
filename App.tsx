@@ -28,6 +28,7 @@ import ContextMenu from './components/ContextMenu';
 import UpdateBanner from './components/UpdateBanner';
 import ConfirmationModal from './components/modals/ConfirmationModal';
 import { ExclamationTriangleIcon } from './components/icons/ExclamationTriangleIcon';
+import AboutModal from './components/modals/AboutModal';
 
 const App: React.FC = () => {
   const logger = useLogger();
@@ -72,6 +73,7 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<AppView>('dashboard');
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isDebugPanelOpen, setIsDebugPanelOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [localPathStates, setLocalPathStates] = useState<Record<string, LocalPathState>>({});
   const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
   const [appVersion, setAppVersion] = useState<string>('');
@@ -972,6 +974,7 @@ const App: React.FC = () => {
             latestLog={latestLog}
             appVersion={appVersion}
             onToggleDebugPanel={() => setIsDebugPanelOpen(p => !p)}
+            onOpenAboutModal={() => setIsAboutModalOpen(true)}
           />
 
           <DebugPanel 
@@ -1065,6 +1068,12 @@ const App: React.FC = () => {
             confirmText={confirmationModal.confirmText}
             confirmButtonClass={confirmationModal.confirmButtonClass}
             icon={confirmationModal.icon}
+          />
+          
+          <AboutModal 
+            isOpen={isAboutModalOpen}
+            onClose={() => setIsAboutModalOpen(false)}
+            appVersion={appVersion}
           />
 
           <CommandPalette 
