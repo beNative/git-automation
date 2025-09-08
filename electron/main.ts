@@ -1960,7 +1960,7 @@ ipcMain.handle('get-all-releases', async (event, repo: Repository): Promise<Rele
     }
 });
 
-ipcMain.handle('update-release', async (event, { repo, releaseId, options }: { repo: Repository, releaseId: number, options: { draft?: boolean, prerelease?: boolean } }): Promise<{ success: boolean; error?: string }> => {
+ipcMain.handle('update-release', async (event, { repo, releaseId, options }: { repo: Repository, releaseId: number, options: Partial<ReleaseInfo> }): Promise<{ success: boolean; error?: string }> => {
     const settings = await readSettings();
     if (!settings.githubPat) return { success: false, error: 'GitHub PAT not set.' };
     
@@ -1991,6 +1991,43 @@ ipcMain.handle('update-release', async (event, { repo, releaseId, options }: { r
         return { success: false, error: error.message };
     }
 });
+
+ipcMain.handle('create-release', async (event, { repo, options }: { repo: Repository, options: { tag_name: string, name: string, body: string, draft: boolean, prerelease: boolean } }): Promise<{ success: boolean; error?: string }> => {
+    const settings = await readSettings();
+    if (!settings.githubPat) return { success: false, error: 'GitHub PAT not set.' };
+    
+    const ownerRepo = parseGitHubUrl(repo.remoteUrl);
+    if (!ownerRepo) return { success: false, error: 'Could not parse owner/repo from URL.' };
+
+    const { owner, repo: repoName } = ownerRepo;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases`;
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `token ${settings.githubPat}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'X-GitHub-Api-Version': '2022-11-28'
+            },
+            body: JSON.stringify(options),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            let errorMessage = errorBody.message || 'Unknown error';
+            if (errorBody.errors) {
+                errorMessage += ' ' + errorBody.errors.map((e: any) => e.message || e.code).join(', ');
+            }
+            throw new Error(`GitHub API error (${response.status}): ${errorMessage}`);
+        }
+        return { success: true };
+    } catch (error: any) {
+        console.error(`[GitHub] Failed to create release:`, error);
+        return { success: false, error: error.message };
+    }
+});
+
 
 ipcMain.handle('delete-release', async (event, { repo, releaseId }: { repo: Repository, releaseId: number }): Promise<{ success: boolean; error?: string }> => {
     const settings = await readSettings();

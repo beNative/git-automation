@@ -1,7 +1,8 @@
 
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -27,9 +28,13 @@ import { NodeIcon } from '../icons/NodeIcon';
 import { FolderOpenIcon } from '../icons/FolderOpenIcon';
 import { DocumentDuplicateIcon } from '../icons/DocumentDuplicateIcon';
 import { ServerIcon } from '../icons/ServerIcon';
+import { TagIcon } from '../icons/TagIcon';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
+// FIX: Update props to match usage in App.tsx
 interface RepoEditViewProps {
-  onSave: (repository: Repository) => void;
+  onSave: (repository: Repository, categoryId?: string) => void;
   onCancel: () => void;
   repository: Repository | null;
   onRefreshState: (repoId: string) => Promise<void>;
@@ -43,6 +48,8 @@ interface RepoEditViewProps {
     confirmButtonClass?: string;
     icon?: React.ReactNode;
   }) => void;
+  defaultCategoryId?: string;
+  onOpenWeblink: (url: string) => void;
 }
 
 const NEW_REPO_TEMPLATE: Omit<GitRepository, 'id'> = {
@@ -968,7 +975,7 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
   );
 };
 
-const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction }) => {
+const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction, defaultCategoryId }) => {
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
 
   // Ref to track previous remoteUrl to fire toast only once on discovery
@@ -995,7 +1002,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     return null;
   });
 
-  const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'branches'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'branches' | 'releases'>('tasks');
   
   // State for History Tab
   const [commits, setCommits] = useState<Commit[]>([]);
@@ -1012,11 +1019,18 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [newBranchName, setNewBranchName] = useState('');
   const [branchToMerge, setBranchToMerge] = useState('');
 
+  // State for Releases Tab
+  const [releases, setReleases] = useState<ReleaseInfo[] | null>(null);
+  const [releasesLoading, setReleasesLoading] = useState(false);
+  const [releasesError, setReleasesError] = useState<string | null>(null);
+  const [editingRelease, setEditingRelease] = useState<Partial<ReleaseInfo> | null>(null);
+
 
   const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
   const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
 
   const isGitRepo = formData.vcs === VcsType.Git;
+  const isGitHubRepo = useMemo(() => isGitRepo && formData.remoteUrl?.includes('github.com'), [isGitRepo, formData.remoteUrl]);
 
   // Debounce history search
   useEffect(() => {
@@ -1092,6 +1106,30 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   }, [repository, isGitRepo, setToast]);
 
+  const fetchReleases = useCallback(async () => {
+    if (!repository || !isGitHubRepo) return;
+    setReleasesLoading(true);
+    setReleasesError(null);
+    try {
+      const result = await window.electronAPI.getAllReleases(repository);
+      if (result) {
+        setReleases(result);
+      } else {
+        const pat = await window.electronAPI.getGithubPat();
+        if (!pat) {
+          setReleasesError("A GitHub Personal Access Token is required to manage releases. Please set one in Settings > Behavior.");
+        } else {
+          setReleasesError("Failed to fetch releases. Check the debug console for details.");
+        }
+      }
+    } catch (e: any) {
+      setReleasesError(`Error: ${e.message}`);
+    } finally {
+      setReleasesLoading(false);
+    }
+  }, [repository, isGitHubRepo, setToast]);
+
+
   // Fetch branch info on mount for the dropdown if possible
   useEffect(() => {
     if (repository?.localPath && isGitRepo) {
@@ -1110,14 +1148,17 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   useEffect(() => {
     if (activeTab === 'history') {
         fetchHistory(false);
-    }
-    if (activeTab === 'branches') {
+    } else if (activeTab === 'branches') {
         if (!branchInfo) {
             fetchBranches();
         }
+    } else if (activeTab === 'releases') {
+        if (!releases) {
+            fetchReleases();
+        }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, debouncedHistorySearch, fetchBranches, branchInfo]);
+  }, [activeTab, debouncedHistorySearch]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -1163,7 +1204,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   const handleSave = () => {
     const dataToSave = 'id' in formData ? formData : { ...formData, id: `repo_${Date.now()}` };
-    onSave(dataToSave as Repository);
+    onSave(dataToSave as Repository, defaultCategoryId);
   };
 
   const handleTaskChange = (updatedTask: Task) => {
@@ -1537,6 +1578,13 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                      )}
                 </div>
             );
+        case 'releases':
+            return (
+                <div className="flex-1 flex flex-col p-4 overflow-hidden">
+                    {/* Placeholder for Releases UI */}
+                    <p className="text-center text-gray-500">Releases tab content goes here.</p>
+                </div>
+            );
         default: return null;
     }
   }
@@ -1728,6 +1776,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                     <>
                         <button onClick={() => setActiveTab('history')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'history' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><DocumentTextIcon className="h-5 w-5"/>History</button>
                         <button onClick={() => setActiveTab('branches')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'branches' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><GitBranchIcon className="h-5 w-5"/>Branches</button>
+                        <button onClick={() => setActiveTab('releases')} disabled={!isGitHubRepo} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${activeTab === 'releases' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><TagIcon className="h-5 w-5"/>Releases</button>
                     </>
                 )}
             </div>

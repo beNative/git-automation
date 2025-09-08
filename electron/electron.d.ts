@@ -30,7 +30,8 @@ export interface IElectronAPI {
   // Release Management
   getLatestRelease: (repo: Repository) => Promise<ReleaseInfo | null>;
   getAllReleases: (repo: Repository) => Promise<ReleaseInfo[] | null>;
-  updateRelease: (args: { repo: Repository, releaseId: number, options: { draft?: boolean, prerelease?: boolean } }) => Promise<{ success: boolean; error?: string }>;
+  updateRelease: (args: { repo: Repository, releaseId: number, options: Partial<ReleaseInfo> }) => Promise<{ success: boolean; error?: string }>;
+  createRelease: (args: { repo: Repository, options: { tag_name: string, name: string, body: string, draft: boolean, prerelease: boolean } }) => Promise<{ success: boolean; error?: string }>;
   deleteRelease: (args: { repo: Repository, releaseId: number }) => Promise<{ success: boolean; error?: string }>;
 
   // GitHub PAT

@@ -108,6 +108,15 @@ Provides a full interface to manage your Git branches. You can:
 - Delete local or remote branches.
 - Merge another branch into your current one.
 
+#### Releases Tab (Git Only)
+This tab provides a complete interface for managing your project's GitHub releases. It requires a GitHub Personal Access Token with `repo` scope to be configured in the global settings.
+- **View Releases:** See a list of all existing releases, each with its name, tag, creation date, and status badges for "Draft" and "Pre-release". The release notes body is also displayed and supports Markdown rendering.
+- **Create Release:** Click the "Create New Release" button to open a form. You can specify a tag name, title, and release notes (in Markdown), and choose whether to create it as a draft or a pre-release.
+- **Edit Release:** Click the "Edit" button on any release to modify its details.
+- **Publish/Unpublish:** Quickly toggle a release's draft status.
+- **Toggle Pre-release:** Change a release from a stable to a pre-release and vice-versa.
+- **Delete Release:** Permanently delete a release from GitHub after a confirmation prompt.
+
 After making any changes, click **"Save Repository"** on the main view to persist them.
 
 ## 4. The Task Log Panel
@@ -195,4 +204,4 @@ The application is designed to keep itself up-to-date automatically.
 -   **Installation:** Once the download is complete, a prominent blue banner will appear at the top of the application window. To install the update, simply click the **"Restart & Install"** button. The application will close and restart as the new version.
 
 ## 10. Web Mode (Preview)
-When the application is run in a standard web browser (outside of the Electron desktop app), it will load in a "simulation mode" with default settings. This is intended for preview and demonstration purposes, as features that rely on accessing your local file system (like running tasks or cloning repositories) are not available.
+When the application is run in a standard

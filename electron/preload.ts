@@ -34,7 +34,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Release Management
   getLatestRelease: (repo: Repository): Promise<ReleaseInfo | null> => ipcRenderer.invoke('get-latest-release', repo),
   getAllReleases: (repo: Repository): Promise<ReleaseInfo[] | null> => ipcRenderer.invoke('get-all-releases', repo),
-  updateRelease: (args: { repo: Repository, releaseId: number, options: { draft?: boolean, prerelease?: boolean } }): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('update-release', args),
+  updateRelease: (args: { repo: Repository, releaseId: number, options: Partial<ReleaseInfo> }): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('update-release', args),
+  createRelease: (args: { repo: Repository, options: { tag_name: string, name: string, body: string, draft: boolean, prerelease: boolean } }): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('create-release', args),
   deleteRelease: (args: { repo: Repository, releaseId: number }): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('delete-release', args),
 
   // GitHub PAT
