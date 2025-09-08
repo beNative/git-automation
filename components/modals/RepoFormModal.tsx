@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
@@ -1021,10 +1022,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [releases, setReleases] = useState<ReleaseInfo[] | null>(null);
   const [releasesLoading, setReleasesLoading] = useState(false);
   const [releasesError, setReleasesError] = useState<string | null>(null);
-  const [editingRelease, setEditingRelease] = useState<Partial<ReleaseInfo> | null>(null);
+  const [editingRelease, setEditingRelease] = useState<Partial<ReleaseInfo> & { isNew?: boolean } | null>(null);
 
 
-  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
+  const formInputStyle = "block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
   const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
 
   const isGitRepo = formData.vcs === VcsType.Git;
@@ -1421,6 +1422,63 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   }, []);
 
+  const handleUpdateRelease = async (releaseId: number, options: Partial<ReleaseInfo>) => {
+    if (!repository) return;
+    const result = await window.electronAPI.updateRelease({ repo: repository, releaseId, options });
+    if (result.success) {
+      setToast({ message: 'Release updated.', type: 'success' });
+      fetchReleases();
+    } else {
+      setToast({ message: `Error: ${result.error}`, type: 'error' });
+    }
+  };
+  
+  const handleDeleteRelease = async (releaseId: number) => {
+    if (!repository) return;
+    confirmAction({
+      title: 'Delete Release',
+      message: 'Are you sure you want to delete this release? This action cannot be undone.',
+      confirmText: 'Delete',
+      icon: <ExclamationCircleIcon className="h-6 w-6 text-red-600" />,
+      onConfirm: async () => {
+        const result = await window.electronAPI.deleteRelease({ repo: repository, releaseId });
+        if (result.success) {
+          setToast({ message: 'Release deleted.', type: 'success' });
+          fetchReleases();
+        } else {
+          setToast({ message: `Error: ${result.error}`, type: 'error' });
+        }
+      },
+    });
+  };
+
+  const handleSaveRelease = async () => {
+    if (!repository || !editingRelease) return;
+    
+    const options = {
+        tag_name: editingRelease.tagName!,
+        name: editingRelease.name!,
+        body: editingRelease.body || '',
+        draft: editingRelease.isDraft || false,
+        prerelease: editingRelease.isPrerelease || false,
+    };
+    
+    let result;
+    if (editingRelease.isNew) {
+      result = await window.electronAPI.createRelease({ repo: repository, options });
+    } else {
+      result = await window.electronAPI.updateRelease({ repo: repository, releaseId: editingRelease.id!, options });
+    }
+
+    if (result.success) {
+      setToast({ message: `Release ${editingRelease.isNew ? 'created' : 'saved'}.`, type: 'success' });
+      setEditingRelease(null);
+      fetchReleases();
+    } else {
+      setToast({ message: `Error: ${result.error}`, type: 'error' });
+    }
+  };
+
 
   const selectedTask = useMemo(() => {
     return formData.tasks?.find(t => t.id === selectedTaskId) || null;
@@ -1577,9 +1635,68 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 </div>
             );
         case 'releases':
+            if (editingRelease) {
+                return (
+                    <div className="flex-1 flex flex-col p-4 overflow-y-auto space-y-4">
+                        <h3 className="text-lg font-bold">{editingRelease.isNew ? 'Create New Release' : 'Edit Release'}</h3>
+                        <div>
+                            <label htmlFor="tagName" className={formLabelStyle}>Tag Name (e.g., v1.0.0)</label>
+                            <input type="text" id="tagName" value={editingRelease.tagName || ''} onChange={e => setEditingRelease(p => ({ ...p, tagName: e.target.value }))} className={formInputStyle} required />
+                        </div>
+                        <div>
+                            <label htmlFor="name" className={formLabelStyle}>Release Title</label>
+                            <input type="text" id="name" value={editingRelease.name || ''} onChange={e => setEditingRelease(p => ({ ...p, name: e.target.value }))} className={formInputStyle} />
+                        </div>
+                        <div>
+                            <label htmlFor="body" className={formLabelStyle}>Release Notes (Markdown supported)</label>
+                            <textarea id="body" value={editingRelease.body || ''} onChange={e => setEditingRelease(p => ({ ...p, body: e.target.value }))} className={`${formInputStyle} min-h-[150px] font-mono`} />
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editingRelease.isDraft} onChange={e => setEditingRelease(p => ({ ...p, isDraft: e.target.checked }))} className="rounded" /> Draft</label>
+                            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editingRelease.isPrerelease} onChange={e => setEditingRelease(p => ({ ...p, isPrerelease: e.target.checked }))} className="rounded" /> Pre-release</label>
+                        </div>
+                        <div className="flex gap-3">
+                            <button onClick={handleSaveRelease} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save Release</button>
+                            <button onClick={() => setEditingRelease(null)} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">Cancel</button>
+                        </div>
+                    </div>
+                );
+            }
             return (
-                <div className="flex-1 flex flex-col p-4 overflow-y-auto space-y-4">
-                  {/* ... Full release UI implementation ... */}
+                <div className="flex-1 flex flex-col p-4 overflow-hidden">
+                    <div className="flex justify-between items-center pb-4">
+                        <h3 className="text-lg font-bold">Manage Releases</h3>
+                        <button onClick={() => setEditingRelease({ isNew: true, isDraft: true, isPrerelease: false, name: '', tagName: '', body: '' })} className="px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-2"><PlusIcon className="h-4 w-4"/>Create New Release</button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-3">
+                        {releasesLoading && <p>Loading releases...</p>}
+                        {releasesError && <p className="text-red-500">{releasesError}</p>}
+                        {releases && releases.map(release => (
+                            <div key={release.id} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <h4 className="font-bold text-gray-900 dark:text-gray-100">{release.name || release.tagName}</h4>
+                                        <div className="flex items-center gap-2 text-xs mt-1 text-gray-500 dark:text-gray-400">
+                                            <span className="font-mono bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded">{release.tagName}</span>
+                                            <span>Created: {new Date(release.createdAt).toLocaleDateString()}</span>
+                                            {release.isDraft && <span className="px-2 py-0.5 font-semibold rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200">Draft</span>}
+                                            {release.isPrerelease && <span className="px-2 py-0.5 font-semibold rounded-full bg-yellow-200 dark:bg-yellow-700 text-yellow-800 dark:text-yellow-200">Pre-release</span>}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => handleUpdateRelease(release.id, { isDraft: !release.isDraft })} className="px-3 py-1 text-xs text-white bg-gray-500 hover:bg-gray-600 rounded-md">{release.isDraft ? 'Publish' : 'Unpublish'}</button>
+                                        <button onClick={() => setEditingRelease(release)} className="p-1.5 text-blue-500 hover:bg-blue-100 rounded-full"><PencilIcon className="h-4 w-4" /></button>
+                                        <button onClick={() => handleDeleteRelease(release.id)} className="p-1.5 text-red-500 hover:bg-red-100 rounded-full"><TrashIcon className="h-4 w-4" /></button>
+                                    </div>
+                                </div>
+                                <div className="mt-2 pt-2 border-t prose prose-sm dark:prose-invert max-w-none">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({...props}) => <a {...props} onClick={(e) => { e.preventDefault(); onOpenWeblink(props.href!); }} /> }}>
+                                        {release.body || '*No description provided.*'}
+                                    </ReactMarkdown>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             );
         default: return null;
@@ -1785,3 +1902,4 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 };
 
 export default RepoEditView;
+      

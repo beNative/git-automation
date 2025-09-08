@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext, useRef } from 'react';
 import type { GlobalSettings, Repository, Category } from '../types';
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
@@ -239,44 +240,39 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, [categories]);
 
   const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => {
-      logger.debug('moveRepositoryToCategory refactored', { repoId, sourceId, targetId, targetIndex });
-  
-      // Use separate functional updates for atomicity and to avoid stale state issues.
-      
-      // Update categories state
-      setCategories(prevCats => {
-          let newCats = JSON.parse(JSON.stringify(prevCats));
-          // Remove from source if it's a category
-          if (sourceId !== 'uncategorized') {
-              const sourceCat = newCats.find((c: Category) => c.id === sourceId);
-              if (sourceCat) {
-                  sourceCat.repositoryIds = sourceCat.repositoryIds.filter((id: string) => id !== repoId);
-              }
-          }
-          // Add to target if it's a category
-          if (targetId !== 'uncategorized') {
-              const targetCat = newCats.find((c: Category) => c.id === targetId);
-              if (targetCat) {
-                  targetCat.repositoryIds.splice(targetIndex, 0, repoId);
-              }
-          }
-          return newCats;
-      });
-  
-      // Update uncategorized order state
-      setUncategorizedOrder(prevUncat => {
-          let newUncat = [...prevUncat];
-          // Remove from source if it's uncategorized
-          if (sourceId === 'uncategorized') {
-              newUncat = newUncat.filter(id => id !== repoId);
-          }
-          // Add to target if it's uncategorized
-          if (targetId === 'uncategorized') {
-              newUncat.splice(targetIndex, 0, repoId);
-          }
-          return newUncat;
-      });
-  }, [logger]);
+    logger.debug('moveRepositoryToCategory ATOMIC', { repoId, sourceId, targetId, targetIndex });
+
+    // Create mutable copies
+    const newCategories = JSON.parse(JSON.stringify(categories));
+    const newUncategorizedOrder = [...uncategorizedOrder];
+
+    // 1. Find and remove the repo from its source
+    if (sourceId === 'uncategorized') {
+        const index = newUncategorizedOrder.indexOf(repoId);
+        if (index > -1) newUncategorizedOrder.splice(index, 1);
+    } else {
+        const sourceCat = newCategories.find((c: Category) => c.id === sourceId);
+        if (sourceCat) {
+            const index = sourceCat.repositoryIds.indexOf(repoId);
+            if (index > -1) sourceCat.repositoryIds.splice(index, 1);
+        }
+    }
+
+    // 2. Add the repo to its target
+    if (targetId === 'uncategorized') {
+        newUncategorizedOrder.splice(targetIndex, 0, repoId);
+    } else {
+        const targetCat = newCategories.find((c: Category) => c.id === targetId);
+        if (targetCat) {
+            targetCat.repositoryIds.splice(targetIndex, 0, repoId);
+        }
+    }
+
+    // 3. Set the new state atomically
+    setCategories(newCategories);
+    setUncategorizedOrder(newUncategorizedOrder);
+
+  }, [categories, uncategorizedOrder, logger]);
 
   const moveRepository = useCallback((repoId: string, direction: 'up' | 'down') => {
     logger.debug('moveRepository triggered', { repoId, direction });
@@ -422,3 +418,4 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 export const useSettings = () => {
     return useContext(SettingsContext);
 };
+      
