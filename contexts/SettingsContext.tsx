@@ -8,7 +8,7 @@ interface AppDataContextState {
   saveSettings: (newSettings: GlobalSettings) => void;
   repositories: Repository[];
   setRepositories: (repos: Repository[]) => void;
-  addRepository: (repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>) => void;
+  addRepository: (repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>, categoryId?: string) => void;
   updateRepository: (updatedRepo: Repository) => void;
   deleteRepository: (repoId: string) => void;
   isLoading: boolean;
@@ -171,7 +171,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     setSettings(newSettings);
   }, []);
   
-  const addRepository = useCallback((repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>) => {
+  const addRepository = useCallback((repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>, categoryId?: string) => {
     const newRepo: Repository = {
       id: `repo_${Date.now()}`,
       status: RepoStatus.Idle,
@@ -180,8 +180,17 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       ...repoData
     } as Repository;
     setRepositories(prev => [...prev, newRepo]);
-    // Add new repo to the start of the uncategorized list
-    setUncategorizedOrder(prev => [newRepo.id, ...prev]);
+    
+    if (categoryId) {
+        setCategories(prev => prev.map(cat => 
+            cat.id === categoryId 
+                ? { ...cat, repositoryIds: [...cat.repositoryIds, newRepo.id] } 
+                : cat
+        ));
+    } else {
+        // Add new repo to the start of the uncategorized list
+        setUncategorizedOrder(prev => [newRepo.id, ...prev]);
+    }
   }, []);
   
   const updateRepository = useCallback((updatedRepo: Repository) => {

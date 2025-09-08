@@ -18,11 +18,11 @@ interface DashboardProps {
   onReorderCategories: (draggedId: string, targetId: string, position: 'before' | 'after') => void;
   
   // Pass-through props for RepositoryCard
+  onOpenRepoForm: (repoId: string | 'new', categoryId?: string) => void;
   onOpenTaskSelection: (repoId: string) => void;
   onRunTask: (repoId: string, taskId: string) => void;
   onViewLogs: (repoId: string) => void;
   onViewHistory: (repoId: string) => void;
-  onEditRepo: (repoId: string) => void;
   onDeleteRepo: (repoId: string) => void;
   isProcessing: Set<string>;
   localPathStates: Record<string, LocalPathState>;
@@ -195,11 +195,11 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     onDrop={() => handleDrop('repo', repo.id)}
                     onContextMenu={(e) => props.onOpenContextMenu(e, repo)}
                     // Pass all other props down from DashboardProps to RepositoryCardProps
+                    onEditRepo={(repoId) => props.onOpenRepoForm(repoId)}
                     onOpenTaskSelection={props.onOpenTaskSelection}
                     onRunTask={props.onRunTask}
                     onViewLogs={props.onViewLogs}
                     onViewHistory={props.onViewHistory}
-                    onEditRepo={props.onEditRepo}
                     onDeleteRepo={props.onDeleteRepo}
                     onSwitchBranch={props.onSwitchBranch}
                     onCloneRepo={props.onCloneRepo}
@@ -256,6 +256,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     onDelete={props.onDeleteCategory}
                     onToggleCollapse={props.onToggleCategoryCollapse}
                     onMoveCategory={props.onMoveCategory}
+                    onAddRepo={() => props.onOpenRepoForm('new', category.id)}
                     onDragStart={() => handleDragStartCategory(category.id)}
                     onDropRepo={() => handleDrop('category', category.id)}
                     onDragEnd={() => { setDraggedCategoryId(null); setCategoryDropIndicator(null); }}

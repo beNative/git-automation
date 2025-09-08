@@ -64,7 +64,10 @@ const App: React.FC = () => {
     isProcessing,
   } = useRepositoryManager({ repositories, updateRepository });
   
-  const [repoToEditId, setRepoToEditId] = useState<string | 'new' | null>(null);
+  const [repoFormState, setRepoFormState] = useState<{
+    repoId: string | 'new' | null;
+    defaultCategoryId?: string;
+  }>({ repoId: null });
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [activeView, setActiveView] = useState<AppView>('dashboard');
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -455,29 +458,33 @@ const App: React.FC = () => {
     setToast({ message: 'Settings saved successfully!', type: 'success' });
   };
 
-  const handleEditRepository = (repoId: string | 'new') => {
-    logger.info('Changing view to edit-repository', { repoId });
-    setRepoToEditId(repoId);
+  const handleOpenRepoForm = (repoId: string | 'new', defaultCategoryId?: string) => {
+    logger.info('Changing view to edit-repository', { repoId, defaultCategoryId });
+    setRepoFormState({ repoId, defaultCategoryId });
     setActiveView('edit-repository');
   };
 
-  const handleCancelEditRepository = useCallback(() => {
+  const handleCloseRepoForm = useCallback(() => {
     logger.info('Changing view to dashboard');
-    setRepoToEditId(null);
+    setRepoFormState({ repoId: null });
     setActiveView('dashboard');
   }, [logger]);
   
-  const handleSaveRepo = (repo: Repository) => {
+  const handleSaveRepo = (repo: Repository, categoryId?: string) => {
     if (repositories.some(r => r.id === repo.id)) {
       logger.info('Updating repository', { repoId: repo.id, name: repo.name });
       updateRepository(repo);
       setToast({ message: 'Repository updated!', type: 'success' });
     } else {
-      logger.info('Adding new repository', { name: repo.name });
-      addRepository(repo);
+      logger.info('Adding new repository', { name: repo.name, categoryId });
+      // The repo object from the form doesn't have an ID yet.
+      // addRepository creates it. We pass the raw data without the temporary ID.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id, status, lastUpdated, buildHealth, ...repoData } = repo;
+      addRepository(repoData, categoryId);
       setToast({ message: 'Repository added!', type: 'success' });
     }
-    handleCancelEditRepository();
+    handleCloseRepoForm();
   };
 
   const handleDeleteRepo = (repoId: string) => {
@@ -775,11 +782,11 @@ const App: React.FC = () => {
   }, [logs]);
 
   const repositoryToEdit = useMemo(() => {
-    if (repoToEditId === 'new' || !repoToEditId) {
+    if (repoFormState.repoId === 'new' || !repoFormState.repoId) {
         return null;
     }
-    return repositories.find(r => r.id === repoToEditId) || null;
-  }, [repoToEditId, repositories]);
+    return repositories.find(r => r.id === repoFormState.repoId) || null;
+  }, [repoFormState.repoId, repositories]);
 
   const canCollapseAll = useMemo(() => 
     categories.length > 0 && categories.some(c => !(c.collapsed ?? false)),
@@ -787,9 +794,9 @@ const App: React.FC = () => {
   );
 
   useEffect(() => {
-    logger.debug(`App view changed to: ${activeView}`, { view: activeView, repoToEditId });
+    logger.debug(`App view changed to: ${activeView}`, { view: activeView, repoFormState });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeView, repoToEditId]);
+  }, [activeView, repoFormState.repoId]);
 
   const mainContentClass = useMemo(() => {
     const baseClasses = "flex-1 flex flex-col min-h-0";
@@ -857,7 +864,7 @@ const App: React.FC = () => {
       <TooltipProvider>
         <div className="flex flex-col h-screen">
           <Header 
-            onNewRepo={() => handleEditRepository('new')} 
+            onNewRepo={() => handleOpenRepoForm('new')} 
             activeView={activeView} 
             onSetView={setActiveView}
             onCheckAllForUpdates={handleCheckAllForUpdates}
@@ -876,13 +883,14 @@ const App: React.FC = () => {
                 case 'edit-repository':
                   // The key ensures the component re-mounts when switching between editing different repos
                   return <RepoEditView 
-                    key={repoToEditId} 
+                    key={repoFormState.repoId} 
                     repository={repositoryToEdit} 
                     onSave={handleSaveRepo} 
-                    onCancel={handleCancelEditRepository}
+                    onCancel={handleCloseRepoForm}
                     onRefreshState={refreshRepoState}
                     setToast={setToast}
                     confirmAction={confirmAction}
+                    defaultCategoryId={repoFormState.defaultCategoryId}
                   />;
                 case 'dashboard':
                 default:
@@ -913,7 +921,7 @@ const App: React.FC = () => {
                     onRunTask={handleRunTask}
                     onViewLogs={handleViewLogs}
                     onViewHistory={handleViewHistory}
-                    onEditRepo={(repoId: string) => handleEditRepository(repoId)}
+                    onOpenRepoForm={handleOpenRepoForm}
                     onDeleteRepo={handleDeleteRepo}
                     isProcessing={isProcessing}
                     localPathStates={localPathStates}
@@ -989,7 +997,7 @@ const App: React.FC = () => {
             onOpenTerminal={handleOpenTerminal}
             onViewLogs={handleViewLogs}
             onViewHistory={handleViewHistory}
-            onEditRepo={handleEditRepository}
+            onEditRepo={handleOpenRepoForm}
             onDeleteRepo={handleDeleteRepo}
             detectedExecutables={detectedExecutables}
           />
@@ -1064,7 +1072,7 @@ const App: React.FC = () => {
               onClose={() => setCommandPaletteOpen(false)}
               repositories={repositories}
               onSetView={setActiveView}
-              onNewRepo={() => handleEditRepository('new')}
+              onNewRepo={() => handleOpenRepoForm('new')}
               onRunTask={(repoId, taskId) => {
                   handleRunTask(repoId, taskId);
                   setCommandPaletteOpen(false);

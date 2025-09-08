@@ -29,7 +29,7 @@ import { DocumentDuplicateIcon } from '../icons/DocumentDuplicateIcon';
 import { ServerIcon } from '../icons/ServerIcon';
 
 interface RepoEditViewProps {
-  onSave: (repository: Repository) => void;
+  onSave: (repository: Repository, categoryId?: string) => void;
   onCancel: () => void;
   repository: Repository | null;
   onRefreshState: (repoId: string) => Promise<void>;
@@ -43,6 +43,7 @@ interface RepoEditViewProps {
     confirmButtonClass?: string;
     icon?: React.ReactNode;
   }) => void;
+  defaultCategoryId?: string;
 }
 
 const NEW_REPO_TEMPLATE: Omit<GitRepository, 'id'> = {
@@ -968,7 +969,7 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
   );
 };
 
-const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction }) => {
+const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction, defaultCategoryId }) => {
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
 
   // Ref to track previous remoteUrl to fire toast only once on discovery
@@ -1163,7 +1164,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   const handleSave = () => {
     const dataToSave = 'id' in formData ? formData : { ...formData, id: `repo_${Date.now()}` };
-    onSave(dataToSave as Repository);
+    onSave(dataToSave as Repository, defaultCategoryId);
   };
 
   const handleTaskChange = (updatedTask: Task) => {
