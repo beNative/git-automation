@@ -27,7 +27,7 @@ The dashboard is divided into collapsible sections called categories. This allow
 -   **Assigning Repositories:** Simply drag a repository card and drop it onto a category header to assign it.
 -   **Reordering:**
     -   **Repositories:** Drag and drop repository cards to reorder them within or between categories. When reordering, a blue indicator bar will show you exactly where the card will be dropped.
-    -   **Categories:** Drag and drop category headers using the grip handle (⋮⋮) to reorder the sections themselves.
+    -   **Categories:** Drag and drop category headers using the grip handle (⋮⋮) to reorder the sections themselves. In addition to dragging, you can use the **up and down arrow buttons** that appear when hovering over a category header to reorder categories one position at a time. This provides an easy and accessible alternative.
 -   **Uncategorized Section:** Any repository not assigned to a category will automatically appear in a default "Uncategorized" section.
 
 ### Repository Card

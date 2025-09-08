@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.0]
+
+### Fixed
+- **Category Drag-and-Drop:** Fixed a critical bug that was preventing dashboard categories from being reordered via drag-and-drop.
+
+### Added
+- **Category Reorder Buttons:** Added Up and Down arrow buttons to each category header, providing an alternative, accessible way to reorder categories.
+
 ## [0.10.0]
 
 ### Added
