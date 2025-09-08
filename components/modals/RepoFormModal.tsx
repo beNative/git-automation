@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -27,6 +27,23 @@ import { NodeIcon } from '../icons/NodeIcon';
 import { FolderOpenIcon } from '../icons/FolderOpenIcon';
 import { DocumentDuplicateIcon } from '../icons/DocumentDuplicateIcon';
 import { ServerIcon } from '../icons/ServerIcon';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+// New Icons
+const TagIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
+  </svg>
+);
+
+const EllipsisVerticalIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+  </svg>
+);
+
 
 interface RepoEditViewProps {
   onSave: (repository: Repository, categoryId?: string) => void;
@@ -996,7 +1013,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     return null;
   });
 
-  const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'branches'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'branches' | 'releases'>('tasks');
   
   // State for History Tab
   const [commits, setCommits] = useState<Commit[]>([]);
@@ -1012,6 +1029,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [branchesLoading, setBranchesLoading] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const [branchToMerge, setBranchToMerge] = useState('');
+
+  // State for Releases Tab
+  const [releases, setReleases] = useState<ReleaseInfo[]>([]);
+  const [releasesLoading, setReleasesLoading] = useState(false);
 
 
   const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
@@ -1092,6 +1113,19 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         setBranchesLoading(false);
     }
   }, [repository, isGitRepo, setToast]);
+  
+  const fetchReleases = useCallback(async () => {
+    if (!repository || !isGitRepo) return;
+    setReleasesLoading(true);
+    try {
+        const allReleases = await window.electronAPI?.getAllReleases(repository as GitRepository);
+        setReleases(allReleases || []);
+    } catch (e: any) {
+        setToast({ message: `Failed to load releases: ${e.message}`, type: 'error' });
+    } finally {
+        setReleasesLoading(false);
+    }
+  }, [repository, isGitRepo, setToast]);
 
   // Fetch branch info on mount for the dropdown if possible
   useEffect(() => {
@@ -1117,8 +1151,11 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             fetchBranches();
         }
     }
+    if (activeTab === 'releases') {
+        fetchReleases();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, debouncedHistorySearch, fetchBranches, branchInfo]);
+  }, [activeTab, debouncedHistorySearch, fetchBranches, branchInfo, fetchReleases]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -1538,6 +1575,30 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                      )}
                 </div>
             );
+        case 'releases':
+            return (
+                <div className="flex-1 flex flex-col p-4 overflow-hidden">
+                    <div className="flex-1 overflow-y-auto">
+                        {releasesLoading ? (<p className="text-center text-gray-500">Loading releases...</p>) : releases.length === 0 ? (
+                            <p className="text-center text-gray-500">No releases found for this repository.</p>
+                        ) : (
+                            <ul className="space-y-3">
+                                {releases.map(release => (
+                                    <ReleaseListItem 
+                                        key={release.id} 
+                                        release={release}
+                                        repository={repository as GitRepository}
+                                        setToast={setToast}
+                                        onRefreshReleases={fetchReleases}
+                                        onRefreshState={onRefreshState}
+                                        confirmAction={confirmAction}
+                                    />
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </div>
+            );
         default: return null;
     }
   }
@@ -1727,6 +1788,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 <button onClick={() => setActiveTab('tasks')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'tasks' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><CubeTransparentIcon className="h-5 w-5"/>Tasks</button>
                 {isGitRepo && (
                     <>
+                        <button onClick={() => setActiveTab('releases')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'releases' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><TagIcon className="h-5 w-5"/>Releases</button>
                         <button onClick={() => setActiveTab('history')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'history' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><DocumentTextIcon className="h-5 w-5"/>History</button>
                         <button onClick={() => setActiveTab('branches')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'branches' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><GitBranchIcon className="h-5 w-5"/>Branches</button>
                     </>
@@ -1737,6 +1799,108 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       </div>
     </div>
   );
+};
+
+interface ReleaseListItemProps {
+    release: ReleaseInfo;
+    repository: GitRepository;
+    setToast: RepoEditViewProps['setToast'];
+    onRefreshReleases: () => void;
+    onRefreshState: (repoId: string) => void;
+    confirmAction: RepoEditViewProps['confirmAction'];
+}
+
+const ReleaseListItem: React.FC<ReleaseListItemProps> = ({ release, repository, setToast, onRefreshReleases, onRefreshState, confirmAction }) => {
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleUpdate = async (options: { draft?: boolean; prerelease?: boolean }) => {
+        setIsMenuOpen(false);
+        const result = await window.electronAPI.updateRelease({ repo: repository, releaseId: release.id, options });
+        if (result.success) {
+            setToast({ message: 'Release updated successfully.', type: 'success' });
+            onRefreshReleases();
+            onRefreshState(repository.id); // Refresh dashboard card as well
+        } else {
+            setToast({ message: `Failed to update release: ${result.error}`, type: 'error' });
+        }
+    };
+    
+    const handleDelete = () => {
+        setIsMenuOpen(false);
+        confirmAction({
+            title: 'Delete Release',
+            message: `Are you sure you want to delete the release "${release.name || release.tagName}"? This action cannot be undone.`,
+            confirmText: 'Delete',
+            onConfirm: async () => {
+                const result = await window.electronAPI.deleteRelease({ repo: repository, releaseId: release.id });
+                if (result.success) {
+                    setToast({ message: 'Release deleted.', type: 'success' });
+                    onRefreshReleases();
+                    onRefreshState(repository.id);
+                } else {
+                    setToast({ message: `Failed to delete release: ${result.error}`, type: 'error' });
+                }
+            }
+        });
+    };
+
+    return (
+        <li className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-start justify-between">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <a href={release.url} target="_blank" rel="noopener noreferrer" className="font-bold text-lg text-blue-600 dark:text-blue-400 hover:underline">{release.name || release.tagName}</a>
+                        <span className="font-mono text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">{release.tagName}</span>
+                        {release.isDraft && <span className="text-xs font-semibold rounded-full px-2 py-0.5 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200">Draft</span>}
+                        {release.isPrerelease && <span className="text-xs font-semibold rounded-full px-2 py-0.5 bg-yellow-200 dark:bg-yellow-700 text-yellow-800 dark:text-yellow-200">Pre-release</span>}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Created on {new Date(release.createdAt).toLocaleDateString()}</p>
+                </div>
+                <div className="relative" ref={menuRef}>
+                    <button onClick={() => setIsMenuOpen(p => !p)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                        <EllipsisVerticalIcon className="h-5 w-5"/>
+                    </button>
+                    {isMenuOpen && (
+                        <div className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10 p-1">
+                            {release.isDraft && (
+                                <>
+                                    <button onClick={() => handleUpdate({ draft: false, prerelease: false })} className="block w-full text-left px-3 py-1.5 text-sm rounded-md text-gray-700 dark:text-gray-200 hover:bg-blue-500 hover:text-white">Publish as Full Release</button>
+                                    <button onClick={() => handleUpdate({ draft: false, prerelease: true })} className="block w-full text-left px-3 py-1.5 text-sm rounded-md text-gray-700 dark:text-gray-200 hover:bg-blue-500 hover:text-white">Publish as Pre-release</button>
+                                </>
+                            )}
+                            {!release.isDraft && (
+                                <>
+                                    {release.isPrerelease 
+                                        ? <button onClick={() => handleUpdate({ prerelease: false })} className="block w-full text-left px-3 py-1.5 text-sm rounded-md text-gray-700 dark:text-gray-200 hover:bg-blue-500 hover:text-white">Mark as Full Release</button>
+                                        : <button onClick={() => handleUpdate({ prerelease: true })} className="block w-full text-left px-3 py-1.5 text-sm rounded-md text-gray-700 dark:text-gray-200 hover:bg-blue-500 hover:text-white">Mark as Pre-release</button>
+                                    }
+                                    <button onClick={() => handleUpdate({ draft: true })} className="block w-full text-left px-3 py-1.5 text-sm rounded-md text-gray-700 dark:text-gray-200 hover:bg-blue-500 hover:text-white">Unpublish (mark as draft)</button>
+                                </>
+                            )}
+                            <div className="my-1 h-px bg-gray-200 dark:bg-gray-700"/>
+                            <button onClick={handleDelete} className="block w-full text-left px-3 py-1.5 text-sm rounded-md text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white">Delete Release</button>
+                        </div>
+                    )}
+                </div>
+            </div>
+            {release.body && (
+                 <div className="prose prose-sm dark:prose-invert max-w-none mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{release.body}</ReactMarkdown>
+                </div>
+            )}
+        </li>
+    );
 };
 
 export default RepoEditView;

@@ -26,7 +26,12 @@ export interface IElectronAPI {
   deleteBranch: (repoPath: string, branch: string, isRemote: boolean) => Promise<{ success: boolean; error?: string }>;
   mergeBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
   ignoreFilesAndPush: (args: { repo: Repository; filesToIgnore: string[] }) => Promise<{ success: boolean; error?: string }>;
+  
+  // Release Management
   getLatestRelease: (repo: Repository) => Promise<ReleaseInfo | null>;
+  getAllReleases: (repo: Repository) => Promise<ReleaseInfo[] | null>;
+  updateRelease: (args: { repo: Repository, releaseId: number, options: { draft?: boolean, prerelease?: boolean } }) => Promise<{ success: boolean; error?: string }>;
+  deleteRelease: (args: { repo: Repository, releaseId: number }) => Promise<{ success: boolean; error?: string }>;
 
 
   checkLocalPath: (path: string) => Promise<LocalPathState>;

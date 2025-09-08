@@ -1889,15 +1889,129 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
         }
 
         return {
+            id: latestRelease.id,
             tagName: latestRelease.tag_name,
             name: latestRelease.name,
+            body: latestRelease.body,
             isDraft: latestRelease.draft,
             isPrerelease: latestRelease.prerelease,
             url: latestRelease.html_url,
+            createdAt: latestRelease.created_at,
         };
     } catch (error: any) {
         console.error(`[GitHub] Failed to fetch latest release for ${owner}/${repoName}:`, error);
         // It's better to return null and let the UI handle it than to crash.
         return null; 
+    }
+});
+
+ipcMain.handle('get-all-releases', async (event, repo: Repository): Promise<ReleaseInfo[] | null> => {
+    const settings = await readSettings();
+    if (!settings.githubPat) {
+        console.warn(`[GitHub] Cannot fetch releases for ${repo.name}: GitHub PAT not set.`);
+        return null;
+    }
+    const ownerRepo = parseGitHubUrl(repo.remoteUrl);
+    if (!ownerRepo) {
+        console.warn(`[GitHub] Could not parse owner/repo from URL: ${repo.remoteUrl}`);
+        return null;
+    }
+
+    const { owner, repo: repoName } = ownerRepo;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases`;
+
+    try {
+        const response = await fetch(apiUrl, {
+            headers: {
+                'Authorization': `token ${settings.githubPat}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'X-GitHub-Api-Version': '2022-11-28'
+            }
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            throw new Error(`GitHub API error (${response.status}): ${errorBody.message || 'Unknown error'}`);
+        }
+        
+        const allReleases = await response.json();
+        if (!allReleases) return [];
+
+        return allReleases.map((release: any) => ({
+            id: release.id,
+            tagName: release.tag_name,
+            name: release.name,
+            body: release.body,
+            isDraft: release.draft,
+            isPrerelease: release.prerelease,
+            url: release.html_url,
+            createdAt: release.created_at,
+        }));
+    } catch (error: any) {
+        console.error(`[GitHub] Failed to fetch all releases for ${owner}/${repoName}:`, error);
+        return null;
+    }
+});
+
+ipcMain.handle('update-release', async (event, { repo, releaseId, options }: { repo: Repository, releaseId: number, options: { draft?: boolean, prerelease?: boolean } }): Promise<{ success: boolean; error?: string }> => {
+    const settings = await readSettings();
+    if (!settings.githubPat) return { success: false, error: 'GitHub PAT not set.' };
+    
+    const ownerRepo = parseGitHubUrl(repo.remoteUrl);
+    if (!ownerRepo) return { success: false, error: 'Could not parse owner/repo from URL.' };
+
+    const { owner, repo: repoName } = ownerRepo;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases/${releaseId}`;
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `token ${settings.githubPat}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'X-GitHub-Api-Version': '2022-11-28'
+            },
+            body: JSON.stringify(options),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            throw new Error(`GitHub API error (${response.status}): ${errorBody.message || 'Unknown error'}`);
+        }
+        return { success: true };
+    } catch (error: any) {
+        console.error(`[GitHub] Failed to update release ${releaseId}:`, error);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('delete-release', async (event, { repo, releaseId }: { repo: Repository, releaseId: number }): Promise<{ success: boolean; error?: string }> => {
+    const settings = await readSettings();
+    if (!settings.githubPat) return { success: false, error: 'GitHub PAT not set.' };
+    
+    const ownerRepo = parseGitHubUrl(repo.remoteUrl);
+    if (!ownerRepo) return { success: false, error: 'Could not parse owner/repo from URL.' };
+
+    const { owner, repo: repoName } = ownerRepo;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases/${releaseId}`;
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `token ${settings.githubPat}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'X-GitHub-Api-Version': '2022-11-28'
+            },
+        });
+
+        if (response.status !== 204) { // 204 No Content is success for DELETE
+            const errorBody = await response.json();
+            throw new Error(`GitHub API error (${response.status}): ${errorBody.message || 'Unknown error'}`);
+        }
+        return { success: true };
+    } catch (error: any) {
+        console.error(`[GitHub] Failed to delete release ${releaseId}:`, error);
+        return { success: false, error: error.message };
     }
 });

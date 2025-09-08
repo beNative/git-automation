@@ -30,7 +30,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteBranch: (repoPath: string, branch: string, isRemote: boolean): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('delete-branch', repoPath, branch, isRemote),
   mergeBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('merge-branch', repoPath, branch),
   ignoreFilesAndPush: (args: { repo: Repository, filesToIgnore: string[] }): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('ignore-files-and-push', args),
+  
+  // Release Management
   getLatestRelease: (repo: Repository): Promise<ReleaseInfo | null> => ipcRenderer.invoke('get-latest-release', repo),
+  getAllReleases: (repo: Repository): Promise<ReleaseInfo[] | null> => ipcRenderer.invoke('get-all-releases', repo),
+  updateRelease: (args: { repo: Repository, releaseId: number, options: { draft?: boolean, prerelease?: boolean } }): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('update-release', args),
+  deleteRelease: (args: { repo: Repository, releaseId: number }): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('delete-release', args),
 
 
   // Local Path and Actions

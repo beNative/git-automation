@@ -173,11 +173,14 @@ export interface LaunchConfig {
 }
 
 export interface ReleaseInfo {
+  id: number;
   tagName: string;
   name: string;
+  body: string | null;
   isDraft: boolean;
   isPrerelease: boolean;
   url: string;
+  createdAt: string;
 }
 
 export interface RepositoryBase {
