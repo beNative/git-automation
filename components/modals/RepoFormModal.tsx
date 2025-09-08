@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
@@ -358,6 +359,18 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [latestRelease, setLatestRelease] = useState<ReleaseInfo | null | undefined>(undefined);
   const [allReleases, setAllReleases] = useState<ReleaseInfo[] | null>(null);
 
+  const markdownComponents = useMemo(() => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    a: ({node, ...props}: any) => {
+      if (props.href && (props.href.startsWith('http') || props.href.startsWith('https'))) {
+        return <a {...props} onClick={(e) => {
+          e.preventDefault();
+          window.electronAPI.openWeblink(props.href);
+        }} />;
+      }
+      return <a {...props} />;
+    }
+  }), []);
 
   useEffect(() => {
     if (repoState.localPath) {
@@ -400,7 +413,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       if (field === 'vcs' && prev.vcs !== value) {
         const newRepoBase = { ...prev, vcs: value };
         if (value === VcsType.Svn) {
-          const { branch, ignoreDirty, ...svnRepo } = newRepoBase as GitRepository;
+          // FIX: The type assertion here was incorrect. `newRepoBase` has the shape of a GitRepository
+          // but a `vcs` property of 'svn', confusing TypeScript. Casting to `any` allows the
+          // destructuring to safely remove Git-specific properties.
+          const { branch, ignoreDirty, ...svnRepo } = newRepoBase as any;
           return svnRepo as SvnRepository;
         } else {
           return { ...newRepoBase, branch: 'main', ignoreDirty: false } as GitRepository;
@@ -491,30 +507,35 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
 
   // --- Helper to add a new item to a list (links, launches, etc.) ---
-  const handleAddItem = <T extends { id: string }>(
+  // FIX: Removed incorrect generic constraints that caused type errors.
+  const handleAddItem = (
     listName: 'webLinks' | 'launchConfigs',
-    newItem: Omit<T, 'id'>
+    newItem: Omit<WebLinkConfig, 'id'> | Omit<LaunchConfig, 'id'>
   ) => {
-    const newList = [...(repoState[listName] as T[] || []), { ...newItem, id: `${listName}_${Date.now()}` } as T];
+    const list = (repoState[listName] as any[]) || [];
+    const newList = [...list, { ...newItem, id: `${listName}_${Date.now()}` }];
     handleRepoChange(listName, newList);
   };
 
   // --- Helper to update an item in a list ---
-  const handleUpdateItem = <T extends { id: string }>(
+  // FIX: Removed incorrect generic constraints that caused type errors.
+  const handleUpdateItem = (
     listName: 'webLinks' | 'launchConfigs',
     itemId: string,
-    field: keyof T,
+    field: keyof (WebLinkConfig & LaunchConfig),
     value: any
   ) => {
-    const newList = (repoState[listName] as T[] || []).map(item =>
+    const list = (repoState[listName] as any[]) || [];
+    const newList = list.map(item =>
       item.id === itemId ? { ...item, [field]: value } : item
     );
     handleRepoChange(listName, newList);
   };
 
   // --- Helper to delete an item from a list ---
+  // FIX: Removed incorrect generic constraints that caused type errors.
   const handleDeleteItem = (listName: 'webLinks' | 'launchConfigs', itemId: string) => {
-    const newList = (repoState[listName] as any[] || []).filter(item => item.id !== itemId);
+    const newList = ((repoState[listName] as any[]) || []).filter(item => item.id !== itemId);
     handleRepoChange(listName, newList);
   };
   

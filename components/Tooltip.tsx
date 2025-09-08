@@ -15,7 +15,7 @@ const Tooltip: React.FC = () => {
     <div
       id={tooltipId}
       role="tooltip"
-      className={`fixed z-50 px-2.5 py-1.5 text-xs font-semibold text-white bg-gray-900 dark:bg-black rounded-md shadow-lg transition-opacity duration-200
+      className={`fixed z-50 px-2.5 py-1.5 text-xs font-semibold text-white bg-gray-900 dark:bg-black rounded-md shadow-lg transition-opacity duration-200 pointer-events-none
         ${visible ? 'opacity-100' : 'opacity-0'}
       `}
       style={{
@@ -23,7 +23,7 @@ const Tooltip: React.FC = () => {
         left: `${position.x}px`,
         // Use a transform to ensure the tooltip is centered without causing reflows
         // This also helps with pixel-perfect positioning.
-        transform: 'translate(-50%, 0)', 
+        transform: position.transform,
       }}
     >
       {content}

@@ -3,6 +3,7 @@ import React, { createContext, useState, useCallback, ReactNode, useMemo } from 
 interface TooltipPosition {
   x: number;
   y: number;
+  transform: string;
 }
 
 interface TooltipState {
@@ -15,7 +16,7 @@ interface TooltipState {
 
 const initialState: TooltipState = {
   content: null,
-  position: { x: 0, y: 0 },
+  position: { x: 0, y: 0, transform: 'translate(-50%, -100%)' },
   visible: false,
   showTooltip: () => {},
   hideTooltip: () => {},
@@ -25,7 +26,7 @@ export const TooltipContext = createContext<TooltipState>(initialState);
 
 export const TooltipProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [content, setContent] = useState<ReactNode | null>(null);
-  const [position, setPosition] = useState<TooltipPosition>({ x: 0, y: 0 });
+  const [position, setPosition] = useState<TooltipPosition>(initialState.position);
   const [visible, setVisible] = useState(false);
 
   const showTooltip = useCallback((newContent: ReactNode, pos: TooltipPosition) => {

@@ -36,13 +36,27 @@ const InfoView: React.FC = () => {
 
     fetchDoc();
   }, [activeTab]);
+  
+  const markdownComponents = useMemo(() => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    a: ({node, ...props}: any) => {
+      if (props.href && (props.href.startsWith('http') || props.href.startsWith('https'))) {
+        return <a {...props} onClick={(e) => {
+          e.preventDefault();
+          window.electronAPI.openWeblink(props.href);
+        }} />;
+      }
+      return <a {...props} />;
+    }
+  }), []);
 
   const memoizedMarkdown = useMemo(() => (
     <ReactMarkdown
         children={content}
         remarkPlugins={[remarkGfm]}
+        components={markdownComponents}
     />
-  ), [content]);
+  ), [content, markdownComponents]);
 
   return (
     <div className="w-full mx-auto animate-fade-in">

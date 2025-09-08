@@ -240,57 +240,44 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => {
     logger.debug('moveRepositoryToCategory triggered', { repoId, sourceId, targetId, targetIndex });
-    
-    // Optimistically update state
+
     setCategories(prevCategories => {
-        let newCategories = JSON.parse(JSON.stringify(prevCategories)) as Category[];
+        let newCategories = JSON.parse(JSON.stringify(prevCategories));
         
         setUncategorizedOrder(prevUncategorized => {
             let newUncategorized = [...prevUncategorized];
 
-            // 1. Find and remove the repo from its source list
-            let foundInSource = false;
+            // 1. Remove from source
             if (sourceId === 'uncategorized') {
                 const index = newUncategorized.indexOf(repoId);
-                if (index > -1) {
-                    newUncategorized.splice(index, 1);
-                    foundInSource = true;
-                }
+                if (index > -1) newUncategorized.splice(index, 1);
             } else {
-                const sourceCategory = newCategories.find(c => c.id === sourceId);
+                const sourceCategory = newCategories.find((c: Category) => c.id === sourceId);
                 if (sourceCategory) {
                     const index = sourceCategory.repositoryIds.indexOf(repoId);
-                    if (index > -1) {
-                        sourceCategory.repositoryIds.splice(index, 1);
-                        foundInSource = true;
-                    }
+                    if (index > -1) sourceCategory.repositoryIds.splice(index, 1);
                 }
             }
-
-            if (!foundInSource) {
-              logger.error('DND Error: repoId not found in source list.', { repoId, sourceId });
-              // abort state update
-              return prevUncategorized;
-            }
-
-            // 2. Add the repo to its target list at the correct index
+            
+            // 2. Add to target
             if (targetId === 'uncategorized') {
                 newUncategorized.splice(targetIndex, 0, repoId);
             } else {
-                const targetCategory = newCategories.find(c => c.id === targetId);
+                const targetCategory = newCategories.find((c: Category) => c.id === targetId);
                 if (targetCategory) {
                     targetCategory.repositoryIds.splice(targetIndex, 0, repoId);
-                } else {
-                   logger.error('DND Error: target category not found', { targetId });
                 }
             }
 
+            logger.debug('State after move operation', {
+                newCategories,
+                newUncategorized
+            });
             return newUncategorized;
         });
-        
+
         return newCategories;
     });
-
   }, [logger]);
 
   const toggleCategoryCollapse = useCallback((categoryId: string) => {

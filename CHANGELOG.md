@@ -11,12 +11,12 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **Repository Drag-and-Drop:** Fixed a critical state management bug that prevented repository cards from being correctly placed after being dragged and dropped.
 - **Tooltip System:** Completely re-engineered the tooltip system to be more intelligent. Tooltips now dynamically reposition themselves to avoid being clipped by the edges of the application window and no longer flicker on hover.
-- **External Links:** Links in the Release Manager now correctly open in the user's external browser.
+- **External Links:** Links in the Release Manager and documentation viewer now correctly open in the user's external browser.
 - **UI Flickering:** The Commit History dialog no longer resizes itself when searching, which fixes a flickering issue.
 - **UI Polish:** The "About" dialog title is now simply "About", and the redundant "Settings" title has been removed from the settings sidebar for a cleaner look.
 
 ### Changed
-- **Documentation:** Updated all documentation to reflect the new features and to remove the outdated mention of the commit history being limited to 30 entries.
+- **Documentation:** Updated all documentation to reflect the new features and to remove any outdated mentions of commit history limits.
 
 ## [0.12.0]
 
@@ -167,7 +167,7 @@ All notable changes to this project will be documented in this file.
   - **Visual Git Status:** Repository cards now show detailed Git status, including how many commits the local branch is ahead or behind its remote, and a summary of modified, added, and deleted files (`+5 ~3 -1`).
   - **Branch Management:** A new "Branches" tab in the repository configuration view allows users to view, create, delete (local and remote), and merge Git branches.
   - **Branch Switching:** A dropdown menu has been added to repository cards to quickly view and switch between local and remote branches.
-  - **Commit History Viewer:** A new "History" tab in the repository configuration view displays the 30 most recent commits. A new "History" button on the repository card provides quick access to this information in a modal.
+  - **Commit History Viewer:** A new "History" tab in the repository configuration view displays recent commits. A new "History" button on the repository card provides quick access to this information in a modal.
 - **Parallel Task Execution:** Tasks on different repositories can now run concurrently, each in its own process. The UI can handle multiple "processing" states at once.
 
 ### Fixed

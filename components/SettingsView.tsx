@@ -9,6 +9,7 @@ import { FolderOpenIcon } from './icons/FolderOpenIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { BeakerIcon } from './icons/BeakerIcon';
 import { useTooltip } from '../hooks/useTooltip';
+import { ClipboardDocumentIcon } from './icons/ClipboardDocumentIcon';
 
 interface SettingsViewProps {
   onSave: (settings: GlobalSettings) => void;
@@ -43,10 +44,20 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target as HTMLInputElement;
+    // FIX: Destructure from the uncasted e.target first.
+    const { name, value, type } = e.target;
+    let finalValue: string | number | boolean = value;
+
+    if (type === 'checkbox') {
+        // Cast to HTMLInputElement here where we know it's a checkbox.
+        finalValue = (e.target as HTMLInputElement).checked;
+    } else if (type === 'range' || type === 'number') {
+        finalValue = parseFloat(value);
+    }
+    
     setSettings(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: finalValue,
     }));
   };
   
@@ -113,6 +124,17 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
           setToast({ message: `Test failed: ${result.error}`, type: 'error' });
       }
   };
+  
+  const handleCopyPat = () => {
+    if (settings.githubPat) {
+        navigator.clipboard.writeText(settings.githubPat).then(() => {
+            setToast({ message: 'GitHub PAT copied to clipboard!', type: 'success' });
+        }).catch(err => {
+            setToast({ message: `Failed to copy: ${err}`, type: 'error' });
+        });
+    }
+  };
+
 
   const iconSetButtonBase = "flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md transition-colors";
   const iconSetButtonActive = "bg-white dark:bg-gray-700 shadow text-blue-700 dark:text-blue-400";
@@ -130,7 +152,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
     <div className="flex h-full animate-fade-in">
       {/* Left Navigation Sidebar */}
       <aside className="w-1/4 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
-        <h2 className="px-3 text-lg font-semibold text-gray-900 dark:text-white mb-4">Settings</h2>
         <nav className="space-y-1">
             <button onClick={() => setActiveCategory('appearance')} className={`${navLinkBase} ${activeCategory === 'appearance' ? navLinkActive : navLinkInactive}`}>
               Appearance
@@ -176,6 +197,20 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                                   </button>
                               </div>
                           </div>
+                           <div>
+                               <label htmlFor="zoomFactor" className="block text-sm font-medium text-gray-700 dark:text-gray-300">GUI Scale ({Math.round(settings.zoomFactor * 100)}%)</label>
+                               <input
+                                   type="range"
+                                   id="zoomFactor"
+                                   name="zoomFactor"
+                                   min="0.5"
+                                   max="2"
+                                   step="0.05"
+                                   value={settings.zoomFactor}
+                                   onChange={handleChange}
+                                   className="mt-2 w-full max-w-xs h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                               />
+                           </div>
                           <div>
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Icon Set</label>
                               <div className="mt-2 grid grid-cols-3 gap-2 rounded-md bg-gray-200 dark:bg-gray-900 p-2 max-w-md">
@@ -233,14 +268,19 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-6">
                           <div>
                               <label htmlFor="githubPat" className="block text-sm font-medium text-gray-700 dark:text-gray-300">GitHub Personal Access Token</label>
-                              <input
-                                type="password"
-                                id="githubPat"
-                                name="githubPat"
-                                value={settings.githubPat || ''}
-                                onChange={handleChange}
-                                className="mt-1 block w-full max-w-md bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
+                              <div className="mt-1 flex items-center gap-2 max-w-md">
+                                <input
+                                    type="password"
+                                    id="githubPat"
+                                    name="githubPat"
+                                    value={settings.githubPat || ''}
+                                    onChange={handleChange}
+                                    className="block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                />
+                                <button type="button" onClick={handleCopyPat} className={actionButtonStyle} title="Copy PAT">
+                                    <ClipboardDocumentIcon className="h-5 w-5"/>
+                                </button>
+                              </div>
                               <p className="mt-1 text-xs text-gray-500">Required for fetching release info. <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Create a fine-grained token</a> with `Read-only` access to `Contents`.</p>
                           </div>
 
