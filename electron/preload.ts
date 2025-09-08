@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateRelease: (args: { repo: Repository, releaseId: number, options: { draft?: boolean, prerelease?: boolean } }): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('update-release', args),
   deleteRelease: (args: { repo: Repository, releaseId: number }): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('delete-release', args),
 
+  // GitHub PAT
+  getGithubPat: (): Promise<string> => ipcRenderer.invoke('get-github-pat'),
 
   // Local Path and Actions
   checkLocalPath: (path: string): Promise<LocalPathState> => ipcRenderer.invoke('check-local-path', path),

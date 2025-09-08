@@ -81,6 +81,7 @@ const DEFAULTS: GlobalSettings = {
     githubPat: '',
     gitExecutablePath: '',
     svnExecutablePath: '',
+    zoomFactor: 1,
 };
 
 async function readSettings(): Promise<GlobalSettings> {
@@ -265,6 +266,12 @@ ipcMain.handle('get-raw-settings-json', async () => {
 
 ipcMain.handle('show-settings-file', () => {
   shell.showItemInFolder(settingsPath);
+});
+
+// --- IPC handler for securely getting PAT ---
+ipcMain.handle('get-github-pat', async () => {
+  const settings = await readSettings();
+  return settings.githubPat;
 });
 
 

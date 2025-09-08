@@ -33,6 +33,8 @@ export interface IElectronAPI {
   updateRelease: (args: { repo: Repository, releaseId: number, options: { draft?: boolean, prerelease?: boolean } }) => Promise<{ success: boolean; error?: string }>;
   deleteRelease: (args: { repo: Repository, releaseId: number }) => Promise<{ success: boolean; error?: string }>;
 
+  // GitHub PAT
+  getGithubPat: () => Promise<string>;
 
   checkLocalPath: (path: string) => Promise<LocalPathState>;
   discoverRemoteUrl: (args: { localPath: string; vcs: VcsType; }) => Promise<{ url: string | null; error?: string }>;

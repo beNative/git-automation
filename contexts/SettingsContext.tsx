@@ -38,6 +38,9 @@ const DEFAULTS: GlobalSettings = {
     githubPat: '',
     gitExecutablePath: '',
     svnExecutablePath: '',
+    // FIX START: Add missing zoomFactor property to satisfy GlobalSettings type.
+    zoomFactor: 1,
+    // FIX END
 };
 
 const initialState: AppDataContextState = {

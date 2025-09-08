@@ -55,7 +55,7 @@ Each card has a set of action buttons at the bottom:
 -   **More Tasks (Play Icon):** If there are more tasks available, this button opens a modal to select any of the repository's tasks to run.
 -   **Open in Terminal (Terminal Icon):** Opens the repository's local folder in your system's default terminal.
 -   **View Logs (Document Icon):** Opens the resizable log panel to show previous logs for this repository.
--   **View History (Clock Icon):** Opens a modal displaying the 30 most recent commits for this repository.
+-   **View History (Clock Icon):** Opens a modal displaying the commit history for this repository.
 
 ### Right-Click Context Menu
 
@@ -99,7 +99,7 @@ This is where you create powerful, custom automation scripts for the specific re
 5. Continue adding, configuring, and re-ordering steps.
 
 #### History Tab (Git Only)
-Displays a detailed list of the 30 most recent commits, including the author, date, and full commit message.
+Displays a detailed list of commits, including the author, date, and full commit message. You can search through the history and load more commits as you scroll.
 
 #### Branches Tab (Git Only)
 Provides a full interface to manage your Git branches. You can:
@@ -125,9 +125,12 @@ When you run a task or choose to view logs, a panel will appear at the bottom of
 
 Click the **cog icon** in the header to access global settings.
 
--   **Appearance:** Choose between a `Light` and `Dark` theme, and select from multiple icon sets.
+-   **Appearance:**
+    -   **Theme:** Choose between a `Light` and `Dark` theme.
+    -   **Icon Set:** Select from multiple icon sets to customize the application's iconography.
+    -   **GUI Scale:** Adjust the overall size of the application from 50% to 200% for better readability.
 -   **Behavior:**
-    -   **GitHub Personal Access Token:** A secure field to store your GitHub Personal Access Token (PAT). This token is required for features that interact with the GitHub API, such as fetching the latest release information for your repositories. A link is provided to help you create a token with the necessary permissions.
+    -   **GitHub Personal Access Token:** A secure field to store your GitHub Personal Access Token (PAT). This token is required for features that interact with the GitHub API, such as fetching release information. A copy button is provided for convenience. A link is provided to help you create a token with the necessary permissions.
     -   **Open Web Links In:** Choose whether to open web links in your system's default browser, or force them to open in Chrome or Firefox.
     -   **Enable Notifications:** Toggle on/off the toast notifications.
     -   **Enable Simulation Mode:** This is a critical safety feature.

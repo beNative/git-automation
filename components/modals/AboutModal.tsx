@@ -29,7 +29,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, appVersion }) 
           <div className="flex items-center">
             <InformationCircleIcon className="h-6 w-6 text-blue-500 mr-3" />
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100" id="modal-title">
-              About Git Automation Dashboard
+              About
             </h3>
           </div>
           <button onClick={onClose} className="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">

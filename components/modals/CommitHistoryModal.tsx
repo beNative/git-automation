@@ -149,7 +149,7 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
           </button>
         </header>
 
-        <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 min-h-[62px]">
           <div className="relative">
             <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <input

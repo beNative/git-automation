@@ -5,7 +5,9 @@ import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathStat
 // FIX END
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
+// FIX START: RepoEditView is a default export, so it should be imported without curly braces.
 import RepoEditView from './components/modals/RepoFormModal';
+// FIX END
 import Toast from './components/Toast';
 import InfoView from './components/InfoView';
 import SettingsView from './components/SettingsView';
@@ -339,6 +341,13 @@ const App: React.FC = () => {
         }
     }
   }, [settings?.theme, logger]);
+
+  // Effect to apply GUI zoom factor
+  useEffect(() => {
+    const zoom = settings?.zoomFactor ?? 1;
+    logger.debug('Applying GUI scale factor', { zoom });
+    document.documentElement.style.fontSize = `${zoom * 100}%`;
+  }, [settings?.zoomFactor, logger]);
   
   // Effect for Command Palette & Debug Panel
   useEffect(() => {
@@ -612,7 +621,7 @@ const App: React.FC = () => {
       } else {
         await launchExecutable(repo, launchable.path);
       }
-    }, [launchApplication, launchExecutable, openLogPanelForRepo, repositories, detectedExecutables, logger]);
+    }, [launchApplication, launchExecutable, openLogPanelForRepo, logger]);
 
   const handleRunLaunchConfig = useCallback(async (repoId: string, configId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -631,7 +640,7 @@ const App: React.FC = () => {
         logger.info('Opening executable selection for launch config', { repoId, config });
         handleOpenExecutableSelection(repoId, configId);
     }
-  }, [repositories, launchApplication, openLogPanelForRepo, detectedExecutables, logger]);
+  }, [repositories, launchApplication, openLogPanelForRepo, logger]);
 
   const handleOpenLaunchSelection = useCallback((repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -893,6 +902,7 @@ const App: React.FC = () => {
                     setToast={setToast}
                     confirmAction={confirmAction}
                     defaultCategoryId={repoFormState.defaultCategoryId}
+                    onOpenWeblink={handleOpenWeblink}
                   />;
                 case 'dashboard':
                 default:

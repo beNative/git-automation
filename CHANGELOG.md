@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.0]
+
+### Added
+- **GUI Scaling:** Added a new "GUI Scale" slider in the Settings > Appearance view to adjust the size of the entire user interface from 50% to 200%.
+- **Copy PAT Button:** Added a copy-to-clipboard button next to the GitHub Personal Access Token field in Settings.
+
+### Fixed
+- **Repository Drag-and-Drop:** Fixed a critical state management bug that prevented repository cards from being correctly placed after being dragged and dropped.
+- **Tooltip System:** Completely re-engineered the tooltip system to be more intelligent. Tooltips now dynamically reposition themselves to avoid being clipped by the edges of the application window and no longer flicker on hover.
+- **External Links:** Links in the Release Manager now correctly open in the user's external browser.
+- **UI Flickering:** The Commit History dialog no longer resizes itself when searching, which fixes a flickering issue.
+- **UI Polish:** The "About" dialog title is now simply "About", and the redundant "Settings" title has been removed from the settings sidebar for a cleaner look.
+
+### Changed
+- **Documentation:** Updated all documentation to reflect the new features and to remove the outdated mention of the commit history being limited to 30 entries.
+
 ## [0.12.0]
 
 ### Fixed
