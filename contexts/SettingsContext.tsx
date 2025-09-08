@@ -240,35 +240,52 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, [categories]);
 
   const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => {
-    logger.debug('moveRepositoryToCategory ATOMIC', { repoId, sourceId, targetId, targetIndex });
+    logger.debug('[DnD] moveRepositoryToCategory called with', { repoId, sourceId, targetId, targetIndex });
+    logger.debug('[DnD] State before move', { categories, uncategorizedOrder });
 
-    // Create mutable copies
-    const newCategories = JSON.parse(JSON.stringify(categories));
+    // Create mutable copies using a more performant deep-enough copy
+    const newCategories = categories.map(c => ({...c, repositoryIds: [...c.repositoryIds]}));
     const newUncategorizedOrder = [...uncategorizedOrder];
 
     // 1. Find and remove the repo from its source
     if (sourceId === 'uncategorized') {
         const index = newUncategorizedOrder.indexOf(repoId);
-        if (index > -1) newUncategorizedOrder.splice(index, 1);
+        if (index > -1) {
+          newUncategorizedOrder.splice(index, 1);
+          logger.debug('[DnD] Removed repo from uncategorized list', { fromIndex: index });
+        } else {
+          logger.warn('[DnD] Could not find repo in source (uncategorized)', { repoId });
+        }
     } else {
-        const sourceCat = newCategories.find((c: Category) => c.id === sourceId);
+        const sourceCat = newCategories.find(c => c.id === sourceId);
         if (sourceCat) {
             const index = sourceCat.repositoryIds.indexOf(repoId);
-            if (index > -1) sourceCat.repositoryIds.splice(index, 1);
+            if (index > -1) {
+              sourceCat.repositoryIds.splice(index, 1);
+              logger.debug('[DnD] Removed repo from source category', { sourceId, fromIndex: index });
+            } else {
+              logger.warn('[DnD] Could not find repo in source category', { sourceId, repoId });
+            }
         }
     }
 
     // 2. Add the repo to its target
     if (targetId === 'uncategorized') {
         newUncategorizedOrder.splice(targetIndex, 0, repoId);
+        logger.debug('[DnD] Added repo to uncategorized list', { toIndex: targetIndex });
     } else {
-        const targetCat = newCategories.find((c: Category) => c.id === targetId);
+        const targetCat = newCategories.find(c => c.id === targetId);
         if (targetCat) {
             targetCat.repositoryIds.splice(targetIndex, 0, repoId);
+            logger.debug('[DnD] Added repo to target category', { targetId, toIndex: targetIndex });
+        } else {
+            logger.error('[DnD] Could not find target category to drop into', { targetId });
         }
     }
+    
+    logger.debug('[DnD] State after move', { newCategories, newUncategorizedOrder });
 
-    // 3. Set the new state atomically
+    // 3. Set the new state
     setCategories(newCategories);
     setUncategorizedOrder(newUncategorizedOrder);
 
@@ -418,4 +435,3 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 export const useSettings = () => {
     return useContext(SettingsContext);
 };
-      

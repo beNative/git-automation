@@ -17,7 +17,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **GitHub Release Management:** See the latest release on the dashboard, and view, create, edit, and manage all your project's releases directly from the configuration view.
 -   **Commit History:** View the commit history for any repository, with search and load-on-demand.
 -   **Tabbed & Integrated Log Panel:** Monitor the output of every command in a detailed, resizable, and tabbed log panel that integrates smoothly into the main view.
--   **Advanced Debugging:** A powerful debug console with log filtering and a save-to-file feature for in-depth troubleshooting.
+-   **Advanced Debugging:** A powerful debug console with log filtering and a save-to-file feature for in-depth troubleshooting, including detailed logs for drag-and-drop operations.
 -   **Reliable Auto-Updates:** Get notified with a clear banner when a new version is ready and install it with a single click.
 -   **Easy Configuration:** Add new repositories and configure them through a simple, unified form.
 -   **Persistent UI State:** The application remembers your dashboard layout, including the collapsed state of categories, between sessions.

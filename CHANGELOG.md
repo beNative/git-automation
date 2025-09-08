@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.0]
+
+### Added
+- **Drag-and-Drop Debugging:** Added extensive, detailed logging to the drag-and-drop functionality for reordering repositories. This will help diagnose persistent issues if they occur in specific environments. Debug logs can be viewed in the Debug Console (`Ctrl/Cmd+D`).
+
+### Changed
+- **Drag-and-Drop Logic:** Further refined the state management logic for drag-and-drop to improve robustness.
+
 ## [0.14.0]
 
 ### Fixed

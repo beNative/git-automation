@@ -73,14 +73,16 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   };
 
   const handleDragStartRepo = useCallback((repoId: string, sourceCategoryId: string | null) => {
+    logger.debug('[DnD] handleDragStartRepo', { repoId, sourceCategoryId });
     setDraggedRepo({ repoId, sourceCategoryId });
     setDraggedCategoryId(null);
-  }, []);
+  }, [logger]);
   
   const handleDragStartCategory = useCallback((categoryId: string) => {
+    logger.debug('[DnD] handleDragStartCategory', { categoryId });
     setDraggedCategoryId(categoryId);
     setDraggedRepo(null);
-  }, []);
+  }, [logger]);
 
   const handleDragOverRepo = useCallback((e: React.DragEvent<HTMLDivElement>, categoryId: string | null, repoId: string | null) => {
     e.preventDefault();
@@ -119,7 +121,11 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     targetType: 'category' | 'repo' | 'uncategorized' | 'category-empty',
     targetId: string | null, // repoId, categoryId, or null for uncategorized
   ) => {
+    logger.debug('[DnD] handleDrop triggered', { targetType, targetId });
     if (draggedRepo) {
+        logger.debug('[DnD] Dragged Repo Info', { draggedRepo, repoDropIndicator });
+        logger.debug('[DnD] Current State', { categories, uncategorizedOrder });
+
         const { repoId, sourceCategoryId } = draggedRepo;
         const sourceId = sourceCategoryId ?? 'uncategorized';
 
@@ -148,10 +154,12 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             targetIndex = targetList.length;
         }
         
+        logger.debug('[DnD] Calculated Drop Target and calling context', { repoId, sourceId, targetCategoryId, targetIndex });
         onMoveRepositoryToCategory(repoId, sourceId, targetCategoryId, targetIndex);
 
     } else if (draggedCategoryId) {
         if (targetType === 'category' && targetId && draggedCategoryId !== targetId && categoryDropIndicator) {
+            logger.debug('[DnD] Reordering category', { draggedCategoryId, targetId, position: categoryDropIndicator.position });
             onReorderCategories(draggedCategoryId, targetId, categoryDropIndicator.position);
         }
     }
@@ -160,7 +168,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     setDraggedCategoryId(null);
     setRepoDropIndicator(null);
     setCategoryDropIndicator(null);
-  }, [draggedRepo, draggedCategoryId, categories, uncategorizedOrder, onMoveRepositoryToCategory, onReorderCategories, repoDropIndicator, categoryDropIndicator]);
+  }, [draggedRepo, draggedCategoryId, categories, uncategorizedOrder, onMoveRepositoryToCategory, onReorderCategories, repoDropIndicator, categoryDropIndicator, logger]);
 
   const reposById = useMemo(() => 
     repositories.reduce((acc, repo) => {

@@ -181,7 +181,7 @@ The status bar is located at the very bottom of the application window and provi
 
 For advanced troubleshooting, a debug panel is available. You can open it by clicking the **"Debug"** button in the status bar at the very bottom of the window, or by pressing `Ctrl+D` (or `Cmd+D` on macOS).
 
-This panel shows internal application logs, which can be helpful for diagnosing unexpected behavior.
+This panel shows internal application logs, which can be helpful for diagnosing unexpected behavior, such as issues with repository drag-and-drop.
 
 -   **Log Filtering:** The header of the panel has buttons to toggle the visibility of different log levels (`DEBUG`, `INFO`, `WARN`, `ERROR`). This allows you to focus only on the messages you're interested in.
 -   **Save to File:** Clicking the "Save logs to file" icon will start writing all subsequent debug logs to a timestamped file on your computer. This is useful for capturing detailed information over a longer session to share in a bug report. Click the button again to stop logging to the file.
