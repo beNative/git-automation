@@ -132,6 +132,15 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             const targetList = targetCategoryData ? targetCategoryData.repositoryIds : uncategorizedOrder;
             const indexInList = targetList.indexOf(targetId!);
             targetIndex = (repoDropIndicator?.position === 'after') ? indexInList + 1 : indexInList;
+
+            // Adjust index if moving downwards within the same list.
+            if (sourceId === targetCategoryId) {
+                const sourceList = sourceId === 'uncategorized' ? uncategorizedOrder : categories.find(c => c.id === sourceId)!.repositoryIds;
+                const sourceIndex = sourceList.indexOf(repoId);
+                if (sourceIndex !== -1 && sourceIndex < targetIndex) {
+                    targetIndex--; // The item is removed before being inserted, so the target index shifts.
+                }
+            }
         } else { // 'category' or 'uncategorized' or 'category-empty'
             targetCategoryId = targetId ?? 'uncategorized';
             const targetCategory = categories.find(c => c.id === targetCategoryId);
@@ -151,7 +160,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     setDraggedCategoryId(null);
     setRepoDropIndicator(null);
     setCategoryDropIndicator(null);
-  }, [draggedRepo, draggedCategoryId, categories, uncategorizedOrder, onMoveRepositoryToCategory, onReorderCategories, repoDropIndicator, categoryDropIndicator, logger]);
+  }, [draggedRepo, draggedCategoryId, categories, uncategorizedOrder, onMoveRepositoryToCategory, onReorderCategories, repoDropIndicator, categoryDropIndicator]);
 
   const reposById = useMemo(() => 
     repositories.reduce((acc, repo) => {

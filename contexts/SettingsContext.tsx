@@ -39,9 +39,7 @@ const DEFAULTS: GlobalSettings = {
     githubPat: '',
     gitExecutablePath: '',
     svnExecutablePath: '',
-    // FIX START: Add missing zoomFactor property to satisfy GlobalSettings type.
     zoomFactor: 1,
-    // FIX END
 };
 
 const initialState: AppDataContextState = {
@@ -241,57 +239,44 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, [categories]);
 
   const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => {
-    logger.debug('moveRepositoryToCategory triggered', { repoId, sourceId, targetId, targetIndex });
-
-    // Use a single, atomic update by preparing the new state completely before setting it.
-    const newCategories = JSON.parse(JSON.stringify(categories));
-    let newUncategorizedOrder = [...uncategorizedOrder];
-
-    let actualTargetIndex = targetIndex;
-
-    // 1. Find and remove the repo from its source list.
-    if (sourceId === 'uncategorized') {
-        const sourceIndex = newUncategorizedOrder.indexOf(repoId);
-        if (sourceIndex > -1) {
-            newUncategorizedOrder.splice(sourceIndex, 1);
-            // If moving within the same list downwards, the target index needs to be adjusted.
-            if (targetId === 'uncategorized' && sourceIndex < targetIndex) {
-                actualTargetIndex--;
-            }
-        }
-    } else {
-        const sourceCategory = newCategories.find((c: Category) => c.id === sourceId);
-        if (sourceCategory) {
-            const sourceIndex = sourceCategory.repositoryIds.indexOf(repoId);
-            if (sourceIndex > -1) {
-                sourceCategory.repositoryIds.splice(sourceIndex, 1);
-                // Adjust target index if moving within the same category downwards
-                if (targetId === sourceId && sourceIndex < targetIndex) {
-                    actualTargetIndex--;
-                }
-            }
-        }
-    }
-
-    // 2. Add the repo to the target list at the correct index.
-    if (targetId === 'uncategorized') {
-        newUncategorizedOrder.splice(actualTargetIndex, 0, repoId);
-    } else {
-        const targetCategory = newCategories.find((c: Category) => c.id === targetId);
-        if (targetCategory) {
-            targetCategory.repositoryIds.splice(actualTargetIndex, 0, repoId);
-        } else {
-            logger.error("Target category not found", { targetId });
-            // Failsafe: put it back in uncategorized
-            newUncategorizedOrder.push(repoId);
-        }
-    }
-
-    // 3. Set the new state.
-    setCategories(newCategories);
-    setUncategorizedOrder(newUncategorizedOrder);
-
-  }, [categories, uncategorizedOrder, logger]);
+      logger.debug('moveRepositoryToCategory refactored', { repoId, sourceId, targetId, targetIndex });
+  
+      // Use separate functional updates for atomicity and to avoid stale state issues.
+      
+      // Update categories state
+      setCategories(prevCats => {
+          let newCats = JSON.parse(JSON.stringify(prevCats));
+          // Remove from source if it's a category
+          if (sourceId !== 'uncategorized') {
+              const sourceCat = newCats.find((c: Category) => c.id === sourceId);
+              if (sourceCat) {
+                  sourceCat.repositoryIds = sourceCat.repositoryIds.filter((id: string) => id !== repoId);
+              }
+          }
+          // Add to target if it's a category
+          if (targetId !== 'uncategorized') {
+              const targetCat = newCats.find((c: Category) => c.id === targetId);
+              if (targetCat) {
+                  targetCat.repositoryIds.splice(targetIndex, 0, repoId);
+              }
+          }
+          return newCats;
+      });
+  
+      // Update uncategorized order state
+      setUncategorizedOrder(prevUncat => {
+          let newUncat = [...prevUncat];
+          // Remove from source if it's uncategorized
+          if (sourceId === 'uncategorized') {
+              newUncat = newUncat.filter(id => id !== repoId);
+          }
+          // Add to target if it's uncategorized
+          if (targetId === 'uncategorized') {
+              newUncat.splice(targetIndex, 0, repoId);
+          }
+          return newUncat;
+      });
+  }, [logger]);
 
   const moveRepository = useCallback((repoId: string, direction: 'up' | 'down') => {
     logger.debug('moveRepository triggered', { repoId, direction });

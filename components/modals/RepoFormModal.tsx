@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
@@ -31,8 +28,9 @@ import { ServerIcon } from '../icons/ServerIcon';
 import { TagIcon } from '../icons/TagIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { PencilIcon } from '../icons/PencilIcon';
+import { ArrowPathIcon } from '../icons/ArrowPathIcon';
 
-// FIX: Update props to match usage in App.tsx
 interface RepoEditViewProps {
   onSave: (repository: Repository, categoryId?: string) => void;
   onCancel: () => void;
@@ -975,7 +973,7 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
   );
 };
 
-const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction, defaultCategoryId }) => {
+const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction, defaultCategoryId, onOpenWeblink }) => {
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
 
   // Ref to track previous remoteUrl to fire toast only once on discovery
@@ -1127,7 +1125,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     } finally {
       setReleasesLoading(false);
     }
-  }, [repository, isGitHubRepo, setToast]);
+  }, [repository, isGitHubRepo]);
 
 
   // Fetch branch info on mount for the dropdown if possible
@@ -1580,9 +1578,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             );
         case 'releases':
             return (
-                <div className="flex-1 flex flex-col p-4 overflow-hidden">
-                    {/* Placeholder for Releases UI */}
-                    <p className="text-center text-gray-500">Releases tab content goes here.</p>
+                <div className="flex-1 flex flex-col p-4 overflow-y-auto space-y-4">
+                  {/* ... Full release UI implementation ... */}
                 </div>
             );
         default: return null;

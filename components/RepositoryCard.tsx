@@ -366,7 +366,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const releaseUrlTooltip = useTooltip(latestRelease?.url);
 
   const cardClasses = [
-    'relative',
+    'relative group',
     'bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col',
     'transition-all duration-300 hover:shadow-blue-500/20',
     isBeingDragged ? 'opacity-40 scale-95' : 'opacity-100 scale-100',
