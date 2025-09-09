@@ -1040,7 +1040,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, [historySearch]);
 
   const fetchHistory = useCallback(async (loadMore = false) => {
-    if (!repository || !isGitRepo) return;
+    if (!repository) return;
     
     if (loadMore) {
         setIsMoreHistoryLoading(true);
@@ -1052,7 +1052,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     const skipCount = loadMore ? commits.length : 0;
     
     try {
-        const newCommits = await window.electronAPI?.getCommitHistory(repository.localPath, skipCount, debouncedHistorySearch);
+        const newCommits = await window.electronAPI?.getCommitHistory(repository, skipCount, debouncedHistorySearch);
         if(loadMore) {
             setCommits(prev => [...prev, ...(newCommits || [])]);
         } else {
@@ -1087,7 +1087,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         setHistoryLoading(false);
         setIsMoreHistoryLoading(false);
     }
-  }, [repository, isGitRepo, setToast, commits.length, debouncedHistorySearch]);
+  }, [repository, setToast, commits.length, debouncedHistorySearch]);
 
   const fetchBranches = useCallback(async () => {
     if (!repository || !isGitRepo) return;
@@ -1886,9 +1886,11 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         <div className="flex-1 flex flex-col overflow-hidden">
              <div className="flex border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                 <button onClick={() => setActiveTab('tasks')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'tasks' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><CubeTransparentIcon className="h-5 w-5"/>Tasks</button>
+                {(isGitRepo || formData.vcs === VcsType.Svn) && (
+                  <button onClick={() => setActiveTab('history')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'history' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><DocumentTextIcon className="h-5 w-5"/>History</button>
+                )}
                 {isGitRepo && (
                     <>
-                        <button onClick={() => setActiveTab('history')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'history' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><DocumentTextIcon className="h-5 w-5"/>History</button>
                         <button onClick={() => setActiveTab('branches')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'branches' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><GitBranchIcon className="h-5 w-5"/>Branches</button>
                         <button onClick={() => setActiveTab('releases')} disabled={!isGitHubRepo} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${activeTab === 'releases' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><TagIcon className="h-5 w-5"/>Releases</button>
                     </>
@@ -1902,4 +1904,3 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 };
 
 export default RepoEditView;
-      

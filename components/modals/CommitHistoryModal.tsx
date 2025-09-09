@@ -61,7 +61,7 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
         setHasMore(true); // Reset on open or new search
         setMatchStats({ commitCount: 0, occurrenceCount: 0 }); // Reset stats
         try {
-          const initialCommits = await window.electronAPI.getCommitHistory(repository.localPath, 0, debouncedSearchQuery);
+          const initialCommits = await window.electronAPI.getCommitHistory(repository, 0, debouncedSearchQuery);
           setCommits(initialCommits);
           setHasMore(initialCommits.length === 100);
 
@@ -95,7 +95,7 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
     if (!repository || isMoreLoading) return;
     setIsMoreLoading(true);
     try {
-        const newCommits = await window.electronAPI.getCommitHistory(repository.localPath, commits.length, debouncedSearchQuery);
+        const newCommits = await window.electronAPI.getCommitHistory(repository, commits.length, debouncedSearchQuery);
         setCommits(prev => [...prev, ...newCommits]);
         setHasMore(newCommits.length === 100);
 

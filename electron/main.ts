@@ -1608,40 +1608,73 @@ ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promi
 });
 
 
-// --- Get Commit History (Git only) ---
-ipcMain.handle('get-commit-history', async (event, repoPath: string, skipCount?: number, searchQuery?: string): Promise<Commit[]> => {
+// --- Get Commit History (Git and SVN) ---
+ipcMain.handle('get-commit-history', async (event, repo: Repository, skipCount?: number, searchQuery?: string): Promise<Commit[]> => {
     try {
         const settings = await readSettings();
-        const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
-        const SEPARATOR = '_||_';
-        const format = `%H${SEPARATOR}%h${SEPARATOR}%an${SEPARATOR}%ar${SEPARATOR}%B`;
-        const skip = skipCount && Number.isInteger(skipCount) && skipCount > 0 ? `--skip=${skipCount}` : '';
-        
-        // Basic sanitization for the search query to be used with --grep
-        const search = searchQuery ? `--grep="${searchQuery.replace(/"/g, '\\"')}" -i --all-match` : '';
-        
-        // Use -z to separate commits with a NUL character, as messages can contain newlines
-        const { stdout } = await execAsync(`${gitCmd} log --pretty=format:"${format}" -z -n 100 ${skip} ${search}`, { cwd: repoPath });
-        
-        if (!stdout) return [];
-        
-        // Split by NUL character, and filter out any empty strings that might result from a trailing NUL
-        return stdout.split('\0').filter(line => line.trim() !== '').map(line => {
-            const parts = line.split(SEPARATOR);
-            const hash = parts[0];
-            const shortHash = parts[1];
-            const author = parts[2];
-            const date = parts[3];
-            // The rest of the parts form the message.
-            const message = parts.slice(4).join(SEPARATOR);
-            return { hash, shortHash, author, date, message: message || '' };
-        });
+
+        if (repo.vcs === VcsTypeEnum.Git) {
+            const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
+            const SEPARATOR = '_||_';
+            const format = `%H${SEPARATOR}%h${SEPARATOR}%an${SEPARATOR}%ar${SEPARATOR}%B`;
+            const skip = skipCount && Number.isInteger(skipCount) && skipCount > 0 ? `--skip=${skipCount}` : '';
+            const search = searchQuery ? `--grep="${searchQuery.replace(/"/g, '\\"')}" -i --all-match` : '';
+            const { stdout } = await execAsync(`${gitCmd} log --pretty=format:"${format}" -z -n 100 ${skip} ${search}`, { cwd: repo.localPath });
+            
+            if (!stdout) return [];
+            
+            return stdout.split('\0').filter(line => line.trim() !== '').map(line => {
+                const parts = line.split(SEPARATOR);
+                return {
+                    hash: parts[0],
+                    shortHash: parts[1],
+                    author: parts[2],
+                    date: parts[3],
+                    message: parts.slice(4).join(SEPARATOR) || '',
+                };
+            });
+        } else if (repo.vcs === VcsTypeEnum.Svn) {
+            const svnCmd = getExecutableCommand(VcsTypeEnum.Svn, settings);
+            
+            const { stdout: headStdout } = await execAsync(`${svnCmd} info --show-item last-changed-rev`, { cwd: repo.localPath });
+            const headRev = parseInt(headStdout.trim(), 10);
+            
+            if (isNaN(headRev)) {
+                throw new Error('Could not determine latest SVN revision.');
+            }
+
+            const startRev = headRev - (skipCount || 0);
+            if (startRev < 1) return [];
+
+            const limit = 100;
+            const search = searchQuery ? `--search "${searchQuery.replace(/"/g, '\\"')}"` : '';
+            const { stdout } = await execAsync(`${svnCmd} log --xml -l ${limit} -r ${startRev}:1 ${search}`, { cwd: repo.localPath });
+
+            if (!stdout) return [];
+
+            const commits: Commit[] = [];
+            const svnLogRegex = /<logentry\s+revision="(\d+)">\s*<author>(.*?)<\/author>\s*<date>(.*?)<\/date>\s*<msg>([\s\S]*?)<\/msg>\s*<\/logentry>/g;
+            
+            let match;
+            while ((match = svnLogRegex.exec(stdout)) !== null) {
+                const date = new Date(match[3]);
+                const formattedDate = isNaN(date.getTime()) ? match[3] : date.toLocaleString();
+                
+                commits.push({
+                    hash: match[1],
+                    shortHash: `r${match[1]}`,
+                    author: match[2],
+                    date: formattedDate,
+                    message: match[4].trim(),
+                });
+            }
+            return commits;
+        }
     } catch (e: any) {
-        console.error(`Failed to get commit history for ${repoPath} (search: "${searchQuery}"):`, e.message);
-        // If git log fails (e.g., on an empty repository), it will throw.
-        // In this case, we want to return an empty array, not crash the app.
+        console.error(`Failed to get commit history for ${repo.name} (search: "${searchQuery}"):`, e.message);
         return [];
     }
+    return [];
 });
 
 
