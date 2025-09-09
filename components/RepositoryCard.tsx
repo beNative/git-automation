@@ -424,6 +424,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
       onDragEnd={onDragEnd}
       onContextMenu={(e) => onContextMenu(e, repository)}
       className={cardClasses}
+      data-repo-id={id}
     >
       {dropIndicatorPosition === 'before' && <div className="absolute top-0 bottom-0 -left-2 w-1.5 bg-blue-500 rounded-full" />}
       <div className="p-4 flex-grow">

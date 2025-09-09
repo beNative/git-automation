@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext, useRef } from 'react';
 import type { GlobalSettings, Repository, Category } from '../types';
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
@@ -27,6 +28,7 @@ interface AppDataContextState {
   reorderCategories: (draggedId: string, targetId: string, position: 'before' | 'after') => void;
 }
 
+// FIX: Add missing 'dndStrategy' property to satisfy the GlobalSettings type.
 const DEFAULTS: GlobalSettings = {
     defaultBuildCommand: 'npm run build',
     notifications: true,
@@ -40,6 +42,7 @@ const DEFAULTS: GlobalSettings = {
     gitExecutablePath: '',
     svnExecutablePath: '',
     zoomFactor: 1,
+    dndStrategy: 'Reducer',
 };
 
 const initialState: AppDataContextState = {

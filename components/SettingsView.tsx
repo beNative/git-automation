@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { GlobalSettings } from '../types';
+import type { GlobalSettings, DndStrategy } from '../types';
 import { SunIcon } from './icons/SunIcon';
 import { MoonIcon } from './icons/MoonIcon';
 import type { IconSet } from '../types';
@@ -27,6 +27,14 @@ interface SettingsViewProps {
 }
 
 type SettingsCategory = 'appearance' | 'behavior' | 'jsonConfig';
+
+const dndStrategyDescriptions: Record<DndStrategy, string> = {
+  ContextFuncUpdate: 'A refined version of the original context-based logic using functional state updates to prevent race conditions.',
+  DashboardState: 'Moves DnD calculations into the Dashboard component, which then passes a fully computed new state to the context.',
+  DataTransfer: "A classic approach using the browser's native DataTransfer API to manage drag state, minimizing React state changes during the operation.",
+  DirectMutation: 'An imperative approach that clones the state, directly mutates the clone with array methods, then sets the new state.',
+  Reducer: 'The most robust pattern using a `useReducer` hook to handle all DnD logic in a predictable, pure function.',
+};
 
 const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, setToast, confirmAction }) => {
   const [settings, setSettings] = useState<GlobalSettings>(currentSettings);
@@ -291,6 +299,18 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                                   <button type="button" onClick={() => handleBrowserChange('chrome')} className={`${iconSetButtonBase} ${settings.openLinksIn === 'chrome' ? iconSetButtonActive : iconSetButtonInactive}`}>Chrome</button>
                                   <button type="button" onClick={() => handleBrowserChange('firefox')} className={`${iconSetButtonBase} ${settings.openLinksIn === 'firefox' ? iconSetButtonActive : iconSetButtonInactive}`}>Firefox</button>
                               </div>
+                          </div>
+
+                          <div>
+                              <label htmlFor="dndStrategy" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Drag & Drop Strategy</label>
+                              <select id="dndStrategy" name="dndStrategy" value={settings.dndStrategy} onChange={handleChange} className={`${formInputStyle} max-w-md`}>
+                                <option value="ContextFuncUpdate">Context (Functional Update)</option>
+                                <option value="DashboardState">Dashboard (Local State)</option>
+                                <option value="DataTransfer">Browser (DataTransfer API)</option>
+                                <option value="DirectMutation">Context (Direct Mutation)</option>
+                                <option value="Reducer">Context (Reducer)</option>
+                              </select>
+                              <p className="mt-1 text-xs text-gray-500 max-w-md">{dndStrategyDescriptions[settings.dndStrategy]}</p>
                           </div>
 
                           <div className="flex items-start">
