@@ -42,7 +42,7 @@ const DEFAULTS: GlobalSettings = {
     gitExecutablePath: '',
     svnExecutablePath: '',
     zoomFactor: 1,
-    dndStrategy: 'Reducer',
+    dndStrategy: 'DropTargetDirect',
 };
 
 const initialState: AppDataContextState = {

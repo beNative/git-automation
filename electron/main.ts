@@ -1,4 +1,5 @@
 
+
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path, { dirname } from 'path';
@@ -84,7 +85,7 @@ const DEFAULTS: GlobalSettings = {
     gitExecutablePath: '',
     svnExecutablePath: '',
     zoomFactor: 1,
-    dndStrategy: 'Reducer',
+    dndStrategy: 'DropTargetDirect',
 };
 
 async function readSettings(): Promise<GlobalSettings> {

@@ -4,7 +4,7 @@
 
 // Moved from contexts/IconContext.tsx
 export type IconSet = 'heroicons' | 'lucide' | 'tabler' | 'feather' | 'remix' | 'phosphor';
-export type DndStrategy = 'ContextFuncUpdate' | 'DashboardState' | 'DataTransfer' | 'DirectMutation' | 'Reducer';
+export type DndStrategy = 'IndicatorState' | 'DropTargetDirect' | 'DropTargetTraversal' | 'ElementFromPoint' | 'Hybrid';
 
 export enum RepoStatus {
   Idle = 'Idle',

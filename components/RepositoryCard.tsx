@@ -29,6 +29,7 @@ import { ArrowDownIcon } from './icons/ArrowDownIcon';
 
 interface RepositoryCardProps {
   repository: Repository;
+  categoryId: string | 'uncategorized';
   onOpenTaskSelection: (repoId: string) => void;
   onRunTask: (repoId: string, taskId: string) => void;
   onViewLogs: (repoId: string) => void;
@@ -301,6 +302,7 @@ const WebLinkButton: React.FC<{ link: WebLinkConfig; onOpen: (url: string) => vo
 
 const RepositoryCard: React.FC<RepositoryCardProps> = ({
   repository,
+  categoryId,
   onOpenTaskSelection,
   onRunTask,
   onViewLogs,
@@ -425,6 +427,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
       onContextMenu={(e) => onContextMenu(e, repository)}
       className={cardClasses}
       data-repo-id={id}
+      data-category-id={categoryId}
     >
       {dropIndicatorPosition === 'before' && <div className="absolute top-0 bottom-0 -left-2 w-1.5 bg-blue-500 rounded-full" />}
       <div className="p-4 flex-grow">

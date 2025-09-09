@@ -64,10 +64,10 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   const logger = useLogger();
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [draggedRepo, setDraggedRepo] = useState<{ repoId: string; sourceCategoryId: string | null } | null>(null);
+  const [draggedRepo, setDraggedRepo] = useState<{ repoId: string; sourceCategoryId: string | 'uncategorized' } | null>(null);
   const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
 
-  const [repoDropIndicator, setRepoDropIndicator] = useState<{ categoryId: string | null; repoId: string | null; position: 'before' | 'after' } | null>(null);
+  const [repoDropIndicator, setRepoDropIndicator] = useState<{ categoryId: string | 'uncategorized'; repoId: string | null; position: 'before' | 'after' } | null>(null);
   const [categoryDropIndicator, setCategoryDropIndicator] = useState<{ categoryId: string; position: 'before' | 'after' } | null>(null);
   
   const handleAddCategory = () => {
@@ -78,104 +78,156 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     }
   };
 
-  const handleDragStartRepo = useCallback((e: React.DragEvent<HTMLDivElement>, repoId: string, sourceCategoryId: string | null) => {
-    logger.debug('[DnD] handleDragStartRepo', { repoId, sourceCategoryId, strategy: settings.dndStrategy });
-    if (settings.dndStrategy === 'DataTransfer') {
-      e.dataTransfer.setData('text/plain', JSON.stringify({ repoId, sourceCategoryId: sourceCategoryId ?? 'uncategorized' }));
-    } else {
-      setDraggedRepo({ repoId, sourceCategoryId });
-    }
+  const handleDragStartRepo = useCallback((e: React.DragEvent<HTMLDivElement>, repoId: string, sourceCategoryId: string | 'uncategorized') => {
+    logger.debug('[DnD] Drag Start Repo', { repoId, sourceCategoryId });
+    e.dataTransfer.setData('text/plain', JSON.stringify({ repoId, sourceCategoryId }));
+    setDraggedRepo({ repoId, sourceCategoryId });
     setDraggedCategoryId(null);
-  }, [logger, settings.dndStrategy]);
+  }, [logger]);
   
   const handleDragStartCategory = useCallback((categoryId: string) => {
-    logger.debug('[DnD] handleDragStartCategory', { categoryId });
+    logger.debug('[DnD] Drag Start Category', { categoryId });
     setDraggedCategoryId(categoryId);
     setDraggedRepo(null);
   }, [logger]);
 
-  const handleDragOverRepo = useCallback((e: React.DragEvent<HTMLDivElement>, categoryId: string | null, repoId: string | null) => {
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const isRepoDragged = draggedRepo || (settings.dndStrategy === 'DataTransfer' && e.dataTransfer.types.includes('text/plain'));
-    if (!isRepoDragged) {
-      setRepoDropIndicator(null);
+    
+    // The "IndicatorState" strategy is the only one that needs this complex logic.
+    // All other strategies calculate the drop position inside handleDrop.
+    if (settings.dndStrategy !== 'IndicatorState') {
       return;
     }
-    const targetElement = e.currentTarget;
-    const rect = targetElement.getBoundingClientRect();
-    const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
-    setRepoDropIndicator({ categoryId, repoId, position });
-  }, [draggedRepo, settings.dndStrategy]);
-  
-  const handleDragOverCategory = useCallback((e: React.DragEvent<HTMLDivElement>, categoryId: string) => {
-    // ONLY handle this event if a category is being dragged over a DIFFERENT category.
-    if (draggedCategoryId && draggedCategoryId !== categoryId) {
-      e.preventDefault();
-      e.stopPropagation(); // Stop this event from going further.
+
+    if (draggedRepo) {
       const targetElement = e.currentTarget;
       const rect = targetElement.getBoundingClientRect();
       const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
-      setCategoryDropIndicator({ categoryId, position });
-    } else {
-      // If we are dragging a repo, or dragging a category over itself, do nothing here.
-      // Let the event propagate to child elements which have their own onDragOver handlers for repos.
-      setCategoryDropIndicator(null);
+      const repoId = targetElement.dataset.repoId || null;
+      const categoryId = targetElement.dataset.categoryId as string | 'uncategorized' || 'uncategorized';
+      setRepoDropIndicator({ categoryId, repoId, position });
+    } else if (draggedCategoryId) {
+      const targetCategoryId = e.currentTarget.dataset.categoryId;
+      if (targetCategoryId && draggedCategoryId !== targetCategoryId) {
+          const targetElement = e.currentTarget;
+          const rect = targetElement.getBoundingClientRect();
+          const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+          setCategoryDropIndicator({ categoryId: targetCategoryId, position });
+      } else {
+          setCategoryDropIndicator(null);
+      }
     }
-  }, [draggedCategoryId]);
+  }, [draggedRepo, draggedCategoryId, settings.dndStrategy]);
 
   const handleDragLeave = useCallback(() => {
     setRepoDropIndicator(null);
     setCategoryDropIndicator(null);
   }, []);
   
-  // FIX START: Refactor handleDrop to construct a DropTarget object instead of calculating an index.
-  // This delegates the index calculation to the state management context, which has access to the freshest state, fixing the core bug.
-  const handleDrop = useCallback((
-    e: React.DragEvent<HTMLDivElement>,
-    targetType: 'category' | 'repo' | 'uncategorized' | 'category-empty',
-    targetId: string | null, // repoId, categoryId, or null for uncategorized
-  ) => {
-    logger.debug('[DnD] handleDrop triggered', { targetType, targetId, strategy: settings.dndStrategy, repoDropIndicator });
-
-    let currentDraggedRepo = draggedRepo;
-    if (settings.dndStrategy === 'DataTransfer') {
-      try {
-        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-        currentDraggedRepo = { repoId: data.repoId, sourceCategoryId: data.sourceCategoryId === 'uncategorized' ? null : data.sourceCategoryId };
-      } catch (err) {
-        logger.error('[DnD] Failed to parse DataTransfer data', err);
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    logger.debug('[DnD] Drop event triggered', { strategy: settings.dndStrategy });
+    
+    // --- Universal Dragged Item Identification ---
+    let currentDraggedRepo: { repoId: string; sourceCategoryId: string | 'uncategorized' } | null = null;
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if (data.repoId) {
+        currentDraggedRepo = data;
       }
+    } catch (err) {
+      logger.error('[DnD] Failed to parse DataTransfer data. Using component state.', { error: err, state: draggedRepo });
+      currentDraggedRepo = draggedRepo;
     }
 
     if (currentDraggedRepo) {
-        const { repoId: draggedRepoId, sourceCategoryId } = currentDraggedRepo;
-        const sourceId = sourceCategoryId ?? 'uncategorized';
-        
-        let target: DropTarget;
+      const { repoId: draggedRepoId, sourceCategoryId } = currentDraggedRepo;
+      let target: DropTarget | null = null;
 
-        if (targetType === 'repo' && targetId && repoDropIndicator) {
-            // Drop was on a repository card. The indicator state has the most accurate info.
-            target = {
-                repoId: targetId,
-                categoryId: repoDropIndicator.categoryId ?? 'uncategorized',
-                position: repoDropIndicator.position,
-            };
-        } else {
-            // Drop was on a category area (or empty uncategorized).
-            target = {
-                repoId: null,
-                categoryId: targetId ?? 'uncategorized',
-                position: 'end'
-            };
+      // --- STRATEGY-BASED TARGET CALCULATION ---
+      switch (settings.dndStrategy) {
+        case 'IndicatorState': { // The previous, flawed logic
+          logger.debug('[DnD] Using "IndicatorState" strategy');
+          if (repoDropIndicator) {
+              target = {
+                  repoId: repoDropIndicator.repoId,
+                  categoryId: repoDropIndicator.categoryId,
+                  position: repoDropIndicator.position,
+              };
+          } else {
+             const categoryId = (e.currentTarget as HTMLElement).dataset.categoryId as string | 'uncategorized' || 'uncategorized';
+             target = { repoId: null, categoryId, position: 'end' };
+          }
+          break;
         }
-        
-        logger.debug('[DnD] Calling onMoveRepositoryToCategory', { draggedRepoId, sourceId, target });
-        onMoveRepositoryToCategory(draggedRepoId, sourceId, target);
 
+        case 'DropTargetDirect':
+        case 'ElementFromPoint':
+        case 'DropTargetTraversal':
+        case 'Hybrid': {
+          let dropElement: HTMLElement | null = null;
+          if (settings.dndStrategy === 'ElementFromPoint') {
+              logger.debug('[DnD] Using "ElementFromPoint" strategy');
+              dropElement = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement;
+          } else { // DropTargetDirect, DropTargetTraversal, Hybrid
+              logger.debug(`[DnD] Using "${settings.dndStrategy}" strategy`);
+              dropElement = e.target as HTMLElement;
+          }
+
+          let cardElement: HTMLElement | null = null;
+          let categoryElement: HTMLElement | null = null;
+          
+          // Find the relevant elements by traversing up the DOM
+          let current = dropElement;
+          while(current) {
+            if (current.dataset.repoId && !cardElement) {
+              cardElement = current;
+            }
+            if (current.dataset.categoryId && !categoryElement) {
+              categoryElement = current;
+            }
+            if (cardElement && categoryElement) break;
+            current = current.parentElement;
+          }
+          
+          // Hybrid strategy fallback
+          if (settings.dndStrategy === 'Hybrid' && !cardElement && !categoryElement) {
+            logger.debug('[DnD] Hybrid strategy falling back to currentTarget');
+            cardElement = (e.currentTarget as HTMLElement).dataset.repoId ? (e.currentTarget as HTMLElement) : null;
+            categoryElement = e.currentTarget as HTMLElement;
+          }
+
+          if (cardElement) {
+            const rect = cardElement.getBoundingClientRect();
+            target = {
+              repoId: cardElement.dataset.repoId!,
+              categoryId: cardElement.dataset.categoryId as string | 'uncategorized',
+              position: e.clientY < rect.top + rect.height / 2 ? 'before' : 'after',
+            };
+          } else if (categoryElement) {
+            target = {
+              repoId: null,
+              categoryId: categoryElement.dataset.categoryId as string | 'uncategorized',
+              position: 'end'
+            };
+          }
+          break;
+        }
+      }
+
+      if (target) {
+        logger.debug('[DnD] Dispatching move action', { draggedRepoId, sourceCategoryId, target });
+        onMoveRepositoryToCategory(draggedRepoId, sourceCategoryId, target);
+      } else {
+        logger.warn('[DnD] Could not determine a valid drop target.');
+      }
     } else if (draggedCategoryId) {
-        if (targetType === 'category' && targetId && draggedCategoryId !== targetId && categoryDropIndicator) {
-            logger.debug('[DnD] Reordering category', { draggedCategoryId, targetId, position: categoryDropIndicator.position });
-            onReorderCategories(draggedCategoryId, targetId, categoryDropIndicator.position);
+        const targetCategoryId = (e.currentTarget as HTMLElement).dataset.categoryId;
+        if (targetCategoryId && draggedCategoryId !== targetCategoryId && categoryDropIndicator) {
+            logger.debug('[DnD] Reordering category', { draggedCategoryId, targetCategoryId, position: categoryDropIndicator.position });
+            onReorderCategories(draggedCategoryId, targetCategoryId, categoryDropIndicator.position);
         }
     }
   
@@ -194,7 +246,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     [repositories]
   );
   
-  const renderRepoList = (repoIds: string[], categoryId: string | null) => (
+  const renderRepoList = (repoIds: string[], categoryId: string | 'uncategorized') => (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {repoIds.map((repoId, index) => {
             const repo = reposById[repoId];
@@ -206,6 +258,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 <RepositoryCard
                     key={repo.id}
                     repository={repo}
+                    categoryId={categoryId}
                     isProcessing={props.isProcessing.has(repo.id)}
                     localPathState={props.localPathStates[repo.id] || 'checking'}
                     detailedStatus={props.detailedStatuses[repo.id] || null}
@@ -216,9 +269,9 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     onDragEnd={() => { setDraggedRepo(null); setRepoDropIndicator(null); }}
                     isBeingDragged={isBeingDragged}
                     dropIndicatorPosition={indicator ? indicator.position : null}
-                    onDragOver={(e) => handleDragOverRepo(e, categoryId, repo.id)}
+                    onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, 'repo', repo.id)}
+                    onDrop={handleDrop}
                     onContextMenu={(e) => props.onOpenContextMenu(e, repo)}
                     onMoveRepository={props.onMoveRepository}
                     isFirstInList={index === 0}
@@ -262,16 +315,10 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         return (
           <div
             key={category.id}
+            data-category-id={category.id}
             className={`transition-opacity duration-300 ${isBeingDragged ? 'opacity-40' : 'opacity-100'}`}
-            onDragOver={(e) => handleDragOverCategory(e, category.id)}
-            onDrop={(e) => {
-              // Only handle the drop if a category was being dragged.
-              if (draggedCategoryId) {
-                e.preventDefault();
-                e.stopPropagation();
-                handleDrop(e, 'category', category.id);
-              }
-            }}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
             onDragLeave={handleDragLeave}
           >
              {showDropIndicatorBefore && <div className="h-2 my-2 bg-blue-500 rounded-lg" />}
@@ -287,19 +334,16 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     onMoveCategory={props.onMoveCategory}
                     onAddRepo={() => props.onOpenRepoForm('new', category.id)}
                     onDragStart={() => handleDragStartCategory(category.id)}
-                    onDropRepo={(e) => handleDrop(e, 'category', category.id)}
+                    onDropRepo={handleDrop}
                     onDragEnd={() => { setDraggedCategoryId(null); setCategoryDropIndicator(null); }}
                 />
                 {!(category.collapsed ?? false) && (
                   <div 
                     className="mt-3"
-                    onDragOver={(e) => { 
-                        if (categoryRepoIds.length === 0) {
-                           handleDragOverRepo(e, category.id, null)
-                        }
-                    }}
-                    onDragLeave={(e) => handleDragLeave()}
-                    onDrop={(e) => handleDrop(e, 'category-empty', category.id)}
+                    data-category-id={category.id}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
                   >
                     {renderRepoList(categoryRepoIds, category.id)}
                     {categoryRepoIds.length === 0 && (
@@ -319,15 +363,12 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         <h2 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mb-3 px-2">Uncategorized</h2>
         <div 
             className="min-h-[5rem]"
-            onDragOver={(e) => { 
-                if (uncategorizedRepos.length === 0) {
-                    handleDragOverRepo(e, null, null);
-                }
-            }}
-            onDragLeave={(e) => handleDragLeave()}
-            onDrop={(e) => handleDrop(e, 'uncategorized', null)}
+            data-category-id="uncategorized"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
         >
-            {renderRepoList(uncategorizedOrder, null)}
+            {renderRepoList(uncategorizedOrder, 'uncategorized')}
             {uncategorizedRepos.length === 0 && (
             <div className="p-6 text-center text-gray-500 border-2 border-dashed rounded-lg">
                 No uncategorized repositories.
