@@ -54,7 +54,6 @@ interface RepositoryCardProps {
   onOpenWeblink: (url: string) => void;
   onOpenTerminal: (path: string) => void;
   isBeingDragged: boolean;
-  dropIndicatorPosition: 'before' | 'after' | null;
   onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
@@ -327,7 +326,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onOpenWeblink,
   onOpenTerminal,
   isBeingDragged,
-  dropIndicatorPosition,
   onDragStart,
   onDragOver,
   onDragLeave,
@@ -429,7 +427,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
       data-repo-id={id}
       data-category-id={categoryId}
     >
-      {dropIndicatorPosition === 'before' && <div className="absolute top-0 bottom-0 -left-2 w-1.5 bg-blue-500 rounded-full" />}
       <div className="p-4 flex-grow">
         <div className="flex items-start justify-between">
           <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate">{name}</h3>
@@ -657,7 +654,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             </div>
         </div>
       </div>
-      {dropIndicatorPosition === 'after' && <div className="absolute top-0 bottom-0 -right-2 w-1.5 bg-blue-500 rounded-full" />}
     </div>
   );
 };

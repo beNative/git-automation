@@ -4,7 +4,6 @@
 
 // Moved from contexts/IconContext.tsx
 export type IconSet = 'heroicons' | 'lucide' | 'tabler' | 'feather' | 'remix' | 'phosphor';
-export type DndStrategy = 'IndicatorState' | 'DropTargetDirect' | 'DropTargetTraversal' | 'ElementFromPoint' | 'Hybrid';
 
 export enum RepoStatus {
   Idle = 'Idle',
@@ -112,7 +111,6 @@ export interface GlobalSettings {
   gitExecutablePath: string;
   svnExecutablePath: string;
   zoomFactor: number;
-  dndStrategy: DndStrategy;
 }
 
 export interface TaskStep {

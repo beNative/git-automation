@@ -71,7 +71,6 @@ const getLogFilePath = () => {
 const settingsPath = path.join(userDataPath, 'settings.json');
 let globalSettingsCache: GlobalSettings | null = null;
 
-// FIX: Add missing 'dndStrategy' property to satisfy the GlobalSettings type.
 const DEFAULTS: GlobalSettings = {
     defaultBuildCommand: 'npm run build',
     notifications: true,
@@ -85,7 +84,6 @@ const DEFAULTS: GlobalSettings = {
     gitExecutablePath: '',
     svnExecutablePath: '',
     zoomFactor: 1,
-    dndStrategy: 'DropTargetDirect',
 };
 
 async function readSettings(): Promise<GlobalSettings> {

@@ -42,7 +42,6 @@ const DEFAULTS: GlobalSettings = {
     gitExecutablePath: '',
     svnExecutablePath: '',
     zoomFactor: 1,
-    dndStrategy: 'DropTargetDirect',
 };
 
 const initialState: AppDataContextState = {
@@ -410,11 +409,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   // FIX START: Refactor moveRepositoryToCategory to dispatch an action to the central reducer.
   // This ensures the calculation is always on the latest state and the update is atomic.
   const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', target: DropTarget) => {
-    logger.debug(`[DnD] Dispatching MOVE_REPOSITORY_DND`, { repoId, sourceId, target, strategy: settings.dndStrategy });
-    // All strategies will use the same robust, atomic reducer logic.
-    // The strategy selected in the UI is now just for logging/debugging purposes.
+    logger.debug(`[DnD] Dispatching MOVE_REPOSITORY_DND`, { repoId, sourceId, target });
     dispatch({ type: 'MOVE_REPOSITORY_DND', payload: { repoId, sourceId, target } });
-  }, [logger, settings.dndStrategy]);
+  }, [logger]);
   // FIX END
 
   const moveRepository = useCallback((repoId: string, direction: 'up' | 'down') => {

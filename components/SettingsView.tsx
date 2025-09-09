@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { GlobalSettings, DndStrategy } from '../types';
+import type { GlobalSettings } from '../types';
 import { SunIcon } from './icons/SunIcon';
 import { MoonIcon } from './icons/MoonIcon';
 import type { IconSet } from '../types';
@@ -27,14 +27,6 @@ interface SettingsViewProps {
 }
 
 type SettingsCategory = 'appearance' | 'behavior' | 'jsonConfig';
-
-const dndStrategyDescriptions: Record<DndStrategy, string> = {
-  IndicatorState: 'Legacy: Relies on component state set during drag-over events. Kept for comparison.',
-  DropTargetDirect: 'Recommended: Calculates position from data attributes on the direct drop target. Robust and efficient.',
-  DropTargetTraversal: 'Traverses up from the event target (e.g., an icon) to find the card. Good for complex card layouts.',
-  ElementFromPoint: 'Uses mouse coordinates to find the element under the cursor. Can be more accurate than using the event target.',
-  Hybrid: 'A resilient strategy that tries the "Direct Target" method first and falls back to "Target Traversal" if needed.',
-};
 
 const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, setToast, confirmAction }) => {
   const [settings, setSettings] = useState<GlobalSettings>(currentSettings);
@@ -299,18 +291,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                                   <button type="button" onClick={() => handleBrowserChange('chrome')} className={`${iconSetButtonBase} ${settings.openLinksIn === 'chrome' ? iconSetButtonActive : iconSetButtonInactive}`}>Chrome</button>
                                   <button type="button" onClick={() => handleBrowserChange('firefox')} className={`${iconSetButtonBase} ${settings.openLinksIn === 'firefox' ? iconSetButtonActive : iconSetButtonInactive}`}>Firefox</button>
                               </div>
-                          </div>
-
-                          <div>
-                              <label htmlFor="dndStrategy" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Drag & Drop Strategy</label>
-                              <select id="dndStrategy" name="dndStrategy" value={settings.dndStrategy} onChange={handleChange} className={`${formInputStyle} max-w-md`}>
-                                <option value="IndicatorState">Indicator State (Legacy)</option>
-                                <option value="DropTargetDirect">Direct Target (Recommended)</option>
-                                <option value="DropTargetTraversal">Target Traversal</option>
-                                <option value="ElementFromPoint">Element From Point</option>
-                                <option value="Hybrid">Hybrid</option>
-                              </select>
-                              <p className="mt-1 text-xs text-gray-500 max-w-md">{dndStrategyDescriptions[settings.dndStrategy]}</p>
                           </div>
 
                           <div className="flex items-start">

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.0]
+
+### Fixed
+- **CRITICAL:** A long-standing and complex bug in the drag-and-drop system for reordering repositories has been definitively fixed. Reordering repositories within and between categories is now stable and reliable.
+
+### Changed
+- **Code Cleanup:** Removed the experimental "Drag & Drop Strategy" setting and all associated debug code, simplifying the implementation and improving maintainability.
+
 ## [0.16.0]
 
 ### Added

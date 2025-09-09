@@ -1,12 +1,11 @@
 import React, { useState, useCallback, useMemo } from 'react';
 // FIX START: Import DropTarget type for robust DnD.
-import type { Repository, Category, LocalPathState, DetailedStatus, BranchInfo, ToastMessage, ReleaseInfo, DndStrategy, DropTarget } from '../types';
+import type { Repository, Category, LocalPathState, DetailedStatus, BranchInfo, ToastMessage, ReleaseInfo, DropTarget } from '../types';
 // FIX END
 import RepositoryCard from './RepositoryCard';
 import CategoryHeader from './CategoryHeader';
 import { PlusIcon } from './icons/PlusIcon';
 import { useLogger } from '../hooks/useLogger';
-import { useSettings } from '../contexts/SettingsContext';
 
 interface DashboardProps {
   repositories: Repository[];
@@ -60,14 +59,12 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     latestReleases
   } = props;
   
-  const { settings } = useSettings();
   const logger = useLogger();
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [draggedRepo, setDraggedRepo] = useState<{ repoId: string; sourceCategoryId: string | 'uncategorized' } | null>(null);
   const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
 
-  const [repoDropIndicator, setRepoDropIndicator] = useState<{ categoryId: string | 'uncategorized'; repoId: string | null; position: 'before' | 'after' } | null>(null);
   const [categoryDropIndicator, setCategoryDropIndicator] = useState<{ categoryId: string; position: 'before' | 'after' } | null>(null);
   
   const handleAddCategory = () => {
@@ -94,20 +91,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     
-    // The "IndicatorState" strategy is the only one that needs this complex logic.
-    // All other strategies calculate the drop position inside handleDrop.
-    if (settings.dndStrategy !== 'IndicatorState') {
-      return;
-    }
-
-    if (draggedRepo) {
-      const targetElement = e.currentTarget;
-      const rect = targetElement.getBoundingClientRect();
-      const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
-      const repoId = targetElement.dataset.repoId || null;
-      const categoryId = targetElement.dataset.categoryId as string | 'uncategorized' || 'uncategorized';
-      setRepoDropIndicator({ categoryId, repoId, position });
-    } else if (draggedCategoryId) {
+    // This logic is only for showing the drop indicator between categories
+    if (draggedCategoryId) {
       const targetCategoryId = e.currentTarget.dataset.categoryId;
       if (targetCategoryId && draggedCategoryId !== targetCategoryId) {
           const targetElement = e.currentTarget;
@@ -118,17 +103,16 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
           setCategoryDropIndicator(null);
       }
     }
-  }, [draggedRepo, draggedCategoryId, settings.dndStrategy]);
+  }, [draggedCategoryId]);
 
   const handleDragLeave = useCallback(() => {
-    setRepoDropIndicator(null);
     setCategoryDropIndicator(null);
   }, []);
   
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    logger.debug('[DnD] Drop event triggered', { strategy: settings.dndStrategy });
+    logger.debug('[DnD] Drop event triggered');
     
     // --- Universal Dragged Item Identification ---
     let currentDraggedRepo: { repoId: string; sourceCategoryId: string | 'uncategorized' } | null = null;
@@ -146,75 +130,37 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
       const { repoId: draggedRepoId, sourceCategoryId } = currentDraggedRepo;
       let target: DropTarget | null = null;
 
-      // --- STRATEGY-BASED TARGET CALCULATION ---
-      switch (settings.dndStrategy) {
-        case 'IndicatorState': { // The previous, flawed logic
-          logger.debug('[DnD] Using "IndicatorState" strategy');
-          if (repoDropIndicator) {
-              target = {
-                  repoId: repoDropIndicator.repoId,
-                  categoryId: repoDropIndicator.categoryId,
-                  position: repoDropIndicator.position,
-              };
-          } else {
-             const categoryId = (e.currentTarget as HTMLElement).dataset.categoryId as string | 'uncategorized' || 'uncategorized';
-             target = { repoId: null, categoryId, position: 'end' };
-          }
-          break;
+      // --- FINAL STRATEGY: Direct Target Traversal ---
+      const dropElement = e.target as HTMLElement;
+      let cardElement: HTMLElement | null = null;
+      let categoryElement: HTMLElement | null = null;
+      
+      // Find the relevant elements by traversing up the DOM
+      let current = dropElement;
+      while(current) {
+        if (current.dataset.repoId && !cardElement) {
+          cardElement = current;
         }
-
-        case 'DropTargetDirect':
-        case 'ElementFromPoint':
-        case 'DropTargetTraversal':
-        case 'Hybrid': {
-          let dropElement: HTMLElement | null = null;
-          if (settings.dndStrategy === 'ElementFromPoint') {
-              logger.debug('[DnD] Using "ElementFromPoint" strategy');
-              dropElement = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement;
-          } else { // DropTargetDirect, DropTargetTraversal, Hybrid
-              logger.debug(`[DnD] Using "${settings.dndStrategy}" strategy`);
-              dropElement = e.target as HTMLElement;
-          }
-
-          let cardElement: HTMLElement | null = null;
-          let categoryElement: HTMLElement | null = null;
-          
-          // Find the relevant elements by traversing up the DOM
-          let current = dropElement;
-          while(current) {
-            if (current.dataset.repoId && !cardElement) {
-              cardElement = current;
-            }
-            if (current.dataset.categoryId && !categoryElement) {
-              categoryElement = current;
-            }
-            if (cardElement && categoryElement) break;
-            current = current.parentElement;
-          }
-          
-          // Hybrid strategy fallback
-          if (settings.dndStrategy === 'Hybrid' && !cardElement && !categoryElement) {
-            logger.debug('[DnD] Hybrid strategy falling back to currentTarget');
-            cardElement = (e.currentTarget as HTMLElement).dataset.repoId ? (e.currentTarget as HTMLElement) : null;
-            categoryElement = e.currentTarget as HTMLElement;
-          }
-
-          if (cardElement) {
-            const rect = cardElement.getBoundingClientRect();
-            target = {
-              repoId: cardElement.dataset.repoId!,
-              categoryId: cardElement.dataset.categoryId as string | 'uncategorized',
-              position: e.clientY < rect.top + rect.height / 2 ? 'before' : 'after',
-            };
-          } else if (categoryElement) {
-            target = {
-              repoId: null,
-              categoryId: categoryElement.dataset.categoryId as string | 'uncategorized',
-              position: 'end'
-            };
-          }
-          break;
+        if (current.dataset.categoryId && !categoryElement) {
+          categoryElement = current;
         }
+        if (cardElement && categoryElement) break; // Optimization
+        current = current.parentElement;
+      }
+
+      if (cardElement) {
+        const rect = cardElement.getBoundingClientRect();
+        target = {
+          repoId: cardElement.dataset.repoId!,
+          categoryId: cardElement.dataset.categoryId as string | 'uncategorized',
+          position: e.clientY < rect.top + rect.height / 2 ? 'before' : 'after',
+        };
+      } else if (categoryElement) {
+        target = {
+          repoId: null,
+          categoryId: categoryElement.dataset.categoryId as string | 'uncategorized',
+          position: 'end'
+        };
       }
 
       if (target) {
@@ -233,10 +179,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   
     setDraggedRepo(null);
     setDraggedCategoryId(null);
-    setRepoDropIndicator(null);
     setCategoryDropIndicator(null);
-  }, [draggedRepo, draggedCategoryId, onMoveRepositoryToCategory, onReorderCategories, repoDropIndicator, categoryDropIndicator, logger, settings.dndStrategy]);
-  // FIX END
+  }, [draggedRepo, draggedCategoryId, onMoveRepositoryToCategory, onReorderCategories, categoryDropIndicator, logger]);
 
   const reposById = useMemo(() => 
     repositories.reduce((acc, repo) => {
@@ -253,7 +197,6 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             if (!repo) return null; // Should not happen if data is consistent
 
             const isBeingDragged = draggedRepo?.repoId === repo.id;
-            const indicator = repoDropIndicator?.repoId === repo.id && repoDropIndicator?.categoryId === categoryId ? repoDropIndicator : null;
             return (
                 <RepositoryCard
                     key={repo.id}
@@ -266,9 +209,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     latestRelease={latestReleases[repo.id] || null}
                     detectedExecutables={props.detectedExecutables[repo.id] || []}
                     onDragStart={(e) => handleDragStartRepo(e, repo.id, categoryId)}
-                    onDragEnd={() => { setDraggedRepo(null); setRepoDropIndicator(null); }}
+                    onDragEnd={() => { setDraggedRepo(null); }}
                     isBeingDragged={isBeingDragged}
-                    dropIndicatorPosition={indicator ? indicator.position : null}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
