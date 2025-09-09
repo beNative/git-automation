@@ -1,5 +1,3 @@
-
-
 import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext, useRef } from 'react';
 import type { GlobalSettings, Repository, Category } from '../types';
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
@@ -240,67 +238,73 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     setCategories(prev => prev.filter(cat => cat.id !== categoryId));
   }, [categories]);
 
-  const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', rawTargetIndex: number) => {
-    logger.debug('[DnD] moveRepositoryToCategory called', { repoId, sourceId, targetId, rawTargetIndex });
+  const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => {
+    logger.debug('[DnD] moveRepositoryToCategory called', { repoId, sourceId, targetId, targetIndex });
 
-    // Create deep enough copies to mutate
-    const newCategories = categories.map(c => ({ ...c, repositoryIds: [...c.repositoryIds] }));
-    const newUncategorizedOrder = [...uncategorizedOrder];
+    // Use a single state update function to handle all cases atomically
+    // by passing it to both state setters. This avoids stale state issues.
+    const performMove = (
+        currentCategories: Category[], 
+        currentUncategorized: string[]
+    ): { nextCategories: Category[], nextUncategorized: string[] } => {
+        
+        const nextCategories = currentCategories.map(c => ({...c, repositoryIds: [...c.repositoryIds]}));
+        const nextUncategorized = [...currentUncategorized];
 
-    // Find and remove the repo from its source list
-    let sourceList: string[] | undefined;
-    let sourceIndex = -1;
-
-    if (sourceId === 'uncategorized') {
-        sourceList = newUncategorizedOrder;
-    } else {
-        sourceList = newCategories.find(c => c.id === sourceId)?.repositoryIds;
-    }
-
-    if (sourceList) {
-        sourceIndex = sourceList.indexOf(repoId);
-        if (sourceIndex > -1) {
-            sourceList.splice(sourceIndex, 1);
+        // 1. Find source list and remove item
+        let sourceList: string[];
+        let sourceIndex = -1;
+        
+        if (sourceId === 'uncategorized') {
+            sourceList = nextUncategorized;
         } else {
-            logger.error('[DnD] Dragged repo not found in source list!', { repoId, sourceId });
-            return; // Abort if something is wrong
+            const sourceCat = nextCategories.find(c => c.id === sourceId);
+            if (!sourceCat) return { nextCategories: currentCategories, nextUncategorized: currentUncategorized };
+            sourceList = sourceCat.repositoryIds;
         }
-    } else {
-        logger.error('[DnD] Source list not found!', { sourceId });
-        return; // Abort
-    }
-    
-    // Now, determine the final target index and insert into the target list
-    let targetList: string[] | undefined;
-    if (targetId === 'uncategorized') {
-        targetList = newUncategorizedOrder;
-    } else {
-        targetList = newCategories.find(c => c.id === targetId)?.repositoryIds;
-    }
-    
-    if (!targetList) {
-        logger.error('[DnD] Target list not found!', { targetId });
-        // Failsafe: put the item back where it was (this shouldn't happen)
-        if (sourceList) sourceList.splice(sourceIndex, 0, repoId); 
-        return;
-    }
-    
-    let finalTargetIndex = rawTargetIndex;
-    
-    // If we are moving within the same list, we must adjust the target index
-    // if the original position was before the target position.
-    if (sourceId === targetId && sourceIndex < rawTargetIndex) {
-        finalTargetIndex = rawTargetIndex - 1;
-    }
-    
-    targetList.splice(finalTargetIndex, 0, repoId);
-    
-    // Set the new state
-    logger.debug('[DnD] State after move', { newCategories, newUncategorizedOrder });
-    setCategories(newCategories);
-    setUncategorizedOrder(newUncategorizedOrder);
 
-  }, [categories, uncategorizedOrder, logger]);
+        sourceIndex = sourceList.indexOf(repoId);
+        if (sourceIndex === -1) return { nextCategories: currentCategories, nextUncategorized: currentUncategorized };
+        
+        const [movedItem] = sourceList.splice(sourceIndex, 1);
+
+        // 2. Find target list
+        let targetList: string[];
+        if (targetId === 'uncategorized') {
+            targetList = nextUncategorized;
+        } else {
+            const targetCat = nextCategories.find(c => c.id === targetId);
+            if (!targetCat) { // Failsafe: put item back if target is invalid
+                sourceList.splice(sourceIndex, 0, movedItem);
+                return { nextCategories: currentCategories, nextUncategorized: currentUncategorized };
+            }
+            targetList = targetCat.repositoryIds;
+        }
+
+        // 3. Adjust index for same-list moves
+        let finalTargetIndex = targetIndex;
+        if (sourceId === targetId && sourceIndex < targetIndex) {
+            finalTargetIndex = targetIndex - 1;
+        }
+
+        // 4. Insert item into target list
+        targetList.splice(finalTargetIndex, 0, movedItem);
+        
+        return { nextCategories, nextUncategorized };
+    };
+
+    // Use functional updates to ensure we're always working with the latest state
+    setCategories(currentCats => {
+        const { nextCategories } = performMove(currentCats, uncategorizedOrder);
+        return nextCategories;
+    });
+    setUncategorizedOrder(currentUncat => {
+        const { nextUncategorized } = performMove(categories, currentUncat);
+        return nextUncategorized;
+    });
+
+}, [logger, categories, uncategorizedOrder]);
+
 
   const moveRepository = useCallback((repoId: string, direction: 'up' | 'down') => {
     logger.debug('moveRepository triggered', { repoId, direction });
