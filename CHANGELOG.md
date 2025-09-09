@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.0]
+
+### Added
+- **Project Intelligence Engine:** The repository configuration screen now automatically detects the project type (e.g., Node.js, Python, Delphi, Lazarus) by analyzing its file structure. It then provides buttons to generate common, pre-configured tasks like "Install Dependencies" or "CI Checks & Build", specific to the detected technology.
+- **Advanced Task Steps:** Added a rich set of new, specific task steps for different ecosystems, including:
+  - **Node.js:** Install, Lint, Format, Type Check, Test, Build.
+  - **Python:** Create Venv, Install Deps, Lint, Format, Type Check, Test, Build.
+  - **Delphi:** Build, Boss Install, Package (Inno/NSIS), DUnitX Tests.
+  - **Lazarus:** Build Project, Build Package, FPCUnit Tests.
+- **Task Environment Variables:** Added a new section in the task editor to define shell environment variables that will be available to all steps within that task. This is separate from substitution variables.
+- **SVN Commit History:** The Commit History viewer now fully supports Subversion repositories, allowing users to browse the revision history of their SVN projects.
+- **Delphi Version Management:** Delphi-related build tasks now include an option to select a specific, installed Delphi compiler version, which correctly sets up the environment before executing MSBuild.
+
 ## [0.15.0]
 
 ### Added
@@ -86,7 +99,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - **UI/UX Refinements:**
-  - Improved the repository card layout for better readability and quicker access to actions. Moved status indicators, action buttons, and added a manual refresh button.
+  - Improved the repository card layout for better readability and quicker access to actions. Moved status indicators, action buttons, and a manual refresh button.
   - Enhanced the Command Palette with a larger interface and full keyboard navigation support.
   - Streamlined category management by enabling double-click to rename and replacing the color picker with a curated set of predefined color themes.
 

@@ -91,18 +91,18 @@ This is the main panel where you configure the name, path, URL, and launch confi
 
 #### Tasks Tab
 This is where you create powerful, custom automation scripts for the specific repository you are editing.
-1. Give your task a descriptive **name** (e.g., "Build & Deploy to Staging").
-2. Click **"Add Step"** to build your workflow. The available steps will depend on whether the repository is Git or SVN.
-3. **Configure each step:**
-   -   **Git Pull:** Pulls the latest changes from the remote.
-   -   **SVN Update:** Updates the working copy to the latest revision from the remote.
-   -   **Install Dependencies:** Runs `npm install` or `yarn install`.
-   -   **Run Custom Command:** Allows you to enter any shell command (e.g., `npm run test` or `msbuild MyProject.dproj`).
-4.  You can also define **task-specific variables** that can be substituted into your commands (e.g., `${VERSION}`).
-5. Continue adding, configuring, and re-ordering steps.
+1.  **Project Intelligence:** Based on the repository's local path, the application will analyze its contents to detect the project type (e.g., Node.js, Python, Delphi). If a known type is found, a colored box will appear with buttons to automatically generate common tasks for that ecosystem.
+2.  **Manual Task Creation:**
+    -   Give your task a descriptive **name** (e.g., "Build & Deploy to Staging").
+    -   Click **"Add Step"** to build your workflow. The available steps will depend on the repository's VCS type and its detected project type. The application now includes a rich set of specific steps like `Node: Install Deps` or `Delphi: Build Project` in addition to the generic `Run Command`.
+    -   Configure each step as needed.
+3.  **Variables:**
+    -   **Task Variables:** These are for simple text substitution. Define a `KEY` and `VALUE`, then use `${KEY}` in a `Run Command` step's command field.
+    -   **Environment Variables:** These are set as actual environment variables in the shell before commands are run. They can be used by scripts and build tools (e.g., `process.env.MY_VAR` in Node.js).
+4.  Continue adding, configuring, and re-ordering steps.
 
-#### History Tab (Git Only)
-Displays a detailed list of commits, including the author, date, and full commit message. You can search through the history and load more commits as you scroll.
+#### History Tab (Git & SVN)
+Displays a detailed list of commits or revisions, including the author, date, and full message. You can search through the history and load more commits as you scroll.
 
 #### Branches Tab (Git Only)
 Provides a full interface to manage your Git branches. You can:

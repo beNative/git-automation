@@ -24,12 +24,13 @@ The application is split into three main processes, which is standard for Electr
     -   Reads user settings on startup to configure features like the auto-updater's pre-release channel.
     -   Handles native OS interactions (dialogs, file system access).
     -   Listens for and responds to IPC (Inter-Process Communication) events. This includes:
-        -   Executing shell commands for task steps. All Git/SVN command execution now uses user-configured executable paths from settings, falling back to the system `PATH` if not specified.
-        -   Executing real Git/SVN commands for advanced features like checking status, fetching commit history, and managing branches (`get-detailed-vcs-status`, `list-branches`, etc.).
-        -   Handling new IPC calls for executable path management (file picker, auto-detection, testing).
-        -   Handling requests from the renderer to open web links in the user-specified browser.
-        -   Fetching the latest release information for a repository from the GitHub API using a user-provided Personal Access Token (`get-latest-release`).
-        -   Managing the import and export of settings files using the `jszip` library.
+        -   **Project Intelligence:** Handles `get-project-info` and `get-project-suggestions` by analyzing the file system of a repository to detect technologies like Node.js, Python, Delphi, and Lazarus.
+        -   **Task Execution:** Executes shell commands for task steps. The `run-task-step` handler now contains logic to interpret and execute the new, ecosystem-specific step types (e.g., `PYTHON_INSTALL_DEPS`). It also handles setting environment variables for tasks.
+        -   **VCS Commands:** Executes real Git/SVN commands for advanced features like checking status, fetching commit history (now for SVN as well), and managing branches.
+        -   **Executable Path Management:** Handles IPC calls for file pickers, auto-detection, and testing of user-configured executable paths.
+        -   **External Links:** Handles requests from the renderer to open web links in the user-specified browser.
+        -   **GitHub API:** Fetches release information for a repository using a user-provided Personal Access Token.
+        -   **Settings I/O:** Manages the import and export of settings files using the `jszip` library.
 
 ### Renderer Process
 
@@ -44,21 +45,21 @@ The application is split into three main processes, which is standard for Electr
 -   **Entry Point:** `electron/preload.ts`
 -   **Responsibilities:**
     -   Acts as a secure bridge between the Renderer and Main processes.
-    -   Uses `contextBridge` to expose a safe, limited API (`window.electronAPI`) to the renderer. This includes functions like `showFilePicker`, `testExecutablePath`, and `autodetectExecutablePath`.
+    -   Uses `contextBridge` to expose a safe, limited API (`window.electronAPI`) to the renderer. This includes functions like `getProjectInfo`, `getCommitHistory`, `getDelphiVersions`, etc.
 
 ## 3. State Management and Data Flow
 
--   **Primary State:** The root `App.tsx` component manages the entire application state, including the list of repositories, global settings, **dashboard categories**, the active view, and the state of modals and panels. UI-specific state, such as the position and visibility of the right-click `ContextMenu`, is also managed here to ensure a single source of truth.
+-   **Primary State:** The root `App.tsx` component manages the entire application state, including the list of repositories, global settings, dashboard categories, the active view, and the state of modals and panels.
 -   **VCS State:** `App.tsx` also holds state for `detailedStatuses` and `branchLists` which are fetched periodically and after tasks complete to keep the UI in sync with the file system.
 -   **Parallel Task Execution:** To support running multiple tasks concurrently, a unique `executionId` is generated for each task run. This ID is passed between the renderer and main processes, allowing log output (`task-log`) and completion events (`task-step-end`) to be correctly routed to the appropriate repository and UI components without conflict.
--   **Component Architecture:** Key new components include `CategoryHeader.tsx` for managing category sections, a new `CategoryColorModal.tsx` for a comprehensive customization experience, and a heavily refactored `Dashboard.tsx` that now handles complex drag-and-drop logic. Event handlers in `Dashboard.tsx` are carefully scoped to manage nested drop zones, ensuring that dragging a repository over a category does not conflict with dragging a category over another category.
+-   **Component Architecture:** The `RepoFormModal` component has been significantly enhanced with the Project Intelligence UI, which conditionally renders task-generation buttons based on data fetched from the `get-project-info` IPC handler. The task editor now renders different configuration options based on the `TaskStepType` enum.
 
 ### Data Persistence
 
-All application data, including repositories, **categories,** and global settings, is persisted to a single `settings.json` file.
+All application data, including repositories, categories, and global settings, is persisted to a single `settings.json` file.
 
 -   **Location:** The file is stored in the standard application user data directory for your operating system (e.g., `%APPDATA%` on Windows, `~/Library/Application Support` on macOS). This ensures that user settings are preserved across application updates.
--   **Management:** A `SettingsProvider` context handles loading this data on startup and saving it whenever it changes. To resolve persistent bugs with drag-and-drop reordering, the data model was updated to include an `uncategorizedOrder` array in `settings.json`. The `SettingsContext` now explicitly manages this list, and the `moveRepositoryToCategory` function was significantly refactored to robustly handle all reordering and moving scenarios. Category reordering logic is also managed within the `SettingsContext`, with functions like `moveCategory` (for button-based movement) and `reorderCategories` (for drag-and-drop) ensuring state consistency.
+-   **Management:** A `SettingsProvider` context handles loading this data on startup and saving it whenever it changes.
 -   **Migration:** A one-time migration process runs on startup to move `settings.json` for users updating from versions prior to `0.2.2`, where the file was incorrectly stored next to the application executable.
 
 ## 4. Development Workflow

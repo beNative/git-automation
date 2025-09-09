@@ -8,14 +8,17 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Customizable Dashboard Categories:** Organize your repositories into collapsible sections with configurable colors, full drag-and-drop support (for both repositories and categories), and alternative up/down reorder buttons.
 -   **Multi-VCS Support:** Manage both Git and Subversion (SVN) repositories seamlessly.
 -   **Repository-Specific Tasks:** Create custom, multi-step automation scripts (e.g., pull/update, install, build) for each repository.
+-   **Project Intelligence:** Automatically detects project types (Node.js, Python, Delphi, Lazarus) and provides one-click buttons to generate common, pre-configured tasks.
+-   **Advanced Task Steps:** A rich library of specific, pre-built steps for different ecosystems (e.g., `PYTHON_INSTALL_DEPS`, `DELPHI_BUILD`, `NODE_RUN_BUILD`) simplifies creating complex workflows.
+-   **Task Environment Variables:** Define shell environment variables that are available to all command steps within a task.
 -   **Quick Actions:** Manually refresh repository state, copy URLs/paths with a single click, access all common actions via a right-click context menu, and reorder repositories with up/down buttons.
 -   **Powerful Command Palette:** Quickly access any action, task, or repository using a keyboard-driven command palette (`Ctrl/Cmd+K`).
 -   **Parallel Execution:** Run tasks on multiple repositories at the same time without waiting.
 -   **One-Click Update Check:** A "Check Updates" button fetches the latest information from all remotes, showing an "Updates Available" indicator on repositories that are behind.
--   **Detailed Git Status:** See ahead/behind status and a summary of file changes directly on the dashboard.
--   **Branch Management:** Quickly switch branches from the dashboard, or view, create, delete, and merge branches in the configuration view.
--   **GitHub Release Management:** See the latest release on the dashboard, and view, create, edit, and manage all your project's releases directly from the configuration view.
--   **Commit History:** View the commit history for any repository, with search and load-on-demand.
+-   **Detailed VCS Status:** See ahead/behind status (Git) and a summary of file changes directly on the dashboard.
+-   **Branch Management (Git):** Quickly switch branches from the dashboard, or view, create, delete, and merge branches in the configuration view.
+-   **GitHub Release Management (Git):** See the latest release on the dashboard, and view, create, edit, and manage all your project's releases directly from the configuration view.
+-   **Commit History:** View the commit history for any Git or SVN repository, with search and load-on-demand.
 -   **Tabbed & Integrated Log Panel:** Monitor the output of every command in a detailed, resizable, and tabbed log panel that integrates smoothly into the main view.
 -   **Advanced Debugging:** A powerful debug console with log filtering and a save-to-file feature for in-depth troubleshooting, including detailed logs for drag-and-drop operations.
 -   **Reliable Auto-Updates:** Get notified with a clear banner when a new version is ready and install it with a single click.
@@ -38,7 +41,8 @@ This application provides a simple, powerful dashboard to manage and automate th
 2.  **Create a Task:**
     -   On the dashboard, click the **pencil icon** on your repository's card to open the configuration modal.
     -   Go to the **"Tasks"** tab.
-    -   Click **"New Task"**, give it a name (e.g., "Build for Windows"), and add the steps you need (e.g., Git Pull/SVN Update, Install Dependencies, Run Command: `npm run build:win`).
+    -   The application will try to detect your project type and offer to generate tasks for you. Click one of these buttons, or create one manually.
+    -   To create one manually, click **"New Task"**, give it a name (e.g., "Build for Windows"), and add the steps you need (e.g., Git Pull/SVN Update, a `NODE_INSTALL_DEPS` step, or Run Command: `npm run build:win`).
     -   Save the task, then save the repository.
 
 3.  **Run a Task:**
