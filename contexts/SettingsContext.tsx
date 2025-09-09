@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext, useRef } from 'react';
 import type { GlobalSettings, Repository, Category } from '../types';
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
@@ -239,53 +240,63 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     setCategories(prev => prev.filter(cat => cat.id !== categoryId));
   }, [categories]);
 
-  const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => {
-    logger.debug('[DnD] moveRepositoryToCategory called with', { repoId, sourceId, targetId, targetIndex });
-    logger.debug('[DnD] State before move', { categories, uncategorizedOrder });
+  const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', rawTargetIndex: number) => {
+    logger.debug('[DnD] moveRepositoryToCategory called', { repoId, sourceId, targetId, rawTargetIndex });
 
-    // Create mutable copies using a more performant deep-enough copy
-    const newCategories = categories.map(c => ({...c, repositoryIds: [...c.repositoryIds]}));
+    // Create deep enough copies to mutate
+    const newCategories = categories.map(c => ({ ...c, repositoryIds: [...c.repositoryIds] }));
     const newUncategorizedOrder = [...uncategorizedOrder];
 
-    // 1. Find and remove the repo from its source
+    // Find and remove the repo from its source list
+    let sourceList: string[] | undefined;
+    let sourceIndex = -1;
+
     if (sourceId === 'uncategorized') {
-        const index = newUncategorizedOrder.indexOf(repoId);
-        if (index > -1) {
-          newUncategorizedOrder.splice(index, 1);
-          logger.debug('[DnD] Removed repo from uncategorized list', { fromIndex: index });
-        } else {
-          logger.warn('[DnD] Could not find repo in source (uncategorized)', { repoId });
-        }
+        sourceList = newUncategorizedOrder;
     } else {
-        const sourceCat = newCategories.find(c => c.id === sourceId);
-        if (sourceCat) {
-            const index = sourceCat.repositoryIds.indexOf(repoId);
-            if (index > -1) {
-              sourceCat.repositoryIds.splice(index, 1);
-              logger.debug('[DnD] Removed repo from source category', { sourceId, fromIndex: index });
-            } else {
-              logger.warn('[DnD] Could not find repo in source category', { sourceId, repoId });
-            }
-        }
+        sourceList = newCategories.find(c => c.id === sourceId)?.repositoryIds;
     }
 
-    // 2. Add the repo to its target
-    if (targetId === 'uncategorized') {
-        newUncategorizedOrder.splice(targetIndex, 0, repoId);
-        logger.debug('[DnD] Added repo to uncategorized list', { toIndex: targetIndex });
-    } else {
-        const targetCat = newCategories.find(c => c.id === targetId);
-        if (targetCat) {
-            targetCat.repositoryIds.splice(targetIndex, 0, repoId);
-            logger.debug('[DnD] Added repo to target category', { targetId, toIndex: targetIndex });
+    if (sourceList) {
+        sourceIndex = sourceList.indexOf(repoId);
+        if (sourceIndex > -1) {
+            sourceList.splice(sourceIndex, 1);
         } else {
-            logger.error('[DnD] Could not find target category to drop into', { targetId });
+            logger.error('[DnD] Dragged repo not found in source list!', { repoId, sourceId });
+            return; // Abort if something is wrong
         }
+    } else {
+        logger.error('[DnD] Source list not found!', { sourceId });
+        return; // Abort
     }
     
+    // Now, determine the final target index and insert into the target list
+    let targetList: string[] | undefined;
+    if (targetId === 'uncategorized') {
+        targetList = newUncategorizedOrder;
+    } else {
+        targetList = newCategories.find(c => c.id === targetId)?.repositoryIds;
+    }
+    
+    if (!targetList) {
+        logger.error('[DnD] Target list not found!', { targetId });
+        // Failsafe: put the item back where it was (this shouldn't happen)
+        if (sourceList) sourceList.splice(sourceIndex, 0, repoId); 
+        return;
+    }
+    
+    let finalTargetIndex = rawTargetIndex;
+    
+    // If we are moving within the same list, we must adjust the target index
+    // if the original position was before the target position.
+    if (sourceId === targetId && sourceIndex < rawTargetIndex) {
+        finalTargetIndex = rawTargetIndex - 1;
+    }
+    
+    targetList.splice(finalTargetIndex, 0, repoId);
+    
+    // Set the new state
     logger.debug('[DnD] State after move', { newCategories, newUncategorizedOrder });
-
-    // 3. Set the new state
     setCategories(newCategories);
     setUncategorizedOrder(newUncategorizedOrder);
 
