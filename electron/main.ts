@@ -1349,7 +1349,6 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
         if (step.delphiVersion && os.platform() === 'win32') {
             try {
                 const key = `HKCU\\SOFTWARE\\Embarcadero\\BDS\\${step.delphiVersion}`;
-                // FIX: Add missing options argument to execAsync call.
                 const { stdout } = await execAsync(`reg query "${key}" /v RootDir`, { cwd: os.homedir() });
                 const rootDirMatch = stdout.match(/RootDir\s+REG_SZ\s+(.*)/);
                 if (rootDirMatch && rootDirMatch[1]) {
@@ -1557,7 +1556,6 @@ const getDelphiVersions = async (): Promise<{ name: string; version: string }[]>
     return []; // Delphi is Windows-only
   }
   try {
-    // FIX: Add missing options argument to execAsync call.
     const { stdout } = await execAsync('reg query "HKCU\\SOFTWARE\\Embarcadero\\BDS"', { cwd: os.homedir() });
     const versionKeys = stdout.match(/HKEY_CURRENT_USER\\SOFTWARE\\Embarcadero\\BDS\\[0-9.]+/g) || [];
     
@@ -1572,12 +1570,10 @@ const getDelphiVersions = async (): Promise<{ name: string; version: string }[]>
           const versionString = key.split('\\').pop();
           if (!versionString) return null;
           
-          // FIX: Add missing options argument to execAsync call.
           const { stdout: rootDirStdout } = await execAsync(`reg query "${key}" /v RootDir`, { cwd: os.homedir() });
           const rootDirMatch = rootDirStdout.match(/RootDir\s+REG_SZ\s+(.*)/);
           if (!rootDirMatch || !rootDirMatch[1]) return null;
 
-          // FIX: Add missing options argument to execAsync call.
           const { stdout: productNameStdout } = await execAsync(`reg query "${key}" /v ProductName`, { cwd: os.homedir() });
           const productNameMatch = productNameStdout.match(/ProductName\s+REG_SZ\s+(.*)/);
           const name = productNameMatch ? `${productNameMatch[1].trim()} (${versionString})` : `Delphi ${versionString}`;
