@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
@@ -146,6 +144,40 @@ const TaskStepItem: React.FC<{
   const toggleTooltip = useTooltip(isEnabled ? 'Disable Step' : 'Enable Step');
   const duplicateTooltip = useTooltip('Duplicate Step');
   
+  const selectedDelphiProject = useMemo(() => {
+    return projectInfo?.delphi?.projects.find(p => p.path === step.delphiProjectFile);
+  }, [projectInfo?.delphi?.projects, step.delphiProjectFile]);
+
+  const allDelphiPlatforms = useMemo(() => {
+      const platformSet = new Set<string>();
+      projectInfo?.delphi?.projects.forEach(p => {
+          p.platforms.forEach(platform => platformSet.add(platform));
+      });
+      return Array.from(platformSet).sort();
+  }, [projectInfo?.delphi?.projects]);
+
+  const allDelphiConfigs = useMemo(() => {
+      const configSet = new Set<string>();
+      projectInfo?.delphi?.projects.forEach(p => {
+          p.configs.forEach(config => configSet.add(config));
+      });
+      return Array.from(configSet).sort();
+  }, [projectInfo?.delphi?.projects]);
+
+  const availablePlatforms = selectedDelphiProject ? selectedDelphiProject.platforms : allDelphiPlatforms;
+  const availableConfigs = selectedDelphiProject ? selectedDelphiProject.configs : allDelphiConfigs;
+
+  useEffect(() => {
+      if (selectedDelphiProject) {
+          if (step.delphiConfiguration && !selectedDelphiProject.configs.includes(step.delphiConfiguration)) {
+              onStepChange(step.id, { delphiConfiguration: '' });
+          }
+          if (step.delphiPlatform && !selectedDelphiProject.platforms.includes(step.delphiPlatform)) {
+              onStepChange(step.id, { delphiPlatform: '' });
+          }
+      }
+  }, [selectedDelphiProject, step.delphiConfiguration, step.delphiPlatform, onStepChange, step.id]);
+  
   const DelphiVersionSelector: React.FC = () => (
     <div>
         <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Compiler Version</label>
@@ -225,11 +257,31 @@ const TaskStepItem: React.FC<{
             </div>
             <div>
                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Configuration</label>
-                <input type="text" placeholder="e.g., Release" value={step.delphiConfiguration || ''} onChange={(e) => onStepChange(step.id, { delphiConfiguration: e.target.value })} className={formInputStyle} />
+                <select
+                    value={step.delphiConfiguration || ''}
+                    onChange={(e) => onStepChange(step.id, { delphiConfiguration: e.target.value })}
+                    className={formInputStyle}
+                    disabled={availableConfigs.length === 0}
+                >
+                    <option value="">Default</option>
+                    {availableConfigs.map(config => (
+                        <option key={config} value={config}>{config}</option>
+                    ))}
+                </select>
             </div>
             <div>
                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Platform</label>
-                <input type="text" placeholder="e.g., Win32" value={step.delphiPlatform || ''} onChange={(e) => onStepChange(step.id, { delphiPlatform: e.target.value })} className={formInputStyle} />
+                <select
+                    value={step.delphiPlatform || ''}
+                    onChange={(e) => onStepChange(step.id, { delphiPlatform: e.target.value })}
+                    className={formInputStyle}
+                    disabled={availablePlatforms.length === 0}
+                >
+                    <option value="">Default</option>
+                    {availablePlatforms.map(platform => (
+                        <option key={platform} value={platform}>{platform}</option>
+                    ))}
+                </select>
             </div>
             <DelphiVersionSelector />
         </div>
