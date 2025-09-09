@@ -1345,6 +1345,25 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
         const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
         const svnCmd = getExecutableCommand(VcsTypeEnum.Svn, settings);
         
+        let delphiEnvCmd = 'call rsvars.bat';
+        if (step.delphiVersion && os.platform() === 'win32') {
+            try {
+                const key = `HKCU\\SOFTWARE\\Embarcadero\\BDS\\${step.delphiVersion}`;
+                const { stdout } = await execAsync(`reg query "${key}" /v RootDir`);
+                const rootDirMatch = stdout.match(/RootDir\s+REG_SZ\s+(.*)/);
+                if (rootDirMatch && rootDirMatch[1]) {
+                    const rsvarsPath = path.join(rootDirMatch[1].trim(), 'bin', 'rsvars.bat');
+                    await fs.access(rsvarsPath);
+                    delphiEnvCmd = `call "${rsvarsPath}"`;
+                    sendLog(`Using Delphi environment for version ${step.delphiVersion}`, LogLevel.Info);
+                } else {
+                    throw new Error(`RootDir not found for Delphi version ${step.delphiVersion}`);
+                }
+            } catch (e: any) {
+                sendLog(`Could not set up environment for Delphi version ${step.delphiVersion}. Falling back to default rsvars.bat. Error: ${e.message}`, LogLevel.Warn);
+            }
+        }
+        
         // Construct environment for the child process
         const env = { ...process.env };
         if (task.environmentVariables) {
@@ -1404,19 +1423,19 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
                 const mode = step.delphiBuildMode || 'Build';
                 const config = step.delphiConfiguration || 'Release';
                 const platform = step.delphiPlatform || 'Win32';
-                await run(`call rsvars.bat && msbuild "${projectFile}" /t:${mode} /p:Configuration=${config} /p:Platform=${platform}`);
+                await run(`${delphiEnvCmd} && msbuild "${projectFile}" /t:${mode} /p:Configuration=${config} /p:Platform=${platform}`);
                 break;
             case TaskStepType.DELPHI_PACKAGE_INNO:
                 const issFile = step.delphiInstallerScript || projectInfo.delphi?.packaging.innoSetup[0];
                 if (!issFile) throw new Error('No Inno Setup script (.iss) file found or specified.');
                 const issDefines = (step.delphiInstallerDefines || '').split(';').filter(d => d.trim()).map(d => `/d${d.trim()}`).join(' ');
-                await run(`call rsvars.bat && iscc "${issFile}" ${issDefines}`);
+                await run(`${delphiEnvCmd} && iscc "${issFile}" ${issDefines}`);
                 break;
             case TaskStepType.DELPHI_PACKAGE_NSIS:
                 const nsiFile = step.delphiInstallerScript || projectInfo.delphi?.packaging.nsis[0];
                 if (!nsiFile) throw new Error('No NSIS script (.nsi) file found or specified.');
                 const nsiDefines = (step.delphiInstallerDefines || '').split(';').filter(d => d.trim()).map(d => `/D${d.trim()}`).join(' ');
-                await run(`call rsvars.bat && makensis ${nsiDefines} "${nsiFile}"`);
+                await run(`${delphiEnvCmd} && makensis ${nsiDefines} "${nsiFile}"`);
                 break;
             case TaskStepType.DELPHI_TEST_DUNITX:
                 const testExe = step.delphiTestExecutable;
@@ -1531,6 +1550,52 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
 // --- NEW IPC Handlers for Deep VCS Integration ---
 // =================================================================
 
+// --- Helper to get Delphi versions from Windows Registry ---
+const getDelphiVersions = async (): Promise<{ name: string; version: string }[]> => {
+  if (os.platform() !== 'win32') {
+    return []; // Delphi is Windows-only
+  }
+  try {
+    const { stdout } = await execAsync('reg query "HKCU\\SOFTWARE\\Embarcadero\\BDS"');
+    const versionKeys = stdout.match(/HKEY_CURRENT_USER\\SOFTWARE\\Embarcadero\\BDS\\[0-9.]+/g) || [];
+    
+    if (versionKeys.length === 0) {
+      logToRenderer('info', '[Delphi] No Delphi versions found in registry.');
+      return [];
+    }
+
+    const versions = await Promise.all(
+      versionKeys.map(async key => {
+        try {
+          const versionString = key.split('\\').pop();
+          if (!versionString) return null;
+          
+          const { stdout: rootDirStdout } = await execAsync(`reg query "${key}" /v RootDir`);
+          const rootDirMatch = rootDirStdout.match(/RootDir\s+REG_SZ\s+(.*)/);
+          if (!rootDirMatch || !rootDirMatch[1]) return null;
+
+          const { stdout: productNameStdout } = await execAsync(`reg query "${key}" /v ProductName`);
+          const productNameMatch = productNameStdout.match(/ProductName\s+REG_SZ\s+(.*)/);
+          const name = productNameMatch ? `${productNameMatch[1].trim()} (${versionString})` : `Delphi ${versionString}`;
+
+          return { name, version: versionString };
+        } catch (e: any) {
+          logToRenderer('warn', `[Delphi] Could not read registry details for key: ${key}`, e);
+          return null;
+        }
+      })
+    );
+    
+    const validVersions = versions.filter((v): v is { name: string; version: string } => v !== null);
+    logToRenderer('debug', '[Delphi] Found Delphi versions', validVersions);
+    return validVersions;
+  } catch (err: any) {
+    logToRenderer('info', '[Delphi] Could not query registry for Delphi versions. Maybe none are installed.', err);
+    return [];
+  }
+};
+
+ipcMain.handle('get-delphi-versions', getDelphiVersions);
 
 
 // --- Get Detailed Status ---

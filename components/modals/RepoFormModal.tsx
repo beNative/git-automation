@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
@@ -110,7 +111,8 @@ const TaskStepItem: React.FC<{
   onDuplicateStep: (index: number) => void;
   suggestions: ProjectSuggestion[];
   projectInfo: ProjectInfo | null;
-}> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, onDuplicateStep, suggestions, projectInfo }) => {
+  delphiVersions: { name: string; version: string }[];
+}> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, onDuplicateStep, suggestions, projectInfo, delphiVersions }) => {
   const logger = useLogger();
   
   const stepDef = STEP_DEFINITIONS[step.type];
@@ -143,6 +145,22 @@ const TaskStepItem: React.FC<{
   const isEnabled = step.enabled ?? true;
   const toggleTooltip = useTooltip(isEnabled ? 'Disable Step' : 'Enable Step');
   const duplicateTooltip = useTooltip('Duplicate Step');
+  
+  const DelphiVersionSelector: React.FC = () => (
+    <div>
+        <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Compiler Version</label>
+        <select
+            value={step.delphiVersion || ''}
+            onChange={(e) => onStepChange(step.id, { delphiVersion: e.target.value })}
+            className={formInputStyle}
+        >
+            <option value="">Default (from PATH)</option>
+            {delphiVersions.map(v => (
+                <option key={v.version} value={v.version}>{v.name}</option>
+            ))}
+        </select>
+    </div>
+  );
 
   return (
     <div className={`bg-white dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
@@ -172,7 +190,7 @@ const TaskStepItem: React.FC<{
         </div>
       )}
       {step.type === TaskStepType.DelphiBuild && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Project/Group File</label>
                 <select
@@ -213,6 +231,7 @@ const TaskStepItem: React.FC<{
                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Platform</label>
                 <input type="text" placeholder="e.g., Win32" value={step.delphiPlatform || ''} onChange={(e) => onStepChange(step.id, { delphiPlatform: e.target.value })} className={formInputStyle} />
             </div>
+            <DelphiVersionSelector />
         </div>
       )}
       {step.type === TaskStepType.LAZARUS_BUILD && (
@@ -276,7 +295,7 @@ const TaskStepItem: React.FC<{
         </div>
       )}
       {(step.type === TaskStepType.DELPHI_PACKAGE_INNO || step.type === TaskStepType.DELPHI_PACKAGE_NSIS) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Installer Script File</label>
                 <input type="text" placeholder="e.g., scripts/installer.iss" value={step.delphiInstallerScript || ''} onChange={(e) => onStepChange(step.id, { delphiInstallerScript: e.target.value })} className={formInputStyle} />
@@ -285,10 +304,11 @@ const TaskStepItem: React.FC<{
                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Defines (semicolon-separated)</label>
                 <input type="text" placeholder="e.g., AppVersion=1.0;Mode=PRO" value={step.delphiInstallerDefines || ''} onChange={(e) => onStepChange(step.id, { delphiInstallerDefines: e.target.value })} className={formInputStyle} />
             </div>
+            <DelphiVersionSelector />
         </div>
       )}
       {step.type === TaskStepType.DELPHI_TEST_DUNITX && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Test Executable Path</label>
                 <input type="text" placeholder="e.g., bin/Win32/Release/Tests.exe" value={step.delphiTestExecutable || ''} onChange={(e) => onStepChange(step.id, { delphiTestExecutable: e.target.value })} className={formInputStyle} />
@@ -297,6 +317,7 @@ const TaskStepItem: React.FC<{
                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400">JUnit XML Output File (optional)</label>
                 <input type="text" placeholder="e.g., reports/junit.xml" value={step.delphiTestOutputFile || ''} onChange={(e) => onStepChange(step.id, { delphiTestOutputFile: e.target.value })} className={formInputStyle} />
             </div>
+            <DelphiVersionSelector />
         </div>
       )}
       {step.type === TaskStepType.RunCommand && (() => {
@@ -718,6 +739,7 @@ const TaskStepsEditor: React.FC<{
   const [isAddingStep, setIsAddingStep] = useState(false);
   const [suggestions, setSuggestions] = useState<ProjectSuggestion[]>([]);
   const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
+  const [delphiVersions, setDelphiVersions] = useState<{ name: string; version: string }[]>([]);
   const showOnDashboardTooltip = useTooltip('Show this task as a button on the repository card');
   
   useEffect(() => {
@@ -741,6 +763,14 @@ const TaskStepsEditor: React.FC<{
       setProjectInfo(null);
     }
   }, [repository?.localPath, repository?.name, logger]);
+
+  useEffect(() => {
+    if (projectInfo?.tags.includes('delphi') && window.electronAPI?.getDelphiVersions) {
+        window.electronAPI.getDelphiVersions()
+            .then(setDelphiVersions)
+            .catch(e => logger.error('Failed to get Delphi versions', e));
+    }
+  }, [projectInfo, logger]);
   
   const handleAddStep = (type: TaskStepType) => {
     const newStep: TaskStep = { id: `step_${Date.now()}`, type, enabled: true };
@@ -853,6 +883,7 @@ const TaskStepsEditor: React.FC<{
             onDuplicateStep={handleDuplicateStep}
             suggestions={suggestions}
             projectInfo={projectInfo}
+            delphiVersions={delphiVersions}
           />
         ))}
       </div>
@@ -1504,75 +1535,68 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 <div className="flex-1 flex overflow-hidden">
                     <aside className="w-1/3 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50">
                         <div className="p-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-                            <h3 className="font-semibold text-gray-800 dark:text-gray-200">Tasks</h3>
-                            <button type="button" onClick={() => handleNewTask()} className="flex items-center px-3 py-1 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md"><PlusIcon className="h-4 w-4 mr-1"/>New</button>
+                          <h3 className="font-semibold text-gray-800 dark:text-gray-200">Tasks</h3>
+                          <button type="button" onClick={() => handleNewTask()} className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-full">
+                            <PlusIcon className="h-5 w-5"/>
+                          </button>
                         </div>
-                        <ul className="divide-y divide-gray-200 dark:divide-gray-700 overflow-y-auto">
-                            {(!formData.tasks || formData.tasks.length === 0) && <li className="px-4 py-4 text-center text-gray-500 text-sm">No tasks created.</li>}
-                            {formData.tasks?.map(task => (
-                                <TaskListItem
-                                    key={task.id}
-                                    task={task}
-                                    isSelected={selectedTaskId === task.id}
-                                    onSelect={setSelectedTaskId}
-                                    onDelete={handleDeleteTask}
-                                    onDuplicate={handleDuplicateTask}
-                                />
-                            ))}
+                        <ul className="flex-1 overflow-y-auto">
+                          {(formData.tasks || []).map(task => (
+                            <TaskListItem
+                              key={task.id}
+                              task={task}
+                              isSelected={selectedTaskId === task.id}
+                              onSelect={setSelectedTaskId}
+                              onDelete={handleDeleteTask}
+                              onDuplicate={handleDuplicateTask}
+                            />
+                          ))}
+                           {(formData.tasks || []).length === 0 && (
+                                <p className="p-4 text-center text-xs text-gray-500">No tasks created yet.</p>
+                           )}
                         </ul>
                     </aside>
                     <div className="flex-1 p-4 overflow-y-auto">
-                        {selectedTask ? (
-                            <TaskStepsEditor task={selectedTask} setTask={handleTaskChange} repository={repositoryForTaskEditor} onAddTask={handleNewTask} />
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-center text-gray-500">
-                                <CubeTransparentIcon className="h-12 w-12 text-gray-400"/>
-                                <h3 className="mt-2 text-lg font-medium">No Task Selected</h3>
-                                <p className="mt-1 text-sm">Select a task from the list, or create a new one to begin.</p>
-                            </div>
-                        )}
+                      {selectedTask ? (
+                        <TaskStepsEditor task={selectedTask} setTask={handleTaskChange} repository={repositoryForTaskEditor} onAddTask={handleNewTask} />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-center text-gray-500">
+                           Select a task on the left, or create a new one.
+                        </div>
+                      )}
                     </div>
                 </div>
             );
         case 'history':
             return (
-                <div className="flex-1 flex flex-col p-4 overflow-hidden">
-                    <div className="pb-4 flex-shrink-0">
-                        <div className="relative">
-                            <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                            <input
+                <div className="p-4 space-y-3 flex flex-col overflow-hidden h-full">
+                    <div className="relative flex-shrink-0">
+                        <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                        <input
                             type="text"
                             placeholder="Search commit messages..."
                             value={historySearch}
                             onChange={(e) => setHistorySearch(e.target.value)}
-                            className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900/50 pl-10 pr-3 py-1.5 text-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
-                            />
-                        </div>
-                         {debouncedHistorySearch && !historyLoading && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
-                                Found <span className="font-bold text-gray-700 dark:text-gray-200">{historyMatchStats.occurrenceCount}</span> occurrence(s) in <span className="font-bold text-gray-700 dark:text-gray-200">{historyMatchStats.commitCount}</span> commit(s).
-                            </p>
-                        )}
+                            className={`${formInputStyle} pl-10`}
+                        />
                     </div>
-                    <div className="flex-1 overflow-y-auto">
-                        {historyLoading ? (<p className="text-center text-gray-500">Loading history...</p>) : commits.length === 0 ? (
+                    {debouncedHistorySearch && !historyLoading && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 px-1 flex-shrink-0">
+                            Found <span className="font-bold text-gray-700 dark:text-gray-200">{historyMatchStats.occurrenceCount}</span> occurrence(s) in <span className="font-bold text-gray-700 dark:text-gray-200">{historyMatchStats.commitCount}</span> commit(s).
+                        </p>
+                    )}
+                    <div className="flex-1 overflow-y-auto space-y-3">
+                        {historyLoading ? (
+                            <p className="text-center text-gray-500">Loading history...</p>
+                        ) : commits.length === 0 ? (
                             <p className="text-center text-gray-500">{debouncedHistorySearch ? `No commits found for "${debouncedHistorySearch}".` : 'No commits found.'}</p>
                         ) : (
                             <>
-                                <ul className="space-y-3">
-                                    {commits.map(commit => (
-                                        <CommitListItem key={commit.hash} commit={commit} highlight={debouncedHistorySearch}/>
-                                    ))}
-                                </ul>
+                                {commits.map(commit => <CommitListItem key={commit.hash} commit={commit} highlight={debouncedHistorySearch} />)}
                                 {hasMoreHistory && (
-                                    <div className="mt-4 text-center">
-                                        <button
-                                        type="button"
-                                        onClick={() => fetchHistory(true)}
-                                        disabled={isMoreHistoryLoading}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 transition-colors"
-                                        >
-                                        {isMoreHistoryLoading ? 'Loading...' : 'Load More'}
+                                    <div className="text-center">
+                                        <button onClick={() => fetchHistory(true)} disabled={isMoreHistoryLoading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500">
+                                            {isMoreHistoryLoading ? 'Loading...' : 'Load More'}
                                         </button>
                                     </div>
                                 )}
@@ -1583,322 +1607,266 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             );
         case 'branches':
             return (
-                <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-                     {branchesLoading ? (<p>Loading branches...</p>) : branchInfo && (
-                         <>
-                            {/* Create Branch */}
-                            <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                                <h3 className="font-semibold">Create New Branch</h3>
-                                <div className="flex items-center space-x-2 mt-2">
-                                    <input type="text" value={newBranchName} onChange={e => setNewBranchName(e.target.value)} placeholder="new-feature-branch" className={`${formInputStyle} mt-0`} />
-                                    <button type="button" onClick={handleCreateBranch} className="px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md">Create</button>
-                                </div>
-                            </div>
-                            {/* Merge Branch */}
-                            <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                                <h3 className="font-semibold">Merge Branch</h3>
-                                <p className="text-xs text-gray-500">Merge a branch into the current branch ({branchInfo.current})</p>
-                                <div className="flex items-center space-x-2 mt-2">
-                                    <select value={branchToMerge} onChange={e => setBranchToMerge(e.target.value)} className={`${formInputStyle} mt-0`}>
-                                        {branchInfo.local.map(b => <option key={b} value={b}>{b}</option>)}
-                                    </select>
-                                    <button type="button" onClick={handleMergeBranch} className="px-3 py-1.5 text-sm text-white bg-green-600 hover:bg-green-700 rounded-md">Merge</button>
-                                </div>
-                            </div>
-                             {/* Branch Lists */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="p-4 space-y-4">
+                    {branchesLoading && <p>Loading branches...</p>}
+                    {!hasBranches && !branchesLoading && <p>No branches found. This may be a new repository.</p>}
+                    {hasBranches && !branchesLoading && (
+                        <>
+                            <p className="text-sm">Current branch: <span className="font-bold font-mono text-blue-600 dark:text-blue-400">{branchInfo?.current}</span></p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <h3 className="font-semibold mb-2">Local Branches</h3>
+                                    <h4 className="font-semibold mb-2">Local Branches</h4>
                                     <ul className="space-y-1">
-                                        {branchInfo.local.map(b => (
-                                            <li key={b} className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-900/50 rounded-md">
-                                                <span className={`${b === branchInfo.current ? 'font-bold text-blue-600 dark:text-blue-400' : ''}`}>{b}</span>
-                                                {b !== branchInfo.current && <button onClick={() => handleDeleteBranch(b, false)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>}
+                                        {branchInfo?.local.map(b => (
+                                            <li key={b} className="flex justify-between items-center p-2 rounded-md bg-gray-50 dark:bg-gray-900/50">
+                                                <span className="font-mono text-sm">{b}</span>
+                                                {b !== branchInfo?.current && <button type="button" onClick={() => handleDeleteBranch(b, false)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>}
                                             </li>
                                         ))}
                                     </ul>
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold mb-2">Remote Branches</h3>
-                                    <ul className="space-y-1">
-                                        {branchInfo.remote.map(b => (
-                                            <li key={b} className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-900/50 rounded-md">
-                                                <span>{b}</span>
-                                                <button onClick={() => handleDeleteBranch(b, true)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
+                                    <h4 className="font-semibold mb-2">Remote Branches</h4>
+                                    <ul className="space-y-1 max-h-48 overflow-y-auto">
+                                        {branchInfo?.remote.map(b => (
+                                            <li key={b} className="flex justify-between items-center p-2 rounded-md bg-gray-50 dark:bg-gray-900/50">
+                                                <span className="font-mono text-sm">{b}</span>
+                                                <button type="button" onClick={() => handleDeleteBranch(b.split('/').slice(1).join('/'), true)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
                                             </li>
                                         ))}
                                     </ul>
                                 </div>
                             </div>
-                         </>
-                     )}
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <div>
+                                    <h4 className="font-semibold mb-2">Create New Branch</h4>
+                                    <div className="flex gap-2">
+                                        <input type="text" value={newBranchName} onChange={e => setNewBranchName(e.target.value)} placeholder="new-branch-name" className={formInputStyle}/>
+                                        <button type="button" onClick={handleCreateBranch} className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create</button>
+                                    </div>
+                                </div>
+                                 <div>
+                                    <h4 className="font-semibold mb-2">Merge Branch into Current</h4>
+                                    <div className="flex gap-2">
+                                        <select value={branchToMerge || ''} onChange={e => setBranchToMerge(e.target.value)} className={formInputStyle}>
+                                            <option value="" disabled>Select a branch</option>
+                                            {branchInfo?.local.filter(b => b !== branchInfo.current).map(b => (
+                                                <option key={b} value={b}>{b}</option>
+                                            ))}
+                                        </select>
+                                        <button type="button" onClick={handleMergeBranch} className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700">Merge</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             );
         case 'releases':
+            if (!isGitHubRepo) return <div className="p-4 text-center text-gray-500">Release management is only available for repositories hosted on GitHub.</div>;
             if (editingRelease) {
                 return (
-                    <div className="flex-1 flex flex-col p-4 overflow-y-auto space-y-4">
-                        <h3 className="text-lg font-bold">{editingRelease.isNew ? 'Create New Release' : 'Edit Release'}</h3>
+                    <div className="p-4 space-y-3">
+                        <h3 className="text-lg font-semibold">{editingRelease.isNew ? 'Create New Release' : 'Edit Release'}</h3>
                         <div>
-                            <label htmlFor="tagName" className={formLabelStyle}>Tag Name (e.g., v1.0.0)</label>
-                            <input type="text" id="tagName" value={editingRelease.tagName || ''} onChange={e => setEditingRelease(p => ({ ...p, tagName: e.target.value }))} className={formInputStyle} required />
+                            <label className={formLabelStyle}>Tag Name</label>
+                            <input type="text" value={editingRelease.tagName || ''} onChange={e => setEditingRelease(p => ({...p!, tagName: e.target.value}))} className={formInputStyle} />
                         </div>
-                        <div>
-                            <label htmlFor="name" className={formLabelStyle}>Release Title</label>
-                            <input type="text" id="name" value={editingRelease.name || ''} onChange={e => setEditingRelease(p => ({ ...p, name: e.target.value }))} className={formInputStyle} />
+                         <div>
+                            <label className={formLabelStyle}>Release Title</label>
+                            <input type="text" value={editingRelease.name || ''} onChange={e => setEditingRelease(p => ({...p!, name: e.target.value}))} className={formInputStyle} />
                         </div>
-                        <div>
-                            <label htmlFor="body" className={formLabelStyle}>Release Notes (Markdown supported)</label>
-                            <textarea id="body" value={editingRelease.body || ''} onChange={e => setEditingRelease(p => ({ ...p, body: e.target.value }))} className={`${formInputStyle} min-h-[150px] font-mono`} />
+                         <div>
+                            <label className={formLabelStyle}>Release Notes (Markdown)</label>
+                            <textarea value={editingRelease.body || ''} onChange={e => setEditingRelease(p => ({...p!, body: e.target.value}))} rows={10} className={`${formInputStyle} font-mono`} />
                         </div>
                         <div className="flex items-center gap-6">
-                            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editingRelease.isDraft} onChange={e => setEditingRelease(p => ({ ...p, isDraft: e.target.checked }))} className="rounded" /> Draft</label>
-                            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editingRelease.isPrerelease} onChange={e => setEditingRelease(p => ({ ...p, isPrerelease: e.target.checked }))} className="rounded" /> Pre-release</label>
+                             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editingRelease.isDraft} onChange={e => setEditingRelease(p => ({...p!, isDraft: e.target.checked}))} className="rounded" /> Draft</label>
+                             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editingRelease.isPrerelease} onChange={e => setEditingRelease(p => ({...p!, isPrerelease: e.target.checked}))} className="rounded" /> Pre-release</label>
                         </div>
-                        <div className="flex gap-3">
-                            <button onClick={handleSaveRelease} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save Release</button>
-                            <button onClick={() => setEditingRelease(null)} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">Cancel</button>
+                        <div className="flex gap-2">
+                            <button onClick={handleSaveRelease} className="px-4 py-2 bg-blue-600 text-white rounded-md">Save Release</button>
+                            <button onClick={() => setEditingRelease(null)} className="px-4 py-2 bg-gray-500 text-white rounded-md">Cancel</button>
                         </div>
                     </div>
-                );
+                )
             }
             return (
-                <div className="flex-1 flex flex-col p-4 overflow-hidden">
-                    <div className="flex justify-between items-center pb-4">
-                        <h3 className="text-lg font-bold">Manage Releases</h3>
-                        <button onClick={() => setEditingRelease({ isNew: true, isDraft: true, isPrerelease: false, name: '', tagName: '', body: '' })} className="px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-2"><PlusIcon className="h-4 w-4"/>Create New Release</button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto space-y-3">
-                        {releasesLoading && <p>Loading releases...</p>}
-                        {releasesError && <p className="text-red-500">{releasesError}</p>}
-                        {releases && releases.map(release => (
-                            <div key={release.id} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="p-4 space-y-4">
+                     <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold">GitHub Releases</h3>
+                        <button onClick={() => setEditingRelease({ isNew: true, tagName: '', name: '', body: '', isDraft: true, isPrerelease: false })} className="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create New Release</button>
+                     </div>
+                     {releasesLoading && <p>Loading releases...</p>}
+                     {releasesError && <p className="text-red-500">{releasesError}</p>}
+                     {releases && releases.length === 0 && <p>No releases found.</p>}
+                     <ul className="space-y-4 max-h-[60vh] overflow-y-auto">
+                        {releases?.map(release => (
+                            <li key={release.id} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <h4 className="font-bold text-gray-900 dark:text-gray-100">{release.name || release.tagName}</h4>
-                                        <div className="flex items-center gap-2 text-xs mt-1 text-gray-500 dark:text-gray-400">
-                                            <span className="font-mono bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded">{release.tagName}</span>
-                                            <span>Created: {new Date(release.createdAt).toLocaleDateString()}</span>
-                                            {release.isDraft && <span className="px-2 py-0.5 font-semibold rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200">Draft</span>}
-                                            {release.isPrerelease && <span className="px-2 py-0.5 font-semibold rounded-full bg-yellow-200 dark:bg-yellow-700 text-yellow-800 dark:text-yellow-200">Pre-release</span>}
+                                        <div className="flex items-center gap-3">
+                                            <a href={release.url} onClick={e => { e.preventDefault(); onOpenWeblink(release.url); }} className="text-lg font-bold text-blue-600 dark:text-blue-400 hover:underline">{release.name || release.tagName}</a>
+                                            <span className="font-mono text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">{release.tagName}</span>
                                         </div>
+                                        <p className="text-xs text-gray-500 mt-1">Released on {new Date(release.createdAt).toLocaleDateString()}</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <button onClick={() => handleUpdateRelease(release.id, { isDraft: !release.isDraft })} className="px-3 py-1 text-xs text-white bg-gray-500 hover:bg-gray-600 rounded-md">{release.isDraft ? 'Publish' : 'Unpublish'}</button>
-                                        <button onClick={() => setEditingRelease(release)} className="p-1.5 text-blue-500 hover:bg-blue-100 rounded-full"><PencilIcon className="h-4 w-4" /></button>
-                                        <button onClick={() => handleDeleteRelease(release.id)} className="p-1.5 text-red-500 hover:bg-red-100 rounded-full"><TrashIcon className="h-4 w-4" /></button>
+                                        {release.isDraft && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200">Draft</span>}
+                                        {release.isPrerelease && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-200 dark:bg-yellow-700 text-yellow-800 dark:text-yellow-200">Pre-release</span>}
+                                        <button onClick={() => setEditingRelease(release)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><PencilIcon className="h-4 w-4"/></button>
+                                        <button onClick={() => handleDeleteRelease(release.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
                                     </div>
                                 </div>
-                                <div className="mt-2 pt-2 border-t prose prose-sm dark:prose-invert max-w-none">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({...props}) => <a {...props} onClick={(e) => { e.preventDefault(); onOpenWeblink(props.href!); }} /> }}>
-                                        {release.body || '*No description provided.*'}
-                                    </ReactMarkdown>
-                                </div>
-                            </div>
+                                {release.body && (
+                                    <article className="prose prose-sm dark:prose-invert max-w-none mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{release.body}</ReactMarkdown>
+                                    </article>
+                                )}
+                            </li>
                         ))}
-                    </div>
+                     </ul>
                 </div>
             );
-        default: return null;
     }
-  }
-
+    return null;
+  };
+  
   return (
-    <div className="flex flex-col bg-gray-100 dark:bg-gray-900 animate-fade-in h-full">
-      <header className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <button onClick={onCancel} className="flex items-center text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
-            <ArrowLeftIcon className="h-5 w-5 mr-1"/> Back to Dashboard
-          </button>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-            {repository ? 'Edit Repository' : 'Add New Repository'}
-          </h1>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button onClick={onCancel} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">Cancel</button>
-          <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Save Repository</button>
-        </div>
-      </header>
-      
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left: General Settings */}
-        <aside className="w-1/3 xl:w-1/4 border-r border-gray-200 dark:border-gray-700 p-4 overflow-y-auto space-y-3 bg-white dark:bg-gray-800">
-            <h2 className="text-lg font-semibold">General Settings</h2>
-            
-            <div><label htmlFor="vcs" className={formLabelStyle}>Version Control System</label><select name="vcs" id="vcs" value={formData.vcs} onChange={handleVcsChange} className={formInputStyle}><option value="git">Git</option><option value="svn">SVN (Subversion)</option></select></div>
-            
-            <div><label htmlFor="name" className={formLabelStyle}>Repository Name</label><input type="text" name="name" id="repo-form-name" value={formData.name} onChange={handleChange} required className={formInputStyle}/></div>
-            <div>
-              <label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label>
-              <div className="flex items-center gap-2 mt-1">
-                <input
-                  type="url"
-                  name="remoteUrl"
-                  id="repo-form-remoteUrl"
-                  value={formData.remoteUrl || ''}
-                  onChange={handleChange}
-                  required
-                  className={`${formInputStyle} mt-0 flex-grow`}
-                />
-                <button
-                  type="button"
-                  onClick={handleDiscoverRemote}
-                  disabled={!formData.localPath || !!formData.remoteUrl}
-                  className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
-                  aria-label="Discover Remote URL from Local Path"
-                  title="Discover Remote URL from Local Path"
-                >
-                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-                </button>
-              </div>
-            </div>
-            <div>
-              <label htmlFor="localPath" className={formLabelStyle}>Local Path</label>
-              <div className="flex items-center gap-2 mt-1">
-                <input type="text" name="localPath" id="localPath" value={formData.localPath} onChange={handleChange} required className={`${formInputStyle} mt-0 flex-grow`} />
-                <button
-                    type="button"
-                    onClick={handleChooseLocalPath}
-                    className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex-shrink-0"
-                    aria-label="Choose local path"
-                    title="Choose local path"
-                >
-                    <FolderOpenIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-                </button>
-              </div>
-            </div>
-            
-            {formData.vcs === 'git' && (
-              <>
-                <div>
-                  <label htmlFor="branch" className={formLabelStyle}>Default Branch</label>
-                  {hasBranches ? (
-                      <select 
-                          name="branch" 
-                          id="branch" 
-                          value={(formData as GitRepository).branch} 
-                          onChange={handleChange} 
-                          className={formInputStyle}
-                      >
-                          {branchInfo?.local.length > 0 && (
-                              <optgroup label="Local Branches">
-                                  {branchInfo.local.map(b => <option key={b} value={b}>{b}</option>)}
-                              </optgroup>
-                          )}
-                          {branchInfo?.remote.length > 0 && (
-                              <optgroup label="Remote Branches">
-                                  {branchInfo.remote.map(b => <option key={b} value={b}>{b}</option>)}
-                              </optgroup>
-                          )}
-                      </select>
-                  ) : (
-                      <input 
-                          type="text" 
-                          name="branch" 
-                          id="branch" 
-                          value={(formData as GitRepository).branch} 
-                          onChange={handleChange} 
-                          required 
-                          className={formInputStyle}
-                      />
-                  )}
-                </div>
-                <div className="flex items-start pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center h-5">
-                        <input
-                            id="ignoreDirty"
-                            name="ignoreDirty"
-                            type="checkbox"
-                            checked={(formData as GitRepository).ignoreDirty ?? false}
-                            onChange={e => setFormData(prev => ({ ...prev, ignoreDirty: e.target.checked }))}
-                            className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"
-                        />
-                    </div>
-                    <div className="ml-3 text-sm">
-                        <label htmlFor="ignoreDirty" className="font-medium text-gray-700 dark:text-gray-300">Ignore Uncommitted Changes</label>
-                        <p className="text-gray-500 text-xs">If checked, the "uncommitted changes" dialog will be skipped and the pull will proceed. Use with caution.</p>
+    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-800 animate-fade-in">
+        <header className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center">
+                <div className="flex items-center">
+                    <button onClick={onCancel} className="p-2 mr-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <ArrowLeftIcon className="h-6 w-6" />
+                    </button>
+                    <div>
+                        <h2 className="text-xl font-bold">{repository ? 'Edit Repository' : 'Add New Repository'}</h2>
+                        {repository && <p className="text-sm text-gray-500">{repository.name}</p>}
                     </div>
                 </div>
-              </>
-            )}
-
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
-              <h2 className="text-lg font-semibold">Web Links</h2>
-              <div className="space-y-2 mt-2">
-                {(formData.webLinks || []).map(link => (
-                  <div key={link.id} className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border dark:border-gray-700 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <input type="text" placeholder="Caption" value={link.name} onChange={e => handleUpdateWebLink(link.id, 'name', e.target.value)} className={`${formInputStyle} flex-grow mt-0`} />
-                      <button type="button" onClick={() => handleRemoveWebLink(link.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0"><TrashIcon className="h-4 w-4"/></button>
-                    </div>
-                    <input type="url" placeholder="https://..." value={link.url} onChange={e => handleUpdateWebLink(link.id, 'url', e.target.value)} className={`${formInputStyle} font-mono mt-0`} />
-                  </div>
-                ))}
-              </div>
-              <button type="button" onClick={handleAddWebLink} className="mt-3 flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
-                <PlusIcon className="h-4 w-4 mr-1"/> Add Web Link
-              </button>
             </div>
+        </header>
 
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
-              <h2 className="text-lg font-semibold">Launch Configurations</h2>
-              <div className="space-y-2 mt-2">
-                {(formData.launchConfigs || []).map(config => (
-                  <div key={config.id} className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border dark:border-gray-700 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <input type="text" placeholder="Name" value={config.name} onChange={e => handleUpdateLaunchConfig(config.id, 'name', e.target.value)} className={`${formInputStyle} flex-grow mt-0`} />
-                      <button type="button" onClick={() => handleRemoveLaunchConfig(config.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0"><TrashIcon className="h-4 w-4"/></button>
+        <div className="flex-1 flex overflow-hidden">
+            <aside className="w-1/3 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50">
+                <div className="p-3 space-y-3 flex-1 overflow-y-auto">
+                    <div>
+                        <label htmlFor="name" className={formLabelStyle}>Repository Name</label>
+                        <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} required className={formInputStyle} />
                     </div>
-                    
-                    <select value={config.type} onChange={e => handleUpdateLaunchConfig(config.id, 'type', e.target.value)} className={`${formInputStyle} mt-0`}>
-                      <option value="command">Run a Command</option>
-                      <option value="select-executable">Select an Executable</option>
-                    </select>
-
-                    {config.type === 'command' && (
-                      <input type="text" placeholder="e.g., code . or npm start" value={config.command || ''} onChange={e => handleUpdateLaunchConfig(config.id, 'command', e.target.value)} className={`${formInputStyle} font-mono mt-0`} />
+                     <div>
+                        <label htmlFor="vcs" className={formLabelStyle}>Version Control</label>
+                        <select id="vcs" name="vcs" value={formData.vcs} onChange={handleVcsChange} className={formInputStyle}>
+                            <option value={VcsType.Git}>Git</option>
+                            <option value={VcsType.Svn}>SVN</option>
+                        </select>
+                    </div>
+                     <div>
+                        <label htmlFor="localPath" className={formLabelStyle}>Local Path</label>
+                        <div className="mt-1 flex items-center gap-2">
+                          <input type="text" id="localPath" name="localPath" value={formData.localPath} onChange={handleChange} required className={formInputStyle} />
+                          <button type="button" onClick={handleChooseLocalPath} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><FolderOpenIcon className="h-5 w-5"/></button>
+                        </div>
+                    </div>
+                    <div>
+                        <label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label>
+                        <div className="mt-1 flex items-center gap-2">
+                           <input type="text" id="remoteUrl" name="remoteUrl" value={formData.remoteUrl} onChange={handleChange} required className={formInputStyle} />
+                           <button type="button" onClick={handleDiscoverRemote} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><MagnifyingGlassIcon className="h-5 w-5"/></button>
+                        </div>
+                    </div>
+                    {isGitRepo && 'branch' in formData && (
+                      <div>
+                          <label htmlFor="branch" className={formLabelStyle}>Default Branch</label>
+                          <select id="branch" name="branch" value={formData.branch} onChange={handleChange} className={formInputStyle}>
+                            {branchInfo?.current && <option value={branchInfo.current}>{branchInfo.current} (current)</option>}
+                            {branchInfo?.local.filter(b => b !== branchInfo.current).map(b => <option key={b} value={b}>{b}</option>)}
+                            <optgroup label="Remotes">
+                                {branchInfo?.remote.map(b => <option key={b} value={b.split('/').slice(1).join('/')}>{b}</option>)}
+                            </optgroup>
+                          </select>
+                      </div>
+                    )}
+                    {isGitRepo && (
+                         <div className="flex items-start">
+                            <div className="flex items-center h-5"><input id="ignoreDirty" name="ignoreDirty" type="checkbox" checked={(formData as GitRepository).ignoreDirty || false} onChange={e => setFormData(p => ({...(p as GitRepository), ignoreDirty: e.target.checked}))} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
+                            <div className="ml-3 text-sm">
+                                <label htmlFor="ignoreDirty" className="font-medium text-gray-700 dark:text-gray-300">Ignore Dirty Repository</label>
+                                <p className="text-xs text-gray-500">If checked, tasks will not check for uncommitted changes before pulling.</p>
+                            </div>
+                        </div>
                     )}
 
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Show on card</span>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input 
-                                type="checkbox" 
-                                checked={config.showOnDashboard ?? false} 
-                                onChange={e => handleUpdateLaunchConfig(config.id, 'showOnDashboard', e.target.checked)} 
-                                className="sr-only peer" 
-                            />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                        </label>
+                    <div className="pt-3">
+                        <h4 className="font-semibold mb-2">Web Links</h4>
+                        <div className="space-y-2">
+                            {(formData.webLinks || []).map(link => (
+                                <div key={link.id} className="flex gap-2">
+                                    <input type="text" placeholder="Name" value={link.name} onChange={e => handleUpdateWebLink(link.id, 'name', e.target.value)} className={`${formInputStyle} text-xs`} />
+                                    <input type="text" placeholder="URL" value={link.url} onChange={e => handleUpdateWebLink(link.id, 'url', e.target.value)} className={`${formInputStyle} text-xs`} />
+                                    <button type="button" onClick={() => handleRemoveWebLink(link.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
+                                </div>
+                            ))}
+                        </div>
+                        <button type="button" onClick={handleAddWebLink} className="mt-2 flex items-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"><PlusIcon className="h-3 w-3 mr-1"/>Add Link</button>
                     </div>
-                  </div>
-                ))}
-              </div>
-              <button type="button" onClick={handleAddLaunchConfig} className="mt-3 flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
-                <PlusIcon className="h-4 w-4 mr-1"/> Add Launch Config
-              </button>
-            </div>
-            
-        </aside>
 
-        {/* Right: Tabbed View */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-             <div className="flex border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-                <button onClick={() => setActiveTab('tasks')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'tasks' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><CubeTransparentIcon className="h-5 w-5"/>Tasks</button>
-                {(isGitRepo || formData.vcs === VcsType.Svn) && (
-                  <button onClick={() => setActiveTab('history')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'history' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><DocumentTextIcon className="h-5 w-5"/>History</button>
+                    <div className="pt-3">
+                        <h4 className="font-semibold mb-2">Launch Configurations</h4>
+                        <div className="space-y-3">
+                            {(formData.launchConfigs || []).map(lc => (
+                                <div key={lc.id} className="p-2 rounded-md bg-gray-100 dark:bg-gray-900/50 space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <input type="text" placeholder="Name" value={lc.name} onChange={e => handleUpdateLaunchConfig(lc.id, 'name', e.target.value)} className={`${formInputStyle} text-xs`} />
+                                        <select value={lc.type} onChange={e => handleUpdateLaunchConfig(lc.id, 'type', e.target.value)} className={`${formInputStyle} text-xs`}>
+                                            <option value="command">Command</option>
+                                            <option value="select-executable">Select Executable</option>
+                                        </select>
+                                        <button type="button" onClick={() => handleRemoveLaunchConfig(lc.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
+                                    </div>
+                                    {lc.type === 'command' && (
+                                        <input type="text" placeholder="e.g., npm start" value={lc.command} onChange={e => handleUpdateLaunchConfig(lc.id, 'command', e.target.value)} className={`${formInputStyle} text-xs font-mono`} />
+                                    )}
+                                    <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400"><input type="checkbox" checked={lc.showOnDashboard} onChange={e => handleUpdateLaunchConfig(lc.id, 'showOnDashboard', e.target.checked)} className="rounded" /> Show on card</label>
+                                </div>
+                            ))}
+                        </div>
+                        <button type="button" onClick={handleAddLaunchConfig} className="mt-2 flex items-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"><PlusIcon className="h-3 w-3 mr-1"/>Add Launch Config</button>
+                    </div>
+                </div>
+            </aside>
+            <main className="flex-1 flex flex-col min-h-0">
+                {'id' in formData && (
+                    <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
+                        <nav className="-mb-px flex space-x-4 px-4">
+                            <button onClick={() => setActiveTab('tasks')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'tasks' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Tasks</button>
+                            {isGitRepo && <button onClick={() => setActiveTab('history')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'history' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>History</button>}
+                            {isGitRepo && <button onClick={() => setActiveTab('branches')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'branches' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Branches</button>}
+                             {isGitRepo && <button onClick={() => setActiveTab('releases')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'releases' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Releases</button>}
+                        </nav>
+                    </div>
                 )}
-                {isGitRepo && (
-                    <>
-                        <button onClick={() => setActiveTab('branches')} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${activeTab === 'branches' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><GitBranchIcon className="h-5 w-5"/>Branches</button>
-                        <button onClick={() => setActiveTab('releases')} disabled={!isGitHubRepo} className={`px-4 py-2 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${activeTab === 'releases' ? 'border-b-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}><TagIcon className="h-5 w-5"/>Releases</button>
-                    </>
-                )}
-            </div>
-            {renderTabContent()}
+                {renderTabContent()}
+            </main>
         </div>
-      </div>
+
+        <footer className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
+            {repository && 'id' in repository && (
+                <button type="button" onClick={() => onRefreshState(repository.id)} className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-400 hover:underline">
+                    <ArrowPathIcon className="h-4 w-4 mr-1.5"/>
+                    Refresh State
+                </button>
+            )}
+            <div className="flex gap-3">
+                 <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 transition-colors">
+                    {repository ? 'Close' : 'Cancel'}
+                </button>
+                <button type="button" onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                    Save Repository
+                </button>
+            </div>
+        </footer>
     </div>
   );
 };

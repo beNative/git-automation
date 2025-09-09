@@ -17,6 +17,7 @@ export interface IElectronAPI {
   getDoc: (docName: string) => Promise<string>;
   getProjectInfo: (repoPath: string) => Promise<ProjectInfo>;
   getProjectSuggestions: (args: { repoPath: string, repoName: string }) => Promise<ProjectSuggestion[]>;
+  getDelphiVersions: () => Promise<{ name: string; version: string }[]>;
   checkVcsStatus: (repo: Repository) => Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }>;
   getDetailedVcsStatus: (repo: Repository) => Promise<DetailedStatus | null>;
   getCommitHistory: (repo: Repository, skipCount?: number, searchQuery?: string) => Promise<Commit[]>;

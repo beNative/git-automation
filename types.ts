@@ -127,6 +127,7 @@ export interface TaskStep {
   delphiInstallerDefines?: string;
   delphiTestExecutable?: string;
   delphiTestOutputFile?: string;
+  delphiVersion?: string;
   // Lazarus
   lazarusProjectFile?: string;
   lazarusPackageFile?: string;

@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Smart Scripts
   getProjectInfo: (repoPath: string): Promise<ProjectInfo> => ipcRenderer.invoke('get-project-info', repoPath),
   getProjectSuggestions: (args: { repoPath: string, repoName: string }): Promise<ProjectSuggestion[]> => ipcRenderer.invoke('get-project-suggestions', args),
+  getDelphiVersions: (): Promise<{ name: string; version: string }[]> => ipcRenderer.invoke('get-delphi-versions'),
 
   // Version Control
   checkVcsStatus: (repo: Repository): Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }> => ipcRenderer.invoke('check-vcs-status', repo),
