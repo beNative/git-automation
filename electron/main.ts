@@ -1349,7 +1349,7 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
         if (step.delphiVersion && os.platform() === 'win32') {
             try {
                 const key = `HKCU\\SOFTWARE\\Embarcadero\\BDS\\${step.delphiVersion}`;
-                const { stdout } = await execAsync(`reg query ${key} /v RootDir`, { cwd: os.homedir() });
+                const { stdout } = await execAsync(`reg query "${key}" /v RootDir`, { cwd: os.homedir() });
                 const rootDirMatch = stdout.match(/^\s*RootDir\s+REG_SZ\s+(.*)/m);
                 if (rootDirMatch && rootDirMatch[1]) {
                     const rsvarsPath = path.join(rootDirMatch[1].trim(), 'bin', 'rsvars.bat');
@@ -1567,35 +1567,43 @@ const getDelphiVersions = async (): Promise<{ name: string; version: string }[]>
 
     const versions = await Promise.all(
       versionKeys.map(async key => {
+        const versionString = key.split('\\').pop();
+        if (!versionString) return null;
+
         try {
-          const versionString = key.split('\\').pop();
-          if (!versionString) return null;
-          
-          // Removed quotes around `key` to avoid potential shell escaping issues.
-          // The key path does not contain spaces, so quotes are not strictly necessary.
-          const { stdout: rootDirStdout } = await execAsync(`reg query ${key} /v RootDir`, { cwd: os.homedir() });
-          // Use a more robust regex to handle leading whitespace and multiline output.
+          // 1. Get RootDir (mandatory)
+          const { stdout: rootDirStdout } = await execAsync(`reg query "${key}" /v RootDir`, { cwd: os.homedir() });
           const rootDirMatch = rootDirStdout.match(/^\s*RootDir\s+REG_SZ\s+(.*)/m);
           if (!rootDirMatch || !rootDirMatch[1]) {
-            logToRenderer('warn', `[Delphi] Could not parse RootDir from registry output for key: ${key}`, { stdout: rootDirStdout });
+            logToRenderer('warn', `[Delphi] Could not find or parse RootDir for key: ${key}. Skipping this version.`, { stdout: rootDirStdout });
             return null;
           }
 
-          const { stdout: productNameStdout } = await execAsync(`reg query ${key} /v ProductName`, { cwd: os.homedir() });
-          const productNameMatch = productNameStdout.match(/^\s*ProductName\s+REG_SZ\s+(.*)/m);
-          // ProductName is optional, so we don't fail if it's missing.
-          const name = productNameMatch ? `${productNameMatch[1].trim()} (${versionString})` : `Delphi ${versionString}`;
+          // 2. Get ProductName (optional)
+          let productName: string | null = null;
+          try {
+            const { stdout: productNameStdout } = await execAsync(`reg query "${key}" /v ProductName`, { cwd: os.homedir() });
+            const productNameMatch = productNameStdout.match(/^\s*ProductName\s+REG_SZ\s+(.*)/m);
+            if (productNameMatch && productNameMatch[1]) {
+              productName = productNameMatch[1].trim();
+            }
+          } catch (productNameError: any) {
+            logToRenderer('info', `[Delphi] Optional value 'ProductName' not found for key: ${key}. Using default name.`, { error: productNameError.message });
+          }
 
+          // 3. Construct name and return
+          const name = productName ? `${productName} (${versionString})` : `Delphi ${versionString}`;
           return { name, version: versionString };
+
         } catch (e: any) {
-          // Improve error logging by creating a serializable object from the Error.
+          // This will now only catch critical errors like failure to read RootDir
           const errorDetails = { 
             message: e.message, 
             stdout: e.stdout, 
             stderr: e.stderr,
             code: e.code,
           };
-          logToRenderer('warn', `[Delphi] Could not read registry details for key: ${key}`, errorDetails);
+          logToRenderer('warn', `[Delphi] Could not read critical registry details for key: ${key}`, errorDetails);
           return null;
         }
       })
