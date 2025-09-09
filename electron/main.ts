@@ -1647,7 +1647,7 @@ ipcMain.handle('get-commit-history', async (event, repo: Repository, skipCount?:
             const svnCmd = getExecutableCommand(VcsTypeEnum.Svn, settings);
             
             logToRenderer('debug', `[SVN History] Getting latest revision...`);
-            const { stdout: headStdout } = await execAsync(`${svnCmd} info --show-item last-changed-rev`, { cwd: repo.localPath });
+            const { stdout: headStdout } = await execAsync(`${svnCmd} info --show-item last-changed-revision`, { cwd: repo.localPath });
             const headRev = parseInt(headStdout.trim(), 10);
             logToRenderer('debug', `[SVN History] Latest revision: ${headRev}`);
             
