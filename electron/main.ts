@@ -1349,18 +1349,19 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
         if (step.delphiVersion && os.platform() === 'win32') {
             try {
                 const key = `HKCU\\SOFTWARE\\Embarcadero\\BDS\\${step.delphiVersion}`;
-                const { stdout } = await execAsync(`reg query "${key}" /v RootDir`, { cwd: os.homedir() });
-                const rootDirMatch = stdout.match(/RootDir\s+REG_SZ\s+(.*)/);
+                const { stdout } = await execAsync(`reg query ${key} /v RootDir`, { cwd: os.homedir() });
+                const rootDirMatch = stdout.match(/^\s*RootDir\s+REG_SZ\s+(.*)/m);
                 if (rootDirMatch && rootDirMatch[1]) {
                     const rsvarsPath = path.join(rootDirMatch[1].trim(), 'bin', 'rsvars.bat');
                     await fs.access(rsvarsPath);
                     delphiEnvCmd = `call "${rsvarsPath}"`;
                     sendLog(`Using Delphi environment for version ${step.delphiVersion}`, LogLevel.Info);
                 } else {
-                    throw new Error(`RootDir not found for Delphi version ${step.delphiVersion}`);
+                    throw new Error(`RootDir not found or could not be parsed for Delphi version ${step.delphiVersion}`);
                 }
             } catch (e: any) {
-                sendLog(`Could not set up environment for Delphi version ${step.delphiVersion}. Falling back to default rsvars.bat. Error: ${e.message}`, LogLevel.Warn);
+                const errorMessage = e.stderr || e.message || 'Unknown error';
+                sendLog(`Could not set up environment for Delphi version ${step.delphiVersion}. Falling back to default rsvars.bat. Error: ${errorMessage}`, LogLevel.Warn);
             }
         }
         
@@ -1570,17 +1571,31 @@ const getDelphiVersions = async (): Promise<{ name: string; version: string }[]>
           const versionString = key.split('\\').pop();
           if (!versionString) return null;
           
-          const { stdout: rootDirStdout } = await execAsync(`reg query "${key}" /v RootDir`, { cwd: os.homedir() });
-          const rootDirMatch = rootDirStdout.match(/RootDir\s+REG_SZ\s+(.*)/);
-          if (!rootDirMatch || !rootDirMatch[1]) return null;
+          // Removed quotes around `key` to avoid potential shell escaping issues.
+          // The key path does not contain spaces, so quotes are not strictly necessary.
+          const { stdout: rootDirStdout } = await execAsync(`reg query ${key} /v RootDir`, { cwd: os.homedir() });
+          // Use a more robust regex to handle leading whitespace and multiline output.
+          const rootDirMatch = rootDirStdout.match(/^\s*RootDir\s+REG_SZ\s+(.*)/m);
+          if (!rootDirMatch || !rootDirMatch[1]) {
+            logToRenderer('warn', `[Delphi] Could not parse RootDir from registry output for key: ${key}`, { stdout: rootDirStdout });
+            return null;
+          }
 
-          const { stdout: productNameStdout } = await execAsync(`reg query "${key}" /v ProductName`, { cwd: os.homedir() });
-          const productNameMatch = productNameStdout.match(/ProductName\s+REG_SZ\s+(.*)/);
+          const { stdout: productNameStdout } = await execAsync(`reg query ${key} /v ProductName`, { cwd: os.homedir() });
+          const productNameMatch = productNameStdout.match(/^\s*ProductName\s+REG_SZ\s+(.*)/m);
+          // ProductName is optional, so we don't fail if it's missing.
           const name = productNameMatch ? `${productNameMatch[1].trim()} (${versionString})` : `Delphi ${versionString}`;
 
           return { name, version: versionString };
         } catch (e: any) {
-          logToRenderer('warn', `[Delphi] Could not read registry details for key: ${key}`, e);
+          // Improve error logging by creating a serializable object from the Error.
+          const errorDetails = { 
+            message: e.message, 
+            stdout: e.stdout, 
+            stderr: e.stderr,
+            code: e.code,
+          };
+          logToRenderer('warn', `[Delphi] Could not read registry details for key: ${key}`, errorDetails);
           return null;
         }
       })
