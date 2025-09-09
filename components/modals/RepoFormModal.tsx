@@ -74,6 +74,7 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.RunCommand]: { label: 'Run Command', icon: CodeBracketIcon, description: 'Execute a custom shell command.' },
   // Delphi
   [TaskStepType.DelphiBuild]: { label: 'Delphi Build', icon: BeakerIcon, description: 'Build, rebuild, or clean a Delphi project.' },
+  [TaskStepType.DELPHI_BOSS_INSTALL]: { label: 'Delphi: Boss Install', icon: ArchiveBoxIcon, description: 'Install dependencies using the Boss package manager.' },
   [TaskStepType.DELPHI_PACKAGE_INNO]: { label: 'Delphi: Package (Inno)', icon: ArchiveBoxIcon, description: 'Create an installer using an Inno Setup script.' },
   [TaskStepType.DELPHI_PACKAGE_NSIS]: { label: 'Delphi: Package (NSIS)', icon: ArchiveBoxIcon, description: 'Create an installer using an NSIS script.' },
   [TaskStepType.DELPHI_TEST_DUNITX]: { label: 'Delphi: Run DUnitX Tests', icon: BeakerIcon, description: 'Execute a DUnitX test application.' },
@@ -674,7 +675,7 @@ const DelphiTaskGenerator: React.FC<{
     delphiCaps: DelphiCapabilities | undefined;
     onAddTask: (task: Partial<Task>) => void;
 }> = ({ delphiCaps, onAddTask }) => {
-    if (!delphiCaps || (delphiCaps.projects.length === 0 && delphiCaps.groups.length === 0)) return null;
+    if (!delphiCaps || (delphiCaps.projects.length === 0 && delphiCaps.groups.length === 0 && !delphiCaps.packageManagers.boss)) return null;
 
     const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
 
@@ -700,6 +701,15 @@ const DelphiTaskGenerator: React.FC<{
             }].map(s => ({ ...s, id: '', enabled: true }))
         });
     };
+    
+    const createBossInstallTask = () => {
+        onAddTask({
+            name: `Boss Install`,
+            steps: [{
+                type: TaskStepType.DELPHI_BOSS_INSTALL
+            }].map(s => ({ ...s, id: '', enabled: true }))
+        });
+    };
 
     return (
         <div className="p-3 mb-4 bg-indigo-50 dark:bg-gray-900/50 rounded-lg border border-indigo-200 dark:border-gray-700">
@@ -708,6 +718,11 @@ const DelphiTaskGenerator: React.FC<{
                 <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Delphi Project Detected</h3>
             </div>
             <div className="flex flex-wrap gap-2">
+                {delphiCaps.packageManagers.boss && (
+                    <button type="button" onClick={createBossInstallTask} className="text-xs font-medium text-white bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-md">
+                        Add Boss Install Task
+                    </button>
+                )}
                 {delphiCaps.projects.map(p => (
                     <button key={p.path} type="button" onClick={() => createBuildTask(p.path)} className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-md">
                         Add Build Task for {getBasename(p.path)}

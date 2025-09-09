@@ -1426,6 +1426,9 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
                 const platform = step.delphiPlatform || 'Win32';
                 await run(`${delphiEnvCmd} && msbuild "${projectFile}" /t:${mode} /p:Configuration=${config} /p:Platform=${platform}`);
                 break;
+            case TaskStepType.DELPHI_BOSS_INSTALL:
+                await run(`${delphiEnvCmd} && boss install`);
+                break;
             case TaskStepType.DELPHI_PACKAGE_INNO:
                 const issFile = step.delphiInstallerScript || projectInfo.delphi?.packaging.innoSetup[0];
                 if (!issFile) throw new Error('No Inno Setup script (.iss) file found or specified.');
