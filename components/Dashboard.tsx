@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import type { Repository, Category, LocalPathState, DetailedStatus, BranchInfo, ToastMessage, ReleaseInfo } from '../types';
+import type { Repository, Category, LocalPathState, DetailedStatus, BranchInfo, ToastMessage, ReleaseInfo, DndStrategy } from '../types';
 import RepositoryCard from './RepositoryCard';
 import CategoryHeader from './CategoryHeader';
 import { PlusIcon } from './icons/PlusIcon';
 import { useLogger } from '../hooks/useLogger';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface DashboardProps {
   repositories: Repository[];
@@ -54,7 +55,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     onReorderCategories,
     latestReleases
   } = props;
-
+  
+  const { settings } = useSettings();
   const logger = useLogger();
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -72,11 +74,15 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     }
   };
 
-  const handleDragStartRepo = useCallback((repoId: string, sourceCategoryId: string | null) => {
-    logger.debug('[DnD] handleDragStartRepo', { repoId, sourceCategoryId });
-    setDraggedRepo({ repoId, sourceCategoryId });
+  const handleDragStartRepo = useCallback((e: React.DragEvent<HTMLDivElement>, repoId: string, sourceCategoryId: string | null) => {
+    logger.debug('[DnD] handleDragStartRepo', { repoId, sourceCategoryId, strategy: settings.dndStrategy });
+    if (settings.dndStrategy === 'DataTransfer') {
+      e.dataTransfer.setData('text/plain', JSON.stringify({ repoId, sourceCategoryId: sourceCategoryId ?? 'uncategorized' }));
+    } else {
+      setDraggedRepo({ repoId, sourceCategoryId });
+    }
     setDraggedCategoryId(null);
-  }, [logger]);
+  }, [logger, settings.dndStrategy]);
   
   const handleDragStartCategory = useCallback((categoryId: string) => {
     logger.debug('[DnD] handleDragStartCategory', { categoryId });
@@ -86,15 +92,16 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
 
   const handleDragOverRepo = useCallback((e: React.DragEvent<HTMLDivElement>, categoryId: string | null, repoId: string | null) => {
     e.preventDefault();
-    if (!draggedRepo || (draggedRepo.repoId === repoId && categoryId === draggedRepo.sourceCategoryId)) {
-        setRepoDropIndicator(null);
-        return;
+    const isRepoDragged = draggedRepo || (settings.dndStrategy === 'DataTransfer' && e.dataTransfer.types.includes('text/plain'));
+    if (!isRepoDragged) {
+      setRepoDropIndicator(null);
+      return;
     }
     const targetElement = e.currentTarget;
     const rect = targetElement.getBoundingClientRect();
     const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
     setRepoDropIndicator({ categoryId, repoId, position });
-  }, [draggedRepo]);
+  }, [draggedRepo, settings.dndStrategy]);
   
   const handleDragOverCategory = useCallback((e: React.DragEvent<HTMLDivElement>, categoryId: string) => {
     // ONLY handle this event if a category is being dragged over a DIFFERENT category.
@@ -118,25 +125,37 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   }, []);
   
   const handleDrop = useCallback((
+    e: React.DragEvent<HTMLDivElement>,
     targetType: 'category' | 'repo' | 'uncategorized' | 'category-empty',
     targetId: string | null, // repoId, categoryId, or null for uncategorized
   ) => {
-    logger.debug('[DnD] handleDrop triggered', { targetType, targetId });
-    if (draggedRepo) {
-        logger.debug('[DnD] Dragged Repo Info', { draggedRepo, repoDropIndicator });
+    logger.debug('[DnD] handleDrop triggered', { targetType, targetId, strategy: settings.dndStrategy });
+
+    let currentDraggedRepo = draggedRepo;
+    if (settings.dndStrategy === 'DataTransfer') {
+      try {
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        currentDraggedRepo = { repoId: data.repoId, sourceCategoryId: data.sourceCategoryId === 'uncategorized' ? null : data.sourceCategoryId };
+      } catch (err) {
+        logger.error('[DnD] Failed to parse DataTransfer data', err);
+      }
+    }
+
+    if (currentDraggedRepo) {
+        logger.debug('[DnD] Dragged Repo Info', { currentDraggedRepo, repoDropIndicator });
         logger.debug('[DnD] Current State', { categories, uncategorizedOrder });
 
-        const { repoId, sourceCategoryId } = draggedRepo;
+        const { repoId, sourceCategoryId } = currentDraggedRepo;
         const sourceId = sourceCategoryId ?? 'uncategorized';
 
         let targetCategoryId: string | 'uncategorized';
         let targetIndex: number;
 
-        if (targetType === 'repo') {
-            const targetCategoryData = categories.find(c => c.repositoryIds.includes(targetId!))
+        if (targetType === 'repo' && targetId) {
+            const targetCategoryData = categories.find(c => c.repositoryIds.includes(targetId))
             targetCategoryId = targetCategoryData ? targetCategoryData.id : 'uncategorized';
             const targetList = targetCategoryData ? targetCategoryData.repositoryIds : uncategorizedOrder;
-            const indexInList = targetList.indexOf(targetId!);
+            const indexInList = targetList.indexOf(targetId);
             targetIndex = (repoDropIndicator?.position === 'after') ? indexInList + 1 : indexInList;
         } else { // 'category' or 'uncategorized' or 'category-empty'
             targetCategoryId = targetId ?? 'uncategorized';
@@ -159,7 +178,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     setDraggedCategoryId(null);
     setRepoDropIndicator(null);
     setCategoryDropIndicator(null);
-  }, [draggedRepo, draggedCategoryId, categories, uncategorizedOrder, onMoveRepositoryToCategory, onReorderCategories, repoDropIndicator, categoryDropIndicator, logger]);
+  }, [draggedRepo, draggedCategoryId, categories, uncategorizedOrder, onMoveRepositoryToCategory, onReorderCategories, repoDropIndicator, categoryDropIndicator, logger, settings.dndStrategy]);
 
   const reposById = useMemo(() => 
     repositories.reduce((acc, repo) => {
@@ -187,13 +206,13 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     branchInfo={props.branchLists[repo.id] || null}
                     latestRelease={latestReleases[repo.id] || null}
                     detectedExecutables={props.detectedExecutables[repo.id] || []}
-                    onDragStart={() => handleDragStartRepo(repo.id, categoryId)}
+                    onDragStart={(e) => handleDragStartRepo(e, repo.id, categoryId)}
                     onDragEnd={() => { setDraggedRepo(null); setRepoDropIndicator(null); }}
                     isBeingDragged={isBeingDragged}
                     dropIndicatorPosition={indicator ? indicator.position : null}
                     onDragOver={(e) => handleDragOverRepo(e, categoryId, repo.id)}
                     onDragLeave={handleDragLeave}
-                    onDrop={() => handleDrop('repo', repo.id)}
+                    onDrop={(e) => handleDrop(e, 'repo', repo.id)}
                     onContextMenu={(e) => props.onOpenContextMenu(e, repo)}
                     onMoveRepository={props.onMoveRepository}
                     isFirstInList={index === 0}
@@ -244,7 +263,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
               if (draggedCategoryId) {
                 e.preventDefault();
                 e.stopPropagation();
-                handleDrop('category', category.id);
+                handleDrop(e, 'category', category.id);
               }
             }}
             onDragLeave={handleDragLeave}
@@ -262,7 +281,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     onMoveCategory={props.onMoveCategory}
                     onAddRepo={() => props.onOpenRepoForm('new', category.id)}
                     onDragStart={() => handleDragStartCategory(category.id)}
-                    onDropRepo={() => handleDrop('category', category.id)}
+                    onDropRepo={(e) => handleDrop(e, 'category', category.id)}
                     onDragEnd={() => { setDraggedCategoryId(null); setCategoryDropIndicator(null); }}
                 />
                 {!(category.collapsed ?? false) && (
@@ -274,7 +293,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                         }
                     }}
                     onDragLeave={(e) => handleDragLeave()}
-                    onDrop={() => handleDrop('category-empty', category.id)}
+                    onDrop={(e) => handleDrop(e, 'category-empty', category.id)}
                   >
                     {renderRepoList(categoryRepoIds, category.id)}
                     {categoryRepoIds.length === 0 && (
@@ -300,7 +319,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 }
             }}
             onDragLeave={(e) => handleDragLeave()}
-            onDrop={() => handleDrop('uncategorized', null)}
+            onDrop={(e) => handleDrop(e, 'uncategorized', null)}
         >
             {renderRepoList(uncategorizedOrder, null)}
             {uncategorizedRepos.length === 0 && (

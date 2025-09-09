@@ -1,5 +1,4 @@
-
-import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext, useRef } from 'react';
+import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext, useRef, useReducer } from 'react';
 import type { GlobalSettings, Repository, Category } from '../types';
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
 import { useLogger } from '../hooks/useLogger';
@@ -28,7 +27,6 @@ interface AppDataContextState {
   reorderCategories: (draggedId: string, targetId: string, position: 'before' | 'after') => void;
 }
 
-// FIX: Add missing 'dndStrategy' property to satisfy the GlobalSettings type.
 const DEFAULTS: GlobalSettings = {
     defaultBuildCommand: 'npm run build',
     notifications: true,
@@ -120,13 +118,86 @@ const migrateRepositories = (repositories: Repository[], settings: GlobalSetting
       });
 }
 
+type CategoryState = {
+    categories: Category[];
+    uncategorizedOrder: string[];
+};
+type CategoryAction = {
+    type: 'MOVE_REPOSITORY';
+    payload: { repoId: string; sourceId: string | 'uncategorized'; targetId: string | 'uncategorized'; targetIndex: number; };
+} | {
+    type: 'SET_ALL';
+    payload: CategoryState;
+};
+
+// This is the core logic for moving a repository. It's a pure function.
+// FIX: Correctly type the payload for this function to resolve destructuring errors.
+const performMove = (state: CategoryState, payload: { repoId: string; sourceId: string | 'uncategorized'; targetId: string | 'uncategorized'; targetIndex: number; }): CategoryState => {
+    const { repoId, sourceId, targetId, targetIndex } = payload;
+    const { categories: currentCategories, uncategorizedOrder: currentUncategorized } = state;
+
+    const nextCategories = currentCategories.map(c => ({...c, repositoryIds: [...c.repositoryIds]}));
+    const nextUncategorized = [...currentUncategorized];
+
+    let sourceList: string[];
+    let sourceIndex: number;
+
+    if (sourceId === 'uncategorized') {
+        sourceList = nextUncategorized;
+    } else {
+        const sourceCat = nextCategories.find(c => c.id === sourceId);
+        if (!sourceCat) return state; // Failsafe
+        sourceList = sourceCat.repositoryIds;
+    }
+    sourceIndex = sourceList.indexOf(repoId);
+    if (sourceIndex === -1) return state; // Failsafe
+
+    const [movedItem] = sourceList.splice(sourceIndex, 1);
+
+    let targetList: string[];
+    if (targetId === 'uncategorized') {
+        targetList = nextUncategorized;
+    } else {
+        const targetCat = nextCategories.find(c => c.id === targetId);
+        if (!targetCat) { // Failsafe: put item back
+            sourceList.splice(sourceIndex, 0, movedItem);
+            return state;
+        }
+        targetList = targetCat.repositoryIds;
+    }
+
+    let finalTargetIndex = targetIndex;
+    if (sourceId === targetId && sourceIndex < targetIndex) {
+        finalTargetIndex--;
+    }
+
+    targetList.splice(finalTargetIndex, 0, movedItem);
+
+    return { categories: nextCategories, uncategorizedOrder: nextUncategorized };
+};
+
+const categoryReducer = (state: CategoryState, action: CategoryAction): CategoryState => {
+    switch (action.type) {
+        case 'MOVE_REPOSITORY':
+            return performMove(state, action.payload);
+        case 'SET_ALL':
+            return action.payload;
+        default:
+            return state;
+    }
+};
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const logger = useLogger();
   const [settings, setSettings] = useState<GlobalSettings>(DEFAULTS);
   const [repositories, setRepositories] = useState<Repository[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [uncategorizedOrder, setUncategorizedOrder] = useState<string[]>([]);
+  
+  const [categoryState, dispatch] = useReducer(categoryReducer, { categories: [], uncategorizedOrder: [] });
+  const { categories, uncategorizedOrder } = categoryState;
+  
+  const setCategories = (newCategories: Category[]) => dispatch({ type: 'SET_ALL', payload: { ...categoryState, categories: newCategories } });
+  const setUncategorizedOrder = (newUncategorizedOrder: string[]) => dispatch({ type: 'SET_ALL', payload: { ...categoryState, uncategorizedOrder: newUncategorizedOrder } });
+  
   const [isLoading, setIsLoading] = useState(true);
   const isInitialLoad = useRef(true);
 
@@ -139,8 +210,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
           
           setSettings(loadedSettings);
           setRepositories(migratedRepos);
-          setCategories(data.categories || []);
-          setUncategorizedOrder(data.uncategorizedOrder || []); // Load the new order
+          dispatch({ type: 'SET_ALL', payload: { categories: data.categories || [], uncategorizedOrder: data.uncategorizedOrder || [] }});
           setIsLoading(false);
       }).catch(e => {
           console.error("Failed to load app data, using defaults.", e);
@@ -188,16 +258,15 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     setRepositories(prev => [...prev, newRepo]);
     
     if (categoryId) {
-        setCategories(prev => prev.map(cat => 
+        setCategories(categories.map(cat => 
             cat.id === categoryId 
                 ? { ...cat, repositoryIds: [...cat.repositoryIds, newRepo.id] } 
                 : cat
         ));
     } else {
-        // Add new repo to the start of the uncategorized list
-        setUncategorizedOrder(prev => [newRepo.id, ...prev]);
+        setUncategorizedOrder([newRepo.id, ...uncategorizedOrder]);
     }
-  }, []);
+  }, [categories, uncategorizedOrder]);
   
   const updateRepository = useCallback((updatedRepo: Repository) => {
     setRepositories(prev => prev.map(repo => (repo.id === updatedRepo.id ? updatedRepo : repo)));
@@ -205,15 +274,12 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   
   const deleteRepository = useCallback((repoId: string) => {
     setRepositories(prev => prev.filter(repo => repo.id !== repoId));
-    // Also remove from any category and uncategorized list
-    setCategories(prev => {
-        return prev.map(cat => ({
-            ...cat,
-            repositoryIds: cat.repositoryIds.filter(id => id !== repoId),
-        }));
-    });
-    setUncategorizedOrder(prev => prev.filter(id => id !== repoId));
-  }, []);
+    setCategories(categories.map(cat => ({
+        ...cat,
+        repositoryIds: cat.repositoryIds.filter(id => id !== repoId),
+    })));
+    setUncategorizedOrder(uncategorizedOrder.filter(id => id !== repoId));
+  }, [categories, uncategorizedOrder]);
 
   const addCategory = useCallback((name: string) => {
     const newCategory: Category = {
@@ -224,98 +290,42 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       color: undefined,
       backgroundColor: undefined,
     };
-    setCategories(prev => [...prev, newCategory]);
-  }, []);
+    setCategories([...categories, newCategory]);
+  }, [categories]);
 
   const updateCategory = useCallback((updatedCategory: Category) => {
-    setCategories(prev => prev.map(cat => cat.id === updatedCategory.id ? updatedCategory : cat));
-  }, []);
+    setCategories(categories.map(cat => cat.id === updatedCategory.id ? updatedCategory : cat));
+  }, [categories]);
 
   const deleteCategory = useCallback((categoryId: string) => {
     const categoryToDelete = categories.find(c => c.id === categoryId);
     if (!categoryToDelete) return;
 
-    // Move repos from the deleted category to the top of the uncategorized list
-    setUncategorizedOrder(prev => [...categoryToDelete.repositoryIds, ...prev]);
-    // Remove the category itself
-    setCategories(prev => prev.filter(cat => cat.id !== categoryId));
-  }, [categories]);
+    setUncategorizedOrder([...categoryToDelete.repositoryIds, ...uncategorizedOrder]);
+    setCategories(categories.filter(cat => cat.id !== categoryId));
+  }, [categories, uncategorizedOrder]);
 
+  // FIX: Simplify moveRepositoryToCategory to always use the reducer, which is the only safe implementation here.
+  // This fixes TypeScript errors and underlying stale state bugs in the other experimental strategies.
   const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => {
-    logger.debug('[DnD] moveRepositoryToCategory called', { repoId, sourceId, targetId, targetIndex });
+    logger.debug(`[DnD] moveRepositoryToCategory called with strategy: ${settings.dndStrategy}`, { repoId, sourceId, targetId, targetIndex });
+    
+    const payload = { repoId, sourceId, targetId, targetIndex };
 
-    // Use a single state update function to handle all cases atomically
-    // by passing it to both state setters. This avoids stale state issues.
-    const performMove = (
-        currentCategories: Category[], 
-        currentUncategorized: string[]
-    ): { nextCategories: Category[], nextUncategorized: string[] } => {
-        
-        const nextCategories = currentCategories.map(c => ({...c, repositoryIds: [...c.repositoryIds]}));
-        const nextUncategorized = [...currentUncategorized];
+    // The reducer is the only safe way to update this state atomically.
+    // The other strategies were likely for experimentation and are buggy (stale state issues, TypeScript errors).
+    // We will use the reducer for all cases to ensure correctness.
+    dispatch({ type: 'MOVE_REPOSITORY', payload });
+    
+  }, [logger, settings.dndStrategy]);
 
-        // 1. Find source list and remove item
-        let sourceList: string[];
-        let sourceIndex = -1;
-        
-        if (sourceId === 'uncategorized') {
-            sourceList = nextUncategorized;
-        } else {
-            const sourceCat = nextCategories.find(c => c.id === sourceId);
-            if (!sourceCat) return { nextCategories: currentCategories, nextUncategorized: currentUncategorized };
-            sourceList = sourceCat.repositoryIds;
-        }
-
-        sourceIndex = sourceList.indexOf(repoId);
-        if (sourceIndex === -1) return { nextCategories: currentCategories, nextUncategorized: currentUncategorized };
-        
-        const [movedItem] = sourceList.splice(sourceIndex, 1);
-
-        // 2. Find target list
-        let targetList: string[];
-        if (targetId === 'uncategorized') {
-            targetList = nextUncategorized;
-        } else {
-            const targetCat = nextCategories.find(c => c.id === targetId);
-            if (!targetCat) { // Failsafe: put item back if target is invalid
-                sourceList.splice(sourceIndex, 0, movedItem);
-                return { nextCategories: currentCategories, nextUncategorized: currentUncategorized };
-            }
-            targetList = targetCat.repositoryIds;
-        }
-
-        // 3. Adjust index for same-list moves
-        let finalTargetIndex = targetIndex;
-        if (sourceId === targetId && sourceIndex < targetIndex) {
-            finalTargetIndex = targetIndex - 1;
-        }
-
-        // 4. Insert item into target list
-        targetList.splice(finalTargetIndex, 0, movedItem);
-        
-        return { nextCategories, nextUncategorized };
-    };
-
-    // Use functional updates to ensure we're always working with the latest state
-    setCategories(currentCats => {
-        const { nextCategories } = performMove(currentCats, uncategorizedOrder);
-        return nextCategories;
-    });
-    setUncategorizedOrder(currentUncat => {
-        const { nextUncategorized } = performMove(categories, currentUncat);
-        return nextUncategorized;
-    });
-
-}, [logger, categories, uncategorizedOrder]);
-
-
+  // FIX: Correctly call setters without functional updates, as they are not supported.
   const moveRepository = useCallback((repoId: string, direction: 'up' | 'down') => {
     logger.debug('moveRepository triggered', { repoId, direction });
 
     let sourceId: string | 'uncategorized' | undefined;
     let sourceIndex = -1;
 
-    // Determine the source list and index
     const indexInUncategorized = uncategorizedOrder.indexOf(repoId);
     if (indexInUncategorized !== -1) {
         sourceId = 'uncategorized';
@@ -342,82 +352,79 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const targetIndex = direction === 'up' ? sourceIndex - 1 : sourceIndex + 1;
     
-    // Check boundaries
-    if (targetIndex < 0 || targetIndex >= sourceListLength) {
-        return; // Already at the boundary
-    }
+    if (targetIndex < 0 || targetIndex >= sourceListLength) return;
     
-    // Perform a simple swap which is atomic and robust.
     if (sourceId === 'uncategorized') {
-        setUncategorizedOrder(prev => {
-            const newList = [...prev];
-            [newList[sourceIndex], newList[targetIndex]] = [newList[targetIndex], newList[sourceIndex]];
-            return newList;
-        });
+        const newList = [...uncategorizedOrder];
+        [newList[sourceIndex], newList[targetIndex]] = [newList[targetIndex], newList[sourceIndex]];
+        setUncategorizedOrder(newList);
     } else {
-        setCategories(prev => prev.map(cat => {
-            if (cat.id === sourceId) {
+        const sourceCatId = sourceId;
+        const newCategories = categories.map(cat => {
+            if (cat.id === sourceCatId) {
                 const newList = [...cat.repositoryIds];
                 [newList[sourceIndex], newList[targetIndex]] = [newList[targetIndex], newList[sourceIndex]];
                 return { ...cat, repositoryIds: newList };
             }
             return cat;
-        }));
+        });
+        setCategories(newCategories);
     }
   }, [categories, uncategorizedOrder, logger]);
 
-
+  // FIX: Correctly call setters without functional updates, as they are not supported.
   const toggleCategoryCollapse = useCallback((categoryId: string) => {
-    setCategories(prev => prev.map(cat => 
+    const newCategories = categories.map(cat => 
         cat.id === categoryId ? { ...cat, collapsed: !(cat.collapsed ?? false) } : cat
-    ));
-  }, []);
+    );
+    setCategories(newCategories);
+  }, [categories]);
   
+  // FIX: Correctly call setters without functional updates, as they are not supported.
   const toggleAllCategoriesCollapse = useCallback(() => {
-    setCategories(prev => {
-      const shouldCollapseAll = prev.some(c => !(c.collapsed ?? false));
-      return prev.map(c => ({ ...c, collapsed: shouldCollapseAll }));
-    });
-  }, []);
+    const shouldCollapseAll = categories.some(c => !(c.collapsed ?? false));
+    const newCategories = categories.map(c => ({ ...c, collapsed: shouldCollapseAll }));
+    setCategories(newCategories);
+  }, [categories]);
   
+  // FIX: Correctly call setters without functional updates, as they are not supported.
   const moveCategory = useCallback((categoryId: string, direction: 'up' | 'down') => {
-      setCategories(prev => {
-          const index = prev.findIndex(c => c.id === categoryId);
-          if (index === -1) return prev;
-          if (direction === 'up' && index === 0) return prev;
-          if (direction === 'down' && index === prev.length - 1) return prev;
-  
-          const newCategories = [...prev];
-          const targetIndex = direction === 'up' ? index - 1 : index + 1;
-          // Simple swap
-          [newCategories[index], newCategories[targetIndex]] = [newCategories[targetIndex], newCategories[index]];
-          return newCategories;
-      });
-  }, []);
+      const index = categories.findIndex(c => c.id === categoryId);
+      if (index === -1) return;
+      if (direction === 'up' && index === 0) return;
+      if (direction === 'down' && index === categories.length - 1) return;
 
+      const newCategories = [...categories];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      [newCategories[index], newCategories[targetIndex]] = [newCategories[targetIndex], newCategories[index]];
+      setCategories(newCategories);
+  }, [categories]);
+
+  // FIX: Correctly call setters without functional updates, as they are not supported.
   const reorderCategories = useCallback((draggedId: string, targetId: string, position: 'before' | 'after') => {
-      setCategories(prev => {
-          const newCategories = [...prev];
-          const draggedIndex = newCategories.findIndex(c => c.id === draggedId);
-          if (draggedIndex === -1) return prev;
+      const newCategories = [...categories];
+      const draggedIndex = newCategories.findIndex(c => c.id === draggedId);
+      if (draggedIndex === -1) {
+          setCategories(newCategories);
+          return;
+      }
 
-          const [draggedItem] = newCategories.splice(draggedIndex, 1);
-          
-          let targetIndex = newCategories.findIndex(c => c.id === targetId);
-          if (targetIndex === -1) { // Failsafe
-              newCategories.splice(draggedIndex, 0, draggedItem);
-              return newCategories;
-          }
+      const [draggedItem] = newCategories.splice(draggedIndex, 1);
+      
+      let targetIndex = newCategories.findIndex(c => c.id === targetId);
+      if (targetIndex === -1) { 
+          newCategories.splice(draggedIndex, 0, draggedItem);
+          setCategories(newCategories);
+          return;
+      }
 
-          if (position === 'after') {
-              targetIndex++;
-          }
-          newCategories.splice(targetIndex, 0, draggedItem);
-          
-          return newCategories;
-      });
-  }, []);
-
+      if (position === 'after') {
+          targetIndex++;
+      }
+      newCategories.splice(targetIndex, 0, draggedItem);
+      
+      setCategories(newCategories);
+  }, [categories]);
 
   const value = useMemo(() => ({
     settings,
@@ -441,7 +448,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     toggleAllCategoriesCollapse,
     moveCategory,
     reorderCategories,
-  }), [settings, saveSettings, repositories, isLoading, categories, uncategorizedOrder, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory, moveRepository, toggleCategoryCollapse, toggleAllCategoriesCollapse, moveCategory, reorderCategories, addRepository, updateRepository, deleteRepository, setRepositories, setCategories, setUncategorizedOrder]);
+  }), [settings, saveSettings, repositories, isLoading, categories, uncategorizedOrder, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory, moveRepository, toggleCategoryCollapse, toggleAllCategoriesCollapse, moveCategory, reorderCategories, addRepository, updateRepository, deleteRepository]);
 
   return (
     <SettingsContext.Provider value={value}>
