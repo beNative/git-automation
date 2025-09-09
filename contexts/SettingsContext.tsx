@@ -1,5 +1,7 @@
 import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext, useRef, useReducer } from 'react';
-import type { GlobalSettings, Repository, Category } from '../types';
+// FIX START: Import DropTarget type.
+import type { GlobalSettings, Repository, Category, DropTarget } from '../types';
+// FIX END
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
 import { useLogger } from '../hooks/useLogger';
 
@@ -13,13 +15,13 @@ interface AppDataContextState {
   deleteRepository: (repoId: string) => void;
   isLoading: boolean;
   categories: Category[];
-  setCategories: (categories: Category[]) => void;
   uncategorizedOrder: string[];
-  setUncategorizedOrder: (order: string[]) => void;
   addCategory: (name: string) => void;
   updateCategory: (updatedCategory: Category) => void;
   deleteCategory: (categoryId: string) => void;
-  moveRepositoryToCategory: (repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => void;
+  // FIX START: Update signature to use DropTarget object.
+  moveRepositoryToCategory: (repoId: string, sourceId: string | 'uncategorized', target: DropTarget) => void;
+  // FIX END
   moveRepository: (repoId: string, direction: 'up' | 'down') => void;
   toggleCategoryCollapse: (categoryId: string) => void;
   toggleAllCategoriesCollapse: () => void;
@@ -53,9 +55,7 @@ const initialState: AppDataContextState = {
   deleteRepository: () => {},
   isLoading: true,
   categories: [],
-  setCategories: () => {},
   uncategorizedOrder: [],
-  setUncategorizedOrder: () => {},
   addCategory: () => {},
   updateCategory: () => {},
   deleteCategory: () => {},
@@ -118,85 +118,211 @@ const migrateRepositories = (repositories: Repository[], settings: GlobalSetting
       });
 }
 
+// FIX START: Centralize all category/order state mutations into a robust reducer.
 type CategoryState = {
     categories: Category[];
     uncategorizedOrder: string[];
 };
-type CategoryAction = {
-    type: 'MOVE_REPOSITORY';
-    payload: { repoId: string; sourceId: string | 'uncategorized'; targetId: string | 'uncategorized'; targetIndex: number; };
-} | {
-    type: 'SET_ALL';
-    payload: CategoryState;
-};
 
-// This is the core logic for moving a repository. It's a pure function.
-// FIX: Correctly type the payload for this function to resolve destructuring errors.
-const performMove = (state: CategoryState, payload: { repoId: string; sourceId: string | 'uncategorized'; targetId: string | 'uncategorized'; targetIndex: number; }): CategoryState => {
-    const { repoId, sourceId, targetId, targetIndex } = payload;
-    const { categories: currentCategories, uncategorizedOrder: currentUncategorized } = state;
+type CategoryAction = 
+  | { type: 'SET_ALL_DATA'; payload: { categories: Category[]; uncategorizedOrder: string[] } }
+  | { type: 'MOVE_REPOSITORY_DND'; payload: { repoId: string; sourceId: string | 'uncategorized'; target: DropTarget } }
+  | { type: 'MOVE_REPOSITORY_BUTTONS'; payload: { repoId: string; direction: 'up' | 'down' } }
+  | { type: 'ADD_REPOSITORY'; payload: { repoId: string; categoryId?: string } }
+  | { type: 'DELETE_REPOSITORY'; payload: { repoId: string } }
+  | { type: 'ADD_CATEGORY'; payload: { name: string } }
+  | { type: 'UPDATE_CATEGORY'; payload: { category: Category } }
+  | { type: 'DELETE_CATEGORY'; payload: { categoryId: string } }
+  | { type: 'TOGGLE_CATEGORY_COLLAPSE'; payload: { categoryId: string } }
+  | { type: 'TOGGLE_ALL_CATEGORIES_COLLAPSE' }
+  | { type: 'MOVE_CATEGORY'; payload: { categoryId: string; direction: 'up' | 'down' } }
+  | { type: 'REORDER_CATEGORIES'; payload: { draggedId: string; targetId: string; position: 'before' | 'after' } };
 
-    const nextCategories = currentCategories.map(c => ({...c, repositoryIds: [...c.repositoryIds]}));
-    const nextUncategorized = [...currentUncategorized];
-
-    let sourceList: string[];
-    let sourceIndex: number;
-
-    if (sourceId === 'uncategorized') {
-        sourceList = nextUncategorized;
-    } else {
-        const sourceCat = nextCategories.find(c => c.id === sourceId);
-        if (!sourceCat) return state; // Failsafe
-        sourceList = sourceCat.repositoryIds;
-    }
-    sourceIndex = sourceList.indexOf(repoId);
-    if (sourceIndex === -1) return state; // Failsafe
-
-    const [movedItem] = sourceList.splice(sourceIndex, 1);
-
-    let targetList: string[];
-    if (targetId === 'uncategorized') {
-        targetList = nextUncategorized;
-    } else {
-        const targetCat = nextCategories.find(c => c.id === targetId);
-        if (!targetCat) { // Failsafe: put item back
-            sourceList.splice(sourceIndex, 0, movedItem);
-            return state;
-        }
-        targetList = targetCat.repositoryIds;
-    }
-
-    let finalTargetIndex = targetIndex;
-    if (sourceId === targetId && sourceIndex < targetIndex) {
-        finalTargetIndex--;
-    }
-
-    targetList.splice(finalTargetIndex, 0, movedItem);
-
-    return { categories: nextCategories, uncategorizedOrder: nextUncategorized };
-};
 
 const categoryReducer = (state: CategoryState, action: CategoryAction): CategoryState => {
+    // Create deep copies for mutation to ensure state is immutable.
+    const nextState: CategoryState = {
+      categories: state.categories.map(c => ({ ...c, repositoryIds: [...c.repositoryIds] })),
+      uncategorizedOrder: [...state.uncategorizedOrder]
+    };
+
     switch (action.type) {
-        case 'MOVE_REPOSITORY':
-            return performMove(state, action.payload);
-        case 'SET_ALL':
+        case 'SET_ALL_DATA':
             return action.payload;
+
+        case 'MOVE_REPOSITORY_DND': {
+            const { repoId, sourceId, target } = action.payload;
+            const { repoId: targetRepoId, categoryId: targetCategoryId, position } = target;
+
+            // 1. Find and remove the item from its source list
+            let movedItem: string | undefined;
+            if (sourceId === 'uncategorized') {
+                const sourceIndex = nextState.uncategorizedOrder.indexOf(repoId);
+                if (sourceIndex > -1) [movedItem] = nextState.uncategorizedOrder.splice(sourceIndex, 1);
+            } else {
+                const sourceCat = nextState.categories.find(c => c.id === sourceId);
+                if (sourceCat) {
+                    const sourceIndex = sourceCat.repositoryIds.indexOf(repoId);
+                    if (sourceIndex > -1) [movedItem] = sourceCat.repositoryIds.splice(sourceIndex, 1);
+                }
+            }
+
+            if (!movedItem) return state; // Failsafe: if item not found, abort.
+
+            // 2. Find the target list and calculate the target index
+            if (targetCategoryId === 'uncategorized') {
+                let index = nextState.uncategorizedOrder.length;
+                if (targetRepoId && position !== 'end') {
+                    const idx = nextState.uncategorizedOrder.indexOf(targetRepoId);
+                    if (idx > -1) index = (position === 'after' ? idx + 1 : idx);
+                }
+                nextState.uncategorizedOrder.splice(index, 0, movedItem);
+            } else {
+                const targetCat = nextState.categories.find(c => c.id === targetCategoryId);
+                if (targetCat) {
+                    let index = targetCat.repositoryIds.length;
+                    if (targetRepoId && position !== 'end') {
+                        const idx = targetCat.repositoryIds.indexOf(targetRepoId);
+                        if (idx > -1) index = (position === 'after' ? idx + 1 : idx);
+                    }
+                    targetCat.repositoryIds.splice(index, 0, movedItem);
+                } else {
+                    nextState.uncategorizedOrder.push(movedItem); // Failsafe: drop into uncategorized
+                }
+            }
+            return nextState;
+        }
+
+        case 'ADD_REPOSITORY': {
+            const { repoId, categoryId } = action.payload;
+            if (categoryId) {
+                const cat = nextState.categories.find(c => c.id === categoryId);
+                if (cat) cat.repositoryIds.push(repoId);
+            } else {
+                nextState.uncategorizedOrder.unshift(repoId);
+            }
+            return nextState;
+        }
+
+        case 'DELETE_REPOSITORY': {
+            const { repoId } = action.payload;
+            nextState.uncategorizedOrder = nextState.uncategorizedOrder.filter(id => id !== repoId);
+            nextState.categories.forEach(cat => {
+                cat.repositoryIds = cat.repositoryIds.filter(id => id !== repoId);
+            });
+            return nextState;
+        }
+
+        case 'ADD_CATEGORY': {
+            const newCategory: Category = {
+                id: `cat_${Date.now()}`,
+                name: action.payload.name,
+                repositoryIds: [],
+                collapsed: false,
+            };
+            nextState.categories.push(newCategory);
+            return nextState;
+        }
+
+        case 'UPDATE_CATEGORY': {
+             nextState.categories = nextState.categories.map(c => c.id === action.payload.category.id ? action.payload.category : c);
+             return nextState;
+        }
+
+        case 'DELETE_CATEGORY': {
+            const { categoryId } = action.payload;
+            const categoryToDelete = state.categories.find(c => c.id === categoryId);
+            if (!categoryToDelete) return state;
+
+            nextState.uncategorizedOrder.unshift(...categoryToDelete.repositoryIds);
+            nextState.categories = nextState.categories.filter(c => c.id !== categoryId);
+            return nextState;
+        }
+
+        case 'MOVE_REPOSITORY_BUTTONS': {
+            // Find which list the repo is in
+            const { repoId, direction } = action.payload;
+            let list: string[] | undefined;
+            const uncategorizedIndex = state.uncategorizedOrder.indexOf(repoId);
+
+            if (uncategorizedIndex > -1) {
+                list = nextState.uncategorizedOrder;
+                const targetIndex = direction === 'up' ? uncategorizedIndex - 1 : uncategorizedIndex + 1;
+                if (targetIndex >= 0 && targetIndex < list.length) {
+                    [list[uncategorizedIndex], list[targetIndex]] = [list[targetIndex], list[uncategorizedIndex]];
+                }
+            } else {
+                for (const category of nextState.categories) {
+                    const catIndex = category.repositoryIds.indexOf(repoId);
+                    if (catIndex > -1) {
+                        list = category.repositoryIds;
+                        const targetIndex = direction === 'up' ? catIndex - 1 : catIndex + 1;
+                        if (targetIndex >= 0 && targetIndex < list.length) {
+                             [list[catIndex], list[targetIndex]] = [list[targetIndex], list[catIndex]];
+                        }
+                        break;
+                    }
+                }
+            }
+            return nextState;
+        }
+
+        case 'TOGGLE_CATEGORY_COLLAPSE': {
+             nextState.categories = nextState.categories.map(c => c.id === action.payload.categoryId ? { ...c, collapsed: !(c.collapsed ?? false) } : c);
+             return nextState;
+        }
+
+        case 'TOGGLE_ALL_CATEGORIES_COLLAPSE': {
+            const shouldCollapse = state.categories.some(c => !(c.collapsed ?? false));
+            nextState.categories = nextState.categories.map(c => ({ ...c, collapsed: shouldCollapse }));
+            return nextState;
+        }
+        
+        case 'MOVE_CATEGORY': {
+            const { categoryId, direction } = action.payload;
+            const index = state.categories.findIndex(c => c.id === categoryId);
+            if (index === -1) return state;
+
+            const targetIndex = direction === 'up' ? index - 1 : index + 1;
+            if (targetIndex < 0 || targetIndex >= state.categories.length) return state;
+            
+            [nextState.categories[index], nextState.categories[targetIndex]] = [nextState.categories[targetIndex], nextState.categories[index]];
+            return nextState;
+        }
+        
+        case 'REORDER_CATEGORIES': {
+            const { draggedId, targetId, position } = action.payload;
+            const draggedIndex = state.categories.findIndex(c => c.id === draggedId);
+            if (draggedIndex === -1) return state;
+
+            const [draggedItem] = nextState.categories.splice(draggedIndex, 1);
+            let targetIndex = nextState.categories.findIndex(c => c.id === targetId);
+            
+            if (targetIndex === -1) { // Failsafe
+                nextState.categories.splice(draggedIndex, 0, draggedItem);
+                return nextState;
+            }
+            
+            if (position === 'after') targetIndex++;
+            nextState.categories.splice(targetIndex, 0, draggedItem);
+            return nextState;
+        }
+
         default:
             return state;
     }
 };
+// FIX END
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const logger = useLogger();
   const [settings, setSettings] = useState<GlobalSettings>(DEFAULTS);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   
+  // FIX START: Use a single reducer for all category/order state.
   const [categoryState, dispatch] = useReducer(categoryReducer, { categories: [], uncategorizedOrder: [] });
   const { categories, uncategorizedOrder } = categoryState;
-  
-  const setCategories = (newCategories: Category[]) => dispatch({ type: 'SET_ALL', payload: { ...categoryState, categories: newCategories } });
-  const setUncategorizedOrder = (newUncategorizedOrder: string[]) => dispatch({ type: 'SET_ALL', payload: { ...categoryState, uncategorizedOrder: newUncategorizedOrder } });
+  // FIX END
   
   const [isLoading, setIsLoading] = useState(true);
   const isInitialLoad = useRef(true);
@@ -210,7 +336,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
           
           setSettings(loadedSettings);
           setRepositories(migratedRepos);
-          dispatch({ type: 'SET_ALL', payload: { categories: data.categories || [], uncategorizedOrder: data.uncategorizedOrder || [] }});
+          // FIX: Dispatch a single action to set initial state atomically.
+          dispatch({ type: 'SET_ALL_DATA', payload: { categories: data.categories || [], uncategorizedOrder: data.uncategorizedOrder || [] }});
           setIsLoading(false);
       }).catch(e => {
           console.error("Failed to load app data, using defaults.", e);
@@ -256,17 +383,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       ...repoData
     } as Repository;
     setRepositories(prev => [...prev, newRepo]);
-    
-    if (categoryId) {
-        setCategories(categories.map(cat => 
-            cat.id === categoryId 
-                ? { ...cat, repositoryIds: [...cat.repositoryIds, newRepo.id] } 
-                : cat
-        ));
-    } else {
-        setUncategorizedOrder([newRepo.id, ...uncategorizedOrder]);
-    }
-  }, [categories, uncategorizedOrder]);
+    dispatch({ type: 'ADD_REPOSITORY', payload: { repoId: newRepo.id, categoryId } });
+  }, []);
   
   const updateRepository = useCallback((updatedRepo: Repository) => {
     setRepositories(prev => prev.map(repo => (repo.id === updatedRepo.id ? updatedRepo : repo)));
@@ -274,157 +392,50 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   
   const deleteRepository = useCallback((repoId: string) => {
     setRepositories(prev => prev.filter(repo => repo.id !== repoId));
-    setCategories(categories.map(cat => ({
-        ...cat,
-        repositoryIds: cat.repositoryIds.filter(id => id !== repoId),
-    })));
-    setUncategorizedOrder(uncategorizedOrder.filter(id => id !== repoId));
-  }, [categories, uncategorizedOrder]);
+    dispatch({ type: 'DELETE_REPOSITORY', payload: { repoId } });
+  }, []);
 
   const addCategory = useCallback((name: string) => {
-    const newCategory: Category = {
-      id: `cat_${Date.now()}`,
-      name,
-      repositoryIds: [],
-      collapsed: false,
-      color: undefined,
-      backgroundColor: undefined,
-    };
-    setCategories([...categories, newCategory]);
-  }, [categories]);
+    dispatch({ type: 'ADD_CATEGORY', payload: { name } });
+  }, []);
 
   const updateCategory = useCallback((updatedCategory: Category) => {
-    setCategories(categories.map(cat => cat.id === updatedCategory.id ? updatedCategory : cat));
-  }, [categories]);
+    dispatch({ type: 'UPDATE_CATEGORY', payload: { category: updatedCategory } });
+  }, []);
 
   const deleteCategory = useCallback((categoryId: string) => {
-    const categoryToDelete = categories.find(c => c.id === categoryId);
-    if (!categoryToDelete) return;
+    dispatch({ type: 'DELETE_CATEGORY', payload: { categoryId } });
+  }, []);
 
-    setUncategorizedOrder([...categoryToDelete.repositoryIds, ...uncategorizedOrder]);
-    setCategories(categories.filter(cat => cat.id !== categoryId));
-  }, [categories, uncategorizedOrder]);
-
-  // FIX: Simplify moveRepositoryToCategory to always use the reducer, which is the only safe implementation here.
-  // This fixes TypeScript errors and underlying stale state bugs in the other experimental strategies.
-  const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => {
-    logger.debug(`[DnD] moveRepositoryToCategory called with strategy: ${settings.dndStrategy}`, { repoId, sourceId, targetId, targetIndex });
-    
-    const payload = { repoId, sourceId, targetId, targetIndex };
-
-    // The reducer is the only safe way to update this state atomically.
-    // The other strategies were likely for experimentation and are buggy (stale state issues, TypeScript errors).
-    // We will use the reducer for all cases to ensure correctness.
-    dispatch({ type: 'MOVE_REPOSITORY', payload });
-    
+  // FIX START: Refactor moveRepositoryToCategory to dispatch an action to the central reducer.
+  // This ensures the calculation is always on the latest state and the update is atomic.
+  const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', target: DropTarget) => {
+    logger.debug(`[DnD] Dispatching MOVE_REPOSITORY_DND`, { repoId, sourceId, target, strategy: settings.dndStrategy });
+    // All strategies will use the same robust, atomic reducer logic.
+    // The strategy selected in the UI is now just for logging/debugging purposes.
+    dispatch({ type: 'MOVE_REPOSITORY_DND', payload: { repoId, sourceId, target } });
   }, [logger, settings.dndStrategy]);
+  // FIX END
 
-  // FIX: Correctly call setters without functional updates, as they are not supported.
   const moveRepository = useCallback((repoId: string, direction: 'up' | 'down') => {
-    logger.debug('moveRepository triggered', { repoId, direction });
+    dispatch({ type: 'MOVE_REPOSITORY_BUTTONS', payload: { repoId, direction } });
+  }, []);
 
-    let sourceId: string | 'uncategorized' | undefined;
-    let sourceIndex = -1;
-
-    const indexInUncategorized = uncategorizedOrder.indexOf(repoId);
-    if (indexInUncategorized !== -1) {
-        sourceId = 'uncategorized';
-        sourceIndex = indexInUncategorized;
-    } else {
-        for (const category of categories) {
-            const indexInCategory = category.repositoryIds.indexOf(repoId);
-            if (indexInCategory !== -1) {
-                sourceId = category.id;
-                sourceIndex = indexInCategory;
-                break;
-            }
-        }
-    }
-
-    if (sourceId === undefined || sourceIndex === -1) {
-        logger.error('Could not find repository to reorder.', { repoId });
-        return;
-    }
-
-    const sourceListLength = sourceId === 'uncategorized'
-        ? uncategorizedOrder.length
-        : categories.find(c => c.id === sourceId)?.repositoryIds.length ?? 0;
-
-    const targetIndex = direction === 'up' ? sourceIndex - 1 : sourceIndex + 1;
-    
-    if (targetIndex < 0 || targetIndex >= sourceListLength) return;
-    
-    if (sourceId === 'uncategorized') {
-        const newList = [...uncategorizedOrder];
-        [newList[sourceIndex], newList[targetIndex]] = [newList[targetIndex], newList[sourceIndex]];
-        setUncategorizedOrder(newList);
-    } else {
-        const sourceCatId = sourceId;
-        const newCategories = categories.map(cat => {
-            if (cat.id === sourceCatId) {
-                const newList = [...cat.repositoryIds];
-                [newList[sourceIndex], newList[targetIndex]] = [newList[targetIndex], newList[sourceIndex]];
-                return { ...cat, repositoryIds: newList };
-            }
-            return cat;
-        });
-        setCategories(newCategories);
-    }
-  }, [categories, uncategorizedOrder, logger]);
-
-  // FIX: Correctly call setters without functional updates, as they are not supported.
   const toggleCategoryCollapse = useCallback((categoryId: string) => {
-    const newCategories = categories.map(cat => 
-        cat.id === categoryId ? { ...cat, collapsed: !(cat.collapsed ?? false) } : cat
-    );
-    setCategories(newCategories);
-  }, [categories]);
+    dispatch({ type: 'TOGGLE_CATEGORY_COLLAPSE', payload: { categoryId } });
+  }, []);
   
-  // FIX: Correctly call setters without functional updates, as they are not supported.
   const toggleAllCategoriesCollapse = useCallback(() => {
-    const shouldCollapseAll = categories.some(c => !(c.collapsed ?? false));
-    const newCategories = categories.map(c => ({ ...c, collapsed: shouldCollapseAll }));
-    setCategories(newCategories);
-  }, [categories]);
+    dispatch({ type: 'TOGGLE_ALL_CATEGORIES_COLLAPSE' });
+  }, []);
   
-  // FIX: Correctly call setters without functional updates, as they are not supported.
   const moveCategory = useCallback((categoryId: string, direction: 'up' | 'down') => {
-      const index = categories.findIndex(c => c.id === categoryId);
-      if (index === -1) return;
-      if (direction === 'up' && index === 0) return;
-      if (direction === 'down' && index === categories.length - 1) return;
+    dispatch({ type: 'MOVE_CATEGORY', payload: { categoryId, direction } });
+  }, []);
 
-      const newCategories = [...categories];
-      const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      [newCategories[index], newCategories[targetIndex]] = [newCategories[targetIndex], newCategories[index]];
-      setCategories(newCategories);
-  }, [categories]);
-
-  // FIX: Correctly call setters without functional updates, as they are not supported.
   const reorderCategories = useCallback((draggedId: string, targetId: string, position: 'before' | 'after') => {
-      const newCategories = [...categories];
-      const draggedIndex = newCategories.findIndex(c => c.id === draggedId);
-      if (draggedIndex === -1) {
-          setCategories(newCategories);
-          return;
-      }
-
-      const [draggedItem] = newCategories.splice(draggedIndex, 1);
-      
-      let targetIndex = newCategories.findIndex(c => c.id === targetId);
-      if (targetIndex === -1) { 
-          newCategories.splice(draggedIndex, 0, draggedItem);
-          setCategories(newCategories);
-          return;
-      }
-
-      if (position === 'after') {
-          targetIndex++;
-      }
-      newCategories.splice(targetIndex, 0, draggedItem);
-      
-      setCategories(newCategories);
-  }, [categories]);
+    dispatch({ type: 'REORDER_CATEGORIES', payload: { draggedId, targetId, position } });
+  }, []);
 
   const value = useMemo(() => ({
     settings,
@@ -436,9 +447,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     deleteRepository,
     isLoading,
     categories,
-    setCategories,
     uncategorizedOrder,
-    setUncategorizedOrder,
     addCategory,
     updateCategory,
     deleteCategory,

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
 // FIX START: Import ReleaseInfo type.
@@ -39,15 +40,21 @@ const App: React.FC = () => {
     settings, 
     saveSettings, 
     repositories,
-    setRepositories,
+    // FIX START: Remove unused and unsafe setters.
+    // setRepositories,
+    // FIX END
     addRepository,
     updateRepository,
     deleteRepository,
     isLoading: isDataLoading,
     categories,
-    setCategories,
+    // FIX START: Remove unused and unsafe setters.
+    // setCategories,
+    // FIX END
     uncategorizedOrder,
-    setUncategorizedOrder,
+    // FIX START: Remove unused and unsafe setters.
+    // setUncategorizedOrder,
+    // FIX END
     addCategory,
     updateCategory,
     deleteCategory,
@@ -945,7 +952,6 @@ const App: React.FC = () => {
                       });
                     }}
                     onMoveRepositoryToCategory={moveRepositoryToCategory}
-                    // FIX: Removed `setCategories` and `setUncategorizedOrder` as they are not valid props for Dashboard.
                     onMoveRepository={moveRepository}
                     onToggleCategoryCollapse={toggleCategoryCollapse}
                     onMoveCategory={moveCategory}

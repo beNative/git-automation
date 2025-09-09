@@ -282,6 +282,14 @@ export interface AppDataContextState {
   uncategorizedOrder: string[]; // <-- New field to fix DnD
 }
 
+// FIX START: Add DropTarget type for robust DnD operations.
+export interface DropTarget {
+  repoId: string | null; // The repo ID being dropped ON, or null if dropped on category area
+  categoryId: string | 'uncategorized';
+  position: 'before' | 'after' | 'end';
+}
+// FIX END
+
 
 // --- Project Intelligence Types ---
 

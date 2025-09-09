@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import type { Repository, Category, LocalPathState, DetailedStatus, BranchInfo, ToastMessage, ReleaseInfo, DndStrategy } from '../types';
+// FIX START: Import DropTarget type for robust DnD.
+import type { Repository, Category, LocalPathState, DetailedStatus, BranchInfo, ToastMessage, ReleaseInfo, DndStrategy, DropTarget } from '../types';
+// FIX END
 import RepositoryCard from './RepositoryCard';
 import CategoryHeader from './CategoryHeader';
 import { PlusIcon } from './icons/PlusIcon';
@@ -13,7 +15,9 @@ interface DashboardProps {
   onAddCategory: (name: string) => void;
   onUpdateCategory: (category: Category) => void;
   onDeleteCategory: (categoryId: string) => void;
-  onMoveRepositoryToCategory: (repoId: string, sourceId: string | 'uncategorized', targetId: string | 'uncategorized', targetIndex: number) => void;
+  // FIX START: Update signature to use DropTarget object, fixing stale state issues.
+  onMoveRepositoryToCategory: (repoId: string, sourceId: string | 'uncategorized', target: DropTarget) => void;
+  // FIX END
   onMoveRepository: (repoId: string, direction: 'up' | 'down') => void;
   onToggleCategoryCollapse: (categoryId: string) => void;
   onMoveCategory: (categoryId: string, direction: 'up' | 'down') => void;
@@ -124,12 +128,14 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     setCategoryDropIndicator(null);
   }, []);
   
+  // FIX START: Refactor handleDrop to construct a DropTarget object instead of calculating an index.
+  // This delegates the index calculation to the state management context, which has access to the freshest state, fixing the core bug.
   const handleDrop = useCallback((
     e: React.DragEvent<HTMLDivElement>,
     targetType: 'category' | 'repo' | 'uncategorized' | 'category-empty',
     targetId: string | null, // repoId, categoryId, or null for uncategorized
   ) => {
-    logger.debug('[DnD] handleDrop triggered', { targetType, targetId, strategy: settings.dndStrategy });
+    logger.debug('[DnD] handleDrop triggered', { targetType, targetId, strategy: settings.dndStrategy, repoDropIndicator });
 
     let currentDraggedRepo = draggedRepo;
     if (settings.dndStrategy === 'DataTransfer') {
@@ -142,30 +148,29 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     }
 
     if (currentDraggedRepo) {
-        logger.debug('[DnD] Dragged Repo Info', { currentDraggedRepo, repoDropIndicator });
-        logger.debug('[DnD] Current State', { categories, uncategorizedOrder });
-
-        const { repoId, sourceCategoryId } = currentDraggedRepo;
+        const { repoId: draggedRepoId, sourceCategoryId } = currentDraggedRepo;
         const sourceId = sourceCategoryId ?? 'uncategorized';
+        
+        let target: DropTarget;
 
-        let targetCategoryId: string | 'uncategorized';
-        let targetIndex: number;
-
-        if (targetType === 'repo' && targetId) {
-            const targetCategoryData = categories.find(c => c.repositoryIds.includes(targetId))
-            targetCategoryId = targetCategoryData ? targetCategoryData.id : 'uncategorized';
-            const targetList = targetCategoryData ? targetCategoryData.repositoryIds : uncategorizedOrder;
-            const indexInList = targetList.indexOf(targetId);
-            targetIndex = (repoDropIndicator?.position === 'after') ? indexInList + 1 : indexInList;
-        } else { // 'category' or 'uncategorized' or 'category-empty'
-            targetCategoryId = targetId ?? 'uncategorized';
-            const targetCategory = categories.find(c => c.id === targetCategoryId);
-            const targetList = targetCategory ? targetCategory.repositoryIds : uncategorizedOrder;
-            targetIndex = targetList.length;
+        if (targetType === 'repo' && targetId && repoDropIndicator) {
+            // Drop was on a repository card. The indicator state has the most accurate info.
+            target = {
+                repoId: targetId,
+                categoryId: repoDropIndicator.categoryId ?? 'uncategorized',
+                position: repoDropIndicator.position,
+            };
+        } else {
+            // Drop was on a category area (or empty uncategorized).
+            target = {
+                repoId: null,
+                categoryId: targetId ?? 'uncategorized',
+                position: 'end'
+            };
         }
         
-        logger.debug('[DnD] Calculated Drop Target and calling context', { repoId, sourceId, targetCategoryId, targetIndex });
-        onMoveRepositoryToCategory(repoId, sourceId, targetCategoryId, targetIndex);
+        logger.debug('[DnD] Calling onMoveRepositoryToCategory', { draggedRepoId, sourceId, target });
+        onMoveRepositoryToCategory(draggedRepoId, sourceId, target);
 
     } else if (draggedCategoryId) {
         if (targetType === 'category' && targetId && draggedCategoryId !== targetId && categoryDropIndicator) {
@@ -178,7 +183,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     setDraggedCategoryId(null);
     setRepoDropIndicator(null);
     setCategoryDropIndicator(null);
-  }, [draggedRepo, draggedCategoryId, categories, uncategorizedOrder, onMoveRepositoryToCategory, onReorderCategories, repoDropIndicator, categoryDropIndicator, logger, settings.dndStrategy]);
+  }, [draggedRepo, draggedCategoryId, onMoveRepositoryToCategory, onReorderCategories, repoDropIndicator, categoryDropIndicator, logger, settings.dndStrategy]);
+  // FIX END
 
   const reposById = useMemo(() => 
     repositories.reduce((acc, repo) => {
