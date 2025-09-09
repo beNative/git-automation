@@ -190,6 +190,23 @@ const App: React.FC = () => {
     }
   }, [logger]);
 
+  // Effect to listen for logs from the main process
+  useEffect(() => {
+      const handleLogFromMain = (
+          _event: any, 
+          log: { level: 'debug' | 'info' | 'warn' | 'error'; message: string; data?: any }
+      ) => {
+          logger[log.level](log.message, log.data);
+      };
+      
+      window.electronAPI?.onLogFromMain(handleLogFromMain);
+      
+      return () => {
+          window.electronAPI?.removeLogFromMainListener(handleLogFromMain);
+      };
+  }, [logger]);
+
+
   // Effect for auto-updater
   useEffect(() => {
     const handleUpdateStatus = (_event: any, data: UpdateStatusMessage) => {

@@ -3,6 +3,7 @@ import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, ProjectSugge
 
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
+const logToRendererChannel = 'log-to-renderer';
 
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -81,6 +82,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeTaskStepEndListener: (callback: (event: IpcRendererEvent, data: { executionId: string, exitCode: number }) => void) => {
     ipcRenderer.removeListener(taskStepEndChannel, callback);
   },
+
+  // --- Debug Logging to Renderer ---
+  onLogFromMain: (callback: (event: IpcRendererEvent, data: { level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: any }) => void) => {
+    ipcRenderer.on(logToRendererChannel, callback);
+  },
+  removeLogFromMainListener: (callback: (event: IpcRendererEvent, data: any) => void) => {
+    ipcRenderer.removeListener(logToRendererChannel, callback);
+  },
+
 
   // --- Debug Logging to File ---
   logToFileInit: () => ipcRenderer.send('log-to-file-init'),

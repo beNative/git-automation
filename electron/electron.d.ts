@@ -80,7 +80,15 @@ export interface IElectronAPI {
     callback: (event: IpcRendererEvent, data: { executionId: string; exitCode: number }) => void
   ) => void;
 
-  // Debug Logging
+  // Debug Logging (Main -> Renderer)
+  onLogFromMain: (
+    callback: (event: IpcRendererEvent, data: { level: 'debug' | 'info' | 'warn' | 'error'; message: string; data?: any }) => void
+  ) => void;
+  removeLogFromMainListener: (
+    callback: (event: IpcRendererEvent, data: any) => void
+  ) => void;
+
+  // Debug Logging (Renderer -> Main -> File)
   logToFileInit: () => void;
   logToFileClose: () => void;
   logToFileWrite: (log: DebugLogEntry) => void;

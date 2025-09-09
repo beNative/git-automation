@@ -103,6 +103,15 @@ async function readSettings(): Promise<GlobalSettings> {
     return DEFAULTS;
 }
 
+// --- Helper function to send logs from main to renderer for the debug panel ---
+type LogLevelString = 'debug' | 'info' | 'warn' | 'error';
+const logToRenderer = (level: LogLevelString, message: string, data?: any) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('log-to-renderer', { level, message, data });
+  }
+};
+
+
 const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
@@ -1634,39 +1643,36 @@ ipcMain.handle('get-commit-history', async (event, repo: Repository, skipCount?:
                 };
             });
         } else if (repo.vcs === VcsTypeEnum.Svn) {
-            console.log(`[SVN History] Getting history for "${repo.name}"`);
+            logToRenderer('debug', `[SVN History] Getting history for "${repo.name}"`);
             const svnCmd = getExecutableCommand(VcsTypeEnum.Svn, settings);
             
-            console.log(`[SVN History] Getting latest revision...`);
+            logToRenderer('debug', `[SVN History] Getting latest revision...`);
             const { stdout: headStdout } = await execAsync(`${svnCmd} info --show-item last-changed-rev`, { cwd: repo.localPath });
             const headRev = parseInt(headStdout.trim(), 10);
-            console.log(`[SVN History] Latest revision: ${headRev}`);
+            logToRenderer('debug', `[SVN History] Latest revision: ${headRev}`);
             
             if (isNaN(headRev)) {
-                console.error('[SVN History] Could not determine latest SVN revision.');
+                logToRenderer('error', '[SVN History] Could not determine latest SVN revision.');
                 throw new Error('Could not determine latest SVN revision.');
             }
 
             const startRev = headRev - (skipCount || 0);
-            console.log(`[SVN History] Calculated start revision: ${startRev} (skipCount: ${skipCount || 0})`);
+            logToRenderer('debug', `[SVN History] Calculated start revision: ${startRev}`, { skipCount: skipCount || 0 });
             if (startRev < 1) {
-                console.log('[SVN History] Start revision is less than 1, returning empty array.');
+                logToRenderer('debug', '[SVN History] Start revision is less than 1, returning empty array.');
                 return [];
             }
 
             const limit = 100;
             const search = searchQuery ? `--search "${searchQuery.replace(/"/g, '\\"')}"` : '';
             const logCommand = `${svnCmd} log --xml -l ${limit} -r ${startRev}:1 ${search}`;
-            console.log(`[SVN History] Executing log command: ${logCommand}`);
+            logToRenderer('debug', `[SVN History] Executing log command:`, { command: logCommand });
             const { stdout } = await execAsync(logCommand, { cwd: repo.localPath });
 
-            console.log(`[SVN History] Raw XML output received (length: ${stdout.length}):`);
-            console.log('--- SVN LOG START ---');
-            console.log(stdout);
-            console.log('--- SVN LOG END ---');
+            logToRenderer('debug', `[SVN History] Raw XML output received`, { length: stdout.length, xml: stdout });
 
             if (!stdout) {
-                console.log('[SVN History] No stdout from svn log command. Returning empty array.');
+                logToRenderer('debug', '[SVN History] No stdout from svn log command. Returning empty array.');
                 return [];
             }
 
@@ -1686,14 +1692,11 @@ ipcMain.handle('get-commit-history', async (event, repo: Repository, skipCount?:
                     message: match[4].trim(),
                 });
             }
-            console.log(`[SVN History] Parsed ${commits.length} commits.`);
+            logToRenderer('debug', `[SVN History] Parsed ${commits.length} commits.`);
             return commits;
         }
     } catch (e: any) {
-        console.error(`[History] Failed to get commit history for ${repo.name} (search: "${searchQuery}"):`, e.message);
-        if (e.stderr) {
-            console.error('[History] Stderr:', e.stderr);
-        }
+        logToRenderer('error', `[History] Failed to get commit history for ${repo.name}`, { error: e.message, stderr: e.stderr, search: searchQuery });
         return [];
     }
     return [];
