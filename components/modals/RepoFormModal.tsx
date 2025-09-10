@@ -122,35 +122,10 @@ const TaskStepItem: React.FC<{
   delphiVersions: { name: string; version: string }[];
 }> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, onDuplicateStep, suggestions, projectInfo, delphiVersions }) => {
   const logger = useLogger();
-  
   const stepDef = STEP_DEFINITIONS[step.type];
-
-  // Log invalid steps inside a useEffect to prevent render loops.
-  useEffect(() => {
-    if (!stepDef) {
-        logger.error('Invalid step type encountered in TaskStepItem. This may be due to malformed data.', { step });
-    }
-  }, [step, stepDef, logger]);
-  
-  if (!stepDef) {
-      return (
-        <div className="bg-red-50 dark:bg-red-900/40 p-3 rounded-lg border border-red-200 dark:border-red-700 space-y-2 text-red-700 dark:text-red-300">
-            <div className="flex items-center gap-3">
-                <ExclamationCircleIcon className="h-6 w-6"/>
-                <div>
-                    <p className="font-semibold">Invalid Step Type</p>
-                    <p className="text-xs">The step type '{step.type}' is not recognized. This step may be from an older version or corrupted. Please remove it.</p>
-                </div>
-                <button type="button" onClick={() => onRemoveStep(step.id)} className="ml-auto p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
-            </div>
-        </div>
-      );
-  }
-  
-  const { label, icon: Icon } = stepDef;
-  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
-  const CUSTOM_COMMAND_VALUE = 'custom_command';
   const isEnabled = step.enabled ?? true;
+
+  // --- HOOKS MOVED TO TOP ---
   const toggleTooltip = useTooltip(isEnabled ? 'Disable Step' : 'Enable Step');
   const duplicateTooltip = useTooltip('Duplicate Step');
   
@@ -173,10 +148,14 @@ const TaskStepItem: React.FC<{
       });
       return Array.from(configSet).sort();
   }, [projectInfo?.delphi?.projects]);
-
-  const availablePlatforms = selectedDelphiProject ? selectedDelphiProject.platforms : allDelphiPlatforms;
-  const availableConfigs = selectedDelphiProject ? selectedDelphiProject.configs : allDelphiConfigs;
-
+  
+  // Log invalid steps inside a useEffect to prevent render loops.
+  useEffect(() => {
+    if (!stepDef) {
+        logger.error('Invalid step type encountered in TaskStepItem. This may be due to malformed data.', { step });
+    }
+  }, [step, stepDef, logger]);
+  
   useEffect(() => {
       if (selectedDelphiProject) {
           if (step.delphiConfiguration && !selectedDelphiProject.configs.includes(step.delphiConfiguration)) {
@@ -187,6 +166,29 @@ const TaskStepItem: React.FC<{
           }
       }
   }, [selectedDelphiProject, step.delphiConfiguration, step.delphiPlatform, onStepChange, step.id]);
+  // --- END HOOKS MOVED TO TOP ---
+  
+  if (!stepDef) {
+      return (
+        <div className="bg-red-50 dark:bg-red-900/40 p-3 rounded-lg border border-red-200 dark:border-red-700 space-y-2 text-red-700 dark:text-red-300">
+            <div className="flex items-center gap-3">
+                <ExclamationCircleIcon className="h-6 w-6"/>
+                <div>
+                    <p className="font-semibold">Invalid Step Type</p>
+                    <p className="text-xs">The step type '{step.type}' is not recognized. This step may be from an older version or corrupted. Please remove it.</p>
+                </div>
+                <button type="button" onClick={() => onRemoveStep(step.id)} className="ml-auto p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
+            </div>
+        </div>
+      );
+  }
+  
+  const { label, icon: Icon } = stepDef;
+  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
+  const CUSTOM_COMMAND_VALUE = 'custom_command';
+  
+  const availablePlatforms = selectedDelphiProject ? selectedDelphiProject.platforms : allDelphiPlatforms;
+  const availableConfigs = selectedDelphiProject ? selectedDelphiProject.configs : allDelphiConfigs;
   
   const DelphiVersionSelector: React.FC = () => (
     <div>

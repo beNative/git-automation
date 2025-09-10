@@ -158,6 +158,58 @@ const BranchSwitcher: React.FC<{
     );
 };
 
+const ReleaseInfoDisplay: React.FC<{
+  vcs: VcsType;
+  latestRelease: ReleaseInfo | null | undefined;
+  onOpenWeblink: (url: string) => void;
+}> = ({ vcs, latestRelease, onOpenWeblink }) => {
+  const releaseUrlTooltip = useTooltip(latestRelease?.url);
+
+  if (vcs !== VcsType.Git) {
+    return null;
+  }
+
+  let content;
+  if (latestRelease) {
+    const { tagName, isDraft, isPrerelease } = latestRelease;
+    let badge;
+    if (isDraft) {
+      badge = <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200">Draft</span>;
+    } else if (isPrerelease) {
+      badge = <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-200 dark:bg-yellow-700 text-yellow-800 dark:text-yellow-200">Pre-release</span>;
+    } else {
+      badge = <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-200 dark:bg-green-700 text-green-800 dark:text-green-200">Published</span>;
+    }
+    content = (
+      <div className="flex items-center gap-2">
+        <a
+          {...releaseUrlTooltip}
+          href={latestRelease.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => { e.preventDefault(); onOpenWeblink(latestRelease.url); }}
+          className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          {tagName}
+        </a>
+        {badge}
+      </div>
+    );
+  } else if (latestRelease === null) {
+    content = <span className="font-semibold text-gray-400">No releases found.</span>;
+  } else {
+    content = <span className="font-semibold text-gray-400 italic">Checking...</span>;
+  }
+
+  return (
+    <div className="mt-1 flex items-center justify-between text-sm">
+      <span className="text-gray-400 dark:text-gray-500">Latest Release:</span>
+      {content}
+    </div>
+  );
+};
+
+
 // --- Sub-components to fix Rules of Hooks violations ---
 
 const CopyButton: React.FC<{ textToCopy: string; tooltipText: string; setToast: (toast: ToastMessage | null) => void; }> = ({ textToCopy, tooltipText, setToast }) => {
@@ -363,7 +415,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const refreshTooltip = useTooltip('Refresh Status');
   const moveUpTooltip = useTooltip('Move Up');
   const moveDownTooltip = useTooltip('Move Down');
-  const releaseUrlTooltip = useTooltip(latestRelease?.url);
 
   const cardClasses = [
     'relative group',
@@ -372,47 +423,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
     isBeingDragged ? 'opacity-40 scale-95' : 'opacity-100 scale-100',
   ].join(' ');
   
-  const renderReleaseInfo = () => {
-    if (vcs !== VcsType.Git) return null;
-    let content;
-    if (latestRelease) {
-      const { tagName, isDraft, isPrerelease } = latestRelease;
-      let badge;
-      if (isDraft) {
-        badge = <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200">Draft</span>;
-      } else if (isPrerelease) {
-        badge = <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-200 dark:bg-yellow-700 text-yellow-800 dark:text-yellow-200">Pre-release</span>;
-      } else {
-        badge = <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-200 dark:bg-green-700 text-green-800 dark:text-green-200">Published</span>;
-      }
-      content = (
-        <div className="flex items-center gap-2">
-          <a
-            {...releaseUrlTooltip}
-            href={latestRelease.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => { e.preventDefault(); onOpenWeblink(latestRelease.url); }}
-            className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            {tagName}
-          </a>
-          {badge}
-        </div>
-      );
-    } else if (latestRelease === null) {
-      content = <span className="font-semibold text-gray-400">No releases found.</span>;
-    } else {
-       content = <span className="font-semibold text-gray-400 italic">Checking...</span>;
-    }
-    return (
-        <div className="mt-1 flex items-center justify-between text-sm">
-            <span className="text-gray-400 dark:text-gray-500">Latest Release:</span>
-            {content}
-        </div>
-    );
-  };
-
 
   return (
     <div
@@ -546,7 +556,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 {lastUpdated ? new Date(lastUpdated).toLocaleString() : 'Never'}
             </span>
         </div>
-        {renderReleaseInfo()}
+        <ReleaseInfoDisplay vcs={vcs} latestRelease={latestRelease} onOpenWeblink={onOpenWeblink} />
       </div>
       
       <div className="border-t border-gray-200 dark:border-gray-700 p-2 bg-gray-50 dark:bg-gray-800/50">

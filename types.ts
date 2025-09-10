@@ -280,8 +280,10 @@ export interface Category {
   name: string;
   repositoryIds: string[];
   collapsed?: boolean;
-  color?: string;
-  backgroundColor?: string;
+  color?: string; // Light mode text
+  backgroundColor?: string; // Light mode bg
+  darkColor?: string; // Dark mode text
+  darkBackgroundColor?: string; // Dark mode bg
 }
 
 export interface AppDataContextState {
