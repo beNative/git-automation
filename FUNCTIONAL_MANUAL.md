@@ -22,7 +22,12 @@ The dashboard is divided into collapsible sections called categories. This allow
 
 -   **Creating Categories:** Click the "Add Category" button at the bottom of the dashboard to create a new section.
 -   **Renaming & Deleting:** **Double-click** a category's name to edit it. Hover over the title to reveal a **trash icon** for deleting it.
--   **Color Customization:** Hover over a category's title and click the **paintbrush icon**. This opens a dedicated dialog where you can style the category. You can choose from a curated list of predefined themes for a polished look, or select custom colors for both the background and text using color pickers. A "Reset to Default" button is available to clear any custom styling.
+-   **Color Customization:** Hover over a category's title and click the **paintbrush icon**. This opens an integrated styling popover directly below the header. Here you can:
+    -   **Choose a Predefined Theme:** Select from an expanded library of professionally designed color schemes.
+    -   **Set Custom Colors:** Use the tabbed interface to set distinct background and text colors for both **Light Mode** and **Dark Mode**.
+    -   **Fine-Tune Colors:** Use the "Lighten" and "Darken" buttons next to each color picker to easily adjust your custom colors.
+    -   **Live Preview:** All your changes are reflected on the category header in real-time.
+    -   A "Reset to Default" button is available to clear any custom styling.
 -   **Collapsing Sections:** Click the chevron icon (▶) next to a category's title to hide or show the repositories within it. This state is saved automatically, so your layout will be preserved the next time you open the app.
 -   **Assigning Repositories:** Simply drag a repository card and drop it onto a category header to assign it.
 -   **Reordering:**
@@ -139,7 +144,7 @@ Click the **cog icon** in the header to access global settings.
 
 -   **Appearance:**
     -   **Theme:** Choose between a `Light` and `Dark` theme. A quick-toggle button is also available in the header for convenience.
-    -   **Icon Set:** Select from multiple icon sets to customize the application's iconography.
+    -   **Icon Set:** Select from the available icon sets to customize the application's iconography. Feather is the default for a clean and consistent look.
     -   **GUI Scale:** Adjust the overall size of the application from 50% to 200% for better readability.
 -   **Behavior:**
     -   **GitHub Personal Access Token:** A secure field to store your GitHub Personal Access Token (PAT). This token is required for features that interact with the GitHub API, such as fetching release information. A copy button is provided for convenience. A link is provided to help you create a token with the necessary permissions. For full functionality, including managing draft releases, create a fine-grained token with "Read & write" access to repository "Contents".

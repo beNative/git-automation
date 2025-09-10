@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.0]
+
+### Added
+- **Dual-Theme Category Styling:** Categories can now be styled independently for light and dark modes.
+- **Expanded Theme Library:** Added 10 new predefined color themes for styling categories.
+- **Color Fine-Tuning:** Added 'Lighten' and 'Darken' buttons for easier custom color adjustments in the category style editor.
+
+### Changed
+- **Icon Set Standardization:** Removed the Heroicons and Phosphor icon sets to resolve rendering issues. The Feather icon set is now the default for a consistent and clean look.
+- **Category Style UI:** Replaced the 'Customize Style' modal with a professionally styled, integrated popover for a seamless, live-preview editing experience.
+
+### Fixed
+- **CRITICAL:** Resolved multiple React 'white screen' errors (Error #310) related to conditional hook rendering in the Dashboard and Repository Configuration views, significantly improving application stability.
+
 ## [0.19.0]
 
 ### Added
