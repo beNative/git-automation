@@ -4,7 +4,7 @@ This manual provides a detailed walkthrough of all the features available in the
 
 ## 1. Navigating the Application
 
-The application is organized into three main views, which you can switch between using the icons in the top-right of the header. The header also features a dynamic title that changes color and text to reflect the current view.
+The application is organized into three main views, which you can switch between using the icons in the top-right of the header. The header also features a dynamic title that changes color and text to reflect the current view. Next to the navigation icons is a **theme toggle button** to quickly switch between light and dark modes.
 
 -   **Dashboard (Home Icon):** The main screen where you can see and interact with all your repository cards.
 -   **Settings (Cog Icon):** Where you can configure global application settings.
@@ -138,7 +138,7 @@ When you run a task or choose to view logs, a panel will appear at the bottom of
 Click the **cog icon** in the header to access global settings.
 
 -   **Appearance:**
-    -   **Theme:** Choose between a `Light` and `Dark` theme.
+    -   **Theme:** Choose between a `Light` and `Dark` theme. A quick-toggle button is also available in the header for convenience.
     -   **Icon Set:** Select from multiple icon sets to customize the application's iconography.
     -   **GUI Scale:** Adjust the overall size of the application from 50% to 200% for better readability.
 -   **Behavior:**
