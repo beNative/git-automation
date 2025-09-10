@@ -22,9 +22,7 @@ import { useLogger } from '../../hooks/useLogger';
 import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';
 import { PythonIcon } from '../icons/PythonIcon';
 import { NodeIcon } from '../icons/NodeIcon';
-// FIX START: Import DockerIcon for Docker task steps.
 import { DockerIcon } from '../icons/DockerIcon';
-// FIX END
 import { FolderOpenIcon } from '../icons/FolderOpenIcon';
 import { DocumentDuplicateIcon } from '../icons/DocumentDuplicateIcon';
 import { ServerIcon } from '../icons/ServerIcon';
@@ -100,13 +98,23 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.LAZARUS_BUILD]: { label: 'Lazarus: Build Project', icon: BeakerIcon, description: 'Build a Lazarus project (.lpi) using lazbuild.' },
   [TaskStepType.LAZARUS_BUILD_PACKAGE]: { label: 'Lazarus: Build Package', icon: BeakerIcon, description: 'Build a Lazarus package (.lpk) using lazbuild.' },
   [TaskStepType.FPC_TEST_FPCUNIT]: { label: 'Lazarus: Run FPCUnit Tests', icon: BeakerIcon, description: 'Build and run an FPCUnit test project.' },
-  // FIX START: Add missing Docker step definitions.
+  // Docker
   [TaskStepType.DOCKER_BUILD_IMAGE]: { label: 'Docker: Build Image', icon: DockerIcon, description: 'Build a Docker image from a Dockerfile.' },
   [TaskStepType.DOCKER_COMPOSE_UP]: { label: 'Docker: Compose Up', icon: DockerIcon, description: 'Create and start containers with Docker Compose.' },
   [TaskStepType.DOCKER_COMPOSE_DOWN]: { label: 'Docker: Compose Down', icon: DockerIcon, description: 'Stop and remove containers with Docker Compose.' },
   [TaskStepType.DOCKER_COMPOSE_BUILD]: { label: 'Docker: Compose Build', icon: DockerIcon, description: 'Build or rebuild services with Docker Compose.' },
-  // FIX END
 };
+
+const STEP_CATEGORIES = [
+    { name: 'General', types: [TaskStepType.RunCommand] },
+    { name: 'Git', types: [TaskStepType.GitPull, TaskStepType.GitFetch, TaskStepType.GitCheckout, TaskStepType.GitStash] },
+    { name: 'SVN', types: [TaskStepType.SvnUpdate] },
+    { name: 'Node.js', types: [TaskStepType.NODE_INSTALL_DEPS, TaskStepType.NODE_RUN_BUILD, TaskStepType.NODE_RUN_TESTS, TaskStepType.NODE_RUN_LINT, TaskStepType.NODE_RUN_FORMAT, TaskStepType.NODE_RUN_TYPECHECK] },
+    { name: 'Python', types: [TaskStepType.PYTHON_CREATE_VENV, TaskStepType.PYTHON_INSTALL_DEPS, TaskStepType.PYTHON_RUN_BUILD, TaskStepType.PYTHON_RUN_TESTS, TaskStepType.PYTHON_RUN_LINT, TaskStepType.PYTHON_RUN_FORMAT, TaskStepType.PYTHON_RUN_TYPECHECK] },
+    { name: 'Delphi', types: [TaskStepType.DelphiBuild, TaskStepType.DELPHI_BOSS_INSTALL, TaskStepType.DELPHI_PACKAGE_INNO, TaskStepType.DELPHI_PACKAGE_NSIS, TaskStepType.DELPHI_TEST_DUNITX] },
+    { name: 'Lazarus/FPC', types: [TaskStepType.LAZARUS_BUILD, TaskStepType.LAZARUS_BUILD_PACKAGE, TaskStepType.FPC_TEST_FPCUNIT] },
+    { name: 'Docker', types: [TaskStepType.DOCKER_BUILD_IMAGE, TaskStepType.DOCKER_COMPOSE_UP, TaskStepType.DOCKER_COMPOSE_DOWN, TaskStepType.DOCKER_COMPOSE_BUILD] },
+];
 
 // Component for a single step in the TaskStepsEditor
 const TaskStepItem: React.FC<{
@@ -906,6 +914,7 @@ const TaskStepsEditor: React.FC<{
         if (type.startsWith('PYTHON_')) return tags.includes('python');
         if (type.startsWith('NODE_')) return tags.includes('nodejs');
         if (type.startsWith('LAZARUS_') || type.startsWith('FPC_')) return tags.includes('lazarus');
+        if (type.startsWith('DOCKER_')) return tags.includes('docker');
         // All other steps (like RunCommand) are always available.
         return true;
     });
@@ -967,19 +976,31 @@ const TaskStepsEditor: React.FC<{
       </div>
 
       {isAddingStep && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {availableSteps.map(type => {
-            const { label, icon: Icon, description } = STEP_DEFINITIONS[type];
-            return (
-              <button key={type} type="button" onClick={() => handleAddStep(type)} className="text-left p-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg hover:bg-blue-500/10 hover:ring-2 ring-blue-500 transition-all">
-                <div className="flex items-center gap-3">
-                  <Icon className="h-6 w-6 text-blue-500" />
-                  <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
-                </div>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{description}</p>
-              </button>
-            );
-          })}
+        <div className="space-y-4">
+            {STEP_CATEGORIES.map(category => {
+                const relevantSteps = category.types.filter(type => availableSteps.includes(type));
+                if (relevantSteps.length === 0) return null;
+
+                return (
+                    <div key={category.name}>
+                        <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">{category.name}</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {relevantSteps.map(type => {
+                                const { label, icon: Icon, description } = STEP_DEFINITIONS[type];
+                                return (
+                                    <button key={type} type="button" onClick={() => handleAddStep(type)} className="text-left p-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg hover:bg-blue-500/10 hover:ring-2 ring-blue-500 transition-all">
+                                        <div className="flex items-center gap-3">
+                                        <Icon className="h-6 w-6 text-blue-500" />
+                                        <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
+                                        </div>
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{description}</p>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            })}
         </div>
       )}
       

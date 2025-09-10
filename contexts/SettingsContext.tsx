@@ -29,6 +29,7 @@ interface AppDataContextState {
   reorderCategories: (draggedId: string, targetId: string, position: 'before' | 'after') => void;
 }
 
+// FIX: Add missing properties `saveTaskLogs` and `taskLogPath` to align with the GlobalSettings type.
 const DEFAULTS: GlobalSettings = {
     defaultBuildCommand: 'npm run build',
     notifications: true,
@@ -42,6 +43,8 @@ const DEFAULTS: GlobalSettings = {
     gitExecutablePath: '',
     svnExecutablePath: '',
     zoomFactor: 1,
+    saveTaskLogs: true,
+    taskLogPath: '',
 };
 
 const initialState: AppDataContextState = {

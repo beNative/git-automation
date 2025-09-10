@@ -6,6 +6,7 @@ import RepositoryCard from './RepositoryCard';
 import CategoryHeader from './CategoryHeader';
 import { PlusIcon } from './icons/PlusIcon';
 import { useLogger } from '../hooks/useLogger';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface DashboardProps {
   repositories: Repository[];
@@ -60,6 +61,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   } = props;
   
   const logger = useLogger();
+  const { settings } = useSettings();
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [draggedRepo, setDraggedRepo] = useState<{ repoId: string; sourceCategoryId: string | 'uncategorized' } | null>(null);
@@ -253,6 +255,11 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         const showDropIndicatorBefore = categoryDropIndicator?.categoryId === category.id && categoryDropIndicator.position === 'before';
         const showDropIndicatorAfter = categoryDropIndicator?.categoryId === category.id && categoryDropIndicator.position === 'after';
         const isBeingDragged = draggedCategoryId === category.id;
+        const isDarkMode = settings.theme === 'dark';
+        
+        const categoryStyle = {
+          backgroundColor: isDarkMode ? category.darkBackgroundColor : category.backgroundColor,
+        };
 
         return (
           <div
@@ -264,7 +271,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             onDragLeave={handleDragLeave}
           >
              {showDropIndicatorBefore && <div className="h-2 my-2 bg-blue-500 rounded-lg" />}
-              <div className="p-3 rounded-lg" style={{backgroundColor: category.backgroundColor}}>
+              <div className="p-3 rounded-lg" style={categoryStyle}>
                 <CategoryHeader 
                     category={category}
                     repoCount={categoryRepoIds.length}

@@ -1,8 +1,3 @@
-
-
-
-
-
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path, { dirname } from 'path';
@@ -63,6 +58,27 @@ const migrateSettingsIfNeeded = async () => {
 
 let mainWindow: BrowserWindow | null = null;
 let logStream: fsSync.WriteStream | null = null;
+const taskLogStreams = new Map<string, fsSync.WriteStream>();
+
+// --- Main Process Logger ---
+type LogLevelString = 'debug' | 'info' | 'warn' | 'error';
+const mainLogger = {
+  log: (level: LogLevelString, message: string, data?: any) => {
+    // 1. Send to renderer for the debug panel UI
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('log-to-renderer', { level, message, data });
+    }
+    // 2. Write to debug log file if active
+    if (logStream) {
+      const dataStr = data ? `\n\tData: ${JSON.stringify(data, null, 2).replace(/\n/g, '\n\t')}` : '';
+      logStream.write(`[${new Date().toISOString()}][${level.toUpperCase()}] ${message}${dataStr}\n`);
+    }
+  },
+  debug: (message: string, data?: any) => { mainLogger.log('debug', message, data) },
+  info: (message: string, data?: any) => { mainLogger.log('info', message, data) },
+  warn: (message: string, data?: any) => { mainLogger.log('warn', message, data) },
+  error: (message: string, data?: any) => { mainLogger.log('error', message, data) },
+};
 
 const getLogFilePath = () => {
   const now = new Date();
@@ -87,6 +103,8 @@ const DEFAULTS: GlobalSettings = {
     gitExecutablePath: '',
     svnExecutablePath: '',
     zoomFactor: 1,
+    saveTaskLogs: true,
+    taskLogPath: '',
 };
 
 async function readSettings(): Promise<GlobalSettings> {
@@ -107,15 +125,6 @@ async function readSettings(): Promise<GlobalSettings> {
     globalSettingsCache = DEFAULTS;
     return DEFAULTS;
 }
-
-// --- Helper function to send logs from main to renderer for the debug panel ---
-type LogLevelString = 'debug' | 'info' | 'warn' | 'error';
-const logToRenderer = (level: LogLevelString, message: string, data?: any) => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('log-to-renderer', { level, message, data });
-  }
-};
-
 
 const createWindow = () => {
   // Create the browser window.
@@ -149,7 +158,7 @@ app.on('ready', async () => {
   // Ensure logs directory exists before creating a window or log file
   const logDir = path.join(userDataPath, 'logs');
   fs.mkdir(logDir, { recursive: true }).catch(err => {
-      console.error("Could not create logs directory.", err);
+      mainLogger.error("Could not create logs directory.", err);
   });
   createWindow();
   
@@ -157,37 +166,37 @@ app.on('ready', async () => {
 
   // --- Auto-updater logic ---
   if (app.isPackaged) {
-    console.log(`Configuring auto-updater. allowPrerelease: ${settings.allowPrerelease}`);
+    mainLogger.info(`Configuring auto-updater. allowPrerelease: ${settings.allowPrerelease}`);
     autoUpdater.allowPrerelease = settings.allowPrerelease ?? true;
 
     autoUpdater.on('checking-for-update', () => {
-        console.log('Checking for update...');
+        mainLogger.info('Checking for update...');
         mainWindow?.webContents.send('update-status-change', { status: 'checking', message: 'Checking for updates...' });
     });
     autoUpdater.on('update-available', (info) => {
-        console.log('Update available.', info);
+        mainLogger.info('Update available.', info);
         mainWindow?.webContents.send('update-status-change', { status: 'available', message: `Update v${info.version} available. Downloading...` });
     });
     autoUpdater.on('update-not-available', (info) => {
-        console.log('Update not available.', info);
+        mainLogger.info('Update not available.', info);
     });
     autoUpdater.on('error', (err) => {
-        console.error('Error in auto-updater.', err);
+        mainLogger.error('Error in auto-updater.', err);
         mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Error in auto-updater: ${err.message}` });
     });
     autoUpdater.on('download-progress', (progressObj) => {
         const log_message = `Downloaded ${progressObj.percent.toFixed(2)}%`;
-        console.log(log_message);
+        mainLogger.debug(log_message);
     });
     autoUpdater.on('update-downloaded', (info) => {
-        console.log('Update downloaded.', info);
+        mainLogger.info('Update downloaded.', info);
         mainWindow?.webContents.send('update-status-change', { status: 'downloaded', message: `Update v${info.version} downloaded. Restart to install.` });
     });
 
     // Check for updates
     autoUpdater.checkForUpdatesAndNotify();
   } else {
-    console.log('App is not packaged, skipping auto-updater.');
+    mainLogger.info('App is not packaged, skipping auto-updater.');
   }
 });
 
@@ -198,6 +207,8 @@ app.on('window-all-closed', () => {
     logStream.end();
     logStream = null;
   }
+  taskLogStreams.forEach(stream => stream.end());
+  taskLogStreams.clear();
   if (platform() !== 'darwin') {
     app.quit();
   }
@@ -230,7 +241,7 @@ ipcMain.handle('get-all-data', async (): Promise<AppDataContextState> => {
 
     // --- Migration for uncategorizedOrder ---
     if (!parsedData.uncategorizedOrder) {
-      console.log('[Migration] uncategorizedOrder not found. Computing it now.');
+      mainLogger.info('[Migration] uncategorizedOrder not found. Computing it now.');
       const allRepoIds = new Set((parsedData.repositories || []).map((r: Repository) => r.id));
       const categorizedRepoIds = new Set((parsedData.categories || []).flatMap((c: Category) => c.repositoryIds));
       const uncategorizedIds = [...allRepoIds].filter(id => !categorizedRepoIds.has(id));
@@ -249,7 +260,7 @@ ipcMain.handle('get-all-data', async (): Promise<AppDataContextState> => {
     if (error.code === 'ENOENT') {
       return { globalSettings: DEFAULTS, repositories: [], categories: [], uncategorizedOrder: [] };
     }
-    console.error("Failed to read settings file:", error);
+    mainLogger.error("Failed to read settings file:", error);
     return { globalSettings: DEFAULTS, repositories: [], categories: [], uncategorizedOrder: [] };
   }
 });
@@ -260,7 +271,7 @@ ipcMain.on('save-all-data', async (event, data: AppDataContextState) => {
         await fs.writeFile(settingsPath, JSON.stringify(data, null, 2));
         globalSettingsCache = data.globalSettings; // Invalidate cache
     } catch (error) {
-        console.error("Failed to save settings file:", error);
+        mainLogger.error("Failed to save settings file:", error);
     }
 });
 
@@ -273,7 +284,7 @@ ipcMain.handle('get-raw-settings-json', async () => {
       // If file doesn't exist, return a prettified empty structure.
       return JSON.stringify({ globalSettings: DEFAULTS, repositories: [], categories: [], uncategorizedOrder: [] }, null, 2);
     }
-    console.error("Failed to read settings file:", error);
+    mainLogger.error("Failed to read settings file:", error);
     throw error; // Let the renderer handle the error
   }
 });
@@ -302,7 +313,7 @@ ipcMain.handle('get-doc', async (event, docName: string) => {
     const content = await fs.readFile(filePath, 'utf-8');
     return content;
   } catch (error) {
-    console.error(`Failed to read doc: ${docName}`, error);
+    mainLogger.error(`Failed to read doc: ${docName}`, error);
     return `# Error\n\nCould not load document: ${docName}.`;
   }
 });
@@ -448,7 +459,7 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
                     lazarusCaps.tests.hasFpcUnit = true;
                 }
                 lazarusCaps.projects.push(project);
-            } catch (e) { console.error(`Could not parse Lazarus project: ${lpi}`, e); }
+            } catch (e) { mainLogger.error(`Could not parse Lazarus project: ${lpi}`, e); }
         }
         
         if (isLazarusProject) {
@@ -507,7 +518,7 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
                 }
 
                 delphiCaps.projects.push(project);
-            } catch (e) { console.error(`Could not parse Delphi project: ${dproj}`, e); }
+            } catch (e) { mainLogger.error(`Could not parse Delphi project: ${dproj}`, e); }
         }
 
         delphiCaps.packaging.innoSetup = await findFilesByExtensionRecursive(repoPath, '.iss', repoPath);
@@ -613,7 +624,7 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
                 if (pkg.engines?.node) nodejsCaps.engine = pkg.engines.node;
                 if (pkg.packageManager) nodejsCaps.declaredManager = pkg.packageManager;
                 if (pkg.workspaces) nodejsCaps.monorepo.workspaces = true;
-            } catch (e) { console.error('Could not parse package.json', e); }
+            } catch (e) { mainLogger.error('Could not parse package.json', e); }
         }
 
         // Check lockfiles
@@ -651,7 +662,7 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
         }
 
     } catch (error) {
-        console.error(`Error getting project info for ${repoPath}:`, error);
+        mainLogger.error(`Error getting project info for ${repoPath}:`, error);
     }
     
     info.tags = Array.from(tagsSet);
@@ -822,7 +833,7 @@ ipcMain.handle('ignore-files-and-push', async (event, { repo, filesToIgnore }: {
         
         return { success: true };
     } catch (e: any) {
-        console.error('Failed to ignore files and push:', e);
+        mainLogger.error('Failed to ignore files and push:', e);
         return { success: false, error: e.stderr || e.message || 'An unknown error occurred.' };
     }
 });
@@ -889,7 +900,7 @@ ipcMain.handle('discover-remote-url', async (event, { localPath, vcs }: { localP
         return { url: null, error: `Unsupported VCS type: ${vcs}` };
       }
     } catch (e: any) {
-      console.error(`Error discovering remote URL for ${localPath}:`, e);
+      mainLogger.error(`Error discovering remote URL for ${localPath}:`, e);
       return { url: null, error: e.stderr || e.message || 'An unknown error occurred.' };
     }
   });
@@ -931,7 +942,7 @@ ipcMain.handle('autodetect-executable-path', async (event, vcsType: 'git' | 'svn
         const { stdout } = await execAsync(checkCommand, { cwd: os.homedir() });
         return stdout.split(/[\r\n]/)[0].trim();
     } catch (e) {
-        console.warn(`Could not autodetect ${command}: not found in PATH.`);
+        mainLogger.warn(`Could not autodetect ${command}: not found in PATH.`);
         return null;
     }
 });
@@ -948,7 +959,7 @@ ipcMain.handle('open-local-path', async (event, localPath: string) => {
     await shell.openPath(localPath);
     return { success: true };
   } catch (error: any) {
-    console.error(`Failed to open path: ${localPath}`, error);
+    mainLogger.error(`Failed to open path: ${localPath}`, error);
     return { success: false, error: error.message };
   }
 });
@@ -982,7 +993,7 @@ ipcMain.handle('open-weblink', async (event, url: string): Promise<{ success: bo
         if (command) {
             const child = spawn(command, args, { detached: true, shell: true });
             child.on('error', (err) => {
-                console.error(`Failed to open link in ${browser}, falling back to default. Error:`, err);
+                mainLogger.error(`Failed to open link in ${browser}, falling back to default. Error:`, err);
                 shell.openExternal(url);
             });
             child.unref();
@@ -993,7 +1004,7 @@ ipcMain.handle('open-weblink', async (event, url: string): Promise<{ success: bo
             return { success: true };
         }
     } catch (error: any) {
-        console.error('Failed to open weblink:', error);
+        mainLogger.error('Failed to open weblink:', error);
         try {
             await shell.openExternal(url);
             return { success: true, warning: 'Preferred browser failed, opened in default.' };
@@ -1058,18 +1069,18 @@ ipcMain.handle('open-terminal', async (event, localPath: string): Promise<{ succ
         await tryTerminal('x-terminal-emulator', ['-e', `bash -c "${finalShellCommand}"`]);
         return { success: true };
       } catch (e) {
-        console.warn("x-terminal-emulator failed, trying gnome-terminal", e);
+        mainLogger.warn("x-terminal-emulator failed, trying gnome-terminal", e);
         try {
           await tryTerminal('gnome-terminal', [`--`, 'bash', `-c`, finalShellCommand]);
           return { success: true };
         } catch (e2) {
-          console.error("gnome-terminal also failed", e2);
+          mainLogger.error("gnome-terminal also failed", e2);
           return { success: false, error: "Could not find a supported terminal. Tried 'x-terminal-emulator' and 'gnome-terminal'." };
         }
       }
     }
   } catch (error: any) {
-    console.error('Failed to prepare terminal command:', error);
+    mainLogger.error('Failed to prepare terminal command:', error);
     return { success: false, error: error.message };
   }
 });
@@ -1181,6 +1192,10 @@ const createLineLogger = (
   return { process, flush };
 };
 
+const sanitizeFilename = (name: string): string => {
+    return name.replace(/[^a-z0-9_.-]/gi, '_').substring(0, 100);
+};
+
 
 // --- IPC handler for cloning a repo ---
 ipcMain.on('clone-repository', async (event, { repo, executionId }: { repo: Repository, executionId: string }) => {
@@ -1188,6 +1203,27 @@ ipcMain.on('clone-repository', async (event, { repo, executionId }: { repo: Repo
     if (!sender) return;
 
     const settings = await readSettings();
+    
+    // --- Task Log File Setup ---
+    if (settings.saveTaskLogs) {
+        try {
+            const repoName = sanitizeFilename(repo.name);
+            const taskName = sanitizeFilename(repo.vcs === VcsTypeEnum.Git ? 'Clone' : 'Checkout');
+            const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
+            const logFilename = `${timestamp}_${repoName}_${taskName}.log`;
+            
+            const logDir = settings.taskLogPath || path.join(userDataPath, 'task-logs');
+            await fs.mkdir(logDir, { recursive: true });
+            const logPath = path.join(logDir, logFilename);
+            
+            const stream = fsSync.createWriteStream(logPath, { flags: 'a' });
+            taskLogStreams.set(executionId, stream);
+            stream.write(`--- Task Log: ${repo.name} -> ${taskName} ---\n`);
+            stream.write(`--- Started at: ${new Date().toISOString()} ---\n\n`);
+        } catch (e) {
+            mainLogger.error('Failed to create task log file.', e);
+        }
+    }
 
     const sendLog = (message: string, level: LogLevel) => {
         sender('task-log', { executionId, message, level });
@@ -1339,6 +1375,28 @@ function executeCommand(cwd: string, fullCommand: string, sender: (channel: stri
 ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, task }: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; task: Task }) => {
     const sender = mainWindow?.webContents.send.bind(mainWindow.webContents);
     if (!sender) return;
+    
+    // --- Task Log File Setup (only on the first step of a task) ---
+    const isFirstStep = task.steps.findIndex(s => s.id === step.id) === 0;
+    if (isFirstStep && settings.saveTaskLogs) {
+        try {
+            const repoName = sanitizeFilename(repo.name);
+            const taskName = sanitizeFilename(task.name);
+            const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
+            const logFilename = `${timestamp}_${repoName}_${taskName}.log`;
+            
+            const logDir = settings.taskLogPath || path.join(userDataPath, 'task-logs');
+            await fs.mkdir(logDir, { recursive: true });
+            const logPath = path.join(logDir, logFilename);
+            
+            const stream = fsSync.createWriteStream(logPath, { flags: 'a' });
+            taskLogStreams.set(executionId, stream);
+            stream.write(`--- Task Log: ${repo.name} -> ${task.name} ---\n`);
+            stream.write(`--- Started at: ${new Date().toISOString()} ---\n\n`);
+        } catch (e) {
+            mainLogger.error('Failed to create task log file.', e);
+        }
+    }
 
     const sendLog = (message: string, level: LogLevel) => {
         sender('task-log', { executionId, message, level });
@@ -1592,7 +1650,7 @@ const getDelphiVersions = async (): Promise<{ name: string; version: string }[]>
     const versionKeys = stdout.match(/HKEY_CURRENT_USER\\SOFTWARE\\Embarcadero\\BDS\\[0-9.]+/g) || [];
     
     if (versionKeys.length === 0) {
-      logToRenderer('info', '[Delphi] No Delphi versions found in registry.');
+      mainLogger.info('[Delphi] No Delphi versions found in registry.');
       return [];
     }
 
@@ -1606,7 +1664,7 @@ const getDelphiVersions = async (): Promise<{ name: string; version: string }[]>
           const { stdout: rootDirStdout } = await execAsync(`reg query "${key}" /v RootDir`, { cwd: os.homedir() });
           const rootDirMatch = rootDirStdout.match(/^\s*RootDir\s+REG_SZ\s+(.*)/m);
           if (!rootDirMatch || !rootDirMatch[1]) {
-            logToRenderer('warn', `[Delphi] Could not find or parse RootDir for key: ${key}. Skipping this version.`, { stdout: rootDirStdout });
+            mainLogger.warn(`[Delphi] Could not find or parse RootDir for key: ${key}. Skipping this version.`, { stdout: rootDirStdout });
             return null;
           }
 
@@ -1619,7 +1677,7 @@ const getDelphiVersions = async (): Promise<{ name: string; version: string }[]>
               productName = productNameMatch[1].trim();
             }
           } catch (productNameError: any) {
-            logToRenderer('info', `[Delphi] Optional value 'ProductName' not found for key: ${key}. Using default name.`, { error: productNameError.message });
+            mainLogger.info(`[Delphi] Optional value 'ProductName' not found for key: ${key}. Using default name.`, { error: productNameError.message });
           }
 
           // 3. Construct name and return
@@ -1634,17 +1692,17 @@ const getDelphiVersions = async (): Promise<{ name: string; version: string }[]>
             stderr: e.stderr,
             code: e.code,
           };
-          logToRenderer('warn', `[Delphi] Could not read critical registry details for key: ${key}`, errorDetails);
+          mainLogger.warn(`[Delphi] Could not read critical registry details for key: ${key}`, errorDetails);
           return null;
         }
       })
     );
     
     const validVersions = versions.filter((v): v is { name: string; version: string } => v !== null);
-    logToRenderer('debug', '[Delphi] Found Delphi versions', validVersions);
+    mainLogger.debug('[Delphi] Found Delphi versions', validVersions);
     return validVersions;
   } catch (err: any) {
-    logToRenderer('info', '[Delphi] Could not query registry for Delphi versions. Maybe none are installed.', err);
+    mainLogger.info('[Delphi] Could not query registry for Delphi versions. Maybe none are installed.', err);
     return [];
   }
 };
@@ -1664,7 +1722,7 @@ ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promi
         await execAsync(`${cmd} remote update`, { cwd: repo.localPath });
       } catch (fetchError: any) {
         // Log the error but continue, as status can still be useful with stale data
-        console.warn(`'git remote update' failed for ${repo.name}. Status may be stale. Error: ${fetchError.stderr || fetchError.message}`);
+        mainLogger.warn(`'git remote update' failed for ${repo.name}. Status may be stale. Error: ${fetchError.stderr || fetchError.message}`);
       }
       const { stdout } = await execAsync(`${cmd} status --porcelain=v2 --branch`, { cwd: repo.localPath });
       const files: VcsFileStatus = { added: 0, modified: 0, deleted: 0, conflicted: 0, untracked: 0, renamed: 0 };
@@ -1730,7 +1788,7 @@ ipcMain.handle('get-detailed-vcs-status', async (event, repo: Repository): Promi
     }
     return null;
   } catch (error) {
-    console.error(`Error getting detailed status for ${repo.name}:`, error);
+    mainLogger.error(`Error getting detailed status for ${repo.name}:`, error);
     return null;
   }
 });
@@ -1762,36 +1820,36 @@ ipcMain.handle('get-commit-history', async (event, repo: Repository, skipCount?:
                 };
             });
         } else if (repo.vcs === VcsTypeEnum.Svn) {
-            logToRenderer('debug', `[SVN History] Getting history for "${repo.name}"`);
+            mainLogger.debug(`[SVN History] Getting history for "${repo.name}"`);
             const svnCmd = getExecutableCommand(VcsTypeEnum.Svn, settings);
             
-            logToRenderer('debug', `[SVN History] Getting latest revision...`);
+            mainLogger.debug(`[SVN History] Getting latest revision...`);
             const { stdout: headStdout } = await execAsync(`${svnCmd} info --show-item last-changed-revision`, { cwd: repo.localPath });
             const headRev = parseInt(headStdout.trim(), 10);
-            logToRenderer('debug', `[SVN History] Latest revision: ${headRev}`);
+            mainLogger.debug(`[SVN History] Latest revision: ${headRev}`);
             
             if (isNaN(headRev)) {
-                logToRenderer('error', '[SVN History] Could not determine latest SVN revision.');
+                mainLogger.error('[SVN History] Could not determine latest SVN revision.');
                 throw new Error('Could not determine latest SVN revision.');
             }
 
             const startRev = headRev - (skipCount || 0);
-            logToRenderer('debug', `[SVN History] Calculated start revision: ${startRev}`, { skipCount: skipCount || 0 });
+            mainLogger.debug(`[SVN History] Calculated start revision: ${startRev}`, { skipCount: skipCount || 0 });
             if (startRev < 1) {
-                logToRenderer('debug', '[SVN History] Start revision is less than 1, returning empty array.');
+                mainLogger.debug('[SVN History] Start revision is less than 1, returning empty array.');
                 return [];
             }
 
             const limit = 100;
             const search = searchQuery ? `--search "${searchQuery.replace(/"/g, '\\"')}"` : '';
             const logCommand = `${svnCmd} log --xml -l ${limit} -r ${startRev}:1 ${search}`;
-            logToRenderer('debug', `[SVN History] Executing log command:`, { command: logCommand });
+            mainLogger.debug(`[SVN History] Executing log command:`, { command: logCommand });
             const { stdout } = await execAsync(logCommand, { cwd: repo.localPath });
 
-            logToRenderer('debug', `[SVN History] Raw XML output received`, { length: stdout.length, xml: stdout });
+            mainLogger.debug(`[SVN History] Raw XML output received`, { length: stdout.length, xml: stdout });
 
             if (!stdout) {
-                logToRenderer('debug', '[SVN History] No stdout from svn log command. Returning empty array.');
+                mainLogger.debug('[SVN History] No stdout from svn log command. Returning empty array.');
                 return [];
             }
 
@@ -1811,11 +1869,11 @@ ipcMain.handle('get-commit-history', async (event, repo: Repository, skipCount?:
                     message: match[4].trim(),
                 });
             }
-            logToRenderer('debug', `[SVN History] Parsed ${commits.length} commits.`);
+            mainLogger.debug(`[SVN History] Parsed ${commits.length} commits.`);
             return commits;
         }
     } catch (e: any) {
-        logToRenderer('error', `[History] Failed to get commit history for ${repo.name}`, { error: e.message, stderr: e.stderr, search: searchQuery });
+        mainLogger.error(`[History] Failed to get commit history for ${repo.name}`, { error: e.message, stderr: e.stderr, search: searchQuery });
         return [];
     }
     return [];
@@ -1890,7 +1948,7 @@ ipcMain.on('log-to-file-init', () => {
         const logPath = getLogFilePath();
         logStream = fsSync.createWriteStream(logPath, { flags: 'a' });
         logStream.write(`--- Log session started at ${new Date().toISOString()} ---\n`);
-        console.log(`Logging to file: ${logPath}`);
+        mainLogger.info(`Logging to file: ${logPath}`);
     };
 
     if (logStream) {
@@ -1907,7 +1965,7 @@ ipcMain.on('log-to-file-close', () => {
     if (logStream) {
         logStream.end(`--- Log session ended at ${new Date().toISOString()} ---\n`, () => {
             logStream = null;
-            console.log('Stopped logging to file.');
+            mainLogger.info('Stopped logging to file.');
         });
     }
 });
@@ -1915,7 +1973,7 @@ ipcMain.on('log-to-file-close', () => {
 ipcMain.on('log-to-file-write', (event, log: DebugLogEntry) => {
     if (logStream) {
         const dataStr = log.data ? `\n\tData: ${JSON.stringify(log.data, null, 2).replace(/\n/g, '\n\t')}` : '';
-        logStream.write(`[${new Date(log.timestamp).toISOString()}][${log.level}] ${log.message}${dataStr}\n`);
+        logStream.write(`[${new Date(log.timestamp).toISOString()}][${log.level}] [Renderer] ${log.message}${dataStr}\n`);
     }
 });
 
@@ -1945,7 +2003,7 @@ ipcMain.handle('export-settings', async (): Promise<{ success: boolean; filePath
     
     return { success: true, filePath };
   } catch (error: any) {
-    console.error('Failed to export settings:', error);
+    mainLogger.error('Failed to export settings:', error);
     return { success: false, error: error.message };
   }
 });
@@ -1996,10 +2054,36 @@ ipcMain.handle('import-settings', async (): Promise<{ success: boolean; error?: 
     
     return { success: true };
   } catch (error: any) {
-    console.error('Failed to import settings:', error);
+    mainLogger.error('Failed to import settings:', error);
     return { success: false, error: error.message };
   }
 });
+
+// --- Task Log IPC Handlers ---
+ipcMain.handle('get-task-log-path', async () => {
+  const settings = await readSettings();
+  return settings.taskLogPath || path.join(userDataPath, 'task-logs');
+});
+
+ipcMain.handle('open-task-log-path', async () => {
+  const settings = await readSettings();
+  const logPath = settings.taskLogPath || path.join(userDataPath, 'task-logs');
+  await fs.mkdir(logPath, { recursive: true }); // Ensure it exists before opening
+  shell.openPath(logPath);
+});
+
+ipcMain.handle('select-task-log-path', async () => {
+  if (!mainWindow) return { canceled: true, path: null };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: 'Select Directory to Store Task Logs'
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true, path: null };
+  }
+  return { canceled: false, path: result.filePaths[0] };
+});
+
 
 // --- GitHub Release Management ---
 
@@ -2024,13 +2108,13 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
     const settings = await readSettings();
     if (!settings.githubPat) {
         // Don't throw, just return null so the UI can show a "token needed" message.
-        console.warn(`[GitHub] Cannot fetch releases for ${repo.name}: GitHub PAT not set.`);
+        mainLogger.warn(`[GitHub] Cannot fetch releases for ${repo.name}: GitHub PAT not set.`);
         return null;
     }
     
     const ownerRepo = parseGitHubUrl(repo.remoteUrl);
     if (!ownerRepo) {
-        console.warn(`[GitHub] Could not parse owner/repo from URL: ${repo.remoteUrl}`);
+        mainLogger.warn(`[GitHub] Could not parse owner/repo from URL: ${repo.remoteUrl}`);
         return null;
     }
 
@@ -2056,7 +2140,7 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
         const allReleases = await response.json();
 
         if (!allReleases || allReleases.length === 0) {
-            console.log(`[GitHub] No releases found for ${owner}/${repoName}.`);
+            mainLogger.info(`[GitHub] No releases found for ${owner}/${repoName}.`);
             return null;
         }
 
@@ -2074,7 +2158,7 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
         });
         
         if (!latestRelease) {
-            console.log(`[GitHub] No releases found for ${owner}/${repoName} that match settings (e.g., allowPrerelease).`);
+            mainLogger.info(`[GitHub] No releases found for ${owner}/${repoName} that match settings (e.g., allowPrerelease).`);
             return null;
         }
 
@@ -2089,7 +2173,7 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
             createdAt: latestRelease.created_at,
         };
     } catch (error: any) {
-        console.error(`[GitHub] Failed to fetch latest release for ${owner}/${repoName}:`, error);
+        mainLogger.error(`[GitHub] Failed to fetch latest release for ${owner}/${repoName}:`, error);
         // It's better to return null and let the UI handle it than to crash.
         return null; 
     }
@@ -2098,12 +2182,12 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
 ipcMain.handle('get-all-releases', async (event, repo: Repository): Promise<ReleaseInfo[] | null> => {
     const settings = await readSettings();
     if (!settings.githubPat) {
-        console.warn(`[GitHub] Cannot fetch releases for ${repo.name}: GitHub PAT not set.`);
+        mainLogger.warn(`[GitHub] Cannot fetch releases for ${repo.name}: GitHub PAT not set.`);
         return null;
     }
     const ownerRepo = parseGitHubUrl(repo.remoteUrl);
     if (!ownerRepo) {
-        console.warn(`[GitHub] Could not parse owner/repo from URL: ${repo.remoteUrl}`);
+        mainLogger.warn(`[GitHub] Could not parse owner/repo from URL: ${repo.remoteUrl}`);
         return null;
     }
 
@@ -2138,7 +2222,7 @@ ipcMain.handle('get-all-releases', async (event, repo: Repository): Promise<Rele
             createdAt: release.created_at,
         }));
     } catch (error: any) {
-        console.error(`[GitHub] Failed to fetch all releases for ${owner}/${repoName}:`, error);
+        mainLogger.error(`[GitHub] Failed to fetch all releases for ${owner}/${repoName}:`, error);
         return null;
     }
 });
@@ -2170,7 +2254,7 @@ ipcMain.handle('update-release', async (event, { repo, releaseId, options }: { r
         }
         return { success: true };
     } catch (error: any) {
-        console.error(`[GitHub] Failed to update release ${releaseId}:`, error);
+        mainLogger.error(`[GitHub] Failed to update release ${releaseId}:`, error);
         return { success: false, error: error.message };
     }
 });
@@ -2206,7 +2290,7 @@ ipcMain.handle('create-release', async (event, { repo, options }: { repo: Reposi
         }
         return { success: true };
     } catch (error: any) {
-        console.error(`[GitHub] Failed to create release:`, error);
+        mainLogger.error(`[GitHub] Failed to create release:`, error);
         return { success: false, error: error.message };
     }
 });
@@ -2238,7 +2322,7 @@ ipcMain.handle('delete-release', async (event, { repo, releaseId }: { repo: Repo
         }
         return { success: true };
     } catch (error: any) {
-        console.error(`[GitHub] Failed to delete release ${releaseId}:`, error);
+        mainLogger.error(`[GitHub] Failed to delete release ${releaseId}:`, error);
         return { success: false, error: error.message };
     }
 });

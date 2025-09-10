@@ -1,3 +1,5 @@
+--- START OF FILE TECHNICAL_MANUAL.md ---
+
 # Technical Manual
 
 This document provides a technical overview of the Git Automation Dashboard application, including its architecture, build process, and development guidelines.
@@ -21,11 +23,13 @@ The application is split into three main processes, which is standard for Electr
 -   **Responsibilities:**
     -   Manages the application lifecycle (`app` events).
     -   Creates and manages `BrowserWindow` instances (the application's windows).
+    -   **Logging:** The main process contains a structured `mainLogger` that replaces all `console` calls. This logger sends messages to the renderer process for display in the debug UI and also writes directly to the debug log file (`git-automation-dashboard-log-[...].log`) if file logging is enabled by the user.
     -   Reads user settings on startup to configure features like the auto-updater's pre-release channel.
     -   Handles native OS interactions (dialogs, file system access).
     -   Listens for and responds to IPC (Inter-Process Communication) events. This includes:
         -   **Project Intelligence:** Handles `get-project-info` and `get-project-suggestions` by analyzing the file system of a repository to detect technologies like Node.js, Python, Delphi, and Lazarus.
         -   **Task Execution:** Executes shell commands for task steps. The `run-task-step` handler now contains logic to interpret and execute the new, ecosystem-specific step types (e.g., `PYTHON_INSTALL_DEPS`). It also handles setting environment variables for tasks.
+        -   **Task Log Archiving:** Upon starting a task, it creates a timestamped log file in the user-configured directory. It then streams all `stdout` and `stderr` from the task's execution to this file, in addition to the live view in the UI.
         -   **VCS Commands:** Executes real Git/SVN commands for advanced features like checking status, fetching commit history (now for SVN as well), and managing branches.
         -   **Executable Path Management:** Handles IPC calls for file pickers, auto-detection, and testing of user-configured executable paths.
         -   **External Links:** Handles requests from the renderer to open web links in the user-specified browser.
@@ -100,3 +104,4 @@ The application is configured to automatically check for updates on startup usin
     2.  Create a `GH_TOKEN` (GitHub Personal Access Token) with `repo` scopes and make it available as an environment variable.
     3.  Run the command `npm run publish`. This will build the application, create installers, and upload them to a new draft release on GitHub.
     4.  Navigate to the GitHub release, add release notes, and publish it.
+--- END OF FILE TECHNICAL_MANUAL.md ---

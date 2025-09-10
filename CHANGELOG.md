@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.21.0]
+
+### Changed
+- **Task Step UI:** The 'Add Step' interface in the task editor has been redesigned to group available steps into logical categories, improving discoverability and usability.
+- **Commit History UI:** The Commit History dialog no longer flickers or resizes while filtering. It now maintains a stable height, providing a smoother user experience.
+
 ## [0.20.0]
 
 ### Added

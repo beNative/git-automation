@@ -102,6 +102,11 @@ export interface IElectronAPI {
   removeUpdateStatusChangeListener: (
     callback: (event: IpcRendererEvent, data: UpdateStatusMessage) => void
   ) => void;
+    
+  // Task Log Settings
+  getTaskLogPath: () => Promise<string>;
+  openTaskLogPath: () => void;
+  selectTaskLogPath: () => Promise<{ canceled: boolean, path: string | null }>;
 }
 
 declare global {

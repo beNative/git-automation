@@ -1,3 +1,5 @@
+--- START OF FILE README.md ---
+
 # Welcome to the Git Automation Dashboard
 
 This application provides a simple, powerful dashboard to manage and automate the workflow for a set of Git and SVN repositories. It is designed for developers who need to regularly update, install dependencies, and run build scripts across multiple projects.
@@ -9,7 +11,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Multi-VCS Support:** Manage both Git and Subversion (SVN) repositories seamlessly.
 -   **Repository-Specific Tasks:** Create custom, multi-step automation scripts (e.g., pull/update, install, build) for each repository.
 -   **Project Intelligence:** Automatically detects project types (Node.js, Python, Delphi, Lazarus, Docker) and provides one-click buttons to generate common, pre-configured tasks.
--   **Advanced Task Steps:** A rich library of specific, pre-built steps for different ecosystems (e.g., `PYTHON_INSTALL_DEPS`, `DELPHI_BUILD`, `NODE_RUN_BUILD`, `DOCKER_BUILD_IMAGE`) simplifies creating complex workflows.
+-   **Advanced Task Steps:** A rich library of specific, pre-built steps for different ecosystems, **now organized into logical categories in the UI for easy discovery**, simplifies creating complex workflows.
 -   **Task Environment Variables:** Define shell environment variables that are available to all command steps within a task.
 -   **Quick Actions:** Manually refresh repository state, copy URLs/paths with a single click, access all common actions via a right-click context menu, and reorder repositories with up/down buttons.
 -   **Powerful Command Palette:** Quickly access any action, task, or repository using a keyboard-driven command palette (`Ctrl/Cmd+K`).
@@ -18,9 +20,10 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Detailed VCS Status:** See ahead/behind status (Git) and a summary of file changes directly on the dashboard.
 -   **Branch Management (Git):** Quickly switch branches from the dashboard, or view, create, delete, and merge branches in the configuration view.
 -   **GitHub Release Management (Git):** See the latest release on the dashboard, and view, create, edit, and manage all your project's releases directly from the configuration view.
--   **Commit History:** View the commit history for any Git or SVN repository, with search and load-on-demand.
+-   **Commit History:** View the commit history for any Git or SVN repository, with **a stable, non-flickering UI**, search, and load-on-demand.
 -   **Tabbed & Integrated Log Panel:** Monitor the output of every command in a detailed, resizable, and tabbed log panel that integrates smoothly into the main view.
--   **Advanced Debugging:** A powerful debug console with log filtering and a save-to-file feature for in-depth troubleshooting.
+-   **Automatic Task Log Archiving:** The full console output for every task run is automatically saved to a timestamped log file in a configurable directory for historical reference.
+-   **Advanced Debugging:** A powerful debug console with log filtering and a save-to-file feature (now including logs from the main process) for in-depth troubleshooting.
 -   **Reliable Auto-Updates:** Get notified with a clear banner when a new version is ready and install it with a single click.
 -   **Easy Configuration:** Add new repositories and configure them through a simple, unified form.
 -   **Persistent UI State:** The application remembers your dashboard layout, including the collapsed state of categories, between sessions.
@@ -51,3 +54,4 @@ This application provides a simple, powerful dashboard to manage and automate th
     -   The resizable log panel will automatically appear at the bottom, showing the progress of your script.
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._
+--- END OF FILE README.md ---

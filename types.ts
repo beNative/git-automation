@@ -117,6 +117,8 @@ export interface GlobalSettings {
   gitExecutablePath: string;
   svnExecutablePath: string;
   zoomFactor: number;
+  saveTaskLogs: boolean;
+  taskLogPath: string;
 }
 
 export interface TaskStep {

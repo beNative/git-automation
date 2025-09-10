@@ -1,3 +1,5 @@
+--- START OF FILE FUNCTIONAL_MANUAL.md ---
+
 # Functional Manual
 
 This manual provides a detailed walkthrough of all the features available in the Git Automation Dashboard.
@@ -99,7 +101,7 @@ This is where you create powerful, custom automation scripts for the specific re
 1.  **Project Intelligence:** Based on the repository's local path, the application will analyze its contents to detect the project type (e.g., Node.js, Python, Delphi, Docker). If a known type is found, a colored box will appear with buttons to automatically generate common tasks for that ecosystem.
 2.  **Manual Task Creation:**
     -   Give your task a descriptive **name** (e.g., "Build & Deploy to Staging").
-    -   Click **"Add Step"** to build your workflow. The available steps will depend on the repository's VCS type and its detected project type. The application now includes a rich set of specific steps like `Node: Install Deps`, `Delphi: Build Project`, or `Docker: Build Image` in addition to the generic `Run Command`.
+    -   Click **"Add Step"** to build your workflow. A new panel will appear, grouping available steps into logical categories like 'Git', 'Node.js', and 'Python', making it easy to find the action you need. The available steps will depend on the repository's VCS type and its detected project type.
     -   Configure each step as needed.
 3.  **Variables:**
     -   **Task Variables:** These are for simple text substitution. Define a `KEY` and `VALUE`, then use `${KEY}` in a `Run Command` step's command field.
@@ -154,6 +156,9 @@ Click the **cog icon** in the header to access global settings.
         -   When **enabled (default)**, tasks are only simulated. The log panel will show the commands that *would* run, but no changes will be made to your local files.
         -   When **disabled**, the application will execute real `git`, `svn`, `npm`, and other shell commands. **Disable with caution.**
     -   **Check for Pre-Releases:** If enabled, the auto-updater will include beta and other pre-release versions when checking for updates.
+    -   **Logging:**
+        -   **Save Task Output Logs:** When enabled, the full console output of every executed task will be saved to a `.log` file on your computer.
+        -   **Task Log Path:** Specify a custom directory where task logs should be saved. Leave it blank to use the default location inside the application's user data folder.
     -   **Enable Debug Logging:** Controls the verbose internal logging used by the Debug Panel. Disabling this may improve performance.
     -   **Executable Paths:** This new section allows you to specify the full file path to your `git` and `svn` executables. This is crucial if they are installed in a non-standard location and not available in your system's `PATH`.
         -   **Browse (`📁` icon):** Opens a system file picker to help you locate the executable file (e.g., `git.exe`).
@@ -169,3 +174,4 @@ For advanced users, the settings view includes a **"JSON Config"** tab. This sec
 -   **Edit JSON:** You can directly modify the raw JSON configuration. Be cautious, as invalid JSON will prevent settings from being saved. After saving, the application will restart to apply the changes.
 -   **Export Settings:** Click the "Export Settings" button to save your current configuration into a compressed `.zip` archive. This is useful for creating backups or sharing your setup.
 -   **Import Settings:** Click the "Import Settings" button. You can select a `.zip` archive (created via the export feature) or a raw `.json` file to restore a configuration. This will overwrite your current settings and restart the application.
+--- END OF FILE FUNCTIONAL_MANUAL.md ---

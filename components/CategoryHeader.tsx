@@ -182,7 +182,6 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = (props) => {
   const [previewColors, setPreviewColors] = useState<{ light: { bg: string; text: string; }, dark: { bg: string; text: string; } } | null>(null);
   
   const { settings } = useSettings();
-  const isDarkMode = settings.theme === 'dark';
   const editorRef = useRef<HTMLDivElement>(null);
 
   const dragTooltip = useTooltip('Drag to reorder category'), addRepoTooltip = useTooltip('Add new repository to this category'),
@@ -242,32 +241,30 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = (props) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isColorEditorOpen, handleCloseEditor]);
 
-  const sourceColors = isDarkMode
-    ? { bg: category.darkBackgroundColor, text: category.darkColor }
-    : { bg: category.backgroundColor, text: category.color };
+  // FIX START: This block is refactored to correctly resolve the error and apply live color previews.
+  const isDarkMode = settings.theme === 'dark';
 
   const previewedColors = previewColors
     ? (isDarkMode ? previewColors.dark : previewColors.light)
     : null;
 
   const currentStyle = {
-    color: previewedColors?.text || sourceColors.text,
+    color: previewedColors?.text ?? (isDarkMode ? category.darkColor : category.color),
   };
   
-  const currentBgStyle = {
-    backgroundColor: previewedColors?.bg || sourceColors.bg,
-  };
-
-  const hasCustomBg = !!(previewedColors?.bg || sourceColors.bg);
-  const hasCustomColor = !!(previewedColors?.text || sourceColors.text);
+  const hasCustomColor = !!currentStyle.color;
+  const defaultBg = isDarkMode ? 'bg-gray-800' : 'bg-gray-200';
+  const hasCustomBg = !!(previewedColors?.bg ?? (isDarkMode ? category.darkBackgroundColor : category.backgroundColor));
+  // FIX END
 
   return (
     <div className="relative">
       <div
         onDragOver={(e) => { e.preventDefault(); }}
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); props.onDropRepo(e); }}
-        className={`group flex items-center p-0.5 rounded-lg transition-colors ${hasCustomBg ? '' : 'bg-gray-200 dark:bg-gray-800'}`}
-        style={currentBgStyle}
+        className={`group flex items-center p-0.5 rounded-lg transition-colors ${!hasCustomBg ? defaultBg : ''}`}
+        // FIX: Apply preview background color via style to ensure it overrides the parent's style from Dashboard.
+        style={{ backgroundColor: previewedColors?.bg }}
       >
         <div {...dragTooltip} draggable="true" onDragStart={props.onDragStart} onDragEnd={props.onDragEnd} className="p-1.5 cursor-move text-gray-400 dark:text-gray-500 touch-none"><GripVerticalIcon className="h-5 w-5" /></div>
         <button onClick={() => onToggleCollapse(category.id)} className="flex items-center flex-grow text-left p-1.5" style={currentStyle}>

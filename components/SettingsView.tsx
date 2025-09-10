@@ -32,6 +32,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
   const [settings, setSettings] = useState<GlobalSettings>(currentSettings);
   const [isDirty, setIsDirty] = useState(false);
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>('appearance');
+  const [taskLogDisplayPath, setTaskLogDisplayPath] = useState('Loading...');
 
   useEffect(() => {
     setSettings(currentSettings);
@@ -41,6 +42,12 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
   useEffect(() => {
      setIsDirty(JSON.stringify(settings) !== JSON.stringify(currentSettings));
   }, [settings, currentSettings]);
+
+  useEffect(() => {
+    if (activeCategory === 'behavior') {
+      window.electronAPI.getTaskLogPath().then(setTaskLogDisplayPath);
+    }
+  }, [activeCategory, settings.taskLogPath]);
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -132,6 +139,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
         }).catch(err => {
             setToast({ message: `Failed to copy: ${err}`, type: 'error' });
         });
+    }
+  };
+
+  const handleChangeTaskLogPath = async () => {
+    const result = await window.electronAPI.selectTaskLogPath();
+    if (!result.canceled && result.path) {
+      setSettings(prev => ({ ...prev, taskLogPath: result.path! }));
     }
   };
 
@@ -303,14 +317,28 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                               </div>
                           </div>
 
-                          <div className="flex items-start">
-                              <div className="flex items-center h-5"><input id="debugLogging" name="debugLogging" type="checkbox" checked={settings.debugLogging} onChange={handleChange} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
-                              <div className="ml-3 text-sm">
-                                  <label htmlFor="debugLogging" className="font-medium text-gray-700 dark:text-gray-300">Enable Debug Logging</label>
-                                  <p className="text-gray-500">Enable verbose application logging. Disabling this may improve performance and resolve render loops.</p>
-                              </div>
-                          </div>
-                          
+                          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Logging</h3>
+                            <div className="mt-4 space-y-4 max-w-2xl">
+                                <div className="flex items-start">
+                                    <div className="flex items-center h-5"><input id="saveTaskLogs" name="saveTaskLogs" type="checkbox" checked={settings.saveTaskLogs} onChange={handleChange} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
+                                    <div className="ml-3 text-sm">
+                                        <label htmlFor="saveTaskLogs" className="font-medium text-gray-700 dark:text-gray-300">Save Task Output Logs</label>
+                                        <p className="text-gray-500">Automatically save the console output of every task to a `.log` file.</p>
+                                    </div>
+                                </div>
+                                <div className={!settings.saveTaskLogs ? 'opacity-50' : ''}>
+                                    <label htmlFor="taskLogPath" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Task Log Path</label>
+                                    <div className="mt-1 flex items-center gap-2">
+                                        <input type="text" id="taskLogPath" name="taskLogPath" value={taskLogDisplayPath} disabled className={`${formInputStyle} bg-gray-100 dark:bg-gray-800 cursor-not-allowed`} />
+                                        <button type="button" onClick={handleChangeTaskLogPath} disabled={!settings.saveTaskLogs} className={actionButtonStyle}>Change...</button>
+                                        <button type="button" onClick={() => window.electronAPI.openTaskLogPath()} disabled={!settings.saveTaskLogs} className={actionButtonStyle}>Open...</button>
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500">Leave blank to use the default logs directory.</p>
+                                </div>
+                            </div>
+                        </div>
+
                           <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                             <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Executable Paths</h3>
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">

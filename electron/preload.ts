@@ -49,7 +49,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   cloneRepository: (args: { repo: Repository, executionId: string }) => ipcRenderer.send('clone-repository', args),
   launchApplication: (args: { repo: Repository, command: string }) => ipcRenderer.invoke('launch-application', args),
   showDirectoryPicker: (): Promise<{ canceled: boolean, filePaths: string[] }> => ipcRenderer.invoke('show-directory-picker'),
-  showFilePicker: (): Promise<{ canceled: boolean, filePaths: string[] }> => ipcRenderer.invoke('show-file-picker'),
+  showFilePicker: (): Promise<{ canceled: boolean; filePaths: string[] }> => ipcRenderer.invoke('show-file-picker'),
   testExecutablePath: (args: { path: string; vcsType: 'git' | 'svn' }): Promise<{ success: boolean; version?: string; error?: string }> => ipcRenderer.invoke('test-executable-path', args),
   autodetectExecutablePath: (vcsType: 'git' | 'svn'): Promise<string | null> => ipcRenderer.invoke('autodetect-executable-path', vcsType),
   pathJoin: (...args: string[]): Promise<string> => ipcRenderer.invoke('path-join', ...args),
@@ -106,4 +106,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeUpdateStatusChangeListener: (callback: (event: IpcRendererEvent, data: any) => void) => {
     ipcRenderer.removeListener('update-status-change', callback);
   },
+
+  // Task Log Settings
+  getTaskLogPath: (): Promise<string> => ipcRenderer.invoke('get-task-log-path'),
+  openTaskLogPath: () => ipcRenderer.invoke('open-task-log-path'),
+  selectTaskLogPath: (): Promise<{ canceled: boolean, path: string | null }> => ipcRenderer.invoke('select-task-log-path'),
 });
