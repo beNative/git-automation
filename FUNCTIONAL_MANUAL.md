@@ -162,5 +162,5 @@ Click the **cog icon** in the header to access global settings.
 For advanced users, the settings view includes a **"JSON Config"** tab. This section provides direct access to the `settings.json` file that powers the application.
 
 -   **Edit JSON:** You can directly modify the raw JSON configuration. Be cautious, as invalid JSON will prevent settings from being saved. After saving, the application will restart to apply the changes.
--   **Export Settings:** Click the "Export Settings" button to save your current `settings.json` file into a `.zip` archive. This is useful for creating backups.
--   **Import Settings:** Click the "Import Settings"
+-   **Export Settings:** Click the "Export Settings" button to save your current configuration into a compressed `.zip` archive. This is useful for creating backups or sharing your setup.
+-   **Import Settings:** Click the "Import Settings" button. You can select either a `.zip` archive (created via the export feature) or a raw `settings.json` file to restore a configuration. This will overwrite your current settings and restart the application.

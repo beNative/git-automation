@@ -1,6 +1,8 @@
 
 
 
+
+
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path, { dirname } from 'path';
@@ -1955,7 +1957,7 @@ ipcMain.handle('import-settings', async (): Promise<{ success: boolean; error?: 
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
       title: 'Import Settings',
       properties: ['openFile'],
-      filters: [{ name: 'Zip Archives', extensions: ['zip'] }]
+      filters: [{ name: 'Settings Files', extensions: ['zip', 'json'] }]
     });
     
     if (canceled || filePaths.length === 0) {
@@ -1963,25 +1965,31 @@ ipcMain.handle('import-settings', async (): Promise<{ success: boolean; error?: 
     }
     
     const filePath = filePaths[0];
-    const zipData = await fs.readFile(filePath);
-    
-    const zip = await JSZip.loadAsync(zipData);
-    const settingsFile = zip.file('settings.json');
-    
-    if (!settingsFile) {
-      return { success: false, error: 'The selected zip file does not contain a "settings.json" file.' };
+    let settingsContent = '';
+
+    if (filePath.toLowerCase().endsWith('.zip')) {
+        const zipData = await fs.readFile(filePath);
+        const zip = await JSZip.loadAsync(zipData);
+        const settingsFile = zip.file('settings.json');
+        
+        if (!settingsFile) {
+          return { success: false, error: 'The selected zip file does not contain a "settings.json" file.' };
+        }
+        settingsContent = await settingsFile.async('string');
+    } else if (filePath.toLowerCase().endsWith('.json')) {
+        settingsContent = await fs.readFile(filePath, 'utf-8');
+    } else {
+        return { success: false, error: 'Unsupported file type. Please select a .zip or .json file.' };
     }
-    
-    const settingsContent = await settingsFile.async('string');
     
     // Validate JSON before writing
     try {
       const parsed = JSON.parse(settingsContent);
        if (typeof parsed.globalSettings === 'undefined' || typeof parsed.repositories === 'undefined') {
-        return { success: false, error: 'The imported "settings.json" is missing required "globalSettings" or "repositories" keys.' };
+        return { success: false, error: 'The imported settings file is missing required "globalSettings" or "repositories" keys.' };
       }
     } catch (e) {
-      return { success: false, error: 'The "settings.json" file inside the zip is not valid JSON.' };
+      return { success: false, error: 'The selected file is not valid JSON.' };
     }
     
     await fs.writeFile(settingsPath, settingsContent, 'utf-8');
