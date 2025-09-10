@@ -131,7 +131,7 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
       onMouseDown={onClose}
     >
       <div
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl mx-4 transform transition-all flex flex-col max-h-[80vh]"
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl mx-4 transform transition-all flex flex-col h-[80vh]"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
@@ -149,7 +149,7 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
           </button>
         </header>
 
-        <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 min-h-[62px]">
+        <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="relative">
             <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <input
@@ -160,11 +160,13 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
               className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900/50 pl-10 pr-3 py-1.5 text-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
             />
           </div>
-          {debouncedSearchQuery && !isLoading && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
-              Found <span className="font-bold text-gray-700 dark:text-gray-200">{matchStats.occurrenceCount}</span> occurrence(s) in <span className="font-bold text-gray-700 dark:text-gray-200">{matchStats.commitCount}</span> commit(s).
-            </p>
-          )}
+          <div className="h-6 mt-2 px-1">
+            {debouncedSearchQuery && !isLoading && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Found <span className="font-bold text-gray-700 dark:text-gray-200">{matchStats.occurrenceCount}</span> occurrence(s) in <span className="font-bold text-gray-700 dark:text-gray-200">{matchStats.commitCount}</span> commit(s).
+              </p>
+            )}
+          </div>
         </div>
 
         <main className="p-4 flex-1 overflow-y-auto">
