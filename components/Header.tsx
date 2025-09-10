@@ -8,6 +8,9 @@ import { useTooltip } from '../hooks/useTooltip';
 import { CloudArrowDownIcon } from './icons/CloudArrowDownIcon';
 import { ArrowsPointingInIcon } from './icons/ArrowsPointingInIcon';
 import { ArrowsPointingOutIcon } from './icons/ArrowsPointingOutIcon';
+import { useSettings } from '../contexts/SettingsContext';
+import { SunIcon } from './icons/SunIcon';
+import { MoonIcon } from './icons/MoonIcon';
 
 interface HeaderProps {
   onNewRepo: () => void;
@@ -20,6 +23,13 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView, onCheckAllForUpdates, isCheckingAll, onToggleAllCategories, canCollapseAll }) => {
+  const { settings, saveSettings } = useSettings();
+
+  const handleToggleTheme = () => {
+    const newTheme = settings.theme === 'dark' ? 'light' : 'dark';
+    saveSettings({ ...settings, theme: newTheme });
+  };
+
   const navButtonStyle = "p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors";
   
   const activeDashboardStyle = "p-2 rounded-full bg-red-600 dark:bg-red-700 text-white";
@@ -45,6 +55,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView, onChe
   const infoTooltip = useTooltip('Information');
   const checkUpdatesTooltip = useTooltip('Check all repositories for updates');
   const expandCollapseTooltip = useTooltip(canCollapseAll ? 'Collapse all categories' : 'Expand all categories');
+  const themeTooltip = useTooltip(`Switch to ${settings.theme === 'dark' ? 'light' : 'dark'} mode`);
 
   return (
     <header className="bg-gray-200/80 dark:bg-gray-800/80 backdrop-blur-sm sticky top-0 z-20 shadow-md">
@@ -87,6 +98,15 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView, onChe
               </>
             )}
 
+            <button
+              {...themeTooltip}
+              onClick={handleToggleTheme}
+              disabled={isEditing}
+              className={isEditing ? disabledNavButtonStyle : navButtonStyle}
+              aria-label="Toggle theme"
+            >
+              {settings.theme === 'dark' ? <SunIcon className="h-6 w-6" /> : <MoonIcon className="h-6 w-6" />}
+            </button>
             <button
               {...dashboardTooltip}
               onClick={() => onSetView('dashboard')}

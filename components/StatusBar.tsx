@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import type { LogEntry } from '../types';
 import { GitBranchIcon } from './icons/GitBranchIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
 import { BeakerIcon } from './icons/BeakerIcon';
 import { KeyboardIcon } from './icons/KeyboardIcon';
-import { ClockIcon } from './icons/ClockIcon';
 import { BugAntIcon } from './icons/BugAntIcon';
 import { useTooltip } from '../hooks/useTooltip';
 
@@ -17,15 +16,6 @@ interface StatusBarProps {
     onToggleDebugPanel: () => void;
     onOpenAboutModal: () => void;
 }
-
-const Clock: React.FC = () => {
-    const [time, setTime] = useState(new Date());
-    useEffect(() => {
-        const timerId = setInterval(() => setTime(new Date()), 1000);
-        return () => clearInterval(timerId);
-    }, []);
-    return <>{time.toLocaleTimeString()}</>;
-};
 
 const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog, appVersion, onToggleDebugPanel, onOpenAboutModal }) => {
     const LOG_LEVEL_COLOR_CLASSES: Record<string, string> = {
@@ -41,7 +31,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
     const simModeTooltip = useTooltip('Simulation mode is active. No real commands will be run.');
     const commandPaletteTooltip = useTooltip('Command Palette (Ctrl+K)');
     const debugPanelTooltip = useTooltip('Toggle Debug Panel (Ctrl+D)');
-    const timeTooltip = useTooltip('Current Time');
     const latestLogTooltip = useTooltip(latestLog?.message || '');
     const aboutTooltip = useTooltip('About this application');
 
@@ -109,13 +98,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                         </button>
                     </>
                 )}
-                
-                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                <div
- {...timeTooltip} className="flex items-center">
-                    <ClockIcon className="h-4 w-4 mr-1.5" />
-                    <Clock />
-                </div>
             </div>
         </footer>
     );
