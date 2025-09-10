@@ -112,7 +112,7 @@ Provides a full interface to manage your Git branches. You can:
 - Merge another branch into your current one.
 
 #### Releases Tab (Git Only)
-This tab provides a complete interface for managing your project's GitHub releases. It requires a GitHub Personal Access Token with `repo` scope to be configured in the global settings.
+This tab provides a complete interface for managing your project's GitHub releases. It requires a GitHub Personal Access Token to be configured in the global settings. To view and manage draft releases, the token must have repository permissions for **"Contents: Read & write"**.
 - **View Releases:** See a list of all existing releases, each with its name, tag, creation date, and status badges for "Draft" and "Pre-release". The release notes body is also displayed and supports Markdown rendering.
 - **Create Release:** Click the "Create New Release" button to open a form. You can specify a tag name, title, and release notes (in Markdown), and choose whether to create it as a draft or a pre-release.
 - **Edit Release:** Click the "Edit" button on any release to modify its details.
@@ -142,7 +142,7 @@ Click the **cog icon** in the header to access global settings.
     -   **Icon Set:** Select from multiple icon sets to customize the application's iconography.
     -   **GUI Scale:** Adjust the overall size of the application from 50% to 200% for better readability.
 -   **Behavior:**
-    -   **GitHub Personal Access Token:** A secure field to store your GitHub Personal Access Token (PAT). This token is required for features that interact with the GitHub API, such as fetching release information. A copy button is provided for convenience. A link is provided to help you create a token with the necessary permissions.
+    -   **GitHub Personal Access Token:** A secure field to store your GitHub Personal Access Token (PAT). This token is required for features that interact with the GitHub API, such as fetching release information. A copy button is provided for convenience. A link is provided to help you create a token with the necessary permissions. For full functionality, including managing draft releases, create a fine-grained token with "Read & write" access to repository "Contents".
     -   **Open Web Links In:** Choose whether to open web links in your system's default browser, or force them to open in Chrome or Firefox.
     -   **Enable Notifications:** Toggle on/off the toast notifications.
     -   **Enable Simulation Mode:** This is a critical safety feature.
@@ -163,4 +163,4 @@ For advanced users, the settings view includes a **"JSON Config"** tab. This sec
 
 -   **Edit JSON:** You can directly modify the raw JSON configuration. Be cautious, as invalid JSON will prevent settings from being saved. After saving, the application will restart to apply the changes.
 -   **Export Settings:** Click the "Export Settings" button to save your current configuration into a compressed `.zip` archive. This is useful for creating backups or sharing your setup.
--   **Import Settings:** Click the "Import Settings" button. You can select either a `.zip` archive (created via the export feature) or a raw `settings.json` file to restore a configuration. This will overwrite your current settings and restart the application.
+-   **Import Settings:** Click the "Import Settings" button. You can select a `.zip` archive (created via the export feature) or a raw `.json` file to restore a configuration. This will overwrite your current settings and restart the application.

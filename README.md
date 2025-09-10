@@ -25,7 +25,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Easy Configuration:** Add new repositories and configure them through a simple, unified form.
 -   **Persistent UI State:** The application remembers your dashboard layout, including the collapsed state of categories, between sessions.
 -   **Persistent & Safe Configuration:** All your settings and repository configurations are stored safely in a persistent location, ensuring they are never lost during application updates.
--   **Settings Import/Export:** Easily back up, restore, or share your complete application configuration using zip files.
+-   **Settings Import/Export:** Easily back up, restore, or share your complete application configuration using `.zip` or `.json` files.
 -   **Robust Executable Handling:** Manually configure paths to your Git/SVN executables, with auto-detect and testing, ensuring the app works in any environment.
 -   **Global Settings:** Customize the application theme (with a quick-toggle button in the header), icon set, notifications, and behavior like enabling pre-release updates or choosing your preferred web browser.
 -   **GUI Scaling:** Adjust the overall size of the application's interface for better readability on any screen.

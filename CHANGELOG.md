@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.19.0]
+
+### Added
+- **JSON Settings Import:** Added support for importing settings directly from `.json` files, in addition to `.zip` archives.
+- **Theme Toggle:** Added a theme toggle button in the header to quickly switch between light and dark modes.
+
+### Changed
+- **Release Management UI:** Improved the "Releases" tab in the repository configuration to provide better guidance on the PAT permissions required for viewing draft releases.
+
+### Fixed
+- **GitHub PAT Permissions:** Corrected the help text for the GitHub Personal Access Token to request the appropriate permissions (`Read & write` for `Contents`) needed to view draft releases.
+
+### Removed
+- **Status Bar Clock:** Removed the clock display from the status bar to simplify the user interface.
+
 ## [0.18.0]
 
 ### Added
