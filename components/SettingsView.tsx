@@ -281,7 +281,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                                     <ClipboardDocumentIcon className="h-5 w-5"/>
                                 </button>
                               </div>
-                              <p className="mt-1 text-xs text-gray-500">Required for fetching release info. <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Create a fine-grained token</a> with `Read-only` access to `Contents`.</p>
+                              <p className="mt-1 text-xs text-gray-500">Required to view drafts and manage releases. <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Create a fine-grained token</a> with `Read &amp; write` access to `Contents`.</p>
                           </div>
 
                           <div>

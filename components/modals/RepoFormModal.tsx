@@ -1225,7 +1225,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         if (!pat) {
           setReleasesError("A GitHub Personal Access Token is required to manage releases. Please set one in Settings > Behavior.");
         } else {
-          setReleasesError("Failed to fetch releases. Check the debug console for details.");
+          setReleasesError("Failed to fetch releases. This may be due to an invalid PAT or insufficient permissions (requires 'Contents: Read & write'). Check the debug console for more details.");
         }
       }
     } catch (e: any) {
@@ -1790,7 +1790,14 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                      </div>
                      {releasesLoading && <p>Loading releases...</p>}
                      {releasesError && <p className="text-red-500">{releasesError}</p>}
-                     {releases && releases.length === 0 && <p>No releases found.</p>}
+                     {releases && releases.length === 0 && (
+                        <div className="p-4 text-center text-gray-500">
+                            <p>No releases found for this repository.</p>
+                            <p className="mt-2 text-xs">
+                                Note: To view draft releases, your GitHub Personal Access Token must have repository permissions for "Contents: Read & write".
+                            </p>
+                        </div>
+                     )}
                      <ul className="space-y-4 max-h-[60vh] overflow-y-auto">
                         {releases?.map(release => (
                             <li key={release.id} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
