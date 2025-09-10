@@ -59,7 +59,7 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView, onChe
 
   return (
     <header className="bg-gray-200/80 dark:bg-gray-800/80 backdrop-blur-sm sticky top-0 z-20 shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6">
+      <div className="px-4 sm:px-5 lg:px-6">
         <div className="flex items-center justify-between h-14">
           <div className="flex items-center">
             <h1 className={`text-xl font-bold ${titleConfig.color}`}>{titleConfig.text}</h1>
