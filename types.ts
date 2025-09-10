@@ -3,7 +3,8 @@
 // FIX END
 
 // Moved from contexts/IconContext.tsx
-export type IconSet = 'heroicons' | 'lucide' | 'tabler' | 'feather' | 'remix' | 'phosphor';
+// FIX: Add 'heroicons' and 'phosphor' to the IconSet type to support more icon libraries.
+export type IconSet = 'lucide' | 'tabler' | 'feather' | 'remix' | 'heroicons' | 'phosphor';
 
 export enum RepoStatus {
   Idle = 'Idle',

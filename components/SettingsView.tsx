@@ -213,14 +213,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                            </div>
                           <div>
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Icon Set</label>
-                              <div className="mt-2 grid grid-cols-3 gap-2 rounded-md bg-gray-200 dark:bg-gray-900 p-2 max-w-md">
-                                  <button
-                                      type="button"
-                                      onClick={() => handleIconSetChange('heroicons')}
-                                      className={`${iconSetButtonBase} ${settings.iconSet === 'heroicons' ? iconSetButtonActive : iconSetButtonInactive}`}
-                                  >
-                                      Heroicons
-                                  </button>
+                              <div className="mt-2 grid grid-cols-2 gap-2 rounded-md bg-gray-200 dark:bg-gray-900 p-2 max-w-xs">
                                   <button
                                       type="button"
                                       onClick={() => handleIconSetChange('lucide')}
@@ -248,13 +241,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                                       className={`${iconSetButtonBase} ${settings.iconSet === 'remix' ? iconSetButtonActive : iconSetButtonInactive}`}
                                   >
                                       Remix
-                                  </button>
-                                  <button
-                                      type="button"
-                                      onClick={() => handleIconSetChange('phosphor')}
-                                      className={`${iconSetButtonBase} ${settings.iconSet === 'phosphor' ? iconSetButtonActive : iconSetButtonInactive}`}
-                                  >
-                                      Phosphor
                                   </button>
                               </div>
                           </div>

@@ -1,13 +1,6 @@
 import React, { useContext } from 'react';
 import { IconContext } from '../../contexts/IconContext';
 
-const HeroBugAntIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M11.378 2.418c.24-.954 1.002-1.658 1.954-1.658s1.714.704 1.954 1.658l.142.566a1.002 1.002 0 001.556.505l.52-.328a1.75 1.75 0 012.12.322l.53.662a1.75 1.75 0 01-.22 2.392l-.534.42a1.002 1.002 0 00-.23 1.6l.412.593a1.75 1.75 0 01-.13 2.458l-.626.56a1.002 1.002 0 00-.012 1.63l.53.53a1.75 1.75 0 01-.322 2.12l-.662.53a1.75 1.75 0 01-2.392-.22l-.42-.534a1.002 1.002 0 00-1.6.23l-.593.412a1.75 1.75 0 01-2.458-.13l-.56-.626a1.002 1.002 0 00-1.63-.012l-.53.53a1.75 1.75 0 01-2.12-.322l-.53-.662a1.75 1.75 0 01.22-2.392l.534-.42a1.002 1.002 0 00.23-1.6l-.412-.593a1.75 1.75 0 01.13-2.458l.626-.56a1.002 1.002 0 00.012-1.63l-.53-.53a1.75 1.75 0 01.322-2.12l.662-.53a1.75 1.75 0 012.392.22l.42.534a1.002 1.002 0 001.6-.23l.593-.412z" />
-  </svg>
-);
-
-
 const LucideBugAntIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="m18 10 2-2"/>
@@ -63,23 +56,14 @@ const RemixBugAntIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     </svg>
 );
 
-const PhosphorBugAntIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
-        <path d="M216.9,88.75,193.1,64.89a8,8,0,0,0-11.31,0l-12.2,12.2a8,8,0,0,0,0,11.31L181.3,99.7a56.12,56.12,0,0,0-23-4.88V56a8,8,0,0,0-16,0V94.82a56.12,56.12,0,0,0-23,4.88L107.6,88.39a8,8,0,0,0-11.31,0L84.09,100.59a8,8,0,0,0,0,11.31L95.7,123.7a56,56,0,0,0-4.88,23H56a8,8,0,0,0,0,16H90.82a56,56,0,0,0,4.88,23l-11.6,11.6a8,8,0,0,0,0,11.31l12.19,12.2a8,8,0,0,0,11.31,0l12.2-12.2a8,8,0,0,0,0-11.31L118.3,186.3a56.12,56.12,0,0,0,23-4.88V216a8,8,0,0,0,16,0V181.42a56.12,56.12,0,0,0,23-4.88L192.3,188.39a8,8,0,0,0,11.31,0l12.2-12.2a8,8,0,0,0,0-11.31L204.3,153.7a56,56,0,0,0,4.88-23H244a8,8,0,0,0,0-16H209.18a56,56,0,0,0-4.88-23Zm-19.66,90.4L188,188.39a8,8,0,0,0-11.31,0L164.89,200.6a8,8,0,0,0,0,11.31l-3.09,3.1-3.1-3.1a8,8,0,0,0-11.31,0L135.6,224.2a8,8,0,0,0,0,11.31l-3.09,3.1-3.1-3.1a8,8,0,0,0-11.31,0L103.6,247.7a8,8,0,0,0,0,11.31l-3.09,3.1-3.1-3.1a8,8,0,0,0-11.31,0L74.8,268.39a8,8,0,0,0,0,11.31L68,286.5l-6.83-6.84a8,8,0,0,0-11.31,0L43.1,286.5l-3.09,3.1,3.09,3.09a8,8,0,0,0,11.31,0l6.83-6.83,6.84,6.83a8,8,0,0,0,11.31,0l3.1-3.09,3.09,3.09a8,8,0,0,0,11.31,0l11.6-11.6,11.6,11.6a8,8,0,0,0,11.31,0l3.1-3.09,3.09,3.09a8,8,0,0,0,11.31,0l11.6-11.6,11.6,11.6a8,8,0,0,0,11.31,0l3.1-3.09,6.83,6.83,6.84-6.83a8,8,0,0,0,0-11.31L206.5,188.39l-9.16-9.15Zm-60.24,0a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z" />
-    </svg>
-);
-
-
 export const BugAntIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
     switch (iconSet) {
         case 'lucide': return <LucideBugAntIcon {...props} />;
-        case 'feather': return <FeatherBugAntIcon {...props} />;
         case 'tabler': return <TablerBugAntIcon {...props} />;
         case 'remix': return <RemixBugAntIcon {...props} />;
-        case 'phosphor': return <PhosphorBugAntIcon {...props} />;
-        case 'heroicons':
+        case 'feather':
         default:
-            return <HeroBugAntIcon {...props} />;
+            return <FeatherBugAntIcon {...props} />;
     }
 };

@@ -1,12 +1,6 @@
 import React, { useContext } from 'react';
 import { IconContext } from '../../contexts/IconContext';
 
-const HeroArrowTopRightOnSquareIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-  </svg>
-);
-
 const LucideArrowTopRightOnSquareIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/>
@@ -24,13 +18,22 @@ const TablerArrowTopRightOnSquareIcon: React.FC<React.SVGProps<SVGSVGElement>> =
     </svg>
 );
 
+const FeatherArrowTopRightOnSquareIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"></path>
+    <polyline points="15 3 21 3 21 9"></polyline>
+    <line x1="10" y1="14" x2="21" y2="3"></line>
+  </svg>
+);
+
+
 export const ArrowTopRightOnSquareIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
-    if (iconSet === 'lucide') {
-        return <LucideArrowTopRightOnSquareIcon {...props} />;
+    switch (iconSet) {
+        case 'lucide': return <LucideArrowTopRightOnSquareIcon {...props} />;
+        case 'tabler': return <TablerArrowTopRightOnSquareIcon {...props} />;
+        case 'feather':
+        default:
+            return <FeatherArrowTopRightOnSquareIcon {...props} />;
     }
-    if (iconSet === 'tabler') {
-        return <TablerArrowTopRightOnSquareIcon {...props} />;
-    }
-    return <HeroArrowTopRightOnSquareIcon {...props} />;
 };

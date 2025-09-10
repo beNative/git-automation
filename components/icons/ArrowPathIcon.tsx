@@ -1,12 +1,6 @@
 import React, { useContext } from 'react';
 import { IconContext } from '../../contexts/IconContext';
 
-const HeroArrowPathIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0011.664 0l3.181-3.183m-11.664 0l3.181-3.183a8.25 8.25 0 00-11.664 0l3.181 3.183z" />
-    </svg>
-);
-
 const LucideArrowPathIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M3 2v6h6"/>
@@ -39,22 +33,14 @@ const RemixArrowPathIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     </svg>
 );
 
-const PhosphorArrowPathIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
-        <path d="M232,128A104,104,0,0,1,39.1,199.1a8,8,0,1,1,11.31-11.31A88,88,0,1,0,40,128H64a8,8,0,0,1,0,16H24a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v18.39A103.35,103.35,0,0,1,128,24,104.11,104.11,0,0,1,232,128Z" />
-    </svg>
-);
-
 export const ArrowPathIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
     switch (iconSet) {
         case 'lucide': return <LucideArrowPathIcon {...props} />;
-        case 'feather': return <FeatherArrowPathIcon {...props} />;
         case 'tabler': return <TablerArrowPathIcon {...props} />;
         case 'remix': return <RemixArrowPathIcon {...props} />;
-        case 'phosphor': return <PhosphorArrowPathIcon {...props} />;
-        case 'heroicons':
+        case 'feather':
         default:
-            return <HeroArrowPathIcon {...props} />;
+            return <FeatherArrowPathIcon {...props} />;
     }
 };

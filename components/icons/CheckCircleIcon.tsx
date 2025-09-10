@@ -1,12 +1,6 @@
 import React, { useContext } from 'react';
 import { IconContext } from '../../contexts/IconContext';
 
-const HeroCheckCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
 const LucideCheckCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -35,22 +29,14 @@ const RemixCheckCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) =>
     </svg>
 );
 
-const PhosphorCheckCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
-        <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69,162.34,98.34a8,8,0,0,1,11.32,11.32Z" />
-    </svg>
-);
-
 export const CheckCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
     switch (iconSet) {
         case 'lucide': return <LucideCheckCircleIcon {...props} />;
-        case 'feather': return <FeatherCheckCircleIcon {...props} />;
         case 'tabler': return <TablerCheckCircleIcon {...props} />;
         case 'remix': return <RemixCheckCircleIcon {...props} />;
-        case 'phosphor': return <PhosphorCheckCircleIcon {...props} />;
-        case 'heroicons':
+        case 'feather':
         default:
-            return <HeroCheckCircleIcon {...props} />;
+            return <FeatherCheckCircleIcon {...props} />;
     }
 };

@@ -34,7 +34,7 @@ const DEFAULTS: GlobalSettings = {
     notifications: true,
     simulationMode: true,
     theme: 'dark',
-    iconSet: 'heroicons',
+    iconSet: 'feather',
     debugLogging: true,
     allowPrerelease: true,
     openLinksIn: 'default',

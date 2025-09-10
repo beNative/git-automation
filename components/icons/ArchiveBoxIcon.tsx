@@ -1,12 +1,6 @@
 import React, { useContext } from 'react';
 import { IconContext } from '../../contexts/IconContext';
 
-const HeroArchiveBoxIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-  </svg>
-);
-
 const LucideArchiveBoxIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/>
@@ -38,23 +32,14 @@ const RemixArchiveBoxIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => 
     </svg>
 );
 
-const PhosphorArchiveBoxIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
-        <path d="M224,88H32a8,8,0,0,0-8,8V208a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V96A8,8,0,0,0,224,88Zm-96,64a8,8,0,0,1-8,8H104a8,8,0,0,1,0-16h16A8,8,0,0,1,128,152Zm96-88H32a8,8,0,0,0-8,8V80H232V72A8,8,0,0,0,224,64Z" />
-    </svg>
-);
-
-
 export const ArchiveBoxIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
     switch (iconSet) {
         case 'lucide': return <LucideArchiveBoxIcon {...props} />;
-        case 'feather': return <FeatherArchiveBoxIcon {...props} />;
         case 'tabler': return <TablerArchiveBoxIcon {...props} />;
         case 'remix': return <RemixArchiveBoxIcon {...props} />;
-        case 'phosphor': return <PhosphorArchiveBoxIcon {...props} />;
-        case 'heroicons':
+        case 'feather':
         default:
-            return <HeroArchiveBoxIcon {...props} />;
+            return <FeatherArchiveBoxIcon {...props} />;
     }
 };

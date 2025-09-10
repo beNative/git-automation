@@ -1,12 +1,6 @@
 import React, { useContext } from 'react';
 import { IconContext } from '../../contexts/IconContext';
 
-const HeroExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-  </svg>
-);
-
 const LucideExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
@@ -38,24 +32,14 @@ const RemixExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (p
     </svg>
 );
 
-const PhosphorExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
-        <path d="M236.65,195.35,148.67,35.37a24,24,0,0,0-41.34,0L19.35,195.35a24,24,0,0,0,20.67,36.65H215.98a24,24,0,0,0,20.67-36.65ZM120,104a8,8,0,0,1,8-8h0a8,8,0,0,1,8,8v48a8,8,0,0,1-8,8h0a8,8,0,0,1-8-8Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z" />
-    </svg>
-);
-
-
-
 export const ExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
     switch (iconSet) {
         case 'lucide': return <LucideExclamationTriangleIcon {...props} />;
-        case 'feather': return <FeatherExclamationTriangleIcon {...props} />;
         case 'tabler': return <TablerExclamationTriangleIcon {...props} />;
         case 'remix': return <RemixExclamationTriangleIcon {...props} />;
-        case 'phosphor': return <PhosphorExclamationTriangleIcon {...props} />;
-        case 'heroicons':
+        case 'feather':
         default:
-            return <HeroExclamationTriangleIcon {...props} />;
+            return <FeatherExclamationTriangleIcon {...props} />;
     }
 };

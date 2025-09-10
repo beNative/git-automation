@@ -1,12 +1,6 @@
 import React, { useContext } from 'react';
 import { IconContext } from '../../contexts/IconContext';
 
-const HeroArrowUpIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
-  </svg>
-);
-
 const LucideArrowUpIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="M12 19V5"/>
@@ -36,22 +30,14 @@ const RemixArrowUpIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     </svg>
 );
 
-const PhosphorArrowUpIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" {...props}>
-        <path d="M213.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L188.69,136H40a8,8,0,0,1,0-16H188.69L122.34,54.34a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,213.66,133.66Z" transform="rotate(-90 128 128)" />
-    </svg>
-);
-
 export const ArrowUpIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     const iconSet = useContext(IconContext);
     switch (iconSet) {
         case 'lucide': return <LucideArrowUpIcon {...props} />;
-        case 'feather': return <FeatherArrowUpIcon {...props} />;
         case 'tabler': return <TablerArrowUpIcon {...props} />;
         case 'remix': return <RemixArrowUpIcon {...props} />;
-        case 'phosphor': return <PhosphorArrowUpIcon {...props} />;
-        case 'heroicons':
+        case 'feather':
         default:
-            return <HeroArrowUpIcon {...props} />;
+            return <FeatherArrowUpIcon {...props} />;
     }
 };
