@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo, DockerCapabilities } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -1601,6 +1601,21 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
   const hasBranches = branchInfo && (branchInfo.local.length > 0 || branchInfo.remote.length > 0);
 
+  // FIX START: Create a memoized component map for ReactMarkdown to handle external links.
+  const markdownComponents = useMemo(() => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    a: ({node, ...props}: any) => {
+      if (props.href && (props.href.startsWith('http') || props.href.startsWith('https'))) {
+        return <a {...props} onClick={(e) => {
+          e.preventDefault();
+          onOpenWeblink(props.href);
+        }} />;
+      }
+      return <a {...props} />;
+    }
+  }), [onOpenWeblink]);
+  // FIX END
+
   const renderTabContent = () => {
     if (!('id' in formData)) {
         return <div className="p-4 text-center text-gray-500">Please save the repository to access advanced features.</div>
@@ -1796,7 +1811,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 </div>
                                 {release.body && (
                                     <article className="prose prose-sm dark:prose-invert max-w-none mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{release.body}</ReactMarkdown>
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{release.body}</ReactMarkdown>
                                     </article>
                                 )}
                             </li>
