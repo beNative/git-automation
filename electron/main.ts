@@ -1,12 +1,13 @@
 
 
+
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
-import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo } from '../types';
+import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 import JSZip from 'jszip';
@@ -305,12 +306,12 @@ ipcMain.handle('get-doc', async (event, docName: string) => {
 });
 
 // --- Helper function for recursive file search ---
-const findFilesByExtensionRecursive = async (
+const findFilesByMatcherRecursive = async (
   dir: string,
-  ext: string,
+  matcher: (entry: fsSync.Dirent) => boolean,
   repoRoot: string,
   depth = 0,
-  maxDepth = 3 // Limit search depth to avoid performance issues
+  maxDepth = 3 // Limit search depth
 ): Promise<string[]> => {
   let results: string[] = [];
   try {
@@ -320,18 +321,27 @@ const findFilesByExtensionRecursive = async (
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        // Avoid heavy/irrelevant directories
         if (entry.name !== 'node_modules' && entry.name !== '.git' && entry.name !== '.svn' && !entry.name.startsWith('.')) {
-          results = results.concat(await findFilesByExtensionRecursive(fullPath, ext, repoRoot, depth + 1, maxDepth));
+          results = results.concat(await findFilesByMatcherRecursive(fullPath, matcher, repoRoot, depth + 1, maxDepth));
         }
-      } else if (entry.name.toLowerCase().endsWith(ext)) {
-        results.push(path.relative(repoRoot, fullPath));
+      } else if (matcher(entry)) {
+        results.push(path.relative(repoRoot, fullPath).replace(/\\/g, '/')); // Normalize paths
       }
     }
   } catch (err) {
-    // Ignore errors for directories that can't be read (e.g., permissions)
+    // Ignore errors for directories that can't be read
   }
   return results;
+};
+
+const findFilesByExtensionRecursive = async (
+  dir: string,
+  ext: string,
+  repoRoot: string,
+  depth = 0,
+  maxDepth = 3 // Limit search depth to avoid performance issues
+): Promise<string[]> => {
+  return findFilesByMatcherRecursive(dir, (entry) => entry.name.toLowerCase().endsWith(ext), repoRoot, depth, maxDepth);
 };
 
 // --- Helper function for finding files by patterns like "jest.config" ---
@@ -342,22 +352,7 @@ const findFileByPattern = async (
     depth = 0,
     maxDepth = 2
 ): Promise<string[]> => {
-    let results: string[] = [];
-    if (depth > maxDepth) return [];
-    try {
-        const entries = await fs.readdir(dir, { withFileTypes: true });
-        for (const entry of entries) {
-            const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) {
-                if (entry.name !== 'node_modules' && !entry.name.startsWith('.')) {
-                    results = results.concat(await findFileByPattern(fullPath, patterns, repoRoot, depth + 1, maxDepth));
-                }
-            } else if (patterns.some(p => entry.name.startsWith(p))) {
-                results.push(path.relative(repoRoot, fullPath));
-            }
-        }
-    } catch (err) {}
-    return results;
+    return findFilesByMatcherRecursive(dir, (entry) => patterns.some(p => entry.name.startsWith(p)), repoRoot, depth, maxDepth);
 };
 
 
@@ -395,22 +390,30 @@ const getXmlAttribute = (content: string, elementName: string, attributeName: st
 }
 
 const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
-    if (!repoPath) return { tags: [], files: { dproj: [] }, python: undefined, delphi: undefined, nodejs: undefined, lazarus: undefined };
+    if (!repoPath) return { tags: [], files: { dproj: [] } };
 
     const tagsSet = new Set<string>();
     const info: ProjectInfo = {
         tags: [],
         files: { dproj: [] },
-        python: undefined,
-        delphi: undefined,
-        nodejs: undefined,
-        lazarus: undefined,
     };
 
     try {
         // VCS Type
         if (await fileExists(repoPath, '.git')) tagsSet.add('git');
         if (await fileExists(repoPath, '.svn')) tagsSet.add('svn');
+
+        // --- Docker Detection ---
+        const dockerfiles = await findFilesByMatcherRecursive(repoPath, (e) => e.isFile() && e.name.toLowerCase().includes('dockerfile'), repoPath);
+        const composeFiles = await findFilesByMatcherRecursive(repoPath, (e) => e.isFile() && e.name.toLowerCase().startsWith('docker-compose') && (e.name.endsWith('.yml') || e.name.endsWith('.yaml')), repoPath);
+
+        if (dockerfiles.length > 0 || composeFiles.length > 0) {
+            tagsSet.add('docker');
+            info.docker = {
+                dockerfiles,
+                composeFiles,
+            };
+        }
 
         // --- Lazarus/FPC Project Detection ---
         let isLazarusProject = false;
@@ -1538,6 +1541,27 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
                     else throw new Error("No 'build' script found in package.json and no known bundler config detected.");
                 }
                 break;
+
+            // --- Docker Steps ---
+            case TaskStepType.DOCKER_BUILD_IMAGE:
+                const imageName = step.dockerImageName || `${repo.name.toLowerCase()}:latest`;
+                const dockerfile = step.dockerfilePath || 'Dockerfile';
+                const buildArgs = step.dockerBuildArgs || '';
+                await run(`docker build -t "${imageName}" -f "${dockerfile}" ${buildArgs} .`);
+                break;
+            case TaskStepType.DOCKER_COMPOSE_UP:
+                const composeUpPath = step.dockerComposePath ? `-f "${step.dockerComposePath}"` : '';
+                await run(`docker-compose ${composeUpPath} up -d`);
+                break;
+            case TaskStepType.DOCKER_COMPOSE_DOWN:
+                const composeDownPath = step.dockerComposePath ? `-f "${step.dockerComposePath}"` : '';
+                await run(`docker-compose ${composeDownPath} down`);
+                break;
+            case TaskStepType.DOCKER_COMPOSE_BUILD:
+                const composeBuildPath = step.dockerComposePath ? `-f "${step.dockerComposePath}"` : '';
+                await run(`docker-compose ${composeBuildPath} build`);
+                break;
+                
             default:
                 throw new Error(`Unknown step type: ${step.type}`);
         }

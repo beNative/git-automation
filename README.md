@@ -8,8 +8,8 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Customizable Dashboard Categories:** Organize your repositories into collapsible sections with configurable colors, full drag-and-drop support (for both repositories and categories), and alternative up/down reorder buttons.
 -   **Multi-VCS Support:** Manage both Git and Subversion (SVN) repositories seamlessly.
 -   **Repository-Specific Tasks:** Create custom, multi-step automation scripts (e.g., pull/update, install, build) for each repository.
--   **Project Intelligence:** Automatically detects project types (Node.js, Python, Delphi, Lazarus) and provides one-click buttons to generate common, pre-configured tasks.
--   **Advanced Task Steps:** A rich library of specific, pre-built steps for different ecosystems (e.g., `PYTHON_INSTALL_DEPS`, `DELPHI_BUILD`, `NODE_RUN_BUILD`) simplifies creating complex workflows.
+-   **Project Intelligence:** Automatically detects project types (Node.js, Python, Delphi, Lazarus, Docker) and provides one-click buttons to generate common, pre-configured tasks.
+-   **Advanced Task Steps:** A rich library of specific, pre-built steps for different ecosystems (e.g., `PYTHON_INSTALL_DEPS`, `DELPHI_BUILD`, `NODE_RUN_BUILD`, `DOCKER_BUILD_IMAGE`) simplifies creating complex workflows.
 -   **Task Environment Variables:** Define shell environment variables that are available to all command steps within a task.
 -   **Quick Actions:** Manually refresh repository state, copy URLs/paths with a single click, access all common actions via a right-click context menu, and reorder repositories with up/down buttons.
 -   **Powerful Command Palette:** Quickly access any action, task, or repository using a keyboard-driven command palette (`Ctrl/Cmd+K`).

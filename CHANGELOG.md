@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.0]
+
+### Added
+- **Docker Integration:** The Project Intelligence engine now detects `Dockerfile` and `docker-compose.yml` files.
+- **Docker Task Generation:** Added one-click buttons in the repository configuration screen to generate common Docker tasks (build image, compose up/down).
+- **New Docker Task Steps:** Added specific task steps for `DOCKER_BUILD_IMAGE`, `DOCKER_COMPOSE_UP`, `DOCKER_COMPOSE_DOWN`, and `DOCKER_COMPOSE_BUILD` to create custom Docker workflows.
+
 ## [0.17.0]
 
 ### Fixed

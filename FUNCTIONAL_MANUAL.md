@@ -91,10 +91,10 @@ This is the main panel where you configure the name, path, URL, and launch confi
 
 #### Tasks Tab
 This is where you create powerful, custom automation scripts for the specific repository you are editing.
-1.  **Project Intelligence:** Based on the repository's local path, the application will analyze its contents to detect the project type (e.g., Node.js, Python, Delphi). If a known type is found, a colored box will appear with buttons to automatically generate common tasks for that ecosystem.
+1.  **Project Intelligence:** Based on the repository's local path, the application will analyze its contents to detect the project type (e.g., Node.js, Python, Delphi, Docker). If a known type is found, a colored box will appear with buttons to automatically generate common tasks for that ecosystem.
 2.  **Manual Task Creation:**
     -   Give your task a descriptive **name** (e.g., "Build & Deploy to Staging").
-    -   Click **"Add Step"** to build your workflow. The available steps will depend on the repository's VCS type and its detected project type. The application now includes a rich set of specific steps like `Node: Install Deps` or `Delphi: Build Project` in addition to the generic `Run Command`.
+    -   Click **"Add Step"** to build your workflow. The available steps will depend on the repository's VCS type and its detected project type. The application now includes a rich set of specific steps like `Node: Install Deps`, `Delphi: Build Project`, or `Docker: Build Image` in addition to the generic `Run Command`.
     -   Configure each step as needed.
 3.  **Variables:**
     -   **Task Variables:** These are for simple text substitution. Define a `KEY` and `VALUE`, then use `${KEY}` in a `Run Command` step's command field.

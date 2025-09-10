@@ -57,6 +57,11 @@ export enum TaskStepType {
   LAZARUS_BUILD = 'LAZARUS_BUILD',
   LAZARUS_BUILD_PACKAGE = 'LAZARUS_BUILD_PACKAGE',
   FPC_TEST_FPCUNIT = 'FPC_TEST_FPCUNIT',
+  // Docker
+  DOCKER_BUILD_IMAGE = 'DOCKER_BUILD_IMAGE',
+  DOCKER_COMPOSE_UP = 'DOCKER_COMPOSE_UP',
+  DOCKER_COMPOSE_DOWN = 'DOCKER_COMPOSE_DOWN',
+  DOCKER_COMPOSE_BUILD = 'DOCKER_COMPOSE_BUILD',
 }
 
 export enum LogLevel {
@@ -137,6 +142,11 @@ export interface TaskStep {
   lazarusOs?: string;
   lazarusWidgetset?: string;
   fpcTestOutputFile?: string;
+  // Docker
+  dockerfilePath?: string;
+  dockerImageName?: string;
+  dockerBuildArgs?: string;
+  dockerComposePath?: string;
 }
 
 export interface TaskVariable {
@@ -291,6 +301,11 @@ export interface DropTarget {
 
 // --- Project Intelligence Types ---
 
+export interface DockerCapabilities {
+  dockerfiles: string[];
+  composeFiles: string[];
+}
+
 export interface PythonCapabilities {
   requestedPythonVersion: string | null;
   envManager: 'poetry' | 'pdm' | 'pipenv' | 'conda' | 'pip' | 'unknown';
@@ -349,4 +364,5 @@ export interface ProjectInfo {
   delphi?: DelphiCapabilities;
   nodejs?: NodejsCapabilities;
   lazarus?: LazarusCapabilities;
+  docker?: DockerCapabilities;
 }
