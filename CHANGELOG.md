@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.22.0]
+
+### Added
+- **Task Log Archiving:** The full console output for every task run is now automatically saved to a timestamped `.log` file in a configurable directory.
+- **Logging Settings:** Added a new "Logging" section in the Settings > Behavior view to enable/disable task log saving and configure a custom log path.
+
+### Changed
+- **UI:** The light/dark mode theme toggle button in the header has been moved to the end of the navigation icons for better consistency.
+
+### Fixed
+- **Dark Mode Colors:** Fixed a bug where custom category colors for dark mode were not being applied correctly on the dashboard.
+
 ## [0.21.0]
 
 ### Changed

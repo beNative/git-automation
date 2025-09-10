@@ -99,15 +99,6 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView, onChe
             )}
 
             <button
-              {...themeTooltip}
-              onClick={handleToggleTheme}
-              disabled={isEditing}
-              className={isEditing ? disabledNavButtonStyle : navButtonStyle}
-              aria-label="Toggle theme"
-            >
-              {settings.theme === 'dark' ? <SunIcon className="h-6 w-6" /> : <MoonIcon className="h-6 w-6" />}
-            </button>
-            <button
               {...dashboardTooltip}
               onClick={() => onSetView('dashboard')}
               disabled={isEditing}
@@ -133,6 +124,15 @@ const Header: React.FC<HeaderProps> = ({ onNewRepo, activeView, onSetView, onChe
               aria-label="Information"
             >
               <InformationCircleIcon className="h-6 w-6" />
+            </button>
+            <button
+              {...themeTooltip}
+              onClick={handleToggleTheme}
+              disabled={isEditing}
+              className={isEditing ? disabledNavButtonStyle : navButtonStyle}
+              aria-label="Toggle theme"
+            >
+              {settings.theme === 'dark' ? <SunIcon className="h-6 w-6" /> : <MoonIcon className="h-6 w-6" />}
             </button>
           </div>
         </div>

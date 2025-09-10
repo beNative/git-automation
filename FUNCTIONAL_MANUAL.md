@@ -1,12 +1,10 @@
---- START OF FILE FUNCTIONAL_MANUAL.md ---
-
 # Functional Manual
 
 This manual provides a detailed walkthrough of all the features available in the Git Automation Dashboard.
 
 ## 1. Navigating the Application
 
-The application is organized into three main views, which you can switch between using the icons in the top-right of the header. The header also features a dynamic title that changes color and text to reflect the current view. Next to the navigation icons is a **theme toggle button** to quickly switch between light and dark modes.
+The application is organized into three main views, which you can switch between using the icons in the top-right of the header. The header also features a dynamic title that changes color and text to reflect the current view. The final icon in the header is a **theme toggle button** to quickly switch between light and dark modes.
 
 -   **Dashboard (Home Icon):** The main screen where you can see and interact with all your repository cards.
 -   **Settings (Cog Icon):** Where you can configure global application settings.
@@ -174,4 +172,3 @@ For advanced users, the settings view includes a **"JSON Config"** tab. This sec
 -   **Edit JSON:** You can directly modify the raw JSON configuration. Be cautious, as invalid JSON will prevent settings from being saved. After saving, the application will restart to apply the changes.
 -   **Export Settings:** Click the "Export Settings" button to save your current configuration into a compressed `.zip` archive. This is useful for creating backups or sharing your setup.
 -   **Import Settings:** Click the "Import Settings" button. You can select a `.zip` archive (created via the export feature) or a raw `.json` file to restore a configuration. This will overwrite your current settings and restart the application.
---- END OF FILE FUNCTIONAL_MANUAL.md ---
