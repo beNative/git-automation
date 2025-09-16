@@ -1,5 +1,3 @@
---- START OF FILE README.md ---
-
 # Welcome to the Git Automation Dashboard
 
 This application provides a simple, powerful dashboard to manage and automate the workflow for a set of Git and SVN repositories. It is designed for developers who need to regularly update, install dependencies, and run build scripts across multiple projects.
@@ -54,4 +52,3 @@ This application provides a simple, powerful dashboard to manage and automate th
     -   The resizable log panel will automatically appear at the bottom, showing the progress of your script.
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._
---- END OF FILE README.md ---

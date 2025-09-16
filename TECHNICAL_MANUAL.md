@@ -1,5 +1,3 @@
---- START OF FILE TECHNICAL_MANUAL.md ---
-
 # Technical Manual
 
 This document provides a technical overview of the Git Automation Dashboard application, including its architecture, build process, and development guidelines.
@@ -104,4 +102,3 @@ The application is configured to automatically check for updates on startup usin
     2.  Create a `GH_TOKEN` (GitHub Personal Access Token) with `repo` scopes and make it available as an environment variable.
     3.  Run the command `npm run publish`. This will build the application, create installers, and upload them to a new draft release on GitHub.
     4.  Navigate to the GitHub release, add release notes, and publish it.
---- END OF FILE TECHNICAL_MANUAL.md ---
