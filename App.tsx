@@ -1,12 +1,15 @@
 
 
 
+
+
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
 // FIX: Add missing ReleaseInfo type to the import.
 import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category, ReleaseInfo } from './types';
 import Dashboard from './components/Dashboard';
-import Header from './components/Header';
+import TitleBar from './components/TitleBar';
 // FIX: RepoEditView is a default export, so it should be imported without curly braces.
 import RepoEditView from './components/modals/RepoFormModal';
 import Toast from './components/Toast';
@@ -15,7 +18,6 @@ import SettingsView from './components/SettingsView';
 import TaskLogPanel from './components/TaskLogPanel';
 import DebugPanel from './components/DebugPanel';
 import { IconContext } from './contexts/IconContext';
-import CommandPalette from './components/CommandPalette';
 import StatusBar from './components/StatusBar';
 import DirtyRepoModal from './components/modals/DirtyRepoModal';
 import TaskSelectionModal from './components/modals/TaskSelectionModal';
@@ -78,7 +80,6 @@ const App: React.FC = () => {
   }>({ repoId: null });
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [activeView, setActiveView] = useState<AppView>('dashboard');
-  const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isDebugPanelOpen, setIsDebugPanelOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [localPathStates, setLocalPathStates] = useState<Record<string, LocalPathState>>({});
@@ -369,13 +370,9 @@ const App: React.FC = () => {
     document.documentElement.style.fontSize = `${zoom * 100}%`;
   }, [settings?.zoomFactor, logger]);
   
-  // Effect for Command Palette & Debug Panel
+  // Effect for Debug Panel
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-            e.preventDefault();
-            setCommandPaletteOpen(prev => !prev);
-        }
         if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
             e.preventDefault();
             setIsDebugPanelOpen(prev => !prev);
@@ -895,7 +892,7 @@ const App: React.FC = () => {
     <IconContext.Provider value={settings.iconSet}>
       <TooltipProvider>
         <div className="flex flex-col h-screen">
-          <Header 
+          <TitleBar
             onNewRepo={() => handleOpenRepoForm('new')} 
             activeView={activeView} 
             onSetView={setActiveView}
@@ -903,110 +900,114 @@ const App: React.FC = () => {
             isCheckingAll={isCheckingAll}
             onToggleAllCategories={toggleAllCategoriesCollapse}
             canCollapseAll={canCollapseAll}
+            repositories={repositories}
+            onRunTask={handleRunTask}
           />
           {updateReady && <UpdateBanner onInstall={handleRestartAndUpdate} />}
-          <main className={mainContentClass}>
-            {(() => {
-              switch (activeView) {
-                case 'settings':
-                  return <SettingsView currentSettings={settings} onSave={handleSaveSettings} setToast={setToast} confirmAction={confirmAction} />;
-                case 'info':
-                  return <InfoView />;
-                case 'edit-repository':
-                  // The key ensures the component re-mounts when switching between editing different repos
-                  return <RepoEditView 
-                    key={repoFormState.repoId} 
-                    repository={repositoryToEdit} 
-                    onSave={handleSaveRepo} 
-                    onCancel={handleCloseRepoForm}
-                    onRefreshState={refreshRepoState}
-                    setToast={setToast}
-                    confirmAction={confirmAction}
-                    defaultCategoryId={repoFormState.defaultCategoryId}
-                    onOpenWeblink={handleOpenWeblink}
-                  />;
-                case 'dashboard':
-                default:
-                  return <Dashboard 
-                    repositories={repositories} 
-                    categories={categories}
-                    uncategorizedOrder={uncategorizedOrder}
-                    onAddCategory={addCategory}
-                    onUpdateCategory={updateCategory}
-                    onDeleteCategory={(catId) => {
-                      confirmAction({
-                        title: 'Delete Category',
-                        message: 'Are you sure you want to delete this category? Repositories within it will become uncategorized.',
-                        confirmText: 'Delete',
-                        icon: <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400" aria-hidden="true" />,
-                        confirmButtonClass: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
-                        onConfirm: () => {
-                          deleteCategory(catId);
-                          setToast({ message: 'Category deleted.', type: 'info' });
-                        }
-                      });
-                    }}
-                    onMoveRepositoryToCategory={moveRepositoryToCategory}
-                    onMoveRepository={moveRepository}
-                    onToggleCategoryCollapse={toggleCategoryCollapse}
-                    onMoveCategory={moveCategory}
-                    onReorderCategories={reorderCategories}
-                    onOpenTaskSelection={handleOpenTaskSelection} 
-                    onRunTask={handleRunTask}
-                    onViewLogs={handleViewLogs}
-                    onViewHistory={handleViewHistory}
-                    onOpenRepoForm={handleOpenRepoForm}
-                    onDeleteRepo={handleDeleteRepo}
-                    isProcessing={isProcessing}
-                    localPathStates={localPathStates}
-                    detectedExecutables={detectedExecutables}
-                    detailedStatuses={detailedStatuses}
-                    branchLists={branchLists}
-                    // FIX: Pass latestReleases prop to Dashboard.
-                    latestReleases={latestReleases}
-                    onSwitchBranch={handleSwitchBranch}
-                    onCloneRepo={(repoId) => {
-                      const repo = repositories.find(r => r.id === repoId);
-                      if (repo) handleCloneRepo(repo);
-                    }}
-                    onChooseLocationAndClone={handleChooseLocationAndClone}
-                    onRunLaunchConfig={handleRunLaunchConfig}
-                    onOpenLaunchSelection={handleOpenLaunchSelection}
-                    onOpenLocalPath={handleOpenLocalPath}
-                    onOpenWeblink={handleOpenWeblink}
-                    onOpenTerminal={handleOpenTerminal}
-                    setToast={setToast}
-                    onOpenContextMenu={handleOpenContextMenu}
-                    onRefreshRepoState={refreshRepoState}
-                  />;
-              }
-            })()}
-          </main>
-          
-          {taskLogState.isOpen && (
-            <TaskLogPanel
-              onClosePanel={handleCloseLogPanel}
-              onCloseTab={handleCloseLogTab}
-              onSelectTab={handleSelectLogTab}
-              logs={logs}
-              allRepositories={repositories}
-              activeRepoIds={taskLogState.activeIds}
-              selectedRepoId={taskLogState.selectedId}
-              height={taskLogState.height}
-              setHeight={(h) => setTaskLogState(p => ({ ...p, height: h }))}
-              isProcessing={isProcessing}
-            />
-          )}
+          <div className="flex-1 flex flex-col min-h-0">
+            <main className={mainContentClass}>
+              {(() => {
+                switch (activeView) {
+                  case 'settings':
+                    return <SettingsView currentSettings={settings} onSave={handleSaveSettings} setToast={setToast} confirmAction={confirmAction} />;
+                  case 'info':
+                    return <InfoView />;
+                  case 'edit-repository':
+                    // The key ensures the component re-mounts when switching between editing different repos
+                    return <RepoEditView 
+                      key={repoFormState.repoId} 
+                      repository={repositoryToEdit} 
+                      onSave={handleSaveRepo} 
+                      onCancel={handleCloseRepoForm}
+                      onRefreshState={refreshRepoState}
+                      setToast={setToast}
+                      confirmAction={confirmAction}
+                      defaultCategoryId={repoFormState.defaultCategoryId}
+                      onOpenWeblink={handleOpenWeblink}
+                    />;
+                  case 'dashboard':
+                  default:
+                    return <Dashboard 
+                      repositories={repositories} 
+                      categories={categories}
+                      uncategorizedOrder={uncategorizedOrder}
+                      onAddCategory={addCategory}
+                      onUpdateCategory={updateCategory}
+                      onDeleteCategory={(catId) => {
+                        confirmAction({
+                          title: 'Delete Category',
+                          message: 'Are you sure you want to delete this category? Repositories within it will become uncategorized.',
+                          confirmText: 'Delete',
+                          icon: <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400" aria-hidden="true" />,
+                          confirmButtonClass: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+                          onConfirm: () => {
+                            deleteCategory(catId);
+                            setToast({ message: 'Category deleted.', type: 'info' });
+                          }
+                        });
+                      }}
+                      onMoveRepositoryToCategory={moveRepositoryToCategory}
+                      onMoveRepository={moveRepository}
+                      onToggleCategoryCollapse={toggleCategoryCollapse}
+                      onMoveCategory={moveCategory}
+                      onReorderCategories={reorderCategories}
+                      onOpenTaskSelection={handleOpenTaskSelection} 
+                      onRunTask={handleRunTask}
+                      onViewLogs={handleViewLogs}
+                      onViewHistory={handleViewHistory}
+                      onOpenRepoForm={handleOpenRepoForm}
+                      onDeleteRepo={handleDeleteRepo}
+                      isProcessing={isProcessing}
+                      localPathStates={localPathStates}
+                      detectedExecutables={detectedExecutables}
+                      detailedStatuses={detailedStatuses}
+                      branchLists={branchLists}
+                      // FIX: Pass latestReleases prop to Dashboard.
+                      latestReleases={latestReleases}
+                      onSwitchBranch={handleSwitchBranch}
+                      onCloneRepo={(repoId) => {
+                        const repo = repositories.find(r => r.id === repoId);
+                        if (repo) handleCloneRepo(repo);
+                      }}
+                      onChooseLocationAndClone={handleChooseLocationAndClone}
+                      onRunLaunchConfig={handleRunLaunchConfig}
+                      onOpenLaunchSelection={handleOpenLaunchSelection}
+                      onOpenLocalPath={handleOpenLocalPath}
+                      onOpenWeblink={handleOpenWeblink}
+                      onOpenTerminal={handleOpenTerminal}
+                      setToast={setToast}
+                      onOpenContextMenu={handleOpenContextMenu}
+                      onRefreshRepoState={refreshRepoState}
+                    />;
+                }
+              })()}
+            </main>
+            
+            {taskLogState.isOpen && (
+              <TaskLogPanel
+                onClosePanel={handleCloseLogPanel}
+                onCloseTab={handleCloseLogTab}
+                onSelectTab={handleSelectLogTab}
+                logs={logs}
+                allRepositories={repositories}
+                activeRepoIds={taskLogState.activeIds}
+                selectedRepoId={taskLogState.selectedId}
+                height={taskLogState.height}
+                setHeight={(h) => setTaskLogState(p => ({ ...p, height: h }))}
+                isProcessing={isProcessing}
+              />
+            )}
 
-          <StatusBar 
-            repoCount={repositories.length} 
-            processingCount={isProcessing.size} 
-            isSimulationMode={settings.simulationMode}
-            latestLog={latestLog}
-            appVersion={appVersion}
-            onToggleDebugPanel={() => setIsDebugPanelOpen(p => !p)}
-            onOpenAboutModal={() => setIsAboutModalOpen(true)}
-          />
+            <StatusBar 
+              repoCount={repositories.length} 
+              processingCount={isProcessing.size} 
+              isSimulationMode={settings.simulationMode}
+              latestLog={latestLog}
+              appVersion={appVersion}
+              onToggleDebugPanel={() => setIsDebugPanelOpen(p => !p)}
+              onOpenAboutModal={() => setIsAboutModalOpen(true)}
+            />
+          </div>
 
           <DebugPanel 
             isOpen={isDebugPanelOpen}
@@ -1105,18 +1106,6 @@ const App: React.FC = () => {
             isOpen={isAboutModalOpen}
             onClose={() => setIsAboutModalOpen(false)}
             appVersion={appVersion}
-          />
-
-          <CommandPalette 
-              isOpen={isCommandPaletteOpen}
-              onClose={() => setCommandPaletteOpen(false)}
-              repositories={repositories}
-              onSetView={setActiveView}
-              onNewRepo={() => handleOpenRepoForm('new')}
-              onRunTask={(repoId, taskId) => {
-                  handleRunTask(repoId, taskId);
-                  setCommandPaletteOpen(false);
-              }}
           />
         </div>
         <Tooltip />

@@ -2,7 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path, { dirname } from 'path';
 import fs from 'fs/promises';
-import os, { platform } from 'os';
+// FIX: Corrected os import to be a standard module import, and will use os.platform() consistently.
+import * as os from 'os';
 import { spawn, exec, execFile } from 'child_process';
 import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
@@ -131,6 +132,9 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
+    frame: false,
+    titleBarStyle: 'hidden',
+    trafficLightPosition: { x: 15, y: 15 },
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -142,6 +146,14 @@ const createWindow = () => {
 
   // Load the index.html of the app.
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  
+  // Send maximize status changes to renderer
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send('window-maximized-status-changed', true);
+  });
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send('window-maximized-status-changed', false);
+  });
 
   // Open the DevTools if not in production
   if (process.env.NODE_ENV !== 'production') {
@@ -209,7 +221,8 @@ app.on('window-all-closed', () => {
   }
   taskLogStreams.forEach(stream => stream.end());
   taskLogStreams.clear();
-  if (platform() !== 'darwin') {
+  // FIX: Changed platform() to os.platform() for consistency and correctness.
+  if (os.platform() !== 'darwin') {
     app.quit();
   }
 });
@@ -221,6 +234,19 @@ app.on('activate', () => {
     createWindow();
   }
 });
+
+// --- IPC Handlers for Window Controls ---
+ipcMain.on('window-minimize', () => mainWindow?.minimize());
+ipcMain.on('window-maximize', () => {
+  if (mainWindow?.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow?.maximize();
+  }
+});
+ipcMain.on('window-close', () => mainWindow?.close());
+// FIX: Use os.platform() for consistency, as per user's comments in other parts of the file.
+ipcMain.handle('get-platform', () => os.platform());
 
 // --- IPC Handler for fetching app version ---
 ipcMain.handle('get-app-version', () => {
@@ -1087,7 +1113,8 @@ ipcMain.handle('open-terminal', async (event, localPath: string): Promise<{ succ
 
 // --- Helper function to check if a file is executable ---
 const isExecutable = async (filePath: string) => {
-  if (platform() === 'win32') {
+  // FIX: Changed platform() to os.platform() for consistency and correctness.
+  if (os.platform() === 'win32') {
     return /\.(exe|bat|cmd)$/i.test(filePath);
   }
   try {
