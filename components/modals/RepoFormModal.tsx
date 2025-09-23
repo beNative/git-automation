@@ -258,13 +258,13 @@ const TaskStepItem: React.FC<{
                 >
                     <option value="">Auto-detect</option>
                     <optgroup label="Projects">
-                        {/* FIX: Add guard to prevent calling .map on undefined or null. */}
+                        {/* FIX: Add guard for optional chaining to prevent calling .map on undefined. */}
                         {(projectInfo?.delphi?.projects || []).map(p => (
                             <option key={p.path} value={p.path}>{p.path}</option>
                         ))}
                     </optgroup>
                     <optgroup label="Project Groups">
-                        {/* FIX: Add guard to prevent calling .map on undefined or null. */}
+                        {/* FIX: Add guard for optional chaining to prevent calling .map on undefined. */}
                         {(projectInfo?.delphi?.groups || []).map(g => (
                             <option key={g} value={g}>{g}</option>
                         ))}
