@@ -17,6 +17,8 @@ import { VariableIcon } from '../icons/VariableIcon';
 import { DocumentTextIcon } from '../icons/DocumentTextIcon';
 import { GitBranchIcon } from '../icons/GitBranchIcon';
 import { ExclamationCircleIcon } from '../icons/ExclamationCircleIcon';
+// FIX: Import the missing ExclamationTriangleIcon component.
+import { ExclamationTriangleIcon } from '../icons/ExclamationTriangleIcon';
 import { useTooltip } from '../../hooks/useTooltip';
 import { useLogger } from '../../hooks/useLogger';
 import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';

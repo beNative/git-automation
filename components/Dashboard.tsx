@@ -64,6 +64,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [draggedRepo, setDraggedRepo] = useState<{ repoId: string; sourceCategoryId: string | 'uncategorized' } | null>(null);
   const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   const [categoryDropIndicator, setCategoryDropIndicator] = useState<{ categoryId: string; position: 'before' | 'after' } | null>(null);
   
@@ -218,6 +219,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     onMoveRepository={props.onMoveRepository}
                     isFirstInList={index === 0}
                     isLastInList={index === repoIds.length - 1}
+                    activeDropdown={activeDropdown}
+                    setActiveDropdown={setActiveDropdown}
                     // Pass all other props down from DashboardProps to RepositoryCardProps
                     onEditRepo={(repoId) => props.onOpenRepoForm(repoId)}
                     onOpenTaskSelection={props.onOpenTaskSelection}

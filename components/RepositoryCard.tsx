@@ -63,15 +63,18 @@ interface RepositoryCardProps {
   setToast: (toast: ToastMessage | null) => void;
   onContextMenu: (event: React.MouseEvent, repo: Repository) => void;
   onRefreshRepoState: (repoId: string) => void;
+  activeDropdown: string | null;
+  setActiveDropdown: (id: string | null) => void;
 }
 
 const BranchSwitcher: React.FC<{
-  repoId: string,
-  branchInfo: BranchInfo | null,
-  onSwitchBranch: (repoId: string, branch: string) => void,
-  isOpen: boolean,
-  setIsOpen: (isOpen: boolean) => void,
-}> = ({ repoId, branchInfo, onSwitchBranch, isOpen, setIsOpen }) => {
+  repoId: string;
+  branchInfo: BranchInfo | null;
+  onSwitchBranch: (repoId: string, branch: string) => void;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}> = ({ repoId, branchInfo, onSwitchBranch, isOpen, onToggle, onClose }) => {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -112,14 +115,14 @@ const BranchSwitcher: React.FC<{
                 dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
                 buttonRef.current && !buttonRef.current.contains(event.target as Node)
             ) {
-                setIsOpen(false);
+                onClose();
             }
         }
         if (isOpen) {
             document.addEventListener("mousedown", handleClickOutside);
         }
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [isOpen, setIsOpen]);
+    }, [isOpen, onClose]);
 
     if (!branchInfo) return null;
 
@@ -132,6 +135,11 @@ const BranchSwitcher: React.FC<{
 
     const otherLocalBranches = local.filter(b => b !== current);
     const hasOptions = otherLocalBranches.length > 0 || remoteBranchesToOffer.length > 0;
+    
+    const handleBranchClick = (branch: string) => {
+      onSwitchBranch(repoId, branch);
+      onClose();
+    };
 
     const DropdownContent = (
         <div 
@@ -144,7 +152,7 @@ const BranchSwitcher: React.FC<{
                 {otherLocalBranches.map(branch => (
                     <button
                         key={`local-${branch}`}
-                        onClick={() => { onSwitchBranch(repoId, branch); setIsOpen(false); }}
+                        onClick={() => handleBranchClick(branch)}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                         role="menuitem"
                     >
@@ -156,7 +164,7 @@ const BranchSwitcher: React.FC<{
                      return (
                         <button
                             key={`remote-${branch}`}
-                            onClick={() => { onSwitchBranch(repoId, branch); setIsOpen(false); }}
+                            onClick={() => handleBranchClick(branch)}
                             className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                             role="menuitem"
                         >
@@ -174,7 +182,7 @@ const BranchSwitcher: React.FC<{
                 ref={buttonRef}
                 type="button"
                 className="inline-flex items-center justify-center w-full rounded-md disabled:cursor-not-allowed"
-                onClick={() => setIsOpen(prev => !prev)}
+                onClick={onToggle}
                 disabled={!hasOptions}
                 aria-haspopup="true"
                 aria-expanded={isOpen}
@@ -416,10 +424,15 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   setToast,
   onContextMenu,
   onRefreshRepoState,
+  activeDropdown,
+  setActiveDropdown,
 }) => {
   const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, tasks, launchConfigs, localPath, webLinks } = repository;
-  const [isBranchSwitcherOpen, setIsBranchSwitcherOpen] = useState(false);
   
+  const isDropdownOpen = activeDropdown === id;
+  const toggleDropdown = () => setActiveDropdown(isDropdownOpen ? null : id);
+  const closeDropdown = () => setActiveDropdown(null);
+
   const isPathValid = localPathState === 'valid';
   const isPathMissing = localPathState === 'missing';
   const isPathSet = localPath && localPath.trim() !== '';
@@ -553,8 +566,9 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 <>
                   <GitBranchIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
                   <BranchSwitcher 
-                    isOpen={isBranchSwitcherOpen}
-                    setIsOpen={setIsBranchSwitcherOpen}
+                    isOpen={isDropdownOpen}
+                    onToggle={toggleDropdown}
+                    onClose={closeDropdown}
                     repoId={id} 
                     branchInfo={branchInfo} 
                     onSwitchBranch={onSwitchBranch} 
