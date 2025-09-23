@@ -45,7 +45,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
 
   useEffect(() => {
     if (activeCategory === 'behavior') {
-      window.electronAPI?.getTaskLogPath().then(setTaskLogDisplayPath);
+      window.electronAPI.getTaskLogPath().then(setTaskLogDisplayPath);
     }
   }, [activeCategory, settings.taskLogPath]);
 
@@ -329,4 +329,5 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
     </form>
   );
 };
+
 export default SettingsView;

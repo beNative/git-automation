@@ -4,26 +4,12 @@ import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, ProjectSugge
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
 const logToRendererChannel = 'log-to-renderer';
-const windowMaximizedStatusChannel = 'window-maximized-status-changed';
 
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // App Info
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version'),
   
-  // Custom Window Controls
-  windowMinimize: () => ipcRenderer.send('window-minimize'),
-  windowMaximize: () => ipcRenderer.send('window-maximize'),
-  windowClose: () => ipcRenderer.send('window-close'),
-  getPlatform: (): Promise<'win32' | 'darwin' | 'linux'> => ipcRenderer.invoke('get-platform'),
-  onWindowMaximizedStatusChanged: (callback: (event: IpcRendererEvent, isMaximized: boolean) => void) => {
-    ipcRenderer.on(windowMaximizedStatusChannel, callback);
-  },
-  // FIX: Added remove listener function for window maximized status changes to allow for proper cleanup.
-  removeWindowMaximizedStatusChangedListener: (callback: (event: IpcRendererEvent, isMaximized: boolean) => void) => {
-    ipcRenderer.removeListener(windowMaximizedStatusChannel, callback);
-  },
-
   // App Data
   getAllData: (): Promise<AppDataContextState> => ipcRenderer.invoke('get-all-data'),
   saveAllData: (data: AppDataContextState) => ipcRenderer.send('save-all-data', data),

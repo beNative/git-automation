@@ -33,10 +33,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PencilIcon } from '../icons/PencilIcon';
 import { ArrowPathIcon } from '../icons/ArrowPathIcon';
-// FIX: Import missing ClockIcon.
-import { ClockIcon } from '../icons/ClockIcon';
-// FIX: Import missing CommitHistoryModal.
-import CommitHistoryModal from './CommitHistoryModal';
 
 interface RepoEditViewProps {
   onSave: (repository: Repository, categoryId?: string) => void;
@@ -466,56 +462,50 @@ const TaskVariablesEditor: React.FC<{
     onVariablesChange(variables.filter(v => v.id !== id));
   };
   
-  const formInputStyle = "block w-full bg-gray-100 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm";
-  
+  const formInputStyle = "block w-full bg-gray-100 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1 px-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
+
   return (
-    <div className="space-y-3">
-      <h4 className="font-semibold text-gray-800 dark:text-gray-200">Variables</h4>
-      <div className="space-y-2">
-        {variables.map(v => (
-          <div key={v.id} className="grid grid-cols-12 gap-2 items-center">
-            <input
-              type="text"
-              placeholder="KEY"
-              value={v.key}
-              onChange={(e) => handleUpdateVariable(v.id, 'key', e.target.value)}
-              className={`${formInputStyle} col-span-5`}
-            />
-            <input
-              type="text"
-              placeholder="Value"
-              value={v.value}
-              onChange={(e) => handleUpdateVariable(v.id, 'value', e.target.value)}
-              className={`${formInputStyle} col-span-6`}
-            />
-            <button
-              type="button"
-              onClick={() => handleRemoveVariable(v.id)}
-              className="col-span-1 p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"
-            >
-              <TrashIcon className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={handleAddVariable}
-        className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center"
-      >
-        <PlusIcon className="h-4 w-4 mr-1" /> Add Variable
-      </button>
+    <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2 mb-2">
+          <VariableIcon className="h-5 w-5 text-gray-500"/>
+          <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Task Variables (Substitution)</h3>
+        </div>
+        <div className="space-y-2">
+            {variables.map((variable) => (
+                <div key={variable.id} className="flex items-center space-x-2">
+                    <input 
+                      type="text"
+                      placeholder="KEY"
+                      value={variable.key}
+                      onChange={(e) => handleUpdateVariable(variable.id, 'key', e.target.value)}
+                      className={`${formInputStyle} font-mono uppercase`}
+                    />
+                     <span className="text-gray-400">=</span>
+                    <input 
+                      type="text"
+                      placeholder="VALUE"
+                      value={variable.value}
+                      onChange={(e) => handleUpdateVariable(variable.id, 'value', e.target.value)}
+                      className={formInputStyle}
+                    />
+                    <button type="button" onClick={() => handleRemoveVariable(variable.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
+                </div>
+            ))}
+        </div>
+         <button type="button" onClick={handleAddVariable} className="mt-3 flex items-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">
+            <PlusIcon className="h-3 w-3 mr-1"/> Add Variable
+        </button>
     </div>
   );
-};
+}
 
-// Component for managing task environment variables
+// Component for managing task-level environment variables
 const TaskEnvironmentVariablesEditor: React.FC<{
   variables: Task['environmentVariables'];
   onVariablesChange: (variables: Task['environmentVariables']) => void;
 }> = ({ variables = [], onVariablesChange }) => {
   const handleAddVariable = () => {
-    const newVar = { id: `env_${Date.now()}`, key: '', value: '' };
+    const newVar = { id: `env_var_${Date.now()}`, key: '', value: '' };
     onVariablesChange([...variables, newVar]);
   };
 
@@ -530,120 +520,454 @@ const TaskEnvironmentVariablesEditor: React.FC<{
     onVariablesChange(variables.filter(v => v.id !== id));
   };
   
-  const formInputStyle = "block w-full bg-gray-100 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm";
-  
+  const formInputStyle = "block w-full bg-gray-100 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1 px-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
+
   return (
-    <div className="space-y-3">
-      <h4 className="font-semibold text-gray-800 dark:text-gray-200">Environment Variables</h4>
-       <div className="space-y-2">
-        {variables.map(v => (
-          <div key={v.id} className="grid grid-cols-12 gap-2 items-center">
-            <input
-              type="text"
-              placeholder="ENV_VAR_NAME"
-              value={v.key}
-              onChange={(e) => handleUpdateVariable(v.id, 'key', e.target.value)}
-              className={`${formInputStyle} col-span-5`}
-            />
-            <input
-              type="text"
-              placeholder="Value"
-              value={v.value}
-              onChange={(e) => handleUpdateVariable(v.id, 'value', e.target.value)}
-              className={`${formInputStyle} col-span-6`}
-            />
-            <button
-              type="button"
-              onClick={() => handleRemoveVariable(v.id)}
-              className="col-span-1 p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"
-            >
-              <TrashIcon className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={handleAddVariable}
-        className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center"
-      >
-        <PlusIcon className="h-4 w-4 mr-1" /> Add Environment Variable
-      </button>
+    <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2 mb-2">
+          <ServerIcon className="h-5 w-5 text-gray-500"/>
+          <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Environment Variables</h3>
+        </div>
+        <p className="text-xs text-gray-500 mb-3">
+            These variables are set in the shell environment before step commands are executed. They can be accessed by scripts (e.g., as `process.env.VAR_NAME` in Node.js or `$VAR_NAME` in bash).
+        </p>
+        <div className="space-y-2">
+            {variables.map((variable) => (
+                <div key={variable.id} className="flex items-center space-x-2">
+                    <input 
+                      type="text"
+                      placeholder="KEY"
+                      value={variable.key}
+                      onChange={(e) => handleUpdateVariable(variable.id, 'key', e.target.value)}
+                      className={`${formInputStyle} font-mono`}
+                    />
+                     <span className="text-gray-400">=</span>
+                    <input 
+                      type="text"
+                      placeholder="VALUE (supports ${...} substitution)"
+                      value={variable.value}
+                      onChange={(e) => handleUpdateVariable(variable.id, 'value', e.target.value)}
+                      className={formInputStyle}
+                    />
+                    <button type="button" onClick={() => handleRemoveVariable(variable.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
+                </div>
+            ))}
+        </div>
+         <button type="button" onClick={handleAddVariable} className="mt-3 flex items-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">
+            <PlusIcon className="h-3 w-3 mr-1"/> Add Environment Variable
+        </button>
     </div>
   );
+}
+
+
+const NodejsTaskGenerator: React.FC<{
+    nodejsCaps: NodejsCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ nodejsCaps, onAddTask }) => {
+    if (!nodejsCaps) return null;
+    
+    const createInstallTask = () => onAddTask({
+        name: 'Install Dependencies',
+        steps: [{ type: TaskStepType.NODE_INSTALL_DEPS, id: '', enabled: true }]
+    });
+
+    const createCiTask = () => {
+        const steps: Omit<TaskStep, 'id'>[] = [
+            { type: TaskStepType.NODE_INSTALL_DEPS, enabled: true },
+        ];
+        if (nodejsCaps.linters.includes('eslint') || nodejsCaps.linters.includes('prettier')) {
+            steps.push({ type: TaskStepType.NODE_RUN_LINT, enabled: true });
+        }
+        if (nodejsCaps.typescript) {
+            steps.push({ type: TaskStepType.NODE_RUN_TYPECHECK, enabled: true });
+        }
+        if (nodejsCaps.testFrameworks.length > 0) {
+            steps.push({ type: TaskStepType.NODE_RUN_TESTS, enabled: true });
+        }
+        steps.push({ type: TaskStepType.NODE_RUN_BUILD, enabled: true });
+
+        onAddTask({
+            name: 'CI Checks & Build',
+            steps: steps.map(s => ({...s, id: ''}))
+        });
+    };
+
+    let detectedManager = 'npm';
+    if (nodejsCaps.declaredManager) detectedManager = nodejsCaps.declaredManager.split('@')[0];
+    else if (nodejsCaps.packageManagers.pnpm) detectedManager = 'pnpm';
+    else if (nodejsCaps.packageManagers.yarn) detectedManager = 'yarn';
+    else if (nodejsCaps.packageManagers.bun) detectedManager = 'bun';
+
+    const detectedTools = [
+        `Manager: ${detectedManager}`,
+        ...(nodejsCaps.typescript ? ['TypeScript'] : []),
+        ...nodejsCaps.testFrameworks,
+        ...nodejsCaps.linters,
+        ...nodejsCaps.bundlers,
+        ...(nodejsCaps.monorepo.turbo ? ['Turbo'] : []),
+        ...(nodejsCaps.monorepo.nx ? ['NX'] : []),
+    ].map(t => t.charAt(0).toUpperCase() + t.slice(1));
+
+
+    return (
+        <div className="p-3 mb-4 bg-green-50 dark:bg-gray-900/50 rounded-lg border border-green-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <NodeIcon className="h-5 w-5 text-green-500"/>
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Node.js Project Detected</h3>
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                {detectedTools.map(tool => (
+                    <span key={tool} className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 px-2 py-0.5 rounded-full">{tool}</span>
+                ))}
+            </div>
+            <div className="flex gap-2">
+                <button type="button" onClick={createInstallTask} className="text-xs font-medium text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-md">Add Install Task</button>
+                <button type="button" onClick={createCiTask} className="text-xs font-medium text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-md">Add CI/Checks Task</button>
+            </div>
+        </div>
+    );
 };
 
-// Component for managing all steps of a single task
+const PythonTaskGenerator: React.FC<{
+    pythonCaps: PythonCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ pythonCaps, onAddTask }) => {
+    if (!pythonCaps) return null;
+    
+    const createSetupTask = () => {
+        onAddTask({
+            name: 'Setup Environment',
+            steps: [
+                { type: TaskStepType.PYTHON_CREATE_VENV },
+                { type: TaskStepType.PYTHON_INSTALL_DEPS }
+            ].map(s => ({ ...s, id: '', enabled: true }))
+        });
+    };
+
+    const createChecksTask = () => {
+        const steps: Omit<TaskStep, 'id'>[] = [];
+        if (pythonCaps.linters.length > 0) steps.push({ type: TaskStepType.PYTHON_RUN_LINT, enabled: true });
+        if (pythonCaps.typeCheckers.length > 0) steps.push({ type: TaskStepType.PYTHON_RUN_TYPECHECK, enabled: true });
+        if (pythonCaps.testFramework !== 'unknown') steps.push({ type: TaskStepType.PYTHON_RUN_TESTS, enabled: true });
+
+        onAddTask({
+            name: 'Run Checks',
+            steps: steps.map(s => ({ ...s, id: '' }))
+        });
+    };
+
+    const createBuildTask = () => {
+        onAddTask({
+            name: 'Build Package',
+            steps: [{ type: TaskStepType.PYTHON_RUN_BUILD, id: '', enabled: true }]
+        });
+    };
+
+    const detectedTools = [
+        `Env: ${pythonCaps.envManager}`,
+        `Build: ${pythonCaps.buildBackend}`,
+        `Test: ${pythonCaps.testFramework}`,
+        ...pythonCaps.linters,
+        ...pythonCaps.formatters,
+        ...pythonCaps.typeCheckers,
+    ].filter(t => !t.endsWith('unknown')).map(t => t.charAt(0).toUpperCase() + t.slice(1));
+
+
+    return (
+        <div className="p-3 mb-4 bg-blue-50 dark:bg-gray-900/50 rounded-lg border border-blue-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <PythonIcon className="h-5 w-5 text-blue-500"/>
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Python Project Detected</h3>
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                {detectedTools.map(tool => (
+                    <span key={tool} className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full">{tool}</span>
+                ))}
+            </div>
+            <div className="flex gap-2">
+                <button type="button" onClick={createSetupTask} className="text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md">Add Setup Task</button>
+                <button type="button" onClick={createChecksTask} className="text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md">Add Checks Task</button>
+                <button type="button" onClick={createBuildTask} className="text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md">Add Build Task</button>
+            </div>
+        </div>
+    );
+};
+
+const DelphiTaskGenerator: React.FC<{
+    delphiCaps: DelphiCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ delphiCaps, onAddTask }) => {
+    if (!delphiCaps || (delphiCaps.projects.length === 0 && delphiCaps.groups.length === 0 && !delphiCaps.packageManagers.boss)) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+
+    const createBuildTask = (projectPath: string) => {
+        onAddTask({
+            name: `Build ${getBasename(projectPath)}`,
+            steps: [{
+                type: TaskStepType.DelphiBuild,
+                delphiProjectFile: projectPath,
+                delphiBuildMode: 'Build' as 'Build',
+                delphiConfiguration: 'Release',
+                delphiPlatform: 'Win32'
+            }].map(s => ({ ...s, id: '', enabled: true }))
+        });
+    };
+
+    const createInnoTask = (scriptPath: string) => {
+        onAddTask({
+            name: `Package ${getBasename(scriptPath)}`,
+            steps: [{
+                type: TaskStepType.DELPHI_PACKAGE_INNO,
+                delphiInstallerScript: scriptPath,
+            }].map(s => ({ ...s, id: '', enabled: true }))
+        });
+    };
+    
+    const createBossInstallTask = () => {
+        onAddTask({
+            name: `Boss Install`,
+            steps: [{
+                type: TaskStepType.DELPHI_BOSS_INSTALL
+            }].map(s => ({ ...s, id: '', enabled: true }))
+        });
+    };
+
+    return (
+        <div className="p-3 mb-4 bg-indigo-50 dark:bg-gray-900/50 rounded-lg border border-indigo-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <BeakerIcon className="h-5 w-5 text-indigo-500"/>
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Delphi Project Detected</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+                {delphiCaps.packageManagers.boss && (
+                    <button type="button" onClick={createBossInstallTask} className="text-xs font-medium text-white bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-md">
+                        Add Boss Install Task
+                    </button>
+                )}
+                {delphiCaps.projects.map(p => (
+                    <button key={p.path} type="button" onClick={() => createBuildTask(p.path)} className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-md">
+                        Add Build Task for {getBasename(p.path)}
+                    </button>
+                ))}
+                {delphiCaps.groups.map(g => (
+                    <button key={g} type="button" onClick={() => createBuildTask(g)} className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-md">
+                        Add Build Task for Group {getBasename(g)}
+                    </button>
+                ))}
+                {delphiCaps.packaging.innoSetup.map(s => (
+                     <button key={s} type="button" onClick={() => createInnoTask(s)} className="text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-md">
+                        Add Inno Setup Task for {getBasename(s)}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const LazarusTaskGenerator: React.FC<{
+    lazarusCaps: LazarusCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ lazarusCaps, onAddTask }) => {
+    if (!lazarusCaps || (lazarusCaps.projects.length === 0 && lazarusCaps.packages.length === 0)) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+
+    const createBuildTask = (projectPath: string) => {
+        onAddTask({
+            name: `Build ${getBasename(projectPath)}`,
+            steps: [{
+                type: TaskStepType.LAZARUS_BUILD,
+                lazarusProjectFile: projectPath,
+                lazarusBuildMode: 'Release',
+            }].map(s => ({ ...s, id: '', enabled: true }))
+        });
+    };
+    
+    const createBuildPackageTask = (packagePath: string) => {
+        onAddTask({
+            name: `Build Pkg ${getBasename(packagePath)}`,
+            steps: [{
+                type: TaskStepType.LAZARUS_BUILD_PACKAGE,
+                lazarusPackageFile: packagePath,
+            }].map(s => ({ ...s, id: '', enabled: true }))
+        });
+    };
+
+    return (
+        <div className="p-3 mb-4 bg-teal-50 dark:bg-gray-900/50 rounded-lg border border-teal-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <BeakerIcon className="h-5 w-5 text-teal-500"/>
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Lazarus/FPC Project Detected</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+                {lazarusCaps.projects.map(p => (
+                    <button key={p.path} type="button" onClick={() => createBuildTask(p.path)} className="text-xs font-medium text-white bg-teal-600 hover:bg-teal-700 px-3 py-1.5 rounded-md">
+                        Add Build Task for {getBasename(p.path)}
+                    </button>
+                ))}
+                {lazarusCaps.packages.map(p => (
+                    <button key={p} type="button" onClick={() => createBuildPackageTask(p)} className="text-xs font-medium text-white bg-cyan-600 hover:bg-cyan-700 px-3 py-1.5 rounded-md">
+                        Add Build Task for Pkg {getBasename(p)}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+
+// Component for editing the steps of a single task
 const TaskStepsEditor: React.FC<{
   task: Task;
-  onTaskChange: (task: Task) => void;
-  suggestions: ProjectSuggestion[];
-  projectInfo: ProjectInfo | null;
-  delphiVersions: { name: string; version: string }[];
-}> = ({ task, onTaskChange, suggestions, projectInfo, delphiVersions }) => {
+  setTask: (task: Task) => void;
+  repository: Partial<Repository> | null;
+  onAddTask: (template: Partial<Task>) => void;
+}> = ({ task, setTask, repository, onAddTask }) => {
+  const logger = useLogger();
+  const [isAddingStep, setIsAddingStep] = useState(false);
+  const [suggestions, setSuggestions] = useState<ProjectSuggestion[]>([]);
+  const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
+  const [delphiVersions, setDelphiVersions] = useState<{ name: string; version: string }[]>([]);
+  const showOnDashboardTooltip = useTooltip('Show this task as a button on the repository card');
+  
+  useEffect(() => {
+    if (repository?.localPath) {
+      logger.debug("Fetching project info & suggestions", { repoPath: repository.localPath });
+      window.electronAPI?.getProjectInfo(repository.localPath)
+        .then(info => {
+            setProjectInfo(info);
+            logger.info("Project info loaded", { info });
+        })
+        .catch(error => logger.warn("Could not load project info:", { error }));
+      
+      window.electronAPI?.getProjectSuggestions({ repoPath: repository.localPath, repoName: repository.name || '' })
+        .then(s => {
+          setSuggestions(s || []);
+          logger.info("Project suggestions loaded", { count: s?.length || 0 });
+        })
+        .catch(error => logger.warn("Could not load project suggestions:", { error }));
+    } else {
+      setSuggestions([]);
+      setProjectInfo(null);
+    }
+  }, [repository?.localPath, repository?.name, logger]);
 
+  useEffect(() => {
+    if (projectInfo?.tags.includes('delphi') && window.electronAPI?.getDelphiVersions) {
+        window.electronAPI.getDelphiVersions()
+            .then(setDelphiVersions)
+            .catch(e => logger.error('Failed to get Delphi versions', e));
+    }
+  }, [projectInfo, logger]);
+  
   const handleAddStep = (type: TaskStepType) => {
     const newStep: TaskStep = { id: `step_${Date.now()}`, type, enabled: true };
+    if (type === TaskStepType.RunCommand) newStep.command = suggestions.length > 0 ? suggestions[0].value : 'npm run build';
     if (type === TaskStepType.GitCheckout) newStep.branch = 'main';
-    onTaskChange({ ...task, steps: [...task.steps, newStep] });
+    setTask({ ...task, steps: [...task.steps, newStep] });
+    setIsAddingStep(false);
   };
 
   const handleStepChange = (id: string, updates: Partial<TaskStep>) => {
-    onTaskChange({
-      ...task,
-      steps: task.steps.map(s => s.id === id ? { ...s, ...updates } : s),
-    });
-  };
-
-  const handleRemoveStep = (id: string) => {
-    onTaskChange({ ...task, steps: task.steps.filter(s => s.id !== id) });
-  };
-  
-  const handleDuplicateStep = (index: number) => {
-    const originalStep = task.steps[index];
-    if (!originalStep) return;
-    const newStep = { ...originalStep, id: `step_${Date.now()}` };
-    const newSteps = [...task.steps];
-    newSteps.splice(index + 1, 0, newStep);
-    onTaskChange({ ...task, steps: newSteps });
+    setTask({ ...task, steps: task.steps.map(s => s.id === id ? { ...s, ...updates } : s) });
   };
   
   const handleMoveStep = (index: number, direction: 'up' | 'down') => {
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= task.steps.length) return;
     const newSteps = [...task.steps];
-    [newSteps[index], newSteps[newIndex]] = [newSteps[newIndex], newSteps[index]];
-    onTaskChange({ ...task, steps: newSteps });
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newSteps.length) return;
+    [newSteps[index], newSteps[targetIndex]] = [newSteps[targetIndex], newSteps[index]];
+    setTask({ ...task, steps: newSteps });
   };
+  
+  const handleRemoveStep = (id: string) => {
+    setTask({ ...task, steps: task.steps.filter(s => s.id !== id) });
+  };
+  
+  const handleDuplicateStep = (index: number) => {
+    const stepToDuplicate = task.steps[index];
+    if (!stepToDuplicate) return;
+    const newStep = {
+        ...stepToDuplicate,
+        id: `step_${Date.now()}_${Math.random()}`
+    };
+    const newSteps = [...task.steps];
+    newSteps.splice(index + 1, 0, newStep);
+    setTask({ ...task, steps: newSteps });
+  };
+  
+  const handleVariablesChange = (vars: Task['variables']) => {
+    setTask({ ...task, variables: vars });
+  };
+  
+  const handleEnvironmentVariablesChange = (vars: Task['environmentVariables']) => {
+    setTask({ ...task, environmentVariables: vars });
+  };
+  
+  const availableSteps = useMemo(() => {
+    const allStepTypes = (Object.keys(STEP_DEFINITIONS) as (keyof typeof STEP_DEFINITIONS)[]);
+    const vcs = repository?.vcs;
+    const tags = projectInfo?.tags || [];
+
+    return allStepTypes.filter(type => {
+        if (type.startsWith('GIT_')) return vcs === VcsType.Git;
+        if (type.startsWith('SVN_')) return vcs === VcsType.Svn;
+        if (type.startsWith('DELPHI_')) return tags.includes('delphi');
+        if (type.startsWith('PYTHON_')) return tags.includes('python');
+        if (type.startsWith('NODE_')) return tags.includes('nodejs');
+        if (type.startsWith('LAZARUS_') || type.startsWith('FPC_')) return tags.includes('lazarus');
+        if (type.startsWith('DOCKER_')) return tags.includes('docker');
+        // All other steps (like RunCommand) are always available.
+        return true;
+    });
+  }, [repository?.vcs, projectInfo]);
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg space-y-4">
-      <div className="flex justify-between items-center">
-        <input
-          type="text"
-          value={task.name}
-          onChange={(e) => onTaskChange({ ...task, name: e.target.value })}
-          placeholder="Task Name (e.g., Build)"
-          className="text-lg font-bold bg-transparent border-0 border-b-2 border-gray-300 dark:border-gray-600 focus:ring-0 focus:border-blue-500 p-1"
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <input 
+          type="text" 
+          value={task.name} 
+          onChange={e => setTask({ ...task, name: e.target.value })}
+          placeholder="Task Name"
+          className="flex-grow text-lg font-bold bg-transparent border-b-2 border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-0 pb-0.5"
         />
-        <label className="flex items-center space-x-2 text-sm">
-          <input
-            type="checkbox"
-            checked={task.showOnDashboard}
-            onChange={(e) => onTaskChange({ ...task, showOnDashboard: e.target.checked })}
-            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-          />
-          <span>Show on dashboard</span>
-        </label>
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Show on card</span>
+          <label {...showOnDashboardTooltip} className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" checked={task.showOnDashboard ?? false} onChange={(e) => setTask({...task, showOnDashboard: e.target.checked})} className="sr-only peer" />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
       </div>
+      
+      <div className="space-y-3">
+        <TaskVariablesEditor variables={task.variables} onVariablesChange={handleVariablesChange} />
+        <TaskEnvironmentVariablesEditor variables={task.environmentVariables} onVariablesChange={handleEnvironmentVariablesChange} />
+      </div>
+      
+      {task.steps.length === 0 && (
+          <div className="text-center py-6 px-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
+              <CubeTransparentIcon className="mx-auto h-10 w-10 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-800 dark:text-gray-200">This task has no steps.</h3>
+              <p className="mt-1 text-xs text-gray-500">Add steps manually to begin.</p>
+          </div>
+      )}
+      
+      <NodejsTaskGenerator nodejsCaps={projectInfo?.nodejs} onAddTask={onAddTask} />
+      <LazarusTaskGenerator lazarusCaps={projectInfo?.lazarus} onAddTask={onAddTask} />
+      <DelphiTaskGenerator delphiCaps={projectInfo?.delphi} onAddTask={onAddTask} />
+      <PythonTaskGenerator pythonCaps={projectInfo?.python} onAddTask={onAddTask} />
 
       <div className="space-y-3">
         {task.steps.map((step, index) => (
-          <TaskStepItem
-            key={step.id}
-            step={step}
-            index={index}
-            totalSteps={task.steps.length}
+          <TaskStepItem 
+            key={step.id} 
+            step={step} 
+            index={index} 
+            totalSteps={task.steps.length} 
             onStepChange={handleStepChange}
             onMoveStep={handleMoveStep}
             onRemoveStep={handleRemoveStep}
@@ -654,889 +978,1026 @@ const TaskStepsEditor: React.FC<{
           />
         ))}
       </div>
-      
-      <div className="p-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-          <p className="text-center text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase">Add New Step</p>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-            {STEP_CATEGORIES.map(category => (
-                <div key={category.name} className="relative group">
-                    <button type="button" className="w-full text-left p-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md text-sm font-medium">
-                        {category.name}
-                    </button>
-                    <div className="absolute left-0 top-full mt-1 z-10 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 invisible group-hover:visible group-focus-within:visible transition-all duration-200">
-                       {category.types.map(type => {
-                          const stepDef = STEP_DEFINITIONS[type];
-                          return (
-                            <button
-                                key={type}
-                                type="button"
-                                onClick={() => handleAddStep(type)}
-                                className="w-full text-left flex items-center p-2 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                            >
-                                <stepDef.icon className="h-5 w-5 mr-3 text-blue-500" />
-                                <div>
-                                    <p className="font-semibold text-sm">{stepDef.label}</p>
-                                    <p className="text-xs text-gray-500">{stepDef.description}</p>
-                                </div>
-                            </button>
-                          );
-                       })}
+
+      {isAddingStep && (
+        <div className="space-y-4">
+            {STEP_CATEGORIES.map(category => {
+                const relevantSteps = category.types.filter(type => availableSteps.includes(type));
+                if (relevantSteps.length === 0) return null;
+
+                return (
+                    <div key={category.name}>
+                        <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">{category.name}</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {relevantSteps.map(type => {
+                                const { label, icon: Icon, description } = STEP_DEFINITIONS[type];
+                                return (
+                                    <button key={type} type="button" onClick={() => handleAddStep(type)} className="text-left p-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg hover:bg-blue-500/10 hover:ring-2 ring-blue-500 transition-all">
+                                        <div className="flex items-center gap-3">
+                                        <Icon className="h-6 w-6 text-blue-500" />
+                                        <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
+                                        </div>
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{description}</p>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
-            ))}
-          </div>
-      </div>
+                );
+            })}
+        </div>
+      )}
       
-      <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
-          <TaskVariablesEditor variables={task.variables} onVariablesChange={vars => onTaskChange({ ...task, variables: vars })} />
-      </div>
-       <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
-          <TaskEnvironmentVariablesEditor variables={task.environmentVariables} onVariablesChange={vars => onTaskChange({ ...task, environmentVariables: vars })} />
-      </div>
+      <button type="button" onClick={() => setIsAddingStep(p => !p)} className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+        <PlusIcon className="h-4 w-4 mr-1"/> {isAddingStep ? 'Cancel' : 'Add Step'}
+      </button>
     </div>
   );
 };
 
-// --- Helper component for Project Intelligence UI ---
-const ProjectIntelligencePanel: React.FC<{
-  projectInfo: ProjectInfo | null;
-  onGenerateTasks: (steps: TaskStep[], name: string) => void;
-}> = ({ projectInfo, onGenerateTasks }) => {
+interface TaskListItemProps {
+  task: Task;
+  isSelected: boolean;
+  onSelect: (taskId: string) => void;
+  onDelete: (taskId: string) => void;
+  onDuplicate: (taskId: string) => void;
+}
 
-    const generateTask = (type: 'install' | 'ci' | 'build') => {
-        let steps: TaskStep[] = [];
-        let name = '';
-        
-        if (projectInfo?.nodejs) {
-            steps.push({ id: 'step_pull', type: TaskStepType.GitPull, enabled: true });
-            if (type === 'install') {
-                steps.push({ id: 'step_install', type: TaskStepType.NODE_INSTALL_DEPS, enabled: true });
-                name = 'Node: Install Dependencies';
-            } else if (type === 'ci') {
-                steps.push({ id: 'step_install', type: TaskStepType.NODE_INSTALL_DEPS, enabled: true });
-                if (projectInfo.nodejs.linters.length > 0) steps.push({ id: 'step_lint', type: TaskStepType.NODE_RUN_LINT, enabled: true });
-                if (projectInfo.nodejs.typescript) steps.push({ id: 'step_typecheck', type: TaskStepType.NODE_RUN_TYPECHECK, enabled: true });
-                if (projectInfo.nodejs.testFrameworks.length > 0) steps.push({ id: 'step_test', type: TaskStepType.NODE_RUN_TESTS, enabled: true });
-                steps.push({ id: 'step_build', type: TaskStepType.NODE_RUN_BUILD, enabled: true });
-                name = 'Node: CI Checks & Build';
-            }
-        } else if (projectInfo?.python) {
-             steps.push({ id: 'step_pull', type: TaskStepType.GitPull, enabled: true });
-             if (type === 'install') {
-                steps.push({ id: 'step_venv', type: TaskStepType.PYTHON_CREATE_VENV, enabled: true });
-                steps.push({ id: 'step_install', type: TaskStepType.PYTHON_INSTALL_DEPS, enabled: true });
-                name = 'Python: Setup & Install';
-             } else if (type === 'ci') {
-                steps.push({ id: 'step_install', type: TaskStepType.PYTHON_INSTALL_DEPS, enabled: true });
-                if (projectInfo.python.linters.length > 0) steps.push({ id: 'step_lint', type: TaskStepType.PYTHON_RUN_LINT, enabled: true });
-                if (projectInfo.python.typeCheckers.length > 0) steps.push({ id: 'step_typecheck', type: TaskStepType.PYTHON_RUN_TYPECHECK, enabled: true });
-                if (projectInfo.python.testFramework !== 'unknown') steps.push({ id: 'step_test', type: TaskStepType.PYTHON_RUN_TESTS, enabled: true });
-                if (projectInfo.python.buildBackend !== 'unknown') steps.push({ id: 'step_build', type: TaskStepType.PYTHON_RUN_BUILD, enabled: true });
-                name = 'Python: CI Checks & Build';
-             }
-        } else if (projectInfo?.delphi) {
-            steps.push({ id: 'step_pull', type: TaskStepType.GitPull, enabled: true });
-            if (projectInfo.delphi.packageManagers.boss) {
-                steps.push({ id: 'step_boss', type: TaskStepType.DELPHI_BOSS_INSTALL, enabled: true });
-            }
-            steps.push({ id: 'step_build', type: TaskStepType.DelphiBuild, enabled: true });
-            name = 'Delphi: Build Project';
-        }
-        onGenerateTasks(steps, name);
-    };
+const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect, onDelete, onDuplicate }) => {
+  const deleteTooltip = useTooltip('Delete Task');
+  const duplicateTooltip = useTooltip('Duplicate Task');
 
-    const detectedTech: { name: string; icon: React.ReactNode; generateOptions: {type: 'install' | 'ci' | 'build', label: string}[] }[] = [];
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete(task.id);
+  };
+  
+  const handleDuplicate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDuplicate(task.id);
+  };
 
-    if (projectInfo?.nodejs) {
-        detectedTech.push({ name: 'Node.js', icon: <NodeIcon className="h-5 w-5"/>, generateOptions: [{type: 'install', label: 'Install'}, {type: 'ci', label: 'CI & Build'}] });
-    }
-    if (projectInfo?.python) {
-        detectedTech.push({ name: 'Python', icon: <PythonIcon className="h-5 w-5"/>, generateOptions: [{type: 'install', label: 'Setup & Install'}, {type: 'ci', label: 'CI & Build'}] });
-    }
-    if (projectInfo?.delphi) {
-        detectedTech.push({ name: 'Delphi', icon: <BeakerIcon className="h-5 w-5"/>, generateOptions: [{type: 'build', label: 'Build'}] });
-    }
-    if (projectInfo?.docker) {
-        detectedTech.push({ name: 'Docker', icon: <DockerIcon className="h-5 w-5"/>, generateOptions: [] });
-    }
-    if (projectInfo?.lazarus) {
-        detectedTech.push({ name: 'Lazarus', icon: <BeakerIcon className="h-5 w-5"/>, generateOptions: [] });
-    }
-
-    if (detectedTech.length === 0) return null;
-
-    return (
-        <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800 space-y-3">
-            <h4 className="font-semibold text-blue-800 dark:text-blue-200 flex items-center gap-2"><MagnifyingGlassIcon className="h-5 w-5"/> Project Intelligence</h4>
-            <div className="flex flex-wrap gap-4 items-center">
-                <p className="text-sm text-blue-700 dark:text-blue-300">Detected:</p>
-                {detectedTech.map(tech => (
-                    <div key={tech.name} className="flex items-center gap-2 bg-white/50 dark:bg-black/20 px-3 py-1.5 rounded-full">
-                        {tech.icon}
-                        <span className="font-medium text-sm">{tech.name}</span>
-                    </div>
-                ))}
-            </div>
-             <div className="flex flex-wrap gap-2">
-                {detectedTech.flatMap(tech => tech.generateOptions.map(opt => (
-                     <button key={`${tech.name}-${opt.type}`} type="button" onClick={() => generateTask(opt.type)} className="text-sm px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600">
-                        Generate '{opt.label}' Task
-                    </button>
-                )))}
-            </div>
+  return (
+    <li className={isSelected ? 'bg-blue-500/10' : ''}>
+      <button type="button" onClick={() => onSelect(task.id)} className="w-full text-left px-3 py-2 group">
+        <div className="flex justify-between items-start">
+          <p className={`font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
+          <div className="flex items-center opacity-0 group-hover:opacity-100">
+            <button
+                {...duplicateTooltip}
+                type="button"
+                onClick={handleDuplicate}
+                className="p-1 text-blue-500 hover:text-blue-700 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50"
+            >
+                <DocumentDuplicateIcon className="h-4 w-4"/>
+            </button>
+            <button
+                {...deleteTooltip}
+                type="button"
+                onClick={handleDelete}
+                className="p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50"
+            >
+                <TrashIcon className="h-4 w-4"/>
+            </button>
+          </div>
         </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{task.steps.length} step(s)</p>
+      </button>
+    </li>
+  );
+};
+
+const HighlightedText: React.FC<{ text: string; highlight: string }> = ({ text, highlight }) => {
+    if (!highlight.trim()) {
+        return <>{text}</>;
+    }
+    const regex = new RegExp(`(${highlight.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return (
+        <span>
+            {parts.map((part, i) =>
+                part.toLowerCase() === highlight.toLowerCase() ? (
+                    <mark key={i} className="bg-yellow-200 dark:bg-yellow-700 rounded px-0.5 py-0 text-gray-900 dark:text-gray-900">
+                        {part}
+                    </mark>
+                ) : (
+                    part
+                )
+            )}
+        </span>
     );
 };
 
-// --- MAIN COMPONENT ---
+interface CommitListItemProps {
+  commit: Commit;
+  highlight: string;
+}
+
+const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) => {
+  const commitHashTooltip = useTooltip(commit.hash);
+  return (
+    <li className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+        <pre className="font-sans whitespace-pre-wrap text-gray-900 dark:text-gray-100">
+          <HighlightedText text={commit.message} highlight={highlight} />
+        </pre>
+        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+            <span>{commit.author}</span>
+            <span {...commitHashTooltip} className="font-mono">{commit.shortHash} &bull; {commit.date}</span>
+        </div>
+    </li>
+  );
+};
+
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction, defaultCategoryId, onOpenWeblink }) => {
-  const [repo, setRepo] = useState<Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>>(NEW_REPO_TEMPLATE);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('general');
-  const [suggestions, setSuggestions] = useState<ProjectSuggestion[]>([]);
-  const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
-  const [delphiVersions, setDelphiVersions] = useState<{name: string, version: string}[]>([]);
+  const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
 
-  // States for branch management
-  const [branchInfo, setBranchInfo] = useState<BranchInfo | null>(null);
-  const [newBranchName, setNewBranchName] = useState('');
-  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+  // Ref to track previous remoteUrl to fire toast only once on discovery
+  const prevRemoteUrlRef = useRef(formData.remoteUrl);
 
-  // States for release management
-  const [releases, setReleases] = useState<ReleaseInfo[] | null>(null);
-  const [isReleasesLoading, setIsReleasesLoading] = useState(false);
-
+  // This effect runs *after* a render, decoupling the parent toast update from the local state update.
   useEffect(() => {
-    if (repository) {
-      setRepo(repository);
-    }
-  }, [repository]);
+    const currentRemoteUrl = formData.remoteUrl;
+    const prevRemoteUrl = prevRemoteUrlRef.current;
   
-  const isNewRepo = !repository;
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    let finalValue: string | boolean = value;
-
-    if (type === 'checkbox') {
-        finalValue = (e.target as HTMLInputElement).checked;
+    // If the previous URL was empty and the current one is not, it means we just discovered it.
+    if (!prevRemoteUrl && currentRemoteUrl) {
+      setToast({ message: 'Remote URL and name discovered!', type: 'success' });
     }
-    setRepo(prev => ({ ...prev, [name]: finalValue }));
-  };
   
-  // FIX: Use setRepo with a callback for the else block to fix scoping issue with `prev`.
-  const handleVCSChange = (vcs: VcsType) => {
-    if (vcs === VcsType.Git) {
-        setRepo(prev => ({ ...(prev as SvnRepository), vcs, branch: 'main' } as GitRepository));
+    // Update the ref for the next render.
+    prevRemoteUrlRef.current = currentRemoteUrl;
+  }, [formData.remoteUrl, setToast]);
+  
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => {
+    if (repository && repository.tasks && repository.tasks.length > 0) {
+        return repository.tasks[0].id;
+    }
+    return null;
+  });
+
+  const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'branches' | 'releases'>('tasks');
+  
+  // State for History Tab
+  const [commits, setCommits] = useState<Commit[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [isMoreHistoryLoading, setIsMoreHistoryLoading] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  const [historySearch, setHistorySearch] = useState('');
+  const [debouncedHistorySearch, setDebouncedHistorySearch] = useState('');
+  const [historyMatchStats, setHistoryMatchStats] = useState({ commitCount: 0, occurrenceCount: 0 });
+
+  // State for Branches Tab
+  const [branchInfo, setBranchInfo] = useState<BranchInfo | null>(null);
+  const [branchesLoading, setBranchesLoading] = useState(false);
+  const [newBranchName, setNewBranchName] = useState('');
+  const [branchToMerge, setBranchToMerge] = useState('');
+
+  // State for Releases Tab
+  const [releases, setReleases] = useState<ReleaseInfo[] | null>(null);
+  const [releasesLoading, setReleasesLoading] = useState(false);
+  const [releasesError, setReleasesError] = useState<string | null>(null);
+  const [editingRelease, setEditingRelease] = useState<Partial<ReleaseInfo> & { isNew?: boolean } | null>(null);
+
+
+  const formInputStyle = "block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
+  const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
+
+  const isGitRepo = formData.vcs === VcsType.Git;
+  const isGitHubRepo = useMemo(() => isGitRepo && formData.remoteUrl?.includes('github.com'), [isGitRepo, formData.remoteUrl]);
+
+  // Debounce history search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+        setDebouncedHistorySearch(historySearch);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [historySearch]);
+
+  const fetchHistory = useCallback(async (loadMore = false) => {
+    if (!repository) return;
+    
+    if (loadMore) {
+        setIsMoreHistoryLoading(true);
     } else {
-        setRepo(prev => {
-            const { branch, ...svnRepo } = prev as GitRepository;
-            return { ...svnRepo, vcs };
-        });
+        setHistoryLoading(true);
+        setHistoryMatchStats({ commitCount: 0, occurrenceCount: 0 });
     }
-  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (repo.name.trim() === '' || repo.remoteUrl.trim() === '') {
-      setToast({ message: 'Repository Name and Remote URL are required.', type: 'error' });
-      return;
+    const skipCount = loadMore ? commits.length : 0;
+    
+    try {
+        const newCommits = await window.electronAPI?.getCommitHistory(repository, skipCount, debouncedHistorySearch);
+        if(loadMore) {
+            setCommits(prev => [...prev, ...(newCommits || [])]);
+        } else {
+            setCommits(newCommits || []);
+        }
+        setHasMoreHistory((newCommits || []).length === 100);
+
+        if (debouncedHistorySearch) {
+          const regex = new RegExp(debouncedHistorySearch.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+          let newOccurrences = 0;
+          (newCommits || []).forEach(commit => {
+            newOccurrences += (commit.message.match(regex) || []).length;
+          });
+
+          if (loadMore) {
+            setHistoryMatchStats(prev => ({
+              commitCount: prev.commitCount + (newCommits?.length || 0),
+              occurrenceCount: prev.occurrenceCount + newOccurrences
+            }));
+          } else {
+            setHistoryMatchStats({
+              commitCount: (newCommits?.length || 0),
+              occurrenceCount: newOccurrences
+            });
+          }
+        } else {
+          setHistoryMatchStats({ commitCount: 0, occurrenceCount: 0 });
+        }
+    } catch (e: any) {
+        setToast({ message: `Failed to load history: ${e.message}`, type: 'error' });
+    } finally {
+        setHistoryLoading(false);
+        setIsMoreHistoryLoading(false);
     }
-    const repoToSave: Repository = {
-      ...(repository || { id: `new_${Date.now()}`, status: RepoStatus.Idle, lastUpdated: null, buildHealth: BuildHealth.Unknown }),
-      ...repo,
-    };
-    onSave(repoToSave, defaultCategoryId);
+  }, [repository, setToast, commits.length, debouncedHistorySearch]);
+
+  const fetchBranches = useCallback(async () => {
+    if (!repository || !isGitRepo) return;
+    setBranchesLoading(true);
+    try {
+        const branches = await window.electronAPI?.listBranches(repository.localPath);
+        setBranchInfo(branches || null);
+        if (branches?.current) {
+            setBranchToMerge(branches.current);
+        }
+    } catch (e: any) {
+        setToast({ message: `Failed to load branches: ${e.message}`, type: 'error' });
+    } finally {
+        setBranchesLoading(false);
+    }
+  }, [repository, isGitRepo, setToast]);
+
+  const fetchReleases = useCallback(async () => {
+    if (!repository || !isGitHubRepo) return;
+    setReleasesLoading(true);
+    setReleasesError(null);
+    try {
+      const result = await window.electronAPI.getAllReleases(repository);
+      if (result) {
+        setReleases(result);
+      } else {
+        const pat = await window.electronAPI.getGithubPat();
+        if (!pat) {
+          setReleasesError("A GitHub Personal Access Token is required to manage releases. Please set one in Settings > Behavior.");
+        } else {
+          setReleasesError("Failed to fetch releases. This may be due to an invalid PAT or insufficient permissions (requires 'Contents: Read & write'). Check the debug console for more details.");
+        }
+      }
+    } catch (e: any) {
+      setReleasesError(`Error: ${e.message}`);
+    } finally {
+      setReleasesLoading(false);
+    }
+  }, [repository, isGitHubRepo]);
+
+
+  // Fetch branch info on mount for the dropdown if possible
+  useEffect(() => {
+    if (repository?.localPath && isGitRepo) {
+      if (branchInfo) return; // Don't re-fetch if we already have the info.
+      const checkPathAndFetch = async () => {
+        const pathState = await window.electronAPI.checkLocalPath(repository.localPath);
+        if (pathState === 'valid') {
+            fetchBranches();
+        }
+      };
+      checkPathAndFetch();
+    }
+  }, [repository, isGitRepo, fetchBranches, branchInfo]);
+  
+  // Fetch data when a tab becomes active or search term changes
+  useEffect(() => {
+    if (activeTab === 'history') {
+        fetchHistory(false);
+    } else if (activeTab === 'branches') {
+        if (!branchInfo) {
+            fetchBranches();
+        }
+    } else if (activeTab === 'releases') {
+        if (!releases) {
+            fetchReleases();
+        }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, debouncedHistorySearch]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleVcsChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newVcs = e.target.value as VcsType;
+    setFormData(prev => {
+        if (prev.vcs === newVcs) return prev;
+
+        const common = {
+            ...( 'id' in prev ? { id: prev.id } : {}),
+            name: prev.name,
+            localPath: prev.localPath,
+            webLinks: prev.webLinks || [],
+            tasks: [], // Reset tasks when VCS changes as steps might become invalid
+            launchConfigs: prev.launchConfigs || [], // Keep launch configs
+            status: RepoStatus.Idle,
+            lastUpdated: null,
+            buildHealth: BuildHealth.Unknown,
+        };
+
+        setSelectedTaskId(null); // Deselect task
+
+        if (newVcs === VcsType.Svn) {
+            return {
+                ...common,
+                vcs: VcsType.Svn,
+                remoteUrl: '',
+            } as SvnRepository | Omit<SvnRepository, 'id'>;
+        } else { // Git
+            return {
+                ...common,
+                vcs: VcsType.Git,
+                remoteUrl: '',
+                branch: 'main',
+            } as GitRepository | Omit<GitRepository, 'id'>;
+        }
+    });
+};
+
+
+  const handleSave = () => {
+    const dataToSave = 'id' in formData ? formData : { ...formData, id: `repo_${Date.now()}` };
+    onSave(dataToSave as Repository, defaultCategoryId);
   };
 
   const handleTaskChange = (updatedTask: Task) => {
-    setRepo(prev => ({
+    setFormData(prev => ({
       ...prev,
-      tasks: (prev.tasks || []).map(t => t.id === updatedTask.id ? updatedTask : t),
+      tasks: (prev.tasks || []).map(t => t.id === updatedTask.id ? updatedTask : t)
     }));
   };
   
-  const handleAddTask = () => {
+  const handleNewTask = useCallback((template?: Partial<Task>) => {
+    const newSteps = (template?.steps || []).map(s => ({
+        ...s,
+        id: `step_${Date.now()}_${Math.random()}`,
+        enabled: true,
+    }));
+
     const newTask: Task = {
-      id: `task_${Date.now()}`,
-      name: 'New Task',
-      steps: [],
-      variables: [],
-      environmentVariables: [],
-      showOnDashboard: false,
+        id: `task_${Date.now()}`,
+        name: template?.name || 'New Task',
+        steps: newSteps,
+        variables: [],
+        environmentVariables: [],
+        showOnDashboard: false,
     };
-    setRepo(prev => ({ ...prev, tasks: [...(prev.tasks || []), newTask] }));
-  };
+    const newTasks = [...(formData.tasks || []), newTask];
+    setFormData(prev => ({ ...prev, tasks: newTasks }));
+    setSelectedTaskId(newTask.id);
+  }, [formData.tasks]);
   
   const handleDeleteTask = (taskId: string) => {
     confirmAction({
-      title: 'Delete Task',
-      message: 'Are you sure you want to delete this task?',
-      onConfirm: () => {
-          setRepo(prev => ({
-            ...prev,
-            tasks: (prev.tasks || []).filter(t => t.id !== taskId),
-          }));
-      }
+        title: "Delete Task",
+        message: "Are you sure you want to delete this task?",
+        confirmText: "Delete",
+        icon: <ExclamationCircleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />,
+        onConfirm: () => {
+            const newTasks = (formData.tasks || []).filter(t => t.id !== taskId);
+            setFormData(prev => ({ ...prev, tasks: newTasks }));
+            if (selectedTaskId === taskId) {
+              setSelectedTaskId(newTasks.length > 0 ? newTasks[0].id : null);
+            }
+        }
     });
   };
   
-  const handleGenerateTasks = (steps: TaskStep[], name: string) => {
-      const newTask: Task = {
+  const handleDuplicateTask = (taskId: string) => {
+    const taskToDuplicate = formData.tasks?.find(t => t.id === taskId);
+    if (!taskToDuplicate) return;
+    
+    // Deep copy, assign new IDs to task and steps
+    const newTask = {
+        ...JSON.parse(JSON.stringify(taskToDuplicate)),
         id: `task_${Date.now()}`,
-        name,
-        steps,
-        variables: [],
-        environmentVariables: [],
-        showOnDashboard: true,
-      };
-      setRepo(prev => ({ ...prev, tasks: [...(prev.tasks || []), newTask] }));
-  };
+        name: `${taskToDuplicate.name} (copy)`,
+        steps: taskToDuplicate.steps.map((step: TaskStep) => ({
+            ...step,
+            id: `step_${Date.now()}_${Math.random()}`
+        })),
+        environmentVariables: (taskToDuplicate.environmentVariables || []).map((envVar: any) => ({
+            ...envVar,
+            id: `env_var_${Date.now()}_${Math.random()}`
+        })),
+    };
 
-  const handleWebLinkChange = (id: string, field: 'name' | 'url', value: string) => {
-    setRepo(prev => ({
-      ...prev,
-      webLinks: (prev.webLinks || []).map(l => l.id === id ? { ...l, [field]: value } : l),
-    }));
+    const newTasks = [...(formData.tasks || [])];
+    const originalIndex = newTasks.findIndex(t => t.id === taskId);
+    newTasks.splice(originalIndex + 1, 0, newTask);
+
+    setFormData(prev => ({...prev, tasks: newTasks}));
+    setSelectedTaskId(newTask.id);
   };
 
   const handleAddWebLink = () => {
-    const newLink: WebLinkConfig = { id: `wl_${Date.now()}`, name: '', url: '' };
-    setRepo(prev => ({ ...prev, webLinks: [...(prev.webLinks || []), newLink] }));
+    const newLink: WebLinkConfig = { id: `wl_${Date.now()}`, name: 'New Link', url: 'https://' };
+    setFormData(prev => ({...prev, webLinks: [...(prev.webLinks || []), newLink]}));
   };
 
-  const handleDeleteWebLink = (id: string) => {
-    setRepo(prev => ({ ...prev, webLinks: (prev.webLinks || []).filter(l => l.id !== id) }));
+  const handleUpdateWebLink = (id: string, field: keyof Omit<WebLinkConfig, 'id'>, value: string) => {
+    setFormData(prev => ({
+        ...prev,
+        webLinks: (prev.webLinks || []).map(wl => 
+            wl.id === id ? { ...wl, [field]: value } : wl
+        )
+    }));
   };
-  
-  const handleLaunchConfigChange = (id: string, field: 'name' | 'command' | 'showOnDashboard' | 'type', value: string | boolean) => {
-    setRepo(prev => ({
-      ...prev,
-      launchConfigs: (prev.launchConfigs || []).map(lc => lc.id === id ? { ...lc, [field]: value } : lc),
+
+  const handleRemoveWebLink = (id: string) => {
+    setFormData(prev => ({
+        ...prev,
+        webLinks: (prev.webLinks || []).filter(wl => wl.id !== id)
     }));
   };
 
   const handleAddLaunchConfig = () => {
-    const newConfig: LaunchConfig = { id: `lc_${Date.now()}`, name: '', command: '', showOnDashboard: false, type: 'command' };
-    setRepo(prev => ({ ...prev, launchConfigs: [...(prev.launchConfigs || []), newConfig] }));
+    const newConfig: LaunchConfig = { id: `lc_${Date.now()}`, name: 'New Launch', type: 'command', command: '', showOnDashboard: false };
+    setFormData(prev => ({...prev, launchConfigs: [...(prev.launchConfigs || []), newConfig]}));
   };
 
-  const handleDeleteLaunchConfig = (id: string) => {
-    setRepo(prev => ({ ...prev, launchConfigs: (prev.launchConfigs || []).filter(lc => lc.id !== id) }));
-  };
-  
-  const handleChooseLocalPath = async () => {
-    setIsLoading(true);
-    try {
-        const result = await window.electronAPI?.showDirectoryPicker();
-        if (result && !result.canceled && result.filePaths.length > 0) {
-            const chosenPath = result.filePaths[0];
-            setRepo(prev => ({ ...prev, localPath: chosenPath }));
-            const discoveryResult = await window.electronAPI?.discoverRemoteUrl({ localPath: chosenPath, vcs: repo.vcs });
-            if (discoveryResult && discoveryResult.url) {
-                setRepo(prev => ({...prev, localPath: chosenPath, remoteUrl: discoveryResult.url!}));
-                setToast({ message: 'Remote URL auto-discovered!', type: 'success' });
-            } else if (discoveryResult && discoveryResult.error) {
-                setToast({ message: `Could not auto-discover URL: ${discoveryResult.error}`, type: 'info' });
+  const handleUpdateLaunchConfig = (id: string, field: keyof LaunchConfig, value: string | boolean) => {
+    setFormData(prev => ({
+        ...prev,
+        launchConfigs: (prev.launchConfigs || []).map(lc => {
+          if (lc.id === id) {
+            const updated = {...lc, [field]: value};
+            // When changing type, reset the other type's data
+            if (field === 'type') {
+                if (value === 'command') delete (updated as any).command;
             }
-        }
-    } catch (e: any) {
-        setToast({ message: `Error: ${e.message}`, type: 'error' });
-    } finally {
-        setIsLoading(false);
-    }
+            return updated;
+          }
+          return lc;
+        })
+    }));
   };
-  
-  const fetchProjectInfo = useCallback(async () => {
-      if (repo.localPath) {
-        setIsLoading(true);
-        try {
-            const info = await window.electronAPI?.getProjectInfo(repo.localPath);
-            setProjectInfo(info || null);
-            const suggs = await window.electronAPI?.getProjectSuggestions({ repoPath: repo.localPath, repoName: repo.name });
-            setSuggestions(suggs || []);
-        } catch (error) {
-            console.error("Failed to fetch project info:", error);
-            setProjectInfo(null);
-            setSuggestions([]);
-        } finally {
-            setIsLoading(false);
-        }
-      }
-  }, [repo.localPath, repo.name]);
-  
-  useEffect(() => {
-    fetchProjectInfo();
-  }, [fetchProjectInfo]);
 
-  useEffect(() => {
-    window.electronAPI?.getDelphiVersions().then(setDelphiVersions);
-  }, []);
-  
-  const fetchBranchInfo = useCallback(async () => {
-    if (repository && repo.vcs === VcsType.Git) {
-      setIsLoading(true);
-      try {
-        const info = await window.electronAPI?.listBranches(repository.localPath);
-        setBranchInfo(info || null);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  }, [repository, repo.vcs]);
-
-  const fetchReleases = useCallback(async () => {
-    if (repository && repo.vcs === VcsType.Git) {
-        setIsReleasesLoading(true);
-        try {
-            const releaseData = await window.electronAPI?.getAllReleases(repository);
-            setReleases(releaseData);
-        } catch (e) {
-            setReleases(null);
-        } finally {
-            setIsReleasesLoading(false);
-        }
-    }
-  }, [repository, repo.vcs]);
-
-  useEffect(() => {
-    if (activeTab === 'branches') fetchBranchInfo();
-    if (activeTab === 'releases') fetchReleases();
-  }, [activeTab, fetchBranchInfo, fetchReleases]);
+  const handleRemoveLaunchConfig = (id: string) => {
+    setFormData(prev => ({
+        ...prev,
+        launchConfigs: (prev.launchConfigs || []).filter(lc => lc.id !== id)
+    }));
+  };
   
   const handleCreateBranch = async () => {
-    if (repository && newBranchName.trim()) {
-        setIsCreatingBranch(true);
-        const result = await window.electronAPI?.createBranch(repository.localPath, newBranchName.trim());
-        if (result?.success) {
-            setToast({ message: `Branch '${newBranchName.trim()}' created.`, type: 'success' });
-            setNewBranchName('');
-            await fetchBranchInfo();
-        } else {
-            setToast({ message: `Error creating branch: ${result?.error}`, type: 'error' });
-        }
-        setIsCreatingBranch(false);
+    if (!repository || !newBranchName.trim()) return;
+    const result = await window.electronAPI?.createBranch(repository.localPath, newBranchName.trim());
+    if (result?.success) {
+        setToast({ message: `Branch '${newBranchName.trim()}' created`, type: 'success' });
+        setNewBranchName('');
+        fetchBranches();
+        onRefreshState(repository.id);
+    } else {
+        setToast({ message: `Error: ${result?.error || 'Electron API not available.'}`, type: 'error' });
     }
   };
-
+  
   const handleDeleteBranch = async (branchName: string, isRemote: boolean) => {
+    if (!repository) return;
     confirmAction({
-        title: 'Delete Branch',
-        message: `Are you sure you want to delete the ${isRemote ? 'remote' : 'local'} branch '${branchName}'?`,
+        title: `Delete ${isRemote ? 'Remote' : 'Local'} Branch`,
+        message: `Are you sure you want to delete ${isRemote ? 'remote' : 'local'} branch '${branchName}'?`,
+        confirmText: "Delete",
+        icon: <ExclamationCircleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />,
         onConfirm: async () => {
-            if (repository) {
-                const result = await window.electronAPI?.deleteBranch(repository.localPath, branchName, isRemote);
-                if (result?.success) {
-                    setToast({ message: 'Branch deleted.', type: 'info' });
-                    await fetchBranchInfo();
-                } else {
-                    setToast({ message: `Error deleting branch: ${result?.error}`, type: 'error' });
-                }
+            const result = await window.electronAPI?.deleteBranch(repository.localPath, branchName, isRemote);
+            if (result?.success) {
+                setToast({ message: `Branch '${branchName}' deleted`, type: 'success' });
+                fetchBranches();
+                onRefreshState(repository.id);
+            } else {
+                setToast({ message: `Error: ${result?.error || 'Electron API not available.'}`, type: 'error' });
             }
-        },
+        }
     });
   };
 
-  const handleMergeBranch = async (branchName: string) => {
-    if (repository && branchInfo?.current) {
-        confirmAction({
-            title: 'Merge Branch',
-            message: `Are you sure you want to merge '${branchName}' into '${branchInfo.current}'?`,
-            confirmText: 'Merge',
-            confirmButtonClass: 'bg-green-600 hover:bg-green-700 focus:ring-green-500',
-            onConfirm: async () => {
-                const result = await window.electronAPI?.mergeBranch(repository.localPath, branchName);
-                if (result?.success) {
-                    setToast({ message: 'Merge successful.', type: 'success' });
-                    await onRefreshState(repository.id); // Refresh everything
-                } else {
-                    setToast({ message: `Merge failed: ${result?.error}`, type: 'error' });
-                }
-            },
-        });
-    }
+  const handleMergeBranch = async () => {
+      if (!repository || !branchToMerge) return;
+      const currentBranch = branchInfo?.current;
+      if (!currentBranch || branchToMerge === currentBranch) {
+        setToast({ message: 'Cannot merge a branch into itself.', type: 'info' });
+        return;
+      }
+      
+      confirmAction({
+          title: "Merge Branch",
+          message: `Are you sure you want to merge '${branchToMerge}' into '${currentBranch}'?`,
+          confirmText: "Merge",
+          icon: <GitBranchIcon className="h-6 w-6 text-green-600 dark:text-green-400" />,
+          confirmButtonClass: 'bg-green-600 hover:bg-green-700 focus:ring-green-500',
+          onConfirm: async () => {
+              const result = await window.electronAPI?.mergeBranch(repository.localPath, branchToMerge);
+              if (result?.success) {
+                  setToast({ message: `Successfully merged '${branchToMerge}' into '${currentBranch}'`, type: 'success' });
+                  fetchBranches();
+                  onRefreshState(repository.id);
+              } else {
+                  setToast({ message: `Merge failed: ${result?.error || 'Electron API not available.'}`, type: 'error' });
+              }
+          }
+      });
   };
+  
+  const handleDiscoverRemote = useCallback(async () => {
+    const currentLocalPath = formData.localPath;
+    if (!currentLocalPath) {
+        setToast({ message: 'Please provide a local path first.', type: 'info' });
+        return;
+    }
+
+    try {
+        const result = await window.electronAPI.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
+        if (result && result.url) {
+            const discoveredUrl = result.url;
+            const discoveredName = result.url.split('/').pop()?.replace(/\.git$/, '') || '';
+            
+            // This is the safe way: only set the local state. The useEffect will handle the toast.
+            setFormData(prev => {
+                const newName = (!prev.name || prev.name.trim() === '') ? discoveredName : prev.name;
+                return { ...prev, remoteUrl: discoveredUrl, name: newName };
+            });
+
+        } else {
+            const errorMsg = `Could not discover URL: ${result.error || 'No remote found.'}`;
+            setToast({ message: errorMsg, type: 'error' });
+        }
+    } catch (e: any) {
+        const errorMsg = `Error during discovery: ${e.message}`;
+        setToast({ message: errorMsg, type: 'error' });
+    }
+  }, [formData.localPath, formData.vcs, setToast]);
+
+  const handleChooseLocalPath = useCallback(async () => {
+    const result = await window.electronAPI.showDirectoryPicker();
+    if (!result.canceled && result.filePaths.length > 0) {
+        setFormData(prev => ({ ...prev, localPath: result.filePaths[0] }));
+    }
+  }, []);
 
   const handleUpdateRelease = async (releaseId: number, options: Partial<ReleaseInfo>) => {
     if (!repository) return;
-    const result = await window.electronAPI?.updateRelease({ repo: repository, releaseId, options });
-    if (result?.success) {
+    const result = await window.electronAPI.updateRelease({ repo: repository, releaseId, options });
+    if (result.success) {
       setToast({ message: 'Release updated.', type: 'success' });
-      await fetchReleases();
+      fetchReleases();
     } else {
-      setToast({ message: `Update failed: ${result?.error}`, type: 'error' });
+      setToast({ message: `Error: ${result.error}`, type: 'error' });
     }
   };
   
-  const handleCreateRelease = async (options: { tag_name: string, name: string, body: string, draft: boolean, prerelease: boolean }) => {
-    if (!repository) return false;
-    const result = await window.electronAPI?.createRelease({ repo: repository, options });
-    if (result?.success) {
-      setToast({ message: 'Release created.', type: 'success' });
-      await fetchReleases();
-      return true;
-    } else {
-      setToast({ message: `Creation failed: ${result?.error}`, type: 'error' });
-      return false;
-    }
-  };
-
-  const handleDeleteRelease = (release: ReleaseInfo) => {
+  const handleDeleteRelease = async (releaseId: number) => {
     if (!repository) return;
     confirmAction({
-        title: 'Delete Release',
-        message: `Are you sure you want to delete release '${release.name || release.tagName}'? This cannot be undone.`,
-        onConfirm: async () => {
-            const result = await window.electronAPI?.deleteRelease({ repo: repository, releaseId: release.id });
-            if (result?.success) {
-                setToast({ message: 'Release deleted.', type: 'info' });
-                await fetchReleases();
-            } else {
-                setToast({ message: `Delete failed: ${result?.error}`, type: 'error' });
-            }
-        },
+      title: 'Delete Release',
+      message: 'Are you sure you want to delete this release? This action cannot be undone.',
+      confirmText: 'Delete',
+      icon: <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />,
+      onConfirm: async () => {
+        const result = await window.electronAPI.deleteRelease({ repo: repository, releaseId });
+        if (result.success) {
+          setToast({ message: 'Release deleted.', type: 'success' });
+          fetchReleases();
+        } else {
+          setToast({ message: `Error: ${result.error}`, type: 'error' });
+        }
+      },
     });
   };
 
+  const handleSaveRelease = async () => {
+    if (!repository || !editingRelease) return;
+    
+    const options = {
+        tag_name: editingRelease.tagName!,
+        name: editingRelease.name!,
+        body: editingRelease.body || '',
+        draft: editingRelease.isDraft || false,
+        prerelease: editingRelease.isPrerelease || false,
+    };
+    
+    let result;
+    if (editingRelease.isNew) {
+      result = await window.electronAPI.createRelease({ repo: repository, options });
+    } else {
+      result = await window.electronAPI.updateRelease({ repo: repository, releaseId: editingRelease.id!, options });
+    }
 
-  const tabButtonStyle = (tabName: string) => `px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 ${activeTab === tabName ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' : 'text-gray-500 hover:bg-gray-200/50 dark:text-gray-400 dark:hover:bg-gray-700/50'}`;
-  const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
-  const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
+    if (result.success) {
+      setToast({ message: `Release ${editingRelease.isNew ? 'created' : 'saved'}.`, type: 'success' });
+      setEditingRelease(null);
+      fetchReleases();
+    } else {
+      setToast({ message: `Error: ${result.error}`, type: 'error' });
+    }
+  };
+
+
+  const selectedTask = useMemo(() => {
+    return formData.tasks?.find(t => t.id === selectedTaskId) || null;
+  }, [selectedTaskId, formData.tasks]);
+
+  const repositoryForTaskEditor = useMemo(() => {
+    return {
+        localPath: formData.localPath,
+        name: formData.name,
+        vcs: formData.vcs,
+    };
+  }, [formData.localPath, formData.name, formData.vcs]);
+  
+  const hasBranches = branchInfo && (branchInfo.local.length > 0 || branchInfo.remote.length > 0);
+
+  // FIX: Create a memoized component map for ReactMarkdown to handle external links.
+  const markdownComponents = useMemo(() => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    a: ({node, ...props}: any) => {
+      if (props.href && (props.href.startsWith('http') || props.href.startsWith('https'))) {
+        return <a {...props} onClick={(e) => {
+          e.preventDefault();
+          onOpenWeblink(props.href);
+        }} />;
+      }
+      return <a {...props} />;
+    }
+  }), [onOpenWeblink]);
+
+  const renderTabContent = () => {
+    if (!('id' in formData)) {
+        return <div className="p-4 text-center text-gray-500">Please save the repository to access advanced features.</div>
+    }
+    switch(activeTab) {
+        case 'tasks':
+            return (
+                <div className="flex-1 flex overflow-hidden">
+                    <aside className="w-1/3 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50">
+                        <div className="p-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+                          <h3 className="font-semibold text-gray-800 dark:text-gray-200">Tasks</h3>
+                          <button type="button" onClick={() => handleNewTask()} className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-full">
+                            <PlusIcon className="h-5 w-5"/>
+                          </button>
+                        </div>
+                        <ul className="flex-1 overflow-y-auto">
+                          {(formData.tasks || []).map(task => (
+                            <TaskListItem
+                              key={task.id}
+                              task={task}
+                              isSelected={selectedTaskId === task.id}
+                              onSelect={setSelectedTaskId}
+                              onDelete={handleDeleteTask}
+                              onDuplicate={handleDuplicateTask}
+                            />
+                          ))}
+                           {(formData.tasks || []).length === 0 && (
+                                <p className="p-4 text-center text-xs text-gray-500">No tasks created yet.</p>
+                           )}
+                        </ul>
+                    </aside>
+                    <div className="flex-1 p-4 overflow-y-auto">
+                      {selectedTask ? (
+                        <TaskStepsEditor task={selectedTask} setTask={handleTaskChange} repository={repositoryForTaskEditor} onAddTask={handleNewTask} />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-center text-gray-500">
+                           Select a task on the left, or create a new one.
+                        </div>
+                      )}
+                    </div>
+                </div>
+            );
+        case 'history':
+            return (
+                <div className="p-4 space-y-3 flex flex-col overflow-hidden h-full">
+                    <div className="relative flex-shrink-0">
+                        <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search commit messages..."
+                            value={historySearch}
+                            onChange={(e) => setHistorySearch(e.target.value)}
+                            className={`${formInputStyle} pl-10`}
+                        />
+                    </div>
+                    {debouncedHistorySearch && !historyLoading && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 px-1 flex-shrink-0">
+                            Found <span className="font-bold text-gray-700 dark:text-gray-200">{historyMatchStats.occurrenceCount}</span> occurrence(s) in <span className="font-bold text-gray-700 dark:text-gray-200">{historyMatchStats.commitCount}</span> commit(s).
+                        </p>
+                    )}
+                    <div className="flex-1 overflow-y-auto space-y-3">
+                        {historyLoading ? (
+                            <p className="text-center text-gray-500">Loading history...</p>
+                        ) : commits.length === 0 ? (
+                            <p className="text-center text-gray-500">{debouncedHistorySearch ? `No commits found for "${debouncedHistorySearch}".` : 'No commits found.'}</p>
+                        ) : (
+                            <>
+                                {commits.map(commit => <CommitListItem key={commit.hash} commit={commit} highlight={debouncedHistorySearch} />)}
+                                {hasMoreHistory && (
+                                    <div className="text-center">
+                                        <button onClick={() => fetchHistory(true)} disabled={isMoreHistoryLoading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500">
+                                            {isMoreHistoryLoading ? 'Loading...' : 'Load More'}
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
+            );
+        case 'branches':
+            return (
+                 <div className="p-4 space-y-4">
+                    {branchesLoading && <p>Loading branches...</p>}
+                    {!hasBranches && !branchesLoading && <p>No branches found. This may be a new repository.</p>}
+                    {hasBranches && !branchesLoading && (
+                        <>
+                            <p className="text-sm">Current branch: <span className="font-bold font-mono text-blue-600 dark:text-blue-400">{branchInfo?.current}</span></p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h4 className="font-semibold mb-2">Local Branches</h4>
+                                    <ul className="space-y-1">
+                                        {/* FIX: Guard against branchInfo being null when mapping local branches. */}
+                                        {(branchInfo?.local || []).map(b => (
+                                            <li key={b} className="flex justify-between items-center p-2 rounded-md bg-gray-50 dark:bg-gray-900/50">
+                                                <span className="font-mono text-sm">{b}</span>
+                                                {b !== branchInfo?.current && <button type="button" onClick={() => handleDeleteBranch(b, false)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold mb-2">Remote Branches</h4>
+                                    <ul className="space-y-1 max-h-48 overflow-y-auto">
+                                        {/* FIX: Guard against branchInfo being null when mapping remote branches. */}
+                                        {(branchInfo?.remote || []).map(b => (
+                                            <li key={b} className="flex justify-between items-center p-2 rounded-md bg-gray-50 dark:bg-gray-900/50">
+                                                <span className="font-mono text-sm">{b}</span>
+                                                <button type="button" onClick={() => handleDeleteBranch(b.split('/').slice(1).join('/'), true)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <div>
+                                    <h4 className="font-semibold mb-2">Create New Branch</h4>
+                                    <div className="flex gap-2">
+                                        <input type="text" value={newBranchName} onChange={e => setNewBranchName(e.target.value)} placeholder="new-branch-name" className={formInputStyle}/>
+                                        <button type="button" onClick={handleCreateBranch} className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create</button>
+                                    </div>
+                                </div>
+                                 <div>
+                                    <h4 className="font-semibold mb-2">Merge Branch into Current</h4>
+                                    <div className="flex gap-2">
+                                        <select value={branchToMerge || ''} onChange={e => setBranchToMerge(e.target.value)} className={formInputStyle}>
+                                            <option value="" disabled>Select a branch</option>
+                                            {/* FIX: Guard against branchInfo being null when mapping local branches for merge dropdown. */}
+                                            {(branchInfo?.local || []).filter(b => b !== branchInfo?.current).map(b => (
+                                                <option key={b} value={b}>{b}</option>
+                                            ))}
+                                        </select>
+                                        <button type="button" onClick={handleMergeBranch} className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700">Merge</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            );
+        case 'releases':
+            if (!isGitHubRepo) return <div className="p-4 text-center text-gray-500">Release management is only available for repositories hosted on GitHub.</div>;
+            if (editingRelease) {
+                return (
+                    <div className="p-4 space-y-3">
+                        <h3 className="text-lg font-semibold">{editingRelease.isNew ? 'Create New Release' : 'Edit Release'}</h3>
+                        <div>
+                            <label className={formLabelStyle}>Tag Name</label>
+                            <input type="text" value={editingRelease.tagName || ''} onChange={e => setEditingRelease(p => ({...p!, tagName: e.target.value}))} className={formInputStyle} />
+                        </div>
+                         <div>
+                            <label className={formLabelStyle}>Release Title</label>
+                            <input type="text" value={editingRelease.name || ''} onChange={e => setEditingRelease(p => ({...p!, name: e.target.value}))} className={formInputStyle} />
+                        </div>
+                         <div>
+                            <label className={formLabelStyle}>Release Notes (Markdown)</label>
+                            <textarea value={editingRelease.body || ''} onChange={e => setEditingRelease(p => ({...p!, body: e.target.value}))} rows={10} className={`${formInputStyle} font-mono`} />
+                        </div>
+                        <div className="flex items-center gap-6">
+                             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editingRelease.isDraft} onChange={e => setEditingRelease(p => ({...p!, isDraft: e.target.checked}))} className="rounded" /> Draft</label>
+                             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editingRelease.isPrerelease} onChange={e => setEditingRelease(p => ({...p!, isPrerelease: e.target.checked}))} className="rounded" /> Pre-release</label>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={handleSaveRelease} className="px-4 py-2 bg-blue-600 text-white rounded-md">Save Release</button>
+                            <button onClick={() => setEditingRelease(null)} className="px-4 py-2 bg-gray-500 text-white rounded-md">Cancel</button>
+                        </div>
+                    </div>
+                )
+            }
+            return (
+                <div className="p-4 space-y-4">
+                     <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold">GitHub Releases</h3>
+                        <button onClick={() => setEditingRelease({ isNew: true, tagName: '', name: '', body: '', isDraft: true, isPrerelease: false })} className="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create New Release</button>
+                     </div>
+                     {releasesLoading && <p>Loading releases...</p>}
+                     {releasesError && <p className="text-red-500">{releasesError}</p>}
+                     {releases && releases.length === 0 && (
+                        <div className="p-4 text-center text-gray-500">
+                            <p>No releases found for this repository.</p>
+                            <p className="mt-2 text-xs">
+                                Note: To view draft releases, your GitHub Personal Access Token must have repository permissions for "Contents: Read & write".
+                            </p>
+                        </div>
+                     )}
+                     <ul className="space-y-4 max-h-[60vh] overflow-y-auto">
+                        {releases?.map(release => (
+                            <li key={release.id} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <div className="flex items-center gap-3">
+                                            <a href={release.url} onClick={e => { e.preventDefault(); onOpenWeblink(release.url); }} className="text-lg font-bold text-blue-600 dark:text-blue-400 hover:underline">{release.name || release.tagName}</a>
+                                            <span className="font-mono text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">{release.tagName}</span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-1">Released on {new Date(release.createdAt).toLocaleDateString()}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {release.isDraft && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200">Draft</span>}
+                                        {release.isPrerelease && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-200 dark:bg-yellow-700 text-yellow-800 dark:text-yellow-200">Pre-release</span>}
+                                        <button onClick={() => setEditingRelease(release)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><PencilIcon className="h-4 w-4"/></button>
+                                        <button onClick={() => handleDeleteRelease(release.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
+                                    </div>
+                                </div>
+                                {release.body && (
+                                    <article className="prose prose-sm dark:prose-invert max-w-none mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{release.body}</ReactMarkdown>
+                                    </article>
+                                )}
+                            </li>
+                        ))}
+                     </ul>
+                </div>
+            );
+    }
+    return null;
+  };
   
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-800 animate-fade-in">
-        <header className="flex-shrink-0 bg-gray-50 dark:bg-gray-900/50 p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
+        <header className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center">
                 <div className="flex items-center">
                     <button onClick={onCancel} className="p-2 mr-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
                         <ArrowLeftIcon className="h-6 w-6" />
                     </button>
                     <div>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">{isNewRepo ? 'Add New Repository' : 'Edit Repository'}</h2>
-                        {!isNewRepo && <p className="text-sm text-gray-500">{repo.name}</p>}
+                        <h2 className="text-xl font-bold">{repository ? 'Edit Repository' : 'Add New Repository'}</h2>
+                        {repository && <p className="text-sm text-gray-500">{repository.name}</p>}
                     </div>
-                </div>
-                 <div className="flex items-center gap-3">
-                    <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 transition-colors">
-                        Cancel
-                    </button>
-                    <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                        Save Repository
-                    </button>
                 </div>
             </div>
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-            <aside className="w-1/4 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50 p-4">
-                <nav className="space-y-1">
-                    <button onClick={() => setActiveTab('general')} className={tabButtonStyle('general')}><ServerIcon className="h-5 w-5"/>General</button>
-                    <button onClick={() => setActiveTab('tasks')} className={tabButtonStyle('tasks')}><CubeTransparentIcon className="h-5 w-5"/>Tasks</button>
-                    <button onClick={() => setActiveTab('history')} className={tabButtonStyle('history')}><ClockIcon className="h-5 w-5"/>History</button>
-                    {repo.vcs === VcsType.Git && <button onClick={() => setActiveTab('branches')} className={tabButtonStyle('branches')}><GitBranchIcon className="h-5 w-5"/>Branches</button>}
-                    {repo.vcs === VcsType.Git && <button onClick={() => setActiveTab('releases')} className={tabButtonStyle('releases')}><TagIcon className="h-5 w-5"/>Releases</button>}
-                </nav>
-            </aside>
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-              {(() => {
-                switch(activeTab) {
-                    case 'general': return (
-                      <GeneralSettingsTab 
-                        repo={repo} 
-                        isNewRepo={isNewRepo} 
-                        handleInputChange={handleInputChange} 
-                        handleVCSChange={handleVCSChange} 
-                        handleChooseLocalPath={handleChooseLocalPath}
-                        handleWebLinkChange={handleWebLinkChange}
-                        handleAddWebLink={handleAddWebLink}
-                        handleDeleteWebLink={handleDeleteWebLink}
-                        handleLaunchConfigChange={handleLaunchConfigChange}
-                        handleAddLaunchConfig={handleAddLaunchConfig}
-                        handleDeleteLaunchConfig={handleDeleteLaunchConfig}
-                      />
-                    );
-                    case 'tasks': return (
-                      <TasksTab 
-                        repo={repo} 
-                        handleTaskChange={handleTaskChange} 
-                        handleAddTask={handleAddTask} 
-                        handleDeleteTask={handleDeleteTask}
-                        projectInfo={projectInfo}
-                        suggestions={suggestions}
-                        onGenerateTasks={handleGenerateTasks}
-                        delphiVersions={delphiVersions}
-                      />
-                    );
-                    case 'history': return <HistoryTab repository={repository} />;
-                    case 'branches': return (
-                      <BranchesTab 
-                        branchInfo={branchInfo} 
-                        isLoading={isLoading} 
-                        newBranchName={newBranchName}
-                        setNewBranchName={setNewBranchName}
-                        isCreatingBranch={isCreatingBranch}
-                        handleCreateBranch={handleCreateBranch}
-                        handleDeleteBranch={handleDeleteBranch}
-                        handleMergeBranch={handleMergeBranch}
-                      />
-                    );
-                    case 'releases': return (
-                        <ReleasesTab 
-                            releases={releases}
-                            isLoading={isReleasesLoading}
-                            onUpdate={handleUpdateRelease}
-                            onCreate={handleCreateRelease}
-                            onDelete={handleDeleteRelease}
-                            onOpenWeblink={onOpenWeblink}
-                        />
-                    );
-                    default: return null;
-                }
-              })()}
-            </main>
-        </div>
-    </div>
-  );
-};
-
-// --- Sub-components for each tab ---
-
-const GeneralSettingsTab: React.FC<{
-    repo: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>;
-    isNewRepo: boolean;
-    handleInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
-    handleVCSChange: (vcs: VcsType) => void;
-    handleChooseLocalPath: () => void;
-    handleWebLinkChange: (id: string, field: 'name' | 'url', value: string) => void;
-    handleAddWebLink: () => void;
-    handleDeleteWebLink: (id: string) => void;
-    handleLaunchConfigChange: (id: string, field: 'name' | 'command' | 'showOnDashboard' | 'type', value: string | boolean) => void;
-    handleAddLaunchConfig: () => void;
-    handleDeleteLaunchConfig: (id: string) => void;
-}> = (props) => {
-    const { repo, isNewRepo, handleInputChange, handleVCSChange, handleChooseLocalPath, handleWebLinkChange, handleAddWebLink, handleDeleteWebLink, handleLaunchConfigChange, handleAddLaunchConfig, handleDeleteLaunchConfig } = props;
-    const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
-    const formInputStyle = "mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
-    
-    return (
-        <div className="space-y-6 max-w-4xl">
-            <div className="bg-white dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4">
-                <h3 className="text-lg font-bold">Core Information</h3>
-                <div>
-                    <label htmlFor="name" className={formLabelStyle}>Repository Name</label>
-                    <input type="text" name="name" id="name" value={repo.name} onChange={handleInputChange} required className={formInputStyle} />
-                </div>
-                <div>
-                    <label className={formLabelStyle}>Version Control System</label>
-                    <div className="mt-2 flex gap-4">
-                        <label className="flex items-center"><input type="radio" name="vcs" value={VcsType.Git} checked={repo.vcs === VcsType.Git} onChange={() => handleVCSChange(VcsType.Git)} className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"/> <span className="ml-2">Git</span></label>
-                        <label className="flex items-center"><input type="radio" name="vcs" value={VcsType.Svn} checked={repo.vcs === VcsType.Svn} onChange={() => handleVCSChange(VcsType.Svn)} className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"/> <span className="ml-2">SVN</span></label>
-                    </div>
-                </div>
-                <div>
-                    <label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label>
-                    <input type="text" name="remoteUrl" id="remoteUrl" value={repo.remoteUrl} onChange={handleInputChange} required className={formInputStyle} />
-                </div>
-                <div>
-                    <label htmlFor="localPath" className={formLabelStyle}>Local Path</label>
-                    <div className="mt-1 flex rounded-md shadow-sm">
-                        <input type="text" name="localPath" id="localPath" value={repo.localPath} onChange={handleInputChange} className="flex-1 min-w-0 block w-full px-3 py-1.5 rounded-none rounded-l-md bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                        <button type="button" onClick={handleChooseLocalPath} className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 text-sm">
-                            <FolderOpenIcon className="h-5 w-5 mr-2"/> Browse...
-                        </button>
-                    </div>
-                </div>
-                {repo.vcs === VcsType.Git && (
+            <aside className="w-1/3 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50">
+                <div className="p-3 space-y-3 flex-1 overflow-y-auto">
                     <div>
-                        <label htmlFor="branch" className={formLabelStyle}>Default Branch</label>
-                        <input type="text" name="branch" id="branch" value={(repo as GitRepository).branch} onChange={handleInputChange} required className={formInputStyle} />
+                        <label htmlFor="name" className={formLabelStyle}>Repository Name</label>
+                        <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} required className={formInputStyle} />
+                    </div>
+                     <div>
+                        <label htmlFor="vcs" className={formLabelStyle}>Version Control</label>
+                        <select id="vcs" name="vcs" value={formData.vcs} onChange={handleVcsChange} className={formInputStyle}>
+                            <option value={VcsType.Git}>Git</option>
+                            <option value={VcsType.Svn}>SVN</option>
+                        </select>
+                    </div>
+                     <div>
+                        <label htmlFor="localPath" className={formLabelStyle}>Local Path</label>
+                        <div className="mt-1 flex items-center gap-2">
+                          <input type="text" id="localPath" name="localPath" value={formData.localPath} onChange={handleChange} required className={formInputStyle} />
+                          <button type="button" onClick={handleChooseLocalPath} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><FolderOpenIcon className="h-5 w-5"/></button>
+                        </div>
+                    </div>
+                    <div>
+                        <label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label>
+                        <div className="mt-1 flex items-center gap-2">
+                           <input type="text" id="remoteUrl" name="remoteUrl" value={formData.remoteUrl} onChange={handleChange} required className={formInputStyle} />
+                           <button type="button" onClick={handleDiscoverRemote} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><MagnifyingGlassIcon className="h-5 w-5"/></button>
+                        </div>
+                    </div>
+                    {isGitRepo && 'branch' in formData && (
+                      <div>
+                          <label htmlFor="branch" className={formLabelStyle}>Default Branch</label>
+                          <select id="branch" name="branch" value={formData.branch} onChange={handleChange} className={formInputStyle}>
+                            {branchInfo?.current && <option value={branchInfo.current}>{branchInfo.current} (current)</option>}
+                            {/* FIX: Guard against branchInfo being null when accessing local branches. */}
+                            {(branchInfo?.local || []).filter(b => b !== branchInfo?.current).map(b => <option key={b} value={b}>{b}</option>)}
+                            <optgroup label="Remotes">
+                                {/* FIX: Guard against branchInfo being null when accessing remote branches. */}
+                                {(branchInfo?.remote || []).map(b => <option key={b} value={b.split('/').slice(1).join('/')}>{b}</option>)}
+                            </optgroup>
+                          </select>
+                      </div>
+                    )}
+                    {isGitRepo && (
+                         <div className="flex items-start">
+                            <div className="flex items-center h-5"><input id="ignoreDirty" name="ignoreDirty" type="checkbox" checked={(formData as GitRepository).ignoreDirty || false} onChange={e => setFormData(p => ({...(p as GitRepository), ignoreDirty: e.target.checked}))} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
+                            <div className="ml-3 text-sm">
+                                <label htmlFor="ignoreDirty" className="font-medium text-gray-700 dark:text-gray-300">Ignore Dirty Repository</label>
+                                <p className="text-xs text-gray-500">If checked, tasks will not check for uncommitted changes before pulling.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="pt-3">
+                        <h4 className="font-semibold mb-2">Web Links</h4>
+                        <div className="space-y-2">
+                            {(formData.webLinks || []).map(link => (
+                                <div key={link.id} className="flex gap-2">
+                                    <input type="text" placeholder="Name" value={link.name} onChange={e => handleUpdateWebLink(link.id, 'name', e.target.value)} className={`${formInputStyle} text-xs`} />
+                                    <input type="text" placeholder="URL" value={link.url} onChange={e => handleUpdateWebLink(link.id, 'url', e.target.value)} className={`${formInputStyle} text-xs`} />
+                                    <button type="button" onClick={() => handleRemoveWebLink(link.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
+                                </div>
+                            ))}
+                        </div>
+                        <button type="button" onClick={handleAddWebLink} className="mt-2 flex items-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"><PlusIcon className="h-3 w-3 mr-1"/>Add Link</button>
+                    </div>
+
+                    <div className="pt-3">
+                        <h4 className="font-semibold mb-2">Launch Configurations</h4>
+                        <div className="space-y-3">
+                            {(formData.launchConfigs || []).map(lc => (
+                                <div key={lc.id} className="p-2 rounded-md bg-gray-100 dark:bg-gray-900/50 space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <input type="text" placeholder="Name" value={lc.name} onChange={e => handleUpdateLaunchConfig(lc.id, 'name', e.target.value)} className={`${formInputStyle} text-xs`} />
+                                        <select value={lc.type} onChange={e => handleUpdateLaunchConfig(lc.id, 'type', e.target.value)} className={`${formInputStyle} text-xs`}>
+                                            <option value="command">Command</option>
+                                            <option value="select-executable">Select Executable</option>
+                                        </select>
+                                        <button type="button" onClick={() => handleRemoveLaunchConfig(lc.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
+                                    </div>
+                                    {lc.type === 'command' && (
+                                        <input type="text" placeholder="e.g., npm start" value={lc.command} onChange={e => handleUpdateLaunchConfig(lc.id, 'command', e.target.value)} className={`${formInputStyle} text-xs font-mono`} />
+                                    )}
+                                    <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400"><input type="checkbox" checked={lc.showOnDashboard} onChange={e => handleUpdateLaunchConfig(lc.id, 'showOnDashboard', e.target.checked)} className="rounded" /> Show on card</label>
+                                </div>
+                            ))}
+                        </div>
+                        <button type="button" onClick={handleAddLaunchConfig} className="mt-2 flex items-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"><PlusIcon className="h-3 w-3 mr-1"/>Add Launch Config</button>
+                    </div>
+                </div>
+            </aside>
+            <main className="flex-1 flex flex-col min-h-0">
+                {'id' in formData && (
+                    <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
+                        <nav className="-mb-px flex space-x-4 px-4">
+                            <button onClick={() => setActiveTab('tasks')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'tasks' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Tasks</button>
+                            {isGitRepo && <button onClick={() => setActiveTab('history')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'history' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>History</button>}
+                            {isGitRepo && <button onClick={() => setActiveTab('branches')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'branches' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Branches</button>}
+                             {isGitRepo && <button onClick={() => setActiveTab('releases')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'releases' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Releases</button>}
+                        </nav>
                     </div>
                 )}
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4">
-                <h3 className="text-lg font-bold">Web Links</h3>
-                {repo.webLinks?.map(link => (
-                    <div key={link.id} className="grid grid-cols-12 gap-2 items-center">
-                        <input type="text" placeholder="Link Name (e.g., JIRA)" value={link.name} onChange={(e) => handleWebLinkChange(link.id, 'name', e.target.value)} className={`${formInputStyle} col-span-5`} />
-                        <input type="text" placeholder="https://..." value={link.url} onChange={(e) => handleWebLinkChange(link.id, 'url', e.target.value)} className={`${formInputStyle} col-span-6`} />
-                        <button type="button" onClick={() => handleDeleteWebLink(link.id)} className="col-span-1 p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
-                    </div>
-                ))}
-                <button type="button" onClick={handleAddWebLink} className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center"><PlusIcon className="h-4 w-4 mr-1"/>Add Web Link</button>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4">
-                <h3 className="text-lg font-bold">Launch Configurations</h3>
-                {repo.launchConfigs?.map(lc => (
-                    <div key={lc.id} className="space-y-2 p-3 border border-gray-200 dark:border-gray-700 rounded-md">
-                        <div className="grid grid-cols-12 gap-2 items-center">
-                             <input type="text" placeholder="Config Name" value={lc.name} onChange={(e) => handleLaunchConfigChange(lc.id, 'name', e.target.value)} className={`${formInputStyle} col-span-4`} />
-                             <select value={lc.type} onChange={(e) => handleLaunchConfigChange(lc.id, 'type', e.target.value)} className={`${formInputStyle} col-span-3`}>
-                                <option value="command">Command</option>
-                                <option value="select-executable">Select Executable</option>
-                             </select>
-                             {lc.type === 'command' && (
-                                <input type="text" placeholder="e.g., npm start" value={lc.command || ''} onChange={(e) => handleLaunchConfigChange(lc.id, 'command', e.target.value)} className={`${formInputStyle} col-span-4`} />
-                             )}
-                             <div className="col-span-1 flex justify-center"><button type="button" onClick={() => handleDeleteLaunchConfig(lc.id)} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button></div>
-                        </div>
-                        <label className="flex items-center space-x-2 text-sm"><input type="checkbox" checked={lc.showOnDashboard} onChange={(e) => handleLaunchConfigChange(lc.id, 'showOnDashboard', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" /><span>Show on dashboard</span></label>
-                    </div>
-                ))}
-                 <button type="button" onClick={handleAddLaunchConfig} className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center"><PlusIcon className="h-4 w-4 mr-1"/>Add Launch Config</button>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4">
-                <h3 className="text-lg font-bold">Advanced</h3>
-                 {repo.vcs === VcsType.Git && (
-                    <label className="flex items-start gap-3">
-                        <input type="checkbox" name="ignoreDirty" checked={(repo as GitRepository).ignoreDirty} onChange={handleInputChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/>
-                        <div>Ignore Dirty Repository
-                            <p className="text-xs text-gray-500">If checked, tasks will proceed even if there are uncommitted local changes.</p>
-                        </div>
-                    </label>
-                 )}
-            </div>
+                {renderTabContent()}
+            </main>
         </div>
-    );
-};
 
-const TasksTab: React.FC<{
-    repo: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>;
-    handleTaskChange: (task: Task) => void;
-    handleAddTask: () => void;
-    handleDeleteTask: (taskId: string) => void;
-    projectInfo: ProjectInfo | null;
-    suggestions: ProjectSuggestion[];
-    onGenerateTasks: (steps: TaskStep[], name: string) => void;
-    delphiVersions: { name: string; version: string }[];
-}> = (props) => {
-    return (
-        <div className="space-y-6 max-w-4xl">
-            <ProjectIntelligencePanel projectInfo={props.projectInfo} onGenerateTasks={props.onGenerateTasks} />
-            {(props.repo.tasks || []).map(task => (
-                <div key={task.id} className="relative">
-                    <TaskStepsEditor task={task} onTaskChange={props.handleTaskChange} suggestions={props.suggestions} projectInfo={props.projectInfo} delphiVersions={props.delphiVersions}/>
-                    <button type="button" onClick={() => props.handleDeleteTask(task.id)} className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-5 w-5" /></button>
-                </div>
-            ))}
-            <button type="button" onClick={props.handleAddTask} className="w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-500 flex items-center justify-center font-medium">
-                <PlusIcon className="h-5 w-5 mr-2" /> New Task
-            </button>
-        </div>
-    );
-};
-
-const HistoryTab: React.FC<{ repository: Repository | null }> = ({ repository }) => {
-    return repository ? (
-        <div className="h-full">
-            <CommitHistoryModal isOpen={true} repository={repository} onClose={() => {}} />
-        </div>
-    ) : (
-        <div className="p-6 text-center text-gray-500 border-2 border-dashed rounded-lg">
-            Save the repository to view its history.
-        </div>
-    );
-};
-
-const BranchesTab: React.FC<{
-    branchInfo: BranchInfo | null;
-    isLoading: boolean;
-    newBranchName: string;
-    setNewBranchName: (name: string) => void;
-    isCreatingBranch: boolean;
-    handleCreateBranch: () => void;
-    handleDeleteBranch: (name: string, isRemote: boolean) => void;
-    handleMergeBranch: (name: string) => void;
-}> = (props) => {
-    const { branchInfo, isLoading, newBranchName, setNewBranchName, isCreatingBranch, handleCreateBranch, handleDeleteBranch, handleMergeBranch } = props;
-    
-    if (isLoading) return <p>Loading branch information...</p>;
-    if (!branchInfo) return <p>Could not load branch information. Ensure local path is correct and the repository is initialized.</p>;
-
-    const remoteBranches = branchInfo.remote.filter(b => !b.includes('HEAD ->'));
-
-    return (
-        <div className="space-y-6 max-w-4xl">
-            <div className="bg-white dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4">
-                <h3 className="text-lg font-bold">Create New Branch</h3>
-                <div className="flex gap-2">
-                    <input type="text" value={newBranchName} onChange={(e) => setNewBranchName(e.target.value)} placeholder="new-branch-name" className="flex-1 mt-1 block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
-                    <button onClick={handleCreateBranch} disabled={isCreatingBranch || !newBranchName.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
-                        {isCreatingBranch ? 'Creating...' : 'Create'}
-                    </button>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2">
-                    <h3 className="text-lg font-bold">Local Branches</h3>
-                    <ul>
-                        {branchInfo.local.map(b => (
-                            <li key={b} className="flex items-center justify-between p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
-                                <span className={b === branchInfo.current ? 'font-bold text-blue-600 dark:text-blue-400' : ''}>{b}</span>
-                                {b !== branchInfo.current && (
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={() => handleMergeBranch(b)} className="text-xs font-medium text-green-600 hover:underline">Merge</button>
-                                        <button onClick={() => handleDeleteBranch(b, false)} className="p-1 text-red-500 hover:bg-red-100 rounded-full"><TrashIcon className="h-4 w-4"/></button>
-                                    </div>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-                 <div className="bg-white dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2">
-                    <h3 className="text-lg font-bold">Remote Branches</h3>
-                    <ul>
-                        {remoteBranches.map(b => (
-                            <li key={b} className="flex items-center justify-between p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
-                                <span>{b}</span>
-                                <button onClick={() => handleDeleteBranch(b.split('/').slice(1).join('/'), true)} className="p-1 text-red-500 hover:bg-red-100 rounded-full"><TrashIcon className="h-4 w-4"/></button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const ReleasesTab: React.FC<{
-    releases: ReleaseInfo[] | null;
-    isLoading: boolean;
-    onUpdate: (id: number, options: Partial<ReleaseInfo>) => void;
-    onCreate: (options: { tag_name: string, name: string, body: string, draft: boolean, prerelease: boolean }) => Promise<boolean>;
-    onDelete: (release: ReleaseInfo) => void;
-    onOpenWeblink: (url: string) => void;
-}> = (props) => {
-    const { releases, isLoading, onUpdate, onCreate, onDelete, onOpenWeblink } = props;
-    const [isCreating, setIsCreating] = useState(false);
-    
-    if (isLoading) return <p>Loading releases...</p>;
-    if (releases === null) return (
-        <div className="p-6 text-center text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/40 border-2 border-dashed border-yellow-200 dark:border-yellow-700 rounded-lg">
-            <ExclamationTriangleIcon className="h-8 w-8 mx-auto mb-2"/>
-            Could not load releases. This may be due to an invalid or missing GitHub Personal Access Token. Please configure it in the global settings.
-        </div>
-    );
-
-    return (
-        <div className="space-y-6 max-w-4xl">
-            <div className="flex justify-end">
-                <button onClick={() => setIsCreating(p => !p)} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                    {isCreating ? 'Cancel' : 'Create New Release'}
+        <footer className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
+            {repository && 'id' in repository && (
+                <button type="button" onClick={() => onRefreshState(repository.id)} className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-400 hover:underline">
+                    <ArrowPathIcon className="h-4 w-4 mr-1.5"/>
+                    Refresh State
+                </button>
+            )}
+            <div className="flex gap-3">
+                 <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 transition-colors">
+                    {repository ? 'Close' : 'Cancel'}
+                </button>
+                <button type="button" onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                    Save Repository
                 </button>
             </div>
-
-            {isCreating && (
-                <ReleaseEditor release={null} onSave={onCreate} onCancel={() => setIsCreating(false)} />
-            )}
-            
-            {releases.length === 0 && !isCreating && (
-                <p className="text-center text-gray-500">No releases found for this repository.</p>
-            )}
-
-            {releases.map(release => (
-                <ReleaseItem key={release.id} release={release} onUpdate={onUpdate} onDelete={onDelete} onOpenWeblink={onOpenWeblink} />
-            ))}
-        </div>
-    );
-};
-
-const ReleaseItem: React.FC<{ release: ReleaseInfo; onUpdate: (id: number, options: Partial<ReleaseInfo>) => void; onDelete: (release: ReleaseInfo) => void; onOpenWeblink: (url: string) => void; }> = ({ release, onUpdate, onDelete, onOpenWeblink }) => {
-    const [isEditing, setIsEditing] = useState(false);
-
-    const handleSave = async (options: { tag_name: string, name: string, body: string, draft: boolean, prerelease: boolean }) => {
-        await onUpdate(release.id, { 
-            tagName: options.tag_name,
-            name: options.name,
-            body: options.body,
-            isDraft: options.draft,
-            isPrerelease: options.prerelease,
-        });
-        setIsEditing(false);
-        return true;
-    };
-
-    if (isEditing) {
-        return <ReleaseEditor release={release} onSave={handleSave} onCancel={() => setIsEditing(false)} />;
-    }
-
-    return (
-        <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-start">
-                <div>
-                    <h4 className="font-bold text-lg">{release.name || release.tagName}</h4>
-                    <a href={release.url} onClick={(e) => { e.preventDefault(); onOpenWeblink(release.url); }} className="text-sm font-mono text-blue-600 dark:text-blue-400 hover:underline">{release.tagName}</a>
-                    <div className="mt-2 flex items-center gap-2">
-                        {release.isDraft && <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200">Draft</span>}
-                        {release.isPrerelease && <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-200 dark:bg-yellow-700 text-yellow-800 dark:text-yellow-200">Pre-release</span>}
-                        <span className="text-xs text-gray-500">Created: {new Date(release.createdAt).toLocaleDateString()}</span>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => onUpdate(release.id, { isDraft: !release.isDraft })} className="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300">{release.isDraft ? 'Publish' : 'Unpublish'}</button>
-                    <button onClick={() => onUpdate(release.id, { isPrerelease: !release.isPrerelease })} className="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300">{release.isPrerelease ? 'Mark as Stable' : 'Mark as Pre-release'}</button>
-                    <button onClick={() => setIsEditing(true)} className="p-2 hover:bg-gray-200 rounded-full"><PencilIcon className="h-4 w-4"/></button>
-                    <button onClick={() => onDelete(release)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><TrashIcon className="h-4 w-4"/></button>
-                </div>
-            </div>
-            {release.body && (
-                <article className="prose prose-sm dark:prose-invert max-w-none mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{release.body}</ReactMarkdown>
-                </article>
-            )}
-        </div>
-    );
-};
-
-const ReleaseEditor: React.FC<{ release: ReleaseInfo | null; onSave: (options: { tag_name: string, name: string, body: string, draft: boolean, prerelease: boolean }) => Promise<boolean>; onCancel: () => void; }> = ({ release, onSave, onCancel }) => {
-    const [tagName, setTagName] = useState(release?.tagName || '');
-    const [name, setName] = useState(release?.name || '');
-    const [body, setBody] = useState(release?.body || '');
-    const [isDraft, setIsDraft] = useState(release?.isDraft || true);
-    const [isPrerelease, setIsPrerelease] = useState(release?.isPrerelease || false);
-    const [isSaving, setIsSaving] = useState(false);
-    
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSaving(true);
-        const success = await onSave({ tag_name: tagName, name, body, draft: isDraft, prerelease: isPrerelease });
-        if (!success) {
-            setIsSaving(false);
-        }
-    };
-
-    return (
-        <form onSubmit={handleSubmit} className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800 space-y-4">
-            <h4 className="font-bold text-lg">{release ? 'Edit Release' : 'Create New Release'}</h4>
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="text-sm font-medium">Tag Name</label>
-                    <input type="text" value={tagName} onChange={e => setTagName(e.target.value)} required className="mt-1 w-full bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 rounded-md"/>
-                </div>
-                <div>
-                    <label className="text-sm font-medium">Release Name</label>
-                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="mt-1 w-full bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 rounded-md"/>
-                </div>
-            </div>
-            <div>
-                 <label className="text-sm font-medium">Release Notes (Markdown)</label>
-                 <textarea value={body} onChange={e => setBody(e.target.value)} rows={8} className="mt-1 w-full bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 rounded-md font-mono text-sm"/>
-            </div>
-             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                     <label className="flex items-center gap-2"><input type="checkbox" checked={isDraft} onChange={e => setIsDraft(e.target.checked)} className="rounded"/>Draft</label>
-                     <label className="flex items-center gap-2"><input type="checkbox" checked={isPrerelease} onChange={e => setIsPrerelease(e.target.checked)} className="rounded"/>Pre-release</label>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button type="button" onClick={onCancel} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 rounded-md text-sm">Cancel</button>
-                    <button type="submit" disabled={isSaving} className="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm disabled:opacity-50">{isSaving ? 'Saving...' : 'Save Release'}</button>
-                </div>
-             </div>
-        </form>
-    );
+        </footer>
+    </div>
+  );
 };
 
 export default RepoEditView;

@@ -11,15 +11,6 @@ export interface ProjectSuggestion {
 }
 
 export interface IElectronAPI {
-  // Window Controls
-  windowMinimize: () => void;
-  windowMaximize: () => void;
-  windowClose: () => void;
-  getPlatform: () => Promise<'win32' | 'darwin' | 'linux'>;
-  onWindowMaximizedStatusChanged: (callback: (event: IpcRendererEvent, isMaximized: boolean) => void) => void;
-  // FIX: Added missing remove listener function for window maximized status changes.
-  removeWindowMaximizedStatusChangedListener: (callback: (event: IpcRendererEvent, isMaximized: boolean) => void) => void;
-  
   getAppVersion: () => Promise<string>;
   getAllData: () => Promise<AppDataContextState>;
   saveAllData: (data: AppDataContextState) => void;
