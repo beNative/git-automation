@@ -254,7 +254,6 @@ const TaskStepItem: React.FC<{
                 >
                     <option value="">Auto-detect</option>
                     <optgroup label="Projects">
-                        {/* FIX: Add guard to prevent calling .map on undefined or null. */}
                         {(projectInfo?.delphi?.projects || []).map(p => (
                             <option key={p.path} value={p.path}>{p.path}</option>
                         ))}
@@ -1734,7 +1733,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 <div>
                                     <h4 className="font-semibold mb-2">Local Branches</h4>
                                     <ul className="space-y-1">
-                                        {/* FIX: Guard against branchInfo being null when mapping local branches. */}
                                         {(branchInfo?.local || []).map(b => (
                                             <li key={b} className="flex justify-between items-center p-2 rounded-md bg-gray-50 dark:bg-gray-900/50">
                                                 <span className="font-mono text-sm">{b}</span>
@@ -1746,7 +1744,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 <div>
                                     <h4 className="font-semibold mb-2">Remote Branches</h4>
                                     <ul className="space-y-1 max-h-48 overflow-y-auto">
-                                        {/* FIX: Guard against branchInfo being null when mapping remote branches. */}
                                         {(branchInfo?.remote || []).map(b => (
                                             <li key={b} className="flex justify-between items-center p-2 rounded-md bg-gray-50 dark:bg-gray-900/50">
                                                 <span className="font-mono text-sm">{b}</span>
@@ -1769,7 +1766,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                     <div className="flex gap-2">
                                         <select value={branchToMerge || ''} onChange={e => setBranchToMerge(e.target.value)} className={formInputStyle}>
                                             <option value="" disabled>Select a branch</option>
-                                            {/* FIX: Guard against branchInfo being null when mapping local branches for merge dropdown. */}
                                             {(branchInfo?.local || []).filter(b => b !== branchInfo?.current).map(b => (
                                                 <option key={b} value={b}>{b}</option>
                                             ))}
@@ -1908,10 +1904,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                           <label htmlFor="branch" className={formLabelStyle}>Default Branch</label>
                           <select id="branch" name="branch" value={formData.branch} onChange={handleChange} className={formInputStyle}>
                             {branchInfo?.current && <option value={branchInfo.current}>{branchInfo.current} (current)</option>}
-                            {/* FIX: Guard against branchInfo being null when accessing local branches. */}
                             {(branchInfo?.local || []).filter(b => b !== branchInfo?.current).map(b => <option key={b} value={b}>{b}</option>)}
                             <optgroup label="Remotes">
-                                {/* FIX: Guard against branchInfo being null when accessing remote branches. */}
                                 {(branchInfo?.remote || []).map(b => <option key={b} value={b.split('/').slice(1).join('/')}>{b}</option>)}
                             </optgroup>
                           </select>

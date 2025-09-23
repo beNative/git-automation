@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
 // FIX: Add missing ReleaseInfo type to the import.
@@ -40,17 +37,14 @@ const App: React.FC = () => {
     saveSettings, 
     repositories,
     // FIX: Remove unused and unsafe setters that bypass the context's logic.
-    // setRepositories,
     addRepository,
     updateRepository,
     deleteRepository,
     isLoading: isDataLoading,
     categories,
     // FIX: Remove unused and unsafe setters.
-    // setCategories,
     uncategorizedOrder,
     // FIX: Remove unused and unsafe setters.
-    // setUncategorizedOrder,
     addCategory,
     updateCategory,
     deleteCategory,

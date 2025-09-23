@@ -1,5 +1,4 @@
 // FIX: Remove self-import causing declaration conflicts.
-// import { RepoStatus, BuildHealth } from "./types";
 
 // Moved from contexts/IconContext.tsx
 // FIX: Add 'heroicons' and 'phosphor' to the IconSet type to support more icon libraries.

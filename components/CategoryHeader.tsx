@@ -116,23 +116,29 @@ const CategoryColorEditor: React.FC<{
                         {PREDEFINED_THEMES.map((theme) => {
                             const isSelected = lightBg === theme.light.bg && lightText === theme.light.text && darkBg === theme.dark.bg && darkText === theme.dark.text;
                             return (
-                                <button key={theme.name} onClick={() => handleThemeSelect(theme)} className={`h-8 w-8 rounded-full border-2 flex items-center justify-center transition-all overflow-hidden ${isSelected ? 'border-blue-500 scale-110 ring-2 ring-blue-500/50' : 'border-gray-300 dark:border-gray-600 hover:scale-105'}`} title={theme.name}>
+                                 <button
+                                    key={theme.name}
+                                    onClick={() => handleThemeSelect(theme)}
+                                    className={`h-10 w-10 rounded-full border-2 flex items-center justify-center transition-all overflow-hidden ${isSelected ? 'border-blue-500 scale-110 ring-2 ring-blue-500/50' : 'border-gray-300 dark:border-gray-600 hover:scale-105'}`}
+                                    title={theme.name}
+                                >
                                     <div className="w-1/2 h-full" style={{backgroundColor: theme.light.bg}}></div>
                                     <div className="w-1/2 h-full" style={{backgroundColor: theme.dark.bg}}></div>
                                     {isSelected && <div className="absolute inset-0 flex items-center justify-center bg-black/30"><CheckIcon className="h-5 w-5 text-white" /></div>}
                                 </button>
-                            );
+                            )
                         })}
                     </div>
                 </div>
+
                 <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Custom Colors</label>
-                    <div className="mt-1 border border-gray-200 dark:border-gray-700 rounded-lg">
+                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Custom Colors</label>
+                     <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg">
                         <div className="flex border-b border-gray-200 dark:border-gray-700">
-                            <button onClick={() => setActiveTab('light')} className={`flex-1 p-2 text-xs font-medium flex items-center justify-center gap-2 ${activeTab === 'light' ? 'bg-gray-100 dark:bg-gray-700' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-900/50'}`}><SunIcon className="h-4 w-4"/> Light</button>
-                            <button onClick={() => setActiveTab('dark')} className={`flex-1 p-2 text-xs font-medium flex items-center justify-center gap-2 border-l border-gray-200 dark:border-gray-700 ${activeTab === 'dark' ? 'bg-gray-100 dark:bg-gray-700' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-900/50'}`}><MoonIcon className="h-4 w-4"/> Dark</button>
+                            <button onClick={() => setActiveTab('light')} className={`flex-1 p-2 text-sm font-medium flex items-center justify-center gap-2 ${activeTab === 'light' ? 'bg-gray-100 dark:bg-gray-700' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-900/50'}`}><SunIcon className="h-4 w-4"/> Light Mode</button>
+                            <button onClick={() => setActiveTab('dark')} className={`flex-1 p-2 text-sm font-medium flex items-center justify-center gap-2 border-l border-gray-200 dark:border-gray-700 ${activeTab === 'dark' ? 'bg-gray-100 dark:bg-gray-700' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-900/50'}`}><MoonIcon className="h-4 w-4"/> Dark Mode</button>
                         </div>
-                        <div className="p-3 space-y-3">
+                        <div className="p-4 space-y-4">
                             {activeTab === 'light' ? (
                                 <>
                                     <ColorInput label="Background" color={lightBg} setColor={setLightBg} defaultColor="#f3f4f6" />
@@ -145,12 +151,12 @@ const CategoryColorEditor: React.FC<{
                                 </>
                             )}
                         </div>
-                    </div>
+                     </div>
                 </div>
             </main>
-            <footer className="p-3 flex justify-end gap-2 border-t border-gray-200 dark:border-gray-700">
-                <button onClick={onReset} className="px-3 py-1.5 text-sm rounded-md bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500">Reset</button>
-                <button onClick={handleSaveClick} className="px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">Save</button>
+             <footer className="bg-gray-50 dark:bg-gray-800/50 px-3 py-2 flex justify-end gap-2 border-t border-gray-200 dark:border-gray-700">
+                <button onClick={onReset} type="button" className="px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600">Reset to Default</button>
+                <button onClick={handleSaveClick} type="button" className="px-3 py-1.5 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">Save Colors</button>
             </footer>
         </div>
     );
@@ -169,140 +175,183 @@ interface CategoryHeaderProps {
   onToggleCollapse: (categoryId: string) => void;
   onMoveCategory: (categoryId: string, direction: 'up' | 'down') => void;
   onAddRepo: () => void;
-  onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragStart: () => void;
   onDropRepo: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
 }
 
-const CategoryHeader: React.FC<CategoryHeaderProps> = (props) => {
-  const { category, repoCount, isFirst, isLast, onUpdate, onDelete, onToggleCollapse, onMoveCategory, onAddRepo } = props;
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedName, setEditedName] = useState(category.name);
-  const [isColorEditorOpen, setIsColorEditorOpen] = useState(false);
-  const [previewColors, setPreviewColors] = useState<{ light: { bg: string; text: string; }, dark: { bg: string; text: string; } } | null>(null);
-  
-  const { settings } = useSettings();
-  const editorRef = useRef<HTMLDivElement>(null);
+const CategoryHeader: React.FC<CategoryHeaderProps> = ({
+  category,
+  repoCount,
+  isFirst,
+  isLast,
+  onUpdate,
+  onDelete,
+  onToggleCollapse,
+  onMoveCategory,
+  onAddRepo,
+  onDragStart,
+  onDropRepo,
+  onDragEnd,
+}) => {
+    const { settings } = useSettings();
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedName, setEditedName] = useState(category.name);
+    const [isColorEditorOpen, setIsColorEditorOpen] = useState(false);
+    const [previewColors, setPreviewColors] = useState<{ light: { bg: string, text: string }, dark: { bg: string, text: string } } | null>(null);
 
-  const dragTooltip = useTooltip('Drag to reorder category'), addRepoTooltip = useTooltip('Add new repository to this category'),
-        colorizeTooltip = useTooltip('Customize color'), editTooltip = useTooltip('Rename category'),
-        deleteTooltip = useTooltip('Delete category'), moveUpTooltip = useTooltip('Move category up'),
-        moveDownTooltip = useTooltip('Move category down');
+    const colorEditorRef = useRef<HTMLDivElement>(null);
+    const colorButtonRef = useRef<HTMLButtonElement>(null);
+    
+    const isDarkMode = settings.theme === 'dark';
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => setEditedName(e.target.value);
+    // FIX: Correctly resolve the color styles, prioritizing the live preview colors,
+    // then the category's saved colors, and finally falling back to a transparent style.
+    const getStyle = useCallback(() => {
+        const colors = isDarkMode ? { bg: category.darkBackgroundColor, text: category.darkColor } : { bg: category.backgroundColor, text: category.color };
+        const preview = isDarkMode ? previewColors?.dark : previewColors?.light;
 
-  const handleNameSave = () => {
-    if (editedName.trim() && editedName.trim() !== category.name) {
-      onUpdate({ ...category, name: editedName.trim() });
-    }
-    setIsEditing(false);
-  };
+        return {
+            backgroundColor: preview?.bg || colors.bg || 'transparent',
+            color: preview?.text || colors.text || 'inherit',
+        };
+    }, [isDarkMode, category, previewColors]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') handleNameSave();
-    else if (e.key === 'Escape') {
-      setEditedName(category.name);
-      setIsEditing(false);
-    }
-  };
-  
-  const handleColorSave = useCallback((colors: { light: {bg: string, text: string}, dark: {bg: string, text: string} }) => {
-      onUpdate({ 
-        ...category, 
-        backgroundColor: colors.light.bg || undefined, 
-        color: colors.light.text || undefined,
-        darkBackgroundColor: colors.dark.bg || undefined,
-        darkColor: colors.dark.text || undefined,
-      });
-      setIsColorEditorOpen(false);
-      setPreviewColors(null);
-  }, [category, onUpdate]);
-  
-  const handleColorReset = useCallback(() => {
-    onUpdate({ ...category, backgroundColor: undefined, color: undefined, darkBackgroundColor: undefined, darkColor: undefined });
-    setIsColorEditorOpen(false);
-    setPreviewColors(null);
-  }, [category, onUpdate]);
-
-  const handleCloseEditor = useCallback(() => {
-    setIsColorEditorOpen(false);
-    setPreviewColors(null);
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (editorRef.current && !editorRef.current.contains(event.target as Node)) {
-        handleCloseEditor();
-      }
+    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setEditedName(e.target.value);
     };
-    if (isColorEditorOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isColorEditorOpen, handleCloseEditor]);
 
-  // FIX START: This block is refactored to correctly resolve the error and apply live color previews.
-  const isDarkMode = settings.theme === 'dark';
+    const handleNameBlur = () => {
+        if (editedName.trim() && editedName !== category.name) {
+            onUpdate({ ...category, name: editedName.trim() });
+        }
+        setIsEditing(false);
+    };
+    
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') handleNameBlur();
+        if (e.key === 'Escape') {
+            setEditedName(category.name);
+            setIsEditing(false);
+        }
+    };
 
-  const previewedColors = previewColors
-    ? (isDarkMode ? previewColors.dark : previewColors.light)
-    : null;
+    const handleDelete = () => onDelete(category.id);
+    const handleToggleCollapse = () => onToggleCollapse(category.id);
+    const handleMoveUp = () => onMoveCategory(category.id, 'up');
+    const handleMoveDown = () => onMoveCategory(category.id, 'down');
+    
+    // --- Tooltips ---
+    const collapseTooltip = useTooltip(category.collapsed ? 'Expand' : 'Collapse');
+    const deleteTooltip = useTooltip('Delete Category');
+    const editNameTooltip = useTooltip('Edit Name');
+    const styleTooltip = useTooltip('Customize Style');
+    const addRepoTooltip = useTooltip('Add New Repository to this Category');
+    const dragTooltip = useTooltip('Drag to Reorder');
+    const moveUpTooltip = useTooltip('Move Up');
+    const moveDownTooltip = useTooltip('Move Down');
+    
+    // --- Click outside handler for color editor ---
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (isColorEditorOpen && 
+                colorEditorRef.current && !colorEditorRef.current.contains(event.target as Node) &&
+                colorButtonRef.current && !colorButtonRef.current.contains(event.target as Node)
+            ) {
+                setIsColorEditorOpen(false);
+                setPreviewColors(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isColorEditorOpen]);
+    
+    const handleSaveColors = (colors: { light: { bg: string, text: string }, dark: { bg: string, text: string } }) => {
+        onUpdate({ 
+            ...category, 
+            backgroundColor: colors.light.bg,
+            color: colors.light.text,
+            darkBackgroundColor: colors.dark.bg,
+            darkColor: colors.dark.text,
+        });
+        setIsColorEditorOpen(false);
+        setPreviewColors(null);
+    };
+    
+    const handleResetColors = () => {
+        onUpdate({ ...category, backgroundColor: undefined, color: undefined, darkBackgroundColor: undefined, darkColor: undefined });
+        setIsColorEditorOpen(false);
+        setPreviewColors(null);
+    };
 
-  const currentStyle = {
-    color: previewedColors?.text ?? (isDarkMode ? category.darkColor : category.color),
-  };
-  
-  const hasCustomColor = !!currentStyle.color;
-  const defaultBg = isDarkMode ? 'bg-gray-800' : 'bg-gray-200';
-  const hasCustomBg = !!(previewedColors?.bg ?? (isDarkMode ? category.darkBackgroundColor : category.backgroundColor));
-  // FIX END
-
-  return (
-    <div className="relative">
-      <div
-        onDragOver={(e) => { e.preventDefault(); }}
-        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); props.onDropRepo(e); }}
-        className={`group flex items-center p-0.5 rounded-lg transition-colors ${!hasCustomBg ? defaultBg : ''}`}
-        // FIX: Apply preview background color via style to ensure it overrides the parent's style from Dashboard.
-        style={{ backgroundColor: previewedColors?.bg }}
-      >
-        <div {...dragTooltip} draggable="true" onDragStart={props.onDragStart} onDragEnd={props.onDragEnd} className="p-1.5 cursor-move text-gray-400 dark:text-gray-500 touch-none"><GripVerticalIcon className="h-5 w-5" /></div>
-        <button onClick={() => onToggleCollapse(category.id)} className="flex items-center flex-grow text-left p-1.5" style={currentStyle}>
-          <ChevronRightIcon className={`h-5 w-5 mr-2 transition-transform ${category.collapsed ? '' : 'rotate-90'}`} />
-          {isEditing ? (
-            <input type="text" value={editedName} onChange={handleNameChange} onBlur={handleNameSave} onKeyDown={handleKeyDown} className="text-lg font-bold bg-transparent border-b-2 border-blue-500 focus:ring-0 focus:outline-none" autoFocus onClick={(e) => e.stopPropagation()} />
-          ) : (
-            <h2 onDoubleClick={() => setIsEditing(true)} className="text-lg font-bold">{category.name}</h2>
-          )}
-          <span className={`ml-2 text-sm font-normal ${hasCustomColor ? 'opacity-80' : 'text-gray-500 dark:text-gray-400'}`}>({repoCount})</span>
-        </button>
-
-        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity pr-2" style={currentStyle}>
-          <button {...addRepoTooltip} onClick={onAddRepo} className={`p-1.5 rounded-full ${hasCustomBg ? 'hover:bg-black/20' : 'hover:bg-gray-300 dark:hover:bg-gray-700'}`}><PlusIcon className="h-4 w-4" /></button>
-          <button {...moveUpTooltip} onClick={() => onMoveCategory(category.id, 'up')} disabled={isFirst} className={`p-1.5 rounded-full disabled:opacity-30 ${hasCustomBg ? 'hover:bg-black/20' : 'hover:bg-gray-300 dark:hover:bg-gray-700'}`}><ArrowUpIcon className="h-4 w-4" /></button>
-          <button {...moveDownTooltip} onClick={() => onMoveCategory(category.id, 'down')} disabled={isLast} className={`p-1.5 rounded-full disabled:opacity-30 ${hasCustomBg ? 'hover:bg-black/20' : 'hover:bg-gray-300 dark:hover:bg-gray-700'}`}><ArrowDownIcon className="h-4 w-4" /></button>
-          <button {...colorizeTooltip} onClick={() => setIsColorEditorOpen(p => !p)} className={`p-1.5 rounded-full ${hasCustomBg ? 'hover:bg-black/20' : 'hover:bg-gray-300 dark:hover:bg-gray-700'}`}><PaintBrushIcon className="h-4 w-4" /></button>
-          <button {...editTooltip} onClick={() => setIsEditing(true)} className={`p-1.5 rounded-full ${hasCustomBg ? 'hover:bg-black/20' : 'hover:bg-gray-300 dark:hover:bg-gray-700'}`}><PencilIcon className="h-4 w-4" /></button>
-          <button {...deleteTooltip} onClick={() => onDelete(category.id)} className={`p-1.5 rounded-full ${hasCustomBg ? 'hover:bg-black/20' : 'hover:bg-gray-300 dark:hover:bg-gray-700'}`}><TrashIcon className="h-4 w-4" /></button>
+    return (
+        <div 
+            className="flex items-center justify-between group rounded-lg"
+            style={getStyle()}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onDrop={onDropRepo}
+        >
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+                <button
+                    {...dragTooltip}
+                    draggable
+                    onDragStart={onDragStart}
+                    onDragEnd={onDragEnd}
+                    className="p-2 cursor-grab opacity-50 group-hover:opacity-100 transition-opacity"
+                >
+                    <GripVerticalIcon className="h-5 w-5"/>
+                </button>
+                <button {...collapseTooltip} onClick={handleToggleCollapse} className="p-1 rounded-full hover:bg-black/10">
+                    <ChevronRightIcon className={`h-5 w-5 transition-transform ${!category.collapsed ? 'rotate-90' : ''}`} />
+                </button>
+                {isEditing ? (
+                    <input
+                        type="text"
+                        value={editedName}
+                        onChange={handleNameChange}
+                        onBlur={handleNameBlur}
+                        onKeyDown={handleKeyDown}
+                        className="text-lg font-bold bg-transparent border-b-2 border-current focus:outline-none w-full"
+                        autoFocus
+                    />
+                ) : (
+                    <h2
+                        onDoubleClick={() => setIsEditing(true)}
+                        className="text-lg font-bold truncate"
+                        title={category.name}
+                    >
+                        {category.name}
+                    </h2>
+                )}
+                <span className="text-sm font-medium opacity-70">({repoCount})</span>
+            </div>
+            
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button {...moveUpTooltip} onClick={handleMoveUp} disabled={isFirst} className="p-2 rounded-full hover:bg-black/10 disabled:opacity-30"><ArrowUpIcon className="h-4 w-4"/></button>
+                <button {...moveDownTooltip} onClick={handleMoveDown} disabled={isLast} className="p-2 rounded-full hover:bg-black/10 disabled:opacity-30"><ArrowDownIcon className="h-4 w-4"/></button>
+                <button {...addRepoTooltip} onClick={onAddRepo} className="p-2 rounded-full hover:bg-black/10"><PlusIcon className="h-4 w-4"/></button>
+                <div className="relative">
+                    <button ref={colorButtonRef} {...styleTooltip} onClick={() => setIsColorEditorOpen(p => !p)} className="p-2 rounded-full hover:bg-black/10"><PaintBrushIcon className="h-4 w-4"/></button>
+                    {isColorEditorOpen && (
+                        <div ref={colorEditorRef} className="absolute top-full right-0 mt-2 z-30 animate-fade-in-fast">
+                            <CategoryColorEditor
+                                initialColors={{
+                                    light: { bg: category.backgroundColor || '', text: category.color || '' },
+                                    dark: { bg: category.darkBackgroundColor || '', text: category.darkColor || '' },
+                                }}
+                                onColorsChange={setPreviewColors}
+                                onSave={handleSaveColors}
+                                onReset={handleResetColors}
+                                onClose={() => { setIsColorEditorOpen(false); setPreviewColors(null); }}
+                            />
+                        </div>
+                    )}
+                </div>
+                <button {...editNameTooltip} onClick={() => setIsEditing(true)} className="p-2 rounded-full hover:bg-black/10"><PencilIcon className="h-4 w-4"/></button>
+                <button {...deleteTooltip} onClick={handleDelete} className="p-2 rounded-full hover:bg-black/10"><TrashIcon className="h-4 w-4"/></button>
+            </div>
         </div>
-      </div>
-      
-      {isColorEditorOpen && (
-        <div ref={editorRef} className="absolute top-full right-0 mt-2 z-20 animate-fade-in-fast">
-            <CategoryColorEditor
-                initialColors={{
-                    light: { bg: category.backgroundColor || '', text: category.color || '' },
-                    dark: { bg: category.darkBackgroundColor || '', text: category.darkColor || '' }
-                }}
-                onColorsChange={setPreviewColors}
-                onSave={handleColorSave}
-                onReset={handleColorReset}
-                onClose={handleCloseEditor}
-            />
-        </div>
-      )}
-    </div>
-  );
+    );
 };
 
 export default CategoryHeader;
