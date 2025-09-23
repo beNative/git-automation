@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.23.0]
+
+### Added
+- **Custom Title Bar:** The application now features a modern, custom-built title bar, similar to Visual Studio Code. This provides a more integrated look and feel.
+- **Integrated Command Palette:** The Command Palette (`Ctrl/Cmd+K`) has been redesigned and is now directly integrated into the new custom title bar for faster access.
+
+### Fixed
+- **Dropdown Clipping:** Fixed a critical UI bug where the branch switcher dropdown on repository cards would be cut off by the application's borders, making it unusable. The dropdown now correctly renders above all other elements.
+
 ## [0.22.0]
 
 ### Added

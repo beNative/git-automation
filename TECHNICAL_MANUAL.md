@@ -20,11 +20,12 @@ The application is split into three main processes, which is standard for Electr
 -   **Entry Point:** `electron/main.ts`
 -   **Responsibilities:**
     -   Manages the application lifecycle (`app` events).
-    -   Creates and manages `BrowserWindow` instances (the application's windows).
+    -   Creates and manages `BrowserWindow` instances. The primary window is configured as a **frameless window** (`frame: false`), which removes the default OS title bar and window chrome.
     -   **Logging:** The main process contains a structured `mainLogger` that replaces all `console` calls. This logger sends messages to the renderer process for display in the debug UI and also writes directly to the debug log file (`git-automation-dashboard-log-[...].log`) if file logging is enabled by the user.
     -   Reads user settings on startup to configure features like the auto-updater's pre-release channel.
     -   Handles native OS interactions (dialogs, file system access).
     -   Listens for and responds to IPC (Inter-Process Communication) events. This includes:
+        -   **Window Controls:** Handles IPC events (`window-minimize`, `window-maximize`, `window-close`) sent from the custom React title bar to manage the window state.
         -   **Project Intelligence:** Handles `get-project-info` and `get-project-suggestions` by analyzing the file system of a repository to detect technologies like Node.js, Python, Delphi, and Lazarus.
         -   **Task Execution:** Executes shell commands for task steps. The `run-task-step` handler now contains logic to interpret and execute the new, ecosystem-specific step types (e.g., `PYTHON_INSTALL_DEPS`). It also handles setting environment variables for tasks.
         -   **Task Log Archiving:** Upon starting a task, it creates a timestamped log file in the user-configured directory. It then streams all `stdout` and `stderr` from the task's execution to this file, in addition to the live view in the UI.
@@ -38,7 +39,8 @@ The application is split into three main processes, which is standard for Electr
 
 -   **Entry Point:** `index.tsx` -> `App.tsx`
 -   **Responsibilities:**
-    -   Renders the entire user interface using React.
+    -   Renders the entire user interface using React, including the custom title bar.
+    -   **Custom Title Bar:** The `TitleBar.tsx` component implements the UI for the top of the window. It uses the CSS property `-webkit-app-region: drag` to make the window draggable. All interactive elements within the bar (buttons, search input) must have `-webkit-app-region: no-drag` to remain clickable.
     -   Holds the majority of the application's client-side business logic.
     -   **Security:** The renderer cannot directly access Node.js APIs. All such operations must be requested from the Main process via the Preload script.
 
@@ -47,14 +49,14 @@ The application is split into three main processes, which is standard for Electr
 -   **Entry Point:** `electron/preload.ts`
 -   **Responsibilities:**
     -   Acts as a secure bridge between the Renderer and Main processes.
-    -   Uses `contextBridge` to expose a safe, limited API (`window.electronAPI`) to the renderer. This includes functions like `getProjectInfo`, `getCommitHistory`, `getDelphiVersions`, etc.
+    -   Uses `contextBridge` to expose a safe, limited API (`window.electronAPI`) to the renderer. This includes functions like `getProjectInfo`, `getCommitHistory`, and now `windowMinimize`, `windowMaximize`, and `windowClose` for the custom title bar.
 
 ## 3. State Management and Data Flow
 
 -   **Primary State:** The root `App.tsx` component manages the entire application state, including the list of repositories, global settings, dashboard categories, the active view, and the state of modals and panels.
 -   **VCS State:** `App.tsx` also holds state for `detailedStatuses` and `branchLists` which are fetched periodically and after tasks complete to keep the UI in sync with the file system.
 -   **Parallel Task Execution:** To support running multiple tasks concurrently, a unique `executionId` is generated for each task run. This ID is passed between the renderer and main processes, allowing log output (`task-log`) and completion events (`task-step-end`) to be correctly routed to the appropriate repository and UI components without conflict.
--   **Component Architecture:** The `RepoFormModal` component has been significantly enhanced with the Project Intelligence UI, which conditionally renders task-generation buttons based on data fetched from the `get-project-info` IPC handler. The task editor now renders different configuration options based on the `TaskStepType` enum.
+-   **Component Architecture:** The `RepoFormModal` component has been significantly enhanced with the Project Intelligence UI, which conditionally renders task-generation buttons based on data fetched from the `get-project-info` IPC handler. The task editor now renders different configuration options based on the `TaskStepType` enum. The old `Header.tsx` component has been removed and replaced by `TitleBar.tsx` and a set of new icon components for window controls.
 
 ### Data Persistence
 
