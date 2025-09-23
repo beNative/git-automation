@@ -4,8 +4,6 @@ This application provides a simple, powerful dashboard to manage and automate th
 
 ## Core Features
 
--   **Custom Title Bar & Integrated UI:** A sleek, modern title bar like in VS Code frees up screen space and provides a native-app feel.
--   **Integrated Command Palette:** The powerful command palette (`Ctrl/Cmd+K`) is now instantly accessible from the center of the new title bar, streamlining keyboard-driven navigation and actions.
 -   **Centralized Dashboard:** View the status, branch, and build health of all your repositories in one place.
 -   **Customizable Dashboard Categories:** Organize your repositories into collapsible sections with **dual-theme (light/dark) color styling**, a library of predefined themes, full drag-and-drop support (for both repositories and categories), and alternative up/down reorder buttons.
 -   **Multi-VCS Support:** Manage both Git and Subversion (SVN) repositories seamlessly.
@@ -14,6 +12,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Advanced Task Steps:** A rich library of specific, pre-built steps for different ecosystems, **now organized into logical categories in the UI for easy discovery**, simplifies creating complex workflows.
 -   **Task Environment Variables:** Define shell environment variables that are available to all command steps within a task.
 -   **Quick Actions:** Manually refresh repository state, copy URLs/paths with a single click, access all common actions via a right-click context menu, and reorder repositories with up/down buttons.
+-   **Powerful Command Palette:** Quickly access any action, task, or repository using a keyboard-driven command palette (`Ctrl/Cmd+K`).
 -   **Parallel Execution:** Run tasks on multiple repositories at the same time without waiting.
 -   **One-Click Update Check:** A "Check Updates" button fetches the latest information from all remotes, showing an "Updates Available" indicator on repositories that are behind.
 -   **Detailed VCS Status:** See ahead/behind status (Git) and a summary of file changes directly on the dashboard.
@@ -35,7 +34,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 ## Quick Start
 
 1.  **Add a Repository:**
-    -   Click the **"New Repo"** button in the title bar.
+    -   Click the **"New Repo"** button in the header.
     -   Select the Version Control System (Git or SVN).
     -   Fill in the required details on the "General" tab.
     -   Click **"Save Repository"**.

@@ -4,15 +4,7 @@ This manual provides a detailed walkthrough of all the features available in the
 
 ## 1. Navigating the Application
 
-The application features a modern, custom title bar similar to applications like VS Code. This bar serves as the primary hub for navigation and global actions.
-
--   **Draggable Area:** The majority of the title bar is draggable, allowing you to move the application window.
--   **View Title:** The current view (e.g., "Dashboard", "Settings") is displayed on the left with a corresponding color.
--   **Command Palette:** The center of the title bar features an integrated search bar. Clicking it or using `Ctrl/Cmd+K` opens the Command Palette, your primary tool for quick actions.
--   **Global Actions & Navigation:** The right side contains buttons for global dashboard actions (like "New Repo" or "Check Updates"), navigation icons to switch between views (Dashboard, Settings, Info), and a quick-toggle for light/dark mode.
--   **Window Controls:** On Windows and Linux, standard minimize, maximize, and close buttons are located at the far right. On macOS, these controls are in their standard top-left position.
-
-The application is organized into three main views, which you can switch between using the icons in the top-right of the title bar:
+The application is organized into three main views, which you can switch between using the icons in the top-right of the header. The header also features a dynamic title that changes color and text to reflect the current view. The final icon in the header is a **theme toggle button** to quickly switch between light and dark modes.
 
 -   **Dashboard (Home Icon):** The main screen where you can see and interact with all your repository cards.
 -   **Settings (Cog Icon):** Where you can configure global application settings.
@@ -22,7 +14,7 @@ The application is organized into three main views, which you can switch between
 
 The dashboard is the central hub of the application. It displays all your configured repositories as individual cards, now organized into categories. You can run tasks on multiple repositories at the same time. Starting a long build on one project won't stop you from running a quick update on another.
 
-The title bar also contains a **"Check Updates"** button to check all repositories for remote changes, and a button to **Expand/Collapse All** categories for quick layout management.
+The header also contains a **"Check Updates"** button to check all repositories for remote changes, and a button to **Expand/Collapse All** categories for quick layout management.
 
 ### Organizing with Categories
 
@@ -89,7 +81,7 @@ Tasks (automation scripts) are configured on a per-repository basis.
 
 ### Adding a New Repository
 
-1.  Click the **"New Repo"** button in the title bar.
+1.  Click the **"New Repo"** button in the header.
 2.  The "Add New Repository" view will appear.
 3.  Fill in the repository's details (Name, URL, Local Path, VCS type, etc.). The **Local Path** must be the absolute path to the repository on your computer for real execution to work.
 4.  Click **"Save Repository"**.
@@ -148,10 +140,10 @@ When you run a task or choose to view logs, a panel will appear at the bottom of
 
 ## 5. Global Settings View
 
-Click the **cog icon** in the title bar to access global settings.
+Click the **cog icon** in the header to access global settings.
 
 -   **Appearance:**
-    -   **Theme:** Choose between a `Light` and `Dark` theme. A quick-toggle button is also available in the title bar for convenience.
+    -   **Theme:** Choose between a `Light` and `Dark` theme. A quick-toggle button is also available in the header for convenience.
     -   **Icon Set:** Select from the available icon sets to customize the application's iconography. Feather is the default for a clean and consistent look.
     -   **GUI Scale:** Adjust the overall size of the application from 50% to 200% for better readability.
 -   **Behavior:**
