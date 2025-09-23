@@ -1,8 +1,16 @@
+
+
+
+
+
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
+// FIX: Add missing ReleaseInfo type to the import.
 import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category, ReleaseInfo } from './types';
 import Dashboard from './components/Dashboard';
 import TitleBar from './components/TitleBar';
+// FIX: RepoEditView is a default export, so it should be imported without curly braces.
 import RepoEditView from './components/modals/RepoFormModal';
 import Toast from './components/Toast';
 import InfoView from './components/InfoView';
@@ -33,12 +41,18 @@ const App: React.FC = () => {
     settings, 
     saveSettings, 
     repositories,
+    // FIX: Remove unused and unsafe setters that bypass the context's logic.
+    // setRepositories,
     addRepository,
     updateRepository,
     deleteRepository,
     isLoading: isDataLoading,
     categories,
+    // FIX: Remove unused and unsafe setters.
+    // setCategories,
     uncategorizedOrder,
+    // FIX: Remove unused and unsafe setters.
+    // setUncategorizedOrder,
     addCategory,
     updateCategory,
     deleteCategory,
@@ -74,8 +88,10 @@ const App: React.FC = () => {
   const [isCheckingAll, setIsCheckingAll] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
 
+  // New states for deeper VCS integration
   const [detailedStatuses, setDetailedStatuses] = useState<Record<string, DetailedStatus | null>>({});
   const [branchLists, setBranchLists] = useState<Record<string, BranchInfo | null>>({});
+  // FIX: Add state for latestReleases to satisfy DashboardProps.
   const [latestReleases, setLatestReleases] = useState<Record<string, ReleaseInfo | null>>({});
   
   const [taskLogState, setTaskLogState] = useState({
@@ -170,6 +186,7 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // Effect for app version
   useEffect(() => {
     logger.debug('App component mounted. Initializing API listeners.');
     if (window.electronAPI?.getAppVersion) {
@@ -177,6 +194,7 @@ const App: React.FC = () => {
     }
   }, [logger]);
 
+  // Effect to listen for logs from the main process
   useEffect(() => {
       const handleLogFromMain = (
           _event: any, 
@@ -193,6 +211,7 @@ const App: React.FC = () => {
   }, [logger]);
 
 
+  // Effect for auto-updater
   useEffect(() => {
     const handleUpdateStatus = (_event: any, data: UpdateStatusMessage) => {
         logger.info(`Update status change received: ${data.status}`, data);
@@ -221,6 +240,7 @@ const App: React.FC = () => {
     };
   }, [logger]);
   
+  // Effect to check local paths
   useEffect(() => {
     if (isDataLoading) return;
     const checkPaths = async () => {
@@ -246,6 +266,7 @@ const App: React.FC = () => {
     checkPaths();
   }, [repositories, isDataLoading, logger]);
   
+  // New effect to fetch detailed VCS statuses and branch lists
   useEffect(() => {
     if (isDataLoading) return;
     const fetchStatuses = async () => {
@@ -275,6 +296,7 @@ const App: React.FC = () => {
     fetchStatuses();
   }, [repositories, localPathStates, isDataLoading, logger]);
 
+  // FIX: Add effect to fetch latest releases for repositories.
   useEffect(() => {
     if (isDataLoading || !settings.githubPat) {
       if (!settings.githubPat) {
@@ -294,7 +316,7 @@ const App: React.FC = () => {
             return { repoId: repo.id, releaseInfo };
           } catch (error: any) {
             logger.error(`Failed to fetch release for ${repo.name}:`, { error: error.message });
-            return { repoId: repo.id, releaseInfo: null };
+            return { repoId: repo.id, releaseInfo: null }; // Ensure we return a value even on error
           }
         });
 
@@ -307,6 +329,7 @@ const App: React.FC = () => {
   }, [repositories, localPathStates, isDataLoading, logger, settings.githubPat]);
 
 
+  // Effect to detect executables when paths are validated
   useEffect(() => {
     if (isDataLoading) return;
     const detectAll = async () => {
@@ -328,6 +351,7 @@ const App: React.FC = () => {
     detectAll();
   }, [repositories, localPathStates, isDataLoading, logger]);
 
+  // Effect to apply theme
   useEffect(() => {
     if (settings?.theme) {
         logger.debug('Applying theme setting.', { theme: settings.theme });
@@ -339,12 +363,14 @@ const App: React.FC = () => {
     }
   }, [settings?.theme, logger]);
 
+  // Effect to apply GUI zoom factor
   useEffect(() => {
     const zoom = settings?.zoomFactor ?? 1;
     logger.debug('Applying GUI scale factor', { zoom });
     document.documentElement.style.fontSize = `${zoom * 100}%`;
   }, [settings?.zoomFactor, logger]);
   
+  // Effect for Debug Panel
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
@@ -367,10 +393,12 @@ const App: React.FC = () => {
     if (repo.vcs === VcsType.Git) {
         const branches = await window.electronAPI?.listBranches(repo.localPath);
         setBranchLists(prev => ({ ...prev, [repoId]: branches }));
+        // If the current branch in the state is different from the one on disk, update it
         if (branches?.current && repo.branch !== branches.current) {
             logger.info('Branch changed on disk, updating repository state.', { repoId, old: repo.branch, new: branches.current });
             updateRepository({ ...repo, branch: branches.current });
         }
+        // Also refresh release info
         if (settings.githubPat) {
             const releaseInfo = await window.electronAPI?.getLatestRelease(repo);
             setLatestReleases(prev => ({ ...prev, [repoId]: releaseInfo }));
@@ -548,7 +576,7 @@ const App: React.FC = () => {
         setToast({ message: 'Task was cancelled.', type: 'info' });
       }
     } finally {
-        refreshRepoState(repoId);
+        refreshRepoState(repoId); // Refresh status after task run
     }
   }, [repositories, settings, runTask, openLogPanelForRepo, refreshRepoState, logger]);
 
@@ -674,6 +702,7 @@ const App: React.FC = () => {
     
     try {
         await cloneRepository(repo);
+        // After cloning, re-check the path status
         const newState = await window.electronAPI?.checkLocalPath(repo.localPath) ?? 'missing';
         setLocalPathStates(prev => ({...prev, [repo.id]: newState}));
     } catch (e: any) {
@@ -697,6 +726,7 @@ const App: React.FC = () => {
       }
 
       const parentDir = result.filePaths[0];
+      // Sanitize repo name to be used as a directory name
       const repoDirName = repo.name.replace(/[^a-zA-Z0-9_.-]/g, '-').toLowerCase();
       const newLocalPath = await window.electronAPI?.pathJoin(parentDir, repoDirName);
 
@@ -708,6 +738,7 @@ const App: React.FC = () => {
       const updatedRepo = { ...repo, localPath: newLocalPath };
       updateRepository(updatedRepo);
       
+      // Immediately trigger the clone with the updated repo object
       await handleCloneRepo(updatedRepo);
 
     } catch (e: any) {
@@ -775,6 +806,7 @@ const App: React.FC = () => {
   const latestLog = useMemo(() => {
     const allLogs = Object.values(logs).flat();
     if (allLogs.length === 0) return null;
+    // FIX: Explicitly type accumulator and current value in reduce to fix type inference issue.
     return allLogs.reduce((latest: LogEntry, current: LogEntry) => new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest);
   }, [logs]);
 
@@ -810,6 +842,7 @@ const App: React.FC = () => {
     }
   }, [activeView]);
 
+  // Log Panel Handlers
   const handleSelectLogTab = useCallback((repoId: string) => {
     setTaskLogState(prev => ({ ...prev, selectedId: repoId }));
   }, []);
@@ -880,6 +913,7 @@ const App: React.FC = () => {
                   case 'info':
                     return <InfoView />;
                   case 'edit-repository':
+                    // The key ensures the component re-mounts when switching between editing different repos
                     return <RepoEditView 
                       key={repoFormState.repoId} 
                       repository={repositoryToEdit} 
@@ -928,6 +962,7 @@ const App: React.FC = () => {
                       detectedExecutables={detectedExecutables}
                       detailedStatuses={detailedStatuses}
                       branchLists={branchLists}
+                      // FIX: Pass latestReleases prop to Dashboard.
                       latestReleases={latestReleases}
                       onSwitchBranch={handleSwitchBranch}
                       onCloneRepo={(repoId) => {

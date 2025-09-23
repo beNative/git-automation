@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Repository, AppView } from '../types';
 import { useTooltip } from '../hooks/useTooltip';
 import { useSettings } from '../contexts/SettingsContext';
-import CommandPalette, { type Command } from './CommandPalette';
+import CommandPalette from './CommandPalette';
 
 import { PlusIcon } from './icons/PlusIcon';
 import { CogIcon } from './icons/CogIcon';
@@ -18,7 +18,6 @@ import { WindowMinimizeIcon } from './icons/WindowMinimizeIcon';
 import { WindowMaximizeIcon } from './icons/WindowMaximizeIcon';
 import { WindowRestoreIcon } from './icons/WindowRestoreIcon';
 import { WindowCloseIcon } from './icons/WindowCloseIcon';
-import { PlayIcon } from './icons/PlayIcon';
 
 interface TitleBarProps {
   onNewRepo: () => void;
@@ -36,16 +35,13 @@ const TitleBar: React.FC<TitleBarProps> = (props) => {
   const { settings, saveSettings } = useSettings();
   const [platform, setPlatform] = useState<'win32' | 'darwin' | 'linux' | ''>('');
   const [isMaximized, setIsMaximized] = useState(false);
-  
-  const [isPaletteOpen, setPaletteOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const paletteRef = useRef<HTMLDivElement>(null);
+  const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   useEffect(() => {
     window.electronAPI?.getPlatform().then(setPlatform);
-    const listener = (_: any, maximized: boolean) => setIsMaximized(maximized);
+    const listener = (_: any, maximized: boolean) => {
+        setIsMaximized(maximized);
+    };
     window.electronAPI?.onWindowMaximizedStatusChanged(listener);
     
     return () => { 
@@ -59,86 +55,12 @@ const TitleBar: React.FC<TitleBarProps> = (props) => {
     const handleKeyDown = (e: KeyboardEvent) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
             e.preventDefault();
-            setPaletteOpen(prev => !prev);
+            setCommandPaletteOpen(prev => !prev);
         }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-  
-  // --- Command Palette Logic ---
-  const allCommands = useMemo<Command[]>(() => {
-    const navCommands: Command[] = [
-      { id: 'nav-dashboard', type: 'navigation', title: 'Go to Dashboard', icon: <HomeIcon className="h-5 w-5" />, action: () => props.onSetView('dashboard') },
-      { id: 'nav-settings', type: 'navigation', title: 'Go to Settings', icon: <CogIcon className="h-5 w-5" />, action: () => props.onSetView('settings') },
-      { id: 'nav-info', type: 'navigation', title: 'Go to Info', icon: <InformationCircleIcon className="h-5 w-5" />, action: () => props.onSetView('info') },
-      { id: 'repo-new', type: 'navigation', title: 'Add New Repository', icon: <PlusIcon className="h-5 w-5" />, action: props.onNewRepo },
-    ];
-
-    const taskCommands: Command[] = props.repositories.flatMap(repo => 
-        repo.tasks.map(task => ({
-            id: `task-${repo.id}-${task.id}`,
-            type: 'task' as const,
-            title: `Run '${task.name}'`,
-            description: `on repository '${repo.name}'`,
-            icon: <PlayIcon className="h-5 w-5" />,
-            action: () => props.onRunTask(repo.id, task.id),
-        }))
-    );
-
-    return [...navCommands, ...taskCommands];
-  }, [props.repositories, props.onSetView, props.onNewRepo, props.onRunTask]);
-  
-  const filteredCommands = useMemo(() => {
-    if (!search) return allCommands;
-    const lowerCaseSearch = search.toLowerCase();
-    return allCommands.filter(cmd => 
-        cmd.title.toLowerCase().includes(lowerCaseSearch) ||
-        cmd.description?.toLowerCase().includes(lowerCaseSearch)
-    );
-  }, [search, allCommands]);
-  
-  useEffect(() => { setActiveIndex(0); }, [filteredCommands]);
-  
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-        if (paletteRef.current && !paletteRef.current.contains(event.target as Node)) {
-            setPaletteOpen(false);
-        }
-    };
-    if (isPaletteOpen) {
-        document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isPaletteOpen]);
-  
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveIndex(prev => (prev + 1) % (filteredCommands.length || 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveIndex(prev => (prev - 1 + (filteredCommands.length || 1)) % (filteredCommands.length || 1));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      const command = filteredCommands[activeIndex];
-      if (command) {
-        command.action();
-        setPaletteOpen(false);
-        setSearch('');
-      }
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      setPaletteOpen(false);
-    }
-  }, [filteredCommands, activeIndex]);
-
-  const handleCommandClick = (command: Command) => {
-    command.action();
-    setPaletteOpen(false);
-    setSearch('');
-  };
-  // --- End Command Palette Logic ---
 
   const handleToggleTheme = () => {
     const newTheme = settings.theme === 'dark' ? 'light' : 'dark';
@@ -188,28 +110,26 @@ const TitleBar: React.FC<TitleBarProps> = (props) => {
 
       {/* Center: Command Palette */}
       <div className="flex-1 flex justify-center items-center h-full">
-        <div ref={paletteRef} className="relative" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          <div className="relative">
-            <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onFocus={() => setPaletteOpen(true)}
-              onKeyDown={handleKeyDown}
-              placeholder="Search actions & tasks (Ctrl+K)"
-              className="w-80 h-8 pl-9 pr-3 text-sm text-gray-800 dark:text-gray-100 bg-white/50 dark:bg-black/20 rounded-md border border-gray-300/50 dark:border-gray-700/50 focus:border-blue-500 focus:bg-white/80 dark:focus:bg-black/30 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
-            />
-          </div>
+        <div className="relative" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <button
+              onClick={() => setCommandPaletteOpen(true)}
+              className="w-80 h-8 px-3 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-black/20 rounded-md border border-gray-300/50 dark:border-gray-700/50 hover:border-blue-500 hover:bg-white/80 dark:hover:bg-black/30 transition-all"
+          >
+              <div className="flex items-center">
+                  <MagnifyingGlassIcon className="h-4 w-4 mr-2"/>
+                  <span>Search...</span>
+              </div>
+              <kbd className="font-sans text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded">Ctrl+K</kbd>
+          </button>
           
-          {isPaletteOpen && (
-            <CommandPalette 
-              filteredCommands={filteredCommands}
-              activeIndex={activeIndex}
-              onCommandClick={handleCommandClick}
-              setActiveIndex={setActiveIndex}
-            />
-          )}
+          <CommandPalette 
+              isOpen={isCommandPaletteOpen}
+              onClose={() => setCommandPaletteOpen(false)}
+              repositories={props.repositories}
+              onSetView={props.onSetView}
+              onNewRepo={props.onNewRepo}
+              onRunTask={props.onRunTask}
+          />
         </div>
       </div>
 
