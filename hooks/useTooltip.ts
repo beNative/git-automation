@@ -1,3 +1,4 @@
+import React from 'react';
 import { useContext, useRef, useCallback, ReactNode } from 'react';
 import { TooltipContext } from '../contexts/TooltipContext';
 

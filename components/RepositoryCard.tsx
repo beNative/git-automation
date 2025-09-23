@@ -67,9 +67,10 @@ interface RepositoryCardProps {
 const BranchSwitcher: React.FC<{
   repoId: string,
   branchInfo: BranchInfo | null,
-  onSwitchBranch: (repoId: string, branch: string) => void
-}> = ({ repoId, branchInfo, onSwitchBranch }) => {
-    const [isOpen, setIsOpen] = useState(false);
+  onSwitchBranch: (repoId: string, branch: string) => void,
+  isOpen: boolean,
+  setIsOpen: (isOpen: boolean) => void,
+}> = ({ repoId, branchInfo, onSwitchBranch, isOpen, setIsOpen }) => {
     const [opensUp, setOpensUp] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const DROPDOWN_HEIGHT = 240; // Approx height for max-h-60
@@ -82,7 +83,7 @@ const BranchSwitcher: React.FC<{
         }
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [wrapperRef]);
+    }, [wrapperRef, setIsOpen]);
 
     if (!branchInfo) return null;
 
@@ -109,7 +110,7 @@ const BranchSwitcher: React.FC<{
                 setOpensUp(false);
             }
         }
-        setIsOpen(prev => !prev);
+        setIsOpen(!isOpen);
     };
 
     return (
@@ -388,6 +389,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onRefreshRepoState,
 }) => {
   const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, tasks, launchConfigs, localPath, webLinks } = repository;
+  const [isBranchSwitcherOpen, setIsBranchSwitcherOpen] = useState(false);
   
   const isPathValid = localPathState === 'valid';
   const isPathMissing = localPathState === 'missing';
@@ -420,7 +422,8 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
     'relative group',
     'bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col',
     'transition-all duration-300 hover:shadow-blue-500/20',
-    isBeingDragged ? 'opacity-40 scale-95' : 'opacity-100 scale-100',
+    isBeingDragged ? 'opacity-40 scale-95' : 'opacity-100',
+    isBranchSwitcherOpen ? 'z-20' : 'z-0',
   ].join(' ');
   
 
@@ -521,7 +524,13 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
               {vcs === VcsType.Git ? (
                 <>
                   <GitBranchIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                  <BranchSwitcher repoId={id} branchInfo={branchInfo} onSwitchBranch={onSwitchBranch} />
+                  <BranchSwitcher 
+                    isOpen={isBranchSwitcherOpen}
+                    setIsOpen={setIsBranchSwitcherOpen}
+                    repoId={id} 
+                    branchInfo={branchInfo} 
+                    onSwitchBranch={onSwitchBranch} 
+                  />
                 </>
               ) : (
                 <>

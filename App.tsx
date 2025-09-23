@@ -815,7 +815,8 @@ const App: React.FC = () => {
   const latestLog = useMemo(() => {
     const allLogs = Object.values(logs).flat();
     if (allLogs.length === 0) return null;
-    return allLogs.reduce((latest, current) => new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest);
+    // FIX: Explicitly type accumulator and current value in reduce to fix type inference issue.
+    return allLogs.reduce((latest: LogEntry, current: LogEntry) => new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest);
   }, [logs]);
 
   const repositoryToEdit = useMemo(() => {

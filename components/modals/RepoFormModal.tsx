@@ -143,7 +143,7 @@ const TaskStepItem: React.FC<{
 
   const allDelphiPlatforms = useMemo(() => {
       const platformSet = new Set<string>();
-      projectInfo?.delphi?.projects.forEach(p => {
+      (projectInfo?.delphi?.projects || []).forEach(p => {
           p.platforms.forEach(platform => platformSet.add(platform));
       });
       return Array.from(platformSet).sort();
@@ -151,7 +151,7 @@ const TaskStepItem: React.FC<{
 
   const allDelphiConfigs = useMemo(() => {
       const configSet = new Set<string>();
-      projectInfo?.delphi?.projects.forEach(p => {
+      (projectInfo?.delphi?.projects || []).forEach(p => {
           p.configs.forEach(config => configSet.add(config));
       });
       return Array.from(configSet).sort();
@@ -252,12 +252,14 @@ const TaskStepItem: React.FC<{
                 >
                     <option value="">Auto-detect</option>
                     <optgroup label="Projects">
-                        {projectInfo?.delphi?.projects.map(p => (
+                        {/* FIX: Add guard to prevent calling .map on undefined. */}
+                        {(projectInfo?.delphi?.projects || []).map(p => (
                             <option key={p.path} value={p.path}>{p.path}</option>
                         ))}
                     </optgroup>
                     <optgroup label="Project Groups">
-                        {projectInfo?.delphi?.groups.map(g => (
+                        {/* FIX: Add guard to prevent calling .map on undefined. */}
+                        {(projectInfo?.delphi?.groups || []).map(g => (
                             <option key={g} value={g}>{g}</option>
                         ))}
                     </optgroup>
@@ -316,7 +318,7 @@ const TaskStepItem: React.FC<{
                     className={formInputStyle}
                 >
                     <option value="">Auto-detect</option>
-                    {projectInfo?.lazarus?.projects.map(p => (
+                    {(projectInfo?.lazarus?.projects || []).map(p => (
                         <option key={p.path} value={p.path}>{p.path}</option>
                     ))}
                 </select>
@@ -348,7 +350,7 @@ const TaskStepItem: React.FC<{
                 className={formInputStyle}
             >
                 <option value="">Auto-detect</option>
-                {projectInfo?.lazarus?.packages.map(p => (
+                {(projectInfo?.lazarus?.packages || []).map(p => (
                     <option key={p} value={p}>{p}</option>
                 ))}
             </select>
