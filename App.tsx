@@ -1,15 +1,14 @@
 
 
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
-// FIX START: Import ReleaseInfo type.
+// FIX: Add missing ReleaseInfo type to the import.
 import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category, ReleaseInfo } from './types';
-// FIX END
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
-// FIX START: RepoEditView is a default export, so it should be imported without curly braces.
+// FIX: RepoEditView is a default export, so it should be imported without curly braces.
 import RepoEditView from './components/modals/RepoFormModal';
-// FIX END
 import Toast from './components/Toast';
 import InfoView from './components/InfoView';
 import SettingsView from './components/SettingsView';
@@ -40,21 +39,18 @@ const App: React.FC = () => {
     settings, 
     saveSettings, 
     repositories,
-    // FIX START: Remove unused and unsafe setters.
+    // FIX: Remove unused and unsafe setters that bypass the context's logic.
     // setRepositories,
-    // FIX END
     addRepository,
     updateRepository,
     deleteRepository,
     isLoading: isDataLoading,
     categories,
-    // FIX START: Remove unused and unsafe setters.
+    // FIX: Remove unused and unsafe setters.
     // setCategories,
-    // FIX END
     uncategorizedOrder,
-    // FIX START: Remove unused and unsafe setters.
+    // FIX: Remove unused and unsafe setters.
     // setUncategorizedOrder,
-    // FIX END
     addCategory,
     updateCategory,
     deleteCategory,
@@ -94,9 +90,8 @@ const App: React.FC = () => {
   // New states for deeper VCS integration
   const [detailedStatuses, setDetailedStatuses] = useState<Record<string, DetailedStatus | null>>({});
   const [branchLists, setBranchLists] = useState<Record<string, BranchInfo | null>>({});
-  // FIX START: Add state for latestReleases to satisfy DashboardProps.
+  // FIX: Add state for latestReleases to satisfy DashboardProps.
   const [latestReleases, setLatestReleases] = useState<Record<string, ReleaseInfo | null>>({});
-  // FIX END
   
   const [taskLogState, setTaskLogState] = useState({
     isOpen: false,
@@ -300,7 +295,7 @@ const App: React.FC = () => {
     fetchStatuses();
   }, [repositories, localPathStates, isDataLoading, logger]);
 
-  // FIX START: Add effect to fetch latest releases for repositories.
+  // FIX: Add effect to fetch latest releases for repositories.
   useEffect(() => {
     if (isDataLoading || !settings.githubPat) {
       if (!settings.githubPat) {
@@ -331,7 +326,6 @@ const App: React.FC = () => {
 
     fetchReleases();
   }, [repositories, localPathStates, isDataLoading, logger, settings.githubPat]);
-  // FIX END
 
 
   // Effect to detect executables when paths are validated
@@ -968,9 +962,8 @@ const App: React.FC = () => {
                     detectedExecutables={detectedExecutables}
                     detailedStatuses={detailedStatuses}
                     branchLists={branchLists}
-                    // FIX START: Pass latestReleases prop to Dashboard.
+                    // FIX: Pass latestReleases prop to Dashboard.
                     latestReleases={latestReleases}
-                    // FIX END
                     onSwitchBranch={handleSwitchBranch}
                     onCloneRepo={(repoId) => {
                       const repo = repositories.find(r => r.id === repoId);

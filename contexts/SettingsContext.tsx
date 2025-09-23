@@ -1,7 +1,6 @@
 import React, { createContext, useState, useCallback, ReactNode, useMemo, useEffect, useContext, useRef, useReducer } from 'react';
-// FIX START: Import DropTarget type.
+// FIX: Import DropTarget type for DnD operations.
 import type { GlobalSettings, Repository, Category, DropTarget } from '../types';
-// FIX END
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
 import { useLogger } from '../hooks/useLogger';
 
@@ -19,9 +18,8 @@ interface AppDataContextState {
   addCategory: (name: string) => void;
   updateCategory: (updatedCategory: Category) => void;
   deleteCategory: (categoryId: string) => void;
-  // FIX START: Update signature to use DropTarget object.
+  // FIX: Update signature to use DropTarget object for atomic updates.
   moveRepositoryToCategory: (repoId: string, sourceId: string | 'uncategorized', target: DropTarget) => void;
-  // FIX END
   moveRepository: (repoId: string, direction: 'up' | 'down') => void;
   toggleCategoryCollapse: (categoryId: string) => void;
   toggleAllCategoriesCollapse: () => void;
@@ -120,7 +118,7 @@ const migrateRepositories = (repositories: Repository[], settings: GlobalSetting
       });
 }
 
-// FIX START: Centralize all category/order state mutations into a robust reducer.
+// FIX: Centralize all category/order state mutations into a robust reducer.
 type CategoryState = {
     categories: Category[];
     uncategorizedOrder: string[];
@@ -314,17 +312,15 @@ const categoryReducer = (state: CategoryState, action: CategoryAction): Category
             return state;
     }
 };
-// FIX END
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const logger = useLogger();
   const [settings, setSettings] = useState<GlobalSettings>(DEFAULTS);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   
-  // FIX START: Use a single reducer for all category/order state.
+  // FIX: Use a single reducer for all category/order state.
   const [categoryState, dispatch] = useReducer(categoryReducer, { categories: [], uncategorizedOrder: [] });
   const { categories, uncategorizedOrder } = categoryState;
-  // FIX END
   
   const [isLoading, setIsLoading] = useState(true);
   const isInitialLoad = useRef(true);
@@ -409,13 +405,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     dispatch({ type: 'DELETE_CATEGORY', payload: { categoryId } });
   }, []);
 
-  // FIX START: Refactor moveRepositoryToCategory to dispatch an action to the central reducer.
-  // This ensures the calculation is always on the latest state and the update is atomic.
+  // FIX: Refactor moveRepositoryToCategory to dispatch an action to the central reducer.
   const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', target: DropTarget) => {
     logger.debug(`[DnD] Dispatching MOVE_REPOSITORY_DND`, { repoId, sourceId, target });
     dispatch({ type: 'MOVE_REPOSITORY_DND', payload: { repoId, sourceId, target } });
   }, [logger]);
-  // FIX END
 
   const moveRepository = useCallback((repoId: string, direction: 'up' | 'down') => {
     dispatch({ type: 'MOVE_REPOSITORY_BUTTONS', payload: { repoId, direction } });

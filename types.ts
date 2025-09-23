@@ -1,6 +1,5 @@
-// FIX START: Remove self-import causing declaration conflicts.
+// FIX: Remove self-import causing declaration conflicts.
 // import { RepoStatus, BuildHealth } from "./types";
-// FIX END
 
 // Moved from contexts/IconContext.tsx
 // FIX: Add 'heroicons' and 'phosphor' to the IconSet type to support more icon libraries.
@@ -295,13 +294,12 @@ export interface AppDataContextState {
   uncategorizedOrder: string[]; // <-- New field to fix DnD
 }
 
-// FIX START: Add DropTarget type for robust DnD operations.
+// FIX: Add DropTarget type for robust DnD operations.
 export interface DropTarget {
   repoId: string | null; // The repo ID being dropped ON, or null if dropped on category area
   categoryId: string | 'uncategorized';
   position: 'before' | 'after' | 'end';
 }
-// FIX END
 
 
 // --- Project Intelligence Types ---

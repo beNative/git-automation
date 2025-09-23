@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
+import { createPortal } from 'react-dom';
 import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig, WebLinkConfig, ToastMessage, ReleaseInfo } from '../types';
 import { VcsType } from '../types';
 import { STATUS_COLORS, BUILD_HEALTH_COLORS } from '../constants';
@@ -71,25 +72,59 @@ const BranchSwitcher: React.FC<{
   isOpen: boolean,
   setIsOpen: (isOpen: boolean) => void,
 }> = ({ repoId, branchInfo, onSwitchBranch, isOpen, setIsOpen }) => {
-    const [opensUp, setOpensUp] = useState(false);
-    const wrapperRef = useRef<HTMLDivElement>(null);
-    const DROPDOWN_HEIGHT = 240; // Approx height for max-h-60
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+    
+    useEffect(() => {
+        if (isOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            const dropdownHeight = 240; // Estimated height for max-h-60
 
+            let top: number;
+            
+            // Position vertically: open upwards if not enough space below
+            if ((rect.bottom + dropdownHeight + 4) > window.innerHeight && rect.top > dropdownHeight) {
+                top = rect.top - dropdownHeight - 4;
+            } else {
+                top = rect.bottom + 4;
+            }
+
+            // Position horizontally, aligning to the right of the button
+            let left = rect.right - 224; // 224 is w-56 from tailwind
+            
+            // Clamp to viewport to prevent going off-screen
+            if (left < 5) left = 5;
+            if (left + 224 > window.innerWidth - 5) left = window.innerWidth - 224 - 5;
+
+            setDropdownStyle({
+                position: 'fixed',
+                top: `${top}px`,
+                left: `${left}px`,
+            });
+        }
+    }, [isOpen]);
+
+    // Effect to handle clicks outside the dropdown to close it
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+            if (
+                dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+                buttonRef.current && !buttonRef.current.contains(event.target as Node)
+            ) {
                 setIsOpen(false);
             }
         }
-        document.addEventListener("mousedown", handleClickOutside);
+        if (isOpen) {
+            document.addEventListener("mousedown", handleClickOutside);
+        }
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [wrapperRef, setIsOpen]);
+    }, [isOpen, setIsOpen]);
 
     if (!branchInfo) return null;
 
     const { local, remote, current } = branchInfo;
     
-    // Don't offer to check out remote branches if a local branch of the same name already exists.
     const remoteBranchesToOffer = remote.filter(rBranch => {
         const localEquivalent = rBranch.split('/').slice(1).join('/');
         return !local.includes(localEquivalent);
@@ -98,63 +133,57 @@ const BranchSwitcher: React.FC<{
     const otherLocalBranches = local.filter(b => b !== current);
     const hasOptions = otherLocalBranches.length > 0 || remoteBranchesToOffer.length > 0;
 
-    const handleClick = () => {
-        if (!hasOptions) return;
-
-        if (wrapperRef.current) {
-            const rect = wrapperRef.current.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - rect.bottom;
-            if (spaceBelow < DROPDOWN_HEIGHT && rect.top > DROPDOWN_HEIGHT) {
-                setOpensUp(true);
-            } else {
-                setOpensUp(false);
-            }
-        }
-        setIsOpen(!isOpen);
-    };
+    const DropdownContent = (
+        <div 
+            ref={dropdownRef}
+            style={dropdownStyle}
+            className="w-56 z-50 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none"
+        >
+            <div className="py-1 max-h-60 overflow-y-auto" role="menu" aria-orientation="vertical">
+                {otherLocalBranches.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Local</div>}
+                {otherLocalBranches.map(branch => (
+                    <button
+                        key={`local-${branch}`}
+                        onClick={() => { onSwitchBranch(repoId, branch); setIsOpen(false); }}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        role="menuitem"
+                    >
+                        {branch}
+                    </button>
+                ))}
+                {remoteBranchesToOffer.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase border-t border-gray-200 dark:border-gray-700">Remote</div>}
+                {remoteBranchesToOffer.map(branch => {
+                     return (
+                        <button
+                            key={`remote-${branch}`}
+                            onClick={() => { onSwitchBranch(repoId, branch); setIsOpen(false); }}
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            role="menuitem"
+                        >
+                            {branch}
+                        </button>
+                    )
+                })}
+            </div>
+        </div>
+    );
 
     return (
-        <div className="relative inline-block text-left" ref={wrapperRef}>
+        <div>
             <button
+                ref={buttonRef}
                 type="button"
                 className="inline-flex items-center justify-center w-full rounded-md disabled:cursor-not-allowed"
-                onClick={handleClick}
+                onClick={() => setIsOpen(prev => !prev)}
                 disabled={!hasOptions}
+                aria-haspopup="true"
+                aria-expanded={isOpen}
             >
                 <span className="truncate max-w-[150px] sm:max-w-[200px]">{current}</span>
                 <ChevronDownIcon className={`ml-1 -mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {isOpen && hasOptions && (
-                <div className={`${opensUp ? 'origin-bottom-right bottom-full mb-2' : 'origin-top-right mt-2'} absolute right-0 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-30`}>
-                    <div className="py-1 max-h-60 overflow-y-auto" role="menu" aria-orientation="vertical">
-                        {otherLocalBranches.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Local</div>}
-                        {otherLocalBranches.map(branch => (
-                            <button
-                                key={`local-${branch}`}
-                                onClick={() => { onSwitchBranch(repoId, branch); setIsOpen(false); }}
-                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                role="menuitem"
-                            >
-                                {branch}
-                            </button>
-                        ))}
-                        {remoteBranchesToOffer.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase border-t border-gray-200 dark:border-gray-700">Remote</div>}
-                        {remoteBranchesToOffer.map(branch => {
-                             return (
-                                <button
-                                    key={`remote-${branch}`}
-                                    onClick={() => { onSwitchBranch(repoId, branch); setIsOpen(false); }}
-                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                    role="menuitem"
-                                >
-                                    {branch}
-                                </button>
-                            )
-                        })}
-                    </div>
-                </div>
-            )}
+            {isOpen && hasOptions && createPortal(DropdownContent, document.body)}
         </div>
     );
 };
@@ -423,7 +452,6 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
     'bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col',
     'transition-all duration-300 hover:shadow-blue-500/20',
     isBeingDragged ? 'opacity-40 scale-95' : 'opacity-100',
-    isBranchSwitcherOpen ? 'z-20' : 'z-0',
   ].join(' ');
   
 

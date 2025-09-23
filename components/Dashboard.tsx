@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-// FIX START: Import DropTarget type for robust DnD.
+// FIX: Import DropTarget type for robust DnD.
 import type { Repository, Category, LocalPathState, DetailedStatus, BranchInfo, ToastMessage, ReleaseInfo, DropTarget } from '../types';
-// FIX END
 import RepositoryCard from './RepositoryCard';
 import CategoryHeader from './CategoryHeader';
 import { PlusIcon } from './icons/PlusIcon';
@@ -15,9 +14,8 @@ interface DashboardProps {
   onAddCategory: (name: string) => void;
   onUpdateCategory: (category: Category) => void;
   onDeleteCategory: (categoryId: string) => void;
-  // FIX START: Update signature to use DropTarget object, fixing stale state issues.
+  // FIX: Update signature to use DropTarget object, fixing stale state issues.
   onMoveRepositoryToCategory: (repoId: string, sourceId: string | 'uncategorized', target: DropTarget) => void;
-  // FIX END
   onMoveRepository: (repoId: string, direction: 'up' | 'down') => void;
   onToggleCategoryCollapse: (categoryId: string) => void;
   onMoveCategory: (categoryId: string, direction: 'up' | 'down') => void;

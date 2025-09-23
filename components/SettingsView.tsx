@@ -51,7 +51,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    // FIX: Destructure from the uncasted e.target first.
+    // FIX: Destructure from the uncasted e.target first to avoid unsafe assertions.
     const { name, value, type } = e.target;
     let finalValue: string | number | boolean = value;
 
@@ -114,273 +114,219 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
   };
 
   const handleTest = async (vcsType: 'git' | 'svn') => {
-      const path = vcsType === 'git' ? settings.gitExecutablePath : settings.svnExecutablePath;
-      if (!path) {
-          const result = await window.electronAPI.testExecutablePath({ path: vcsType, vcsType });
-          if (result.success) {
-            setToast({ message: `Success! Found in PATH. Version: ${result.version}`, type: 'success' });
-          } else {
-            setToast({ message: `Executable not found in PATH and no custom path is set.`, type: 'error' });
-          }
-          return;
-      }
-      const result = await window.electronAPI.testExecutablePath({ path, vcsType });
-      if (result.success) {
-          setToast({ message: `Success! Version: ${result.version}`, type: 'success' });
-      } else {
-          setToast({ message: `Test failed: ${result.error}`, type: 'error' });
-      }
-  };
-  
-  const handleCopyPat = () => {
-    if (settings.githubPat) {
-        navigator.clipboard.writeText(settings.githubPat).then(() => {
-            setToast({ message: 'GitHub PAT copied to clipboard!', type: 'success' });
-        }).catch(err => {
-            setToast({ message: `Failed to copy: ${err}`, type: 'error' });
-        });
+    const path = vcsType === 'git' ? settings.gitExecutablePath : settings.svnExecutablePath;
+    if (!path) {
+      setToast({ message: `Path for ${vcsType.toUpperCase()} is not set.`, type: 'info' });
+      return;
+    }
+    const result = await window.electronAPI.testExecutablePath({ path, vcsType });
+    if (result.success) {
+      setToast({ message: `Success! Version: ${result.version}`, type: 'success' });
+    } else {
+      setToast({ message: `Test failed: ${result.error}`, type: 'error' });
     }
   };
+  
+  const handleSelectTaskLogPath = async () => {
+      const result = await window.electronAPI.selectTaskLogPath();
+      if (!result.canceled && result.path) {
+          setSettings(prev => ({ ...prev, taskLogPath: result.path! }));
+      }
+  };
+  
+  const patTooltip = useTooltip('Create a fine-grained token with Contents: Read & write permissions.');
+  const copyPatTooltip = useTooltip('Copy PAT to clipboard');
+  
+  const renderContent = () => {
+    switch (activeCategory) {
+      case 'appearance':
+        return (
+          <div className="space-y-6">
+            <h3 className="text-xl font-bold">Appearance</h3>
+            {/* Theme setting */}
+            <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Theme</label>
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                    <button onClick={() => handleThemeChange('light')} className={`p-4 rounded-lg border-2 ${settings.theme === 'light' ? 'border-blue-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                        <div className="flex items-center gap-3">
+                            <SunIcon className="h-6 w-6 text-yellow-500" />
+                            <div>
+                                <p className="font-semibold text-left">Light</p>
+                                <p className="text-xs text-gray-500 text-left">Default light theme.</p>
+                            </div>
+                        </div>
+                    </button>
+                    <button onClick={() => handleThemeChange('dark')} className={`p-4 rounded-lg border-2 ${settings.theme === 'dark' ? 'border-blue-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                        <div className="flex items-center gap-3">
+                            <MoonIcon className="h-6 w-6 text-indigo-400" />
+                            <div>
+                                <p className="font-semibold text-left">Dark</p>
+                                <p className="text-xs text-gray-500 text-left">Default dark theme.</p>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+            {/* Icon Set */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Icon Set</label>
+              <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {(['feather', 'lucide', 'tabler', 'remix'] as IconSet[]).map(iconSet => (
+                      <button key={iconSet} onClick={() => handleIconSetChange(iconSet)} className={`p-3 rounded-lg border-2 text-center capitalize ${settings.iconSet === iconSet ? 'border-blue-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                          {iconSet}
+                      </button>
+                  ))}
+              </div>
+            </div>
+            {/* GUI Scale */}
+            <div>
+                <label htmlFor="zoomFactor" className="text-sm font-medium text-gray-700 dark:text-gray-300">GUI Scale: <span className="font-bold">{Math.round(settings.zoomFactor * 100)}%</span></label>
+                <input
+                    type="range"
+                    id="zoomFactor"
+                    name="zoomFactor"
+                    min="0.5"
+                    max="2"
+                    step="0.05"
+                    value={settings.zoomFactor}
+                    onChange={handleChange}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                />
+            </div>
+          </div>
+        );
+      case 'behavior':
+        return (
+          <div className="space-y-6">
+             <h3 className="text-xl font-bold">Behavior</h3>
+             {/* GitHub PAT */}
+              <div>
+                  <label htmlFor="githubPat" className="text-sm font-medium text-gray-700 dark:text-gray-300">GitHub Personal Access Token</label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                      <input
+                          type="password"
+                          id="githubPat"
+                          name="githubPat"
+                          value={settings.githubPat}
+                          onChange={handleChange}
+                          className="block w-full pr-10 border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-gray-50 dark:bg-gray-900"
+                          placeholder="ghp_..."
+                      />
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                          <button
+                            type="button"
+                            {...copyPatTooltip}
+                            onClick={() => {
+                                navigator.clipboard.writeText(settings.githubPat);
+                                setToast({ message: 'PAT copied to clipboard!', type: 'success' });
+                            }}
+                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            <ClipboardDocumentIcon className="h-5 w-5"/>
+                          </button>
+                      </div>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">Required for fetching release info. <a {...patTooltip} href="#" onClick={(e) => { e.preventDefault(); window.electronAPI.openWeblink('https://github.com/settings/tokens?type=beta'); }} className="text-blue-600 dark:text-blue-400 hover:underline">Create one here</a>.</p>
+              </div>
 
-  const handleChangeTaskLogPath = async () => {
-    const result = await window.electronAPI.selectTaskLogPath();
-    if (!result.canceled && result.path) {
-      setSettings(prev => ({ ...prev, taskLogPath: result.path! }));
+             {/* Executable Paths */}
+              <div className="space-y-4">
+                  <div>
+                      <label htmlFor="gitExecutablePath" className="text-sm font-medium text-gray-700 dark:text-gray-300">Git Executable Path</label>
+                      <div className="mt-1 flex gap-2">
+                          <input type="text" id="gitExecutablePath" name="gitExecutablePath" value={settings.gitExecutablePath} onChange={handleChange} placeholder="e.g., C:\Program Files\Git\bin\git.exe" className="flex-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-50 dark:bg-gray-900"/>
+                          <button type="button" onClick={() => handleBrowse('git')} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><FolderOpenIcon className="h-5 w-5"/></button>
+                          <button type="button" onClick={() => handleAutodetect('git')} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><SparklesIcon className="h-5 w-5"/></button>
+                          <button type="button" onClick={() => handleTest('git')} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><BeakerIcon className="h-5 w-5"/></button>
+                      </div>
+                  </div>
+                   <div>
+                      <label htmlFor="svnExecutablePath" className="text-sm font-medium text-gray-700 dark:text-gray-300">SVN Executable Path</label>
+                       <div className="mt-1 flex gap-2">
+                          <input type="text" id="svnExecutablePath" name="svnExecutablePath" value={settings.svnExecutablePath} onChange={handleChange} placeholder="e.g., C:\Program Files\TortoiseSVN\bin\svn.exe" className="flex-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-50 dark:bg-gray-900"/>
+                          <button type="button" onClick={() => handleBrowse('svn')} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><FolderOpenIcon className="h-5 w-5"/></button>
+                          <button type="button" onClick={() => handleAutodetect('svn')} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><SparklesIcon className="h-5 w-5"/></button>
+                          <button type="button" onClick={() => handleTest('svn')} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><BeakerIcon className="h-5 w-5"/></button>
+                      </div>
+                  </div>
+              </div>
+
+             {/* Other Behavior Settings */}
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Open Web Links In</label>
+                  <div className="mt-2 space-y-2">
+                      {(['default', 'chrome', 'firefox'] as const).map(browser => (
+                        <label key={browser} className="flex items-center gap-2">
+                            <input type="radio" checked={settings.openLinksIn === browser} onChange={() => handleBrowserChange(browser)} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600"/>
+                            <span className="capitalize">{browser}</span>
+                        </label>
+                      ))}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                    <label className="flex items-start gap-3"><input type="checkbox" name="notifications" checked={settings.notifications} onChange={handleChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/><div>Enable Notifications<p className="text-xs text-gray-500">Show success/error toasts.</p></div></label>
+                    <label className="flex items-start gap-3"><input type="checkbox" name="simulationMode" checked={settings.simulationMode} onChange={handleChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/><div>Enable Simulation Mode<p className="text-xs text-gray-500">If enabled, no real commands are run.</p></div></label>
+                    <label className="flex items-start gap-3"><input type="checkbox" name="allowPrerelease" checked={settings.allowPrerelease} onChange={handleChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/><div>Check for Pre-Releases<p className="text-xs text-gray-500">Include beta versions in auto-updates.</p></div></label>
+                    <label className="flex items-start gap-3"><input type="checkbox" name="debugLogging" checked={settings.debugLogging} onChange={handleChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/><div>Enable Debug Logging<p className="text-xs text-gray-500">Verbose logging for troubleshooting.</p></div></label>
+                </div>
+             </div>
+
+             {/* Logging Settings */}
+             <div className="space-y-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-lg font-semibold">Logging</h4>
+                <label className="flex items-start gap-3"><input type="checkbox" name="saveTaskLogs" checked={settings.saveTaskLogs} onChange={handleChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/><div>Save Task Output Logs<p className="text-xs text-gray-500">Automatically save the console output of every task to a file.</p></div></label>
+                <div>
+                  <label htmlFor="taskLogPath" className="text-sm font-medium text-gray-700 dark:text-gray-300">Task Log Path</label>
+                   <div className="mt-1 flex gap-2">
+                      <input type="text" id="taskLogPath" name="taskLogPath" value={settings.taskLogPath} onChange={handleChange} placeholder="Leave blank for default" className="flex-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-50 dark:bg-gray-900"/>
+                      <button type="button" onClick={handleSelectTaskLogPath} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><FolderOpenIcon className="h-5 w-5"/></button>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">Current path: <code className="bg-gray-100 dark:bg-gray-900/50 p-1 rounded">{taskLogDisplayPath}</code></p>
+              </div>
+             </div>
+          </div>
+        );
+      case 'jsonConfig':
+        return <JsonConfigView setToast={setToast} confirmAction={confirmAction} />;
+      default:
+        return null;
     }
   };
-
-
-  const iconSetButtonBase = "flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md transition-colors";
-  const iconSetButtonActive = "bg-white dark:bg-gray-700 shadow text-blue-700 dark:text-blue-400";
-  const iconSetButtonInactive = "text-gray-600 dark:text-gray-400 hover:bg-white/50 dark:hover:bg-gray-900/50";
-  
-  const navLinkBase = "w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800";
-  const navLinkActive = "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white";
-  const navLinkInactive = "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50";
-  
-  const formInputStyle = "block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
-  const actionButtonStyle = "p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 text-gray-600 dark:text-gray-300";
-
 
   return (
-    <div className="flex h-full animate-fade-in">
-      {/* Left Navigation Sidebar */}
-      <aside className="w-1/4 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
-        <nav className="space-y-1">
-            <button onClick={() => setActiveCategory('appearance')} className={`${navLinkBase} ${activeCategory === 'appearance' ? navLinkActive : navLinkInactive}`}>
-              Appearance
-            </button>
-            <button onClick={() => setActiveCategory('behavior')} className={`${navLinkBase} ${activeCategory === 'behavior' ? navLinkActive : navLinkInactive}`}>
-              Behavior
-            </button>
-            <button onClick={() => setActiveCategory('jsonConfig')} className={`${navLinkBase} ${activeCategory === 'jsonConfig' ? navLinkActive : navLinkInactive} flex items-center gap-2`}>
-              <CodeBracketIcon className="h-5 w-5" />
-              JSON Config
-            </button>
-        </nav>
-      </aside>
-
-      {/* Right Content Area */}
-      <div className="flex-1 flex flex-col min-h-0">
-        {activeCategory === 'jsonConfig' ? (
-          <JsonConfigView setToast={setToast} confirmAction={confirmAction} />
-        ) : (
-          <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
-            <main className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto">
-              {activeCategory === 'appearance' && (
-                  <section>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Appearance</h2>
-                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Customize the look and feel of the application.</p>
-                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
-                          <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Theme</label>
-                              <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-xs">
-                                  <button
-                                      type="button"
-                                      onClick={() => handleThemeChange('light')}
-                                      className={`flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md ${settings.theme === 'light' ? 'bg-white shadow text-blue-700' : 'text-gray-600 hover:bg-white/50'}`}
-                                  >
-                                      <SunIcon className="h-5 w-5 mr-2"/> Light
-                                  </button>
-                                  <button
-                                      type="button"
-                                      onClick={() => handleThemeChange('dark')}
-                                      className={`flex-1 flex items-center justify-center px-3 py-1.5 text-sm rounded-md ${settings.theme === 'dark' ? 'bg-gray-700 shadow text-blue-400' : 'text-gray-400 hover:bg-gray-900/50'}`}
-                                  >
-                                      <MoonIcon className="h-5 w-5 mr-2"/> Dark
-                                  </button>
-                              </div>
-                          </div>
-                           <div>
-                               <label htmlFor="zoomFactor" className="block text-sm font-medium text-gray-700 dark:text-gray-300">GUI Scale ({Math.round(settings.zoomFactor * 100)}%)</label>
-                               <input
-                                   type="range"
-                                   id="zoomFactor"
-                                   name="zoomFactor"
-                                   min="0.5"
-                                   max="2"
-                                   step="0.05"
-                                   value={settings.zoomFactor}
-                                   onChange={handleChange}
-                                   className="mt-2 w-full max-w-xs h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                               />
-                           </div>
-                          <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Icon Set</label>
-                              <div className="mt-2 grid grid-cols-2 gap-2 rounded-md bg-gray-200 dark:bg-gray-900 p-2 max-w-xs">
-                                  <button
-                                      type="button"
-                                      onClick={() => handleIconSetChange('lucide')}
-                                      className={`${iconSetButtonBase} ${settings.iconSet === 'lucide' ? iconSetButtonActive : iconSetButtonInactive}`}
-                                  >
-                                      Lucide
-                                  </button>
-                                  <button
-                                      type="button"
-                                      onClick={() => handleIconSetChange('tabler')}
-                                      className={`${iconSetButtonBase} ${settings.iconSet === 'tabler' ? iconSetButtonActive : iconSetButtonInactive}`}
-                                  >
-                                      Tabler
-                                  </button>
-                                  <button
-                                      type="button"
-                                      onClick={() => handleIconSetChange('feather')}
-                                      className={`${iconSetButtonBase} ${settings.iconSet === 'feather' ? iconSetButtonActive : iconSetButtonInactive}`}
-                                  >
-                                      Feather
-                                  </button>
-                                  <button
-                                      type="button"
-                                      onClick={() => handleIconSetChange('remix')}
-                                      className={`${iconSetButtonBase} ${settings.iconSet === 'remix' ? iconSetButtonActive : iconSetButtonInactive}`}
-                                  >
-                                      Remix
-                                  </button>
-                              </div>
-                          </div>
-                      </div>
-                  </section>
-              )}
-              {activeCategory === 'behavior' && (
-                  <section>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Behavior</h2>
-                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure how the application functions.</p>
-                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-6">
-                          <div>
-                              <label htmlFor="githubPat" className="block text-sm font-medium text-gray-700 dark:text-gray-300">GitHub Personal Access Token</label>
-                              <div className="mt-1 flex items-center gap-2 max-w-md">
-                                <input
-                                    type="password"
-                                    id="githubPat"
-                                    name="githubPat"
-                                    value={settings.githubPat || ''}
-                                    onChange={handleChange}
-                                    className="block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                />
-                                <button type="button" onClick={handleCopyPat} className={actionButtonStyle} title="Copy PAT">
-                                    <ClipboardDocumentIcon className="h-5 w-5"/>
-                                </button>
-                              </div>
-                              <p className="mt-1 text-xs text-gray-500">Required to view drafts and manage releases. <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Create a fine-grained token</a> with `Read &amp; write` access to `Contents`.</p>
-                          </div>
-
-                          <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Open Web Links In</label>
-                              <div className="mt-2 flex rounded-md bg-gray-200 dark:bg-gray-900 p-1 max-w-md">
-                                  <button type="button" onClick={() => handleBrowserChange('default')} className={`${iconSetButtonBase} ${settings.openLinksIn === 'default' ? iconSetButtonActive : iconSetButtonInactive}`}>System Default</button>
-                                  <button type="button" onClick={() => handleBrowserChange('chrome')} className={`${iconSetButtonBase} ${settings.openLinksIn === 'chrome' ? iconSetButtonActive : iconSetButtonInactive}`}>Chrome</button>
-                                  <button type="button" onClick={() => handleBrowserChange('firefox')} className={`${iconSetButtonBase} ${settings.openLinksIn === 'firefox' ? iconSetButtonActive : iconSetButtonInactive}`}>Firefox</button>
-                              </div>
-                          </div>
-
-                          <div className="flex items-start">
-                              <div className="flex items-center h-5"><input id="notifications" name="notifications" type="checkbox" checked={settings.notifications} onChange={handleChange} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
-                              <div className="ml-3 text-sm">
-                                  <label htmlFor="notifications" className="font-medium text-gray-700 dark:text-gray-300">Enable Notifications</label>
-                                  <p className="text-gray-500">Show toast notifications for events like task completion or failure.</p>
-                              </div>
-                          </div>
-
-                          <div className="flex items-start">
-                              <div className="flex items-center h-5"><input id="simulationMode" name="simulationMode" type="checkbox" checked={settings.simulationMode} onChange={handleChange} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
-                              <div className="ml-3 text-sm">
-                                  <label htmlFor="simulationMode" className="font-medium text-gray-700 dark:text-gray-300">Enable Simulation Mode</label>
-                                  <p className="text-gray-500">If enabled, tasks will be simulated and will not affect your local file system. Disable to run real commands.</p>
-                              </div>
-                          </div>
-
-                          <div className="flex items-start">
-                              <div className="flex items-center h-5"><input id="allowPrerelease" name="allowPrerelease" type="checkbox" checked={settings.allowPrerelease} onChange={handleChange} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
-                              <div className="ml-3 text-sm">
-                                  <label htmlFor="allowPrerelease" className="font-medium text-gray-700 dark:text-gray-300">Check for Pre-Releases</label>
-                                  <p className="text-gray-500">If enabled, the auto-updater will include beta versions when checking for updates.</p>
-                              </div>
-                          </div>
-
-                          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Logging</h3>
-                            <div className="mt-4 space-y-4 max-w-2xl">
-                                <div className="flex items-start">
-                                    <div className="flex items-center h-5"><input id="saveTaskLogs" name="saveTaskLogs" type="checkbox" checked={settings.saveTaskLogs} onChange={handleChange} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-gray-200 dark:bg-gray-900"/></div>
-                                    <div className="ml-3 text-sm">
-                                        <label htmlFor="saveTaskLogs" className="font-medium text-gray-700 dark:text-gray-300">Save Task Output Logs</label>
-                                        <p className="text-gray-500">Automatically save the console output of every task to a `.log` file.</p>
-                                    </div>
-                                </div>
-                                <div className={!settings.saveTaskLogs ? 'opacity-50' : ''}>
-                                    <label htmlFor="taskLogPath" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Task Log Path</label>
-                                    <div className="mt-1 flex items-center gap-2">
-                                        <input type="text" id="taskLogPath" name="taskLogPath" value={taskLogDisplayPath} disabled className={`${formInputStyle} bg-gray-100 dark:bg-gray-800 cursor-not-allowed`} />
-                                        <button type="button" onClick={handleChangeTaskLogPath} disabled={!settings.saveTaskLogs} className={actionButtonStyle}>Change...</button>
-                                        <button type="button" onClick={() => window.electronAPI.openTaskLogPath()} disabled={!settings.saveTaskLogs} className={actionButtonStyle}>Open...</button>
-                                    </div>
-                                    <p className="mt-1 text-xs text-gray-500">Leave blank to use the default logs directory.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Executable Paths</h3>
-                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                Specify the full path to your version control executables if they are not in your system's PATH.
-                            </p>
-                            <div className="mt-4 space-y-4 max-w-2xl">
-                                <div>
-                                    <label htmlFor="gitExecutablePath" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Git Executable Path</label>
-                                    <div className="mt-1 flex items-center gap-2">
-                                        <input type="text" id="gitExecutablePath" name="gitExecutablePath" value={settings.gitExecutablePath || ''} onChange={handleChange} placeholder="e.g., C:\Program Files\Git\bin\git.exe" className={formInputStyle}/>
-                                        <button type="button" onClick={() => handleBrowse('git')} className={actionButtonStyle} title="Browse..."><FolderOpenIcon className="h-5 w-5"/></button>
-                                        <button type="button" onClick={() => handleAutodetect('git')} className={actionButtonStyle} title="Auto-detect"><SparklesIcon className="h-5 w-5"/></button>
-                                        <button type="button" onClick={() => handleTest('git')} className={actionButtonStyle} title="Test Path"><BeakerIcon className="h-5 w-5"/></button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label htmlFor="svnExecutablePath" className="block text-sm font-medium text-gray-700 dark:text-gray-300">SVN Executable Path</label>
-                                    <div className="mt-1 flex items-center gap-2">
-                                        <input type="text" id="svnExecutablePath" name="svnExecutablePath" value={settings.svnExecutablePath || ''} onChange={handleChange} placeholder="e.g., C:\Program Files\TortoiseSVN\bin\svn.exe" className={formInputStyle}/>
-                                        <button type="button" onClick={() => handleBrowse('svn')} className={actionButtonStyle} title="Browse..."><FolderOpenIcon className="h-5 w-5"/></button>
-                                        <button type="button" onClick={() => handleAutodetect('svn')} className={actionButtonStyle} title="Auto-detect"><SparklesIcon className="h-5 w-5"/></button>
-                                        <button type="button" onClick={() => handleTest('svn')} className={actionButtonStyle} title="Test Path"><BeakerIcon className="h-5 w-5"/></button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                      </div>
-                  </section>
-              )}
+    <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-800">
+        <div className="flex-1 flex overflow-hidden">
+            <aside className="w-1/4 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50 p-4">
+                <nav className="space-y-2">
+                    <button type="button" onClick={() => setActiveCategory('appearance')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'appearance' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                        <SparklesIcon className="h-5 w-5" /> Appearance
+                    </button>
+                    <button type="button" onClick={() => setActiveCategory('behavior')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'behavior' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                        <BeakerIcon className="h-5 w-5" /> Behavior
+                    </button>
+                    <button type="button" onClick={() => setActiveCategory('jsonConfig')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'jsonConfig' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                        <CodeBracketIcon className="h-5 w-5" /> JSON Config
+                    </button>
+                </nav>
+            </aside>
+            <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
+                {renderContent()}
             </main>
-            <footer className="flex justify-end p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 space-x-3 flex-shrink-0">
-                <button type="button" onClick={handleCancel} disabled={!isDirty} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+        </div>
+        
+        {isDirty && (
+            <footer className="flex justify-end items-center p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 gap-3 animate-fade-in">
+                <span className="text-sm text-yellow-600 dark:text-yellow-500">You have unsaved changes.</span>
+                <button type="button" onClick={handleCancel} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 transition-colors">
                     Reset
                 </button>
-                <button type="submit" disabled={!isDirty} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                    {isDirty ? 'Save Changes' : 'Saved'}
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                    Save Changes
                 </button>
             </footer>
-          </form>
         )}
-      </div>
-    </div>
+    </form>
   );
 };
 

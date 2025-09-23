@@ -252,13 +252,13 @@ const TaskStepItem: React.FC<{
                 >
                     <option value="">Auto-detect</option>
                     <optgroup label="Projects">
-                        {/* FIX: Add guard to prevent calling .map on undefined. */}
+                        {/* FIX: Add guard to prevent calling .map on undefined or null. */}
                         {(projectInfo?.delphi?.projects || []).map(p => (
                             <option key={p.path} value={p.path}>{p.path}</option>
                         ))}
                     </optgroup>
                     <optgroup label="Project Groups">
-                        {/* FIX: Add guard to prevent calling .map on undefined. */}
+                        {/* FIX: Add guard to prevent calling .map on undefined or null. */}
                         {(projectInfo?.delphi?.groups || []).map(g => (
                             <option key={g} value={g}>{g}</option>
                         ))}
@@ -1571,7 +1571,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       title: 'Delete Release',
       message: 'Are you sure you want to delete this release? This action cannot be undone.',
       confirmText: 'Delete',
-      icon: <ExclamationCircleIcon className="h-6 w-6 text-red-600" />,
+      icon: <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />,
       onConfirm: async () => {
         const result = await window.electronAPI.deleteRelease({ repo: repository, releaseId });
         if (result.success) {
@@ -1626,7 +1626,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
   const hasBranches = branchInfo && (branchInfo.local.length > 0 || branchInfo.remote.length > 0);
 
-  // FIX START: Create a memoized component map for ReactMarkdown to handle external links.
+  // FIX: Create a memoized component map for ReactMarkdown to handle external links.
   const markdownComponents = useMemo(() => ({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     a: ({node, ...props}: any) => {
@@ -1639,7 +1639,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       return <a {...props} />;
     }
   }), [onOpenWeblink]);
-  // FIX END
 
   const renderTabContent = () => {
     if (!('id' in formData)) {
@@ -1733,7 +1732,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 <div>
                                     <h4 className="font-semibold mb-2">Local Branches</h4>
                                     <ul className="space-y-1">
-                                        {branchInfo?.local.map(b => (
+                                        {/* FIX: Guard against branchInfo being null when mapping local branches. */}
+                                        {(branchInfo?.local || []).map(b => (
                                             <li key={b} className="flex justify-between items-center p-2 rounded-md bg-gray-50 dark:bg-gray-900/50">
                                                 <span className="font-mono text-sm">{b}</span>
                                                 {b !== branchInfo?.current && <button type="button" onClick={() => handleDeleteBranch(b, false)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>}
@@ -1744,7 +1744,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 <div>
                                     <h4 className="font-semibold mb-2">Remote Branches</h4>
                                     <ul className="space-y-1 max-h-48 overflow-y-auto">
-                                        {branchInfo?.remote.map(b => (
+                                        {/* FIX: Guard against branchInfo being null when mapping remote branches. */}
+                                        {(branchInfo?.remote || []).map(b => (
                                             <li key={b} className="flex justify-between items-center p-2 rounded-md bg-gray-50 dark:bg-gray-900/50">
                                                 <span className="font-mono text-sm">{b}</span>
                                                 <button type="button" onClick={() => handleDeleteBranch(b.split('/').slice(1).join('/'), true)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
@@ -1766,7 +1767,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                     <div className="flex gap-2">
                                         <select value={branchToMerge || ''} onChange={e => setBranchToMerge(e.target.value)} className={formInputStyle}>
                                             <option value="" disabled>Select a branch</option>
-                                            {branchInfo?.local.filter(b => b !== branchInfo.current).map(b => (
+                                            {/* FIX: Guard against branchInfo being null when mapping local branches for merge dropdown. */}
+                                            {(branchInfo?.local || []).filter(b => b !== branchInfo?.current).map(b => (
                                                 <option key={b} value={b}>{b}</option>
                                             ))}
                                         </select>
@@ -1904,9 +1906,11 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                           <label htmlFor="branch" className={formLabelStyle}>Default Branch</label>
                           <select id="branch" name="branch" value={formData.branch} onChange={handleChange} className={formInputStyle}>
                             {branchInfo?.current && <option value={branchInfo.current}>{branchInfo.current} (current)</option>}
-                            {branchInfo?.local.filter(b => b !== branchInfo.current).map(b => <option key={b} value={b}>{b}</option>)}
+                            {/* FIX: Guard against branchInfo being null when accessing local branches. */}
+                            {(branchInfo?.local || []).filter(b => b !== branchInfo?.current).map(b => <option key={b} value={b}>{b}</option>)}
                             <optgroup label="Remotes">
-                                {branchInfo?.remote.map(b => <option key={b} value={b.split('/').slice(1).join('/')}>{b}</option>)}
+                                {/* FIX: Guard against branchInfo being null when accessing remote branches. */}
+                                {(branchInfo?.remote || []).map(b => <option key={b} value={b.split('/').slice(1).join('/')}>{b}</option>)}
                             </optgroup>
                           </select>
                       </div>
