@@ -9,18 +9,6 @@ const logToRendererChannel = 'log-to-renderer';
 contextBridge.exposeInMainWorld('electronAPI', {
   // App Info
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version'),
-
-  // Window Controls
-  minimizeWindow: () => ipcRenderer.send('minimize-window'),
-  maximizeWindow: () => ipcRenderer.send('maximize-window'),
-  unmaximizeWindow: () => ipcRenderer.send('unmaximize-window'),
-  closeWindow: () => ipcRenderer.send('close-window'),
-  onWindowStateChange: (callback: (event: IpcRendererEvent, isMaximized: boolean) => void) => {
-    ipcRenderer.on('window-state-change', callback);
-  },
-  removeWindowStateChangeListener: (callback: (event: IpcRendererEvent, isMaximized: boolean) => void) => {
-    ipcRenderer.removeListener('window-state-change', callback);
-  },
   
   // App Data
   getAllData: (): Promise<AppDataContextState> => ipcRenderer.invoke('get-all-data'),

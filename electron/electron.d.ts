@@ -12,15 +12,6 @@ export interface ProjectSuggestion {
 
 export interface IElectronAPI {
   getAppVersion: () => Promise<string>;
-  
-  // Window Controls
-  minimizeWindow: () => void;
-  maximizeWindow: () => void;
-  unmaximizeWindow: () => void;
-  closeWindow: () => void;
-  onWindowStateChange: (callback: (event: IpcRendererEvent, isMaximized: boolean) => void) => void;
-  removeWindowStateChangeListener: (callback: (event: IpcRendererEvent, isMaximized: boolean) => void) => void;
-
   getAllData: () => Promise<AppDataContextState>;
   saveAllData: (data: AppDataContextState) => void;
   getDoc: (docName: string) => Promise<string>;

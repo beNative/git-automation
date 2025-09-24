@@ -260,7 +260,7 @@ const TaskStepItem: React.FC<{
                     </optgroup>
                     <optgroup label="Project Groups">
                         {/* FIX: Add guard to prevent calling .map on undefined or null. This error was likely caused by a self-import in types.ts breaking type inference. */}
-                        {(projectInfo?.delphi?.groups || []).map(g => (
+                        {projectInfo?.delphi?.groups?.map(g => (
                             <option key={g} value={g}>{g}</option>
                         ))}
                     </optgroup>
