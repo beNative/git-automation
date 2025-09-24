@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.23.1]
+
+### Changed
+- Updated all documentation files (`README.md`, `FUNCTIONAL_MANUAL.md`, `TECHNICAL_MANUAL.md`, `CHANGELOG.md`) to reflect the current state of the application and prepare for a new release.
+
 ## [0.23.0]
 
 ### Added
