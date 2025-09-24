@@ -36,6 +36,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   const [search, setSearch] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const commandListRef = useRef<HTMLUListElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+      if (isOpen && inputRef.current) {
+          inputRef.current.focus();
+      }
+  }, [isOpen]);
 
   const allCommands = useMemo<Command[]>(() => {
     const navCommands: Command[] = [
@@ -71,13 +78,12 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     );
   }, [search, allCommands]);
   
-  // Reset active index when search changes or when opening
   useEffect(() => {
     setActiveIndex(0);
   }, [search, isOpen]);
 
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setActiveIndex(prev => (prev + 1) % (filteredCommands.length || 1));
@@ -97,15 +103,6 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
   }, [filteredCommands, activeIndex, onClose]);
 
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
-    }
-  }, [isOpen, handleKeyDown]);
-  
   // Effect to scroll the active item into view
   useEffect(() => {
     if (isOpen && commandListRef.current) {
@@ -116,28 +113,26 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
   }, [activeIndex, isOpen]);
   
-  // Reset search when palette is closed
   useEffect(() => {
     if (!isOpen) {
         setSearch('');
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center pt-20 bg-black/50 backdrop-blur-sm" onMouseDown={onClose} role="dialog" aria-modal="true">
-      <div 
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-3xl mx-4 flex flex-col max-h-[70vh] ring-1 ring-black/5"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
+    <div 
+        className="absolute top-full mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-2xl flex flex-col max-h-[60vh] ring-1 ring-black/5 animate-fade-in-fast"
+    >
         <div className="flex items-center p-3 border-b border-gray-200 dark:border-gray-700">
             <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-3"/>
             <input
+                ref={inputRef}
                 type="text"
                 autoFocus
                 value={search}
                 onChange={e => setSearch(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="Find a repository, task or action..."
                 className="w-full bg-transparent border-none focus:ring-0 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
                 aria-label="Search commands"
@@ -165,7 +160,6 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                 </li>
             ))}
         </ul>
-      </div>
     </div>
   );
 };

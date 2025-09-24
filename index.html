@@ -15,6 +15,11 @@
     <style>
       :root {
         --status-bar-height: 1.75rem; /* Equivalent to h-7 in Tailwind */
+        --title-bar-height: 3.5rem; /* Equivalent to h-14 in Tailwind */
+      }
+      body {
+        /* Prevent content from being hidden by the fixed title bar */
+        padding-top: var(--title-bar-height);
       }
     </style>
   <script type="importmap">

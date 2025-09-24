@@ -131,17 +131,25 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
+    minWidth: 800,
+    minHeight: 600,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
     },
+    frame: false,
+    titleBarStyle: 'hidden',
     autoHideMenuBar: true,
     icon: path.join(__dirname, 'assets/icon.png'), // Optional: add an icon
   });
 
   // Load the index.html of the app.
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  
+  // Listen for window state changes and notify renderer
+  mainWindow.on('maximize', () => mainWindow?.webContents.send('window-state-change', true));
+  mainWindow.on('unmaximize', () => mainWindow?.webContents.send('window-state-change', false));
 
   // Open the DevTools if not in production
   if (process.env.NODE_ENV !== 'production') {
@@ -221,6 +229,12 @@ app.on('activate', () => {
     createWindow();
   }
 });
+
+// --- IPC Handlers for Window Controls ---
+ipcMain.on('minimize-window', () => mainWindow?.minimize());
+ipcMain.on('maximize-window', () => mainWindow?.maximize());
+ipcMain.on('unmaximize-window', () => mainWindow?.unmaximize());
+ipcMain.on('close-window', () => mainWindow?.close());
 
 // --- IPC Handler for fetching app version ---
 ipcMain.handle('get-app-version', () => {

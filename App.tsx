@@ -3,7 +3,7 @@ import { useRepositoryManager } from './hooks/useRepositoryManager';
 // FIX: Add missing ReleaseInfo type to the import.
 import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category, ReleaseInfo } from './types';
 import Dashboard from './components/Dashboard';
-import Header from './components/Header';
+import TitleBar from './components/Header';
 // FIX: RepoEditView is a default export, so it should be imported without curly braces.
 import RepoEditView from './components/modals/RepoFormModal';
 import Toast from './components/Toast';
@@ -12,7 +12,6 @@ import SettingsView from './components/SettingsView';
 import TaskLogPanel from './components/TaskLogPanel';
 import DebugPanel from './components/DebugPanel';
 import { IconContext } from './contexts/IconContext';
-import CommandPalette from './components/CommandPalette';
 import StatusBar from './components/StatusBar';
 import DirtyRepoModal from './components/modals/DirtyRepoModal';
 import TaskSelectionModal from './components/modals/TaskSelectionModal';
@@ -825,7 +824,7 @@ const App: React.FC = () => {
   }, [activeView, repoFormState.repoId]);
 
   const mainContentClass = useMemo(() => {
-    const baseClasses = "flex-1 flex flex-col min-h-0";
+    const baseClasses = "flex-1 min-h-0"; // flex-1 and min-h-0 are key for flexbox scrolling
     switch (activeView) {
       case 'dashboard':
         return `${baseClasses} p-3 sm:p-4 lg:p-6 overflow-y-auto`;
@@ -888,8 +887,8 @@ const App: React.FC = () => {
   return (
     <IconContext.Provider value={settings.iconSet}>
       <TooltipProvider>
-        <div className="flex flex-col h-screen">
-          <Header 
+        <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
+          <TitleBar 
             onNewRepo={() => handleOpenRepoForm('new')} 
             activeView={activeView} 
             onSetView={setActiveView}
@@ -897,6 +896,13 @@ const App: React.FC = () => {
             isCheckingAll={isCheckingAll}
             onToggleAllCategories={toggleAllCategoriesCollapse}
             canCollapseAll={canCollapseAll}
+            isCommandPaletteOpen={isCommandPaletteOpen}
+            setCommandPaletteOpen={setCommandPaletteOpen}
+            repositories={repositories}
+            onRunTask={(repoId, taskId) => {
+                handleRunTask(repoId, taskId);
+                setCommandPaletteOpen(false);
+            }}
           />
           {updateReady && <UpdateBanner onInstall={handleRestartAndUpdate} />}
           <main className={mainContentClass}>
@@ -1099,18 +1105,6 @@ const App: React.FC = () => {
             isOpen={isAboutModalOpen}
             onClose={() => setIsAboutModalOpen(false)}
             appVersion={appVersion}
-          />
-
-          <CommandPalette 
-              isOpen={isCommandPaletteOpen}
-              onClose={() => setCommandPaletteOpen(false)}
-              repositories={repositories}
-              onSetView={setActiveView}
-              onNewRepo={() => handleOpenRepoForm('new')}
-              onRunTask={(repoId, taskId) => {
-                  handleRunTask(repoId, taskId);
-                  setCommandPaletteOpen(false);
-              }}
           />
         </div>
         <Tooltip />
