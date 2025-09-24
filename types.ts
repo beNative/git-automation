@@ -1,4 +1,4 @@
-
+// FIX: Remove self-import causing declaration conflicts.
 
 // Moved from contexts/IconContext.tsx
 // FIX: Add 'heroicons' and 'phosphor' to the IconSet type to support more icon libraries.

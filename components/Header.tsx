@@ -147,8 +147,12 @@ const TitleBar: React.FC<TitleBarProps> = (props) => {
       className="fixed top-0 left-0 right-0 z-20 h-[var(--title-bar-height)] bg-gray-200/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-md flex items-center justify-between text-gray-800 dark:text-gray-100"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
+      <div className="flex items-center pl-2" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <WindowControls />
+      </div>
+
       {/* Left-side Actions */}
-      <div className="flex items-center space-x-2 pl-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+      <div className="flex items-center space-x-2" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
         {activeView === 'dashboard' && (
           <>
             <button
@@ -249,9 +253,6 @@ const TitleBar: React.FC<TitleBarProps> = (props) => {
         >
           {settings.theme === 'dark' ? <SunIcon className="h-6 w-6" /> : <MoonIcon className="h-6 w-6" />}
         </button>
-      </div>
-      <div className="flex items-center" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          <WindowControls />
       </div>
     </header>
   );

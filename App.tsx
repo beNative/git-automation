@@ -905,100 +905,98 @@ const App: React.FC = () => {
             }}
           />
           {updateReady && <UpdateBanner onInstall={handleRestartAndUpdate} />}
-          <div className="flex-1 min-h-0 flex flex-col">
-            <main className={mainContentClass}>
-              {(() => {
-                switch (activeView) {
-                  case 'settings':
-                    return <SettingsView currentSettings={settings} onSave={handleSaveSettings} setToast={setToast} confirmAction={confirmAction} />;
-                  case 'info':
-                    return <InfoView />;
-                  case 'edit-repository':
-                    // The key ensures the component re-mounts when switching between editing different repos
-                    return <RepoEditView 
-                      key={repoFormState.repoId} 
-                      repository={repositoryToEdit} 
-                      onSave={handleSaveRepo} 
-                      onCancel={handleCloseRepoForm}
-                      onRefreshState={refreshRepoState}
-                      setToast={setToast}
-                      confirmAction={confirmAction}
-                      defaultCategoryId={repoFormState.defaultCategoryId}
-                      onOpenWeblink={handleOpenWeblink}
-                    />;
-                  case 'dashboard':
-                  default:
-                    return <Dashboard 
-                      repositories={repositories} 
-                      categories={categories}
-                      uncategorizedOrder={uncategorizedOrder}
-                      onAddCategory={addCategory}
-                      onUpdateCategory={updateCategory}
-                      onDeleteCategory={(catId) => {
-                        confirmAction({
-                          title: 'Delete Category',
-                          message: 'Are you sure you want to delete this category? Repositories within it will become uncategorized.',
-                          confirmText: 'Delete',
-                          icon: <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400" aria-hidden="true" />,
-                          confirmButtonClass: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
-                          onConfirm: () => {
-                            deleteCategory(catId);
-                            setToast({ message: 'Category deleted.', type: 'info' });
-                          }
-                        });
-                      }}
-                      onMoveRepositoryToCategory={moveRepositoryToCategory}
-                      onMoveRepository={moveRepository}
-                      onToggleCategoryCollapse={toggleCategoryCollapse}
-                      onMoveCategory={moveCategory}
-                      onReorderCategories={reorderCategories}
-                      onOpenTaskSelection={handleOpenTaskSelection} 
-                      onRunTask={handleRunTask}
-                      onViewLogs={handleViewLogs}
-                      onViewHistory={handleViewHistory}
-                      onOpenRepoForm={handleOpenRepoForm}
-                      onDeleteRepo={handleDeleteRepo}
-                      isProcessing={isProcessing}
-                      localPathStates={localPathStates}
-                      detectedExecutables={detectedExecutables}
-                      detailedStatuses={detailedStatuses}
-                      branchLists={branchLists}
-                      // FIX: Pass latestReleases prop to Dashboard.
-                      latestReleases={latestReleases}
-                      onSwitchBranch={handleSwitchBranch}
-                      onCloneRepo={(repoId) => {
-                        const repo = repositories.find(r => r.id === repoId);
-                        if (repo) handleCloneRepo(repo);
-                      }}
-                      onChooseLocationAndClone={handleChooseLocationAndClone}
-                      onRunLaunchConfig={handleRunLaunchConfig}
-                      onOpenLaunchSelection={handleOpenLaunchSelection}
-                      onOpenLocalPath={handleOpenLocalPath}
-                      onOpenWeblink={handleOpenWeblink}
-                      onOpenTerminal={handleOpenTerminal}
-                      setToast={setToast}
-                      onOpenContextMenu={handleOpenContextMenu}
-                      onRefreshRepoState={refreshRepoState}
-                    />;
-                }
-              })()}
-            </main>
-            
-            {taskLogState.isOpen && (
-              <TaskLogPanel
-                onClosePanel={handleCloseLogPanel}
-                onCloseTab={handleCloseLogTab}
-                onSelectTab={handleSelectLogTab}
-                logs={logs}
-                allRepositories={repositories}
-                activeRepoIds={taskLogState.activeIds}
-                selectedRepoId={taskLogState.selectedId}
-                height={taskLogState.height}
-                setHeight={(h) => setTaskLogState(p => ({ ...p, height: h }))}
-                isProcessing={isProcessing}
-              />
-            )}
-          </div>
+          <main className={mainContentClass}>
+            {(() => {
+              switch (activeView) {
+                case 'settings':
+                  return <SettingsView currentSettings={settings} onSave={handleSaveSettings} setToast={setToast} confirmAction={confirmAction} />;
+                case 'info':
+                  return <InfoView />;
+                case 'edit-repository':
+                  // The key ensures the component re-mounts when switching between editing different repos
+                  return <RepoEditView 
+                    key={repoFormState.repoId} 
+                    repository={repositoryToEdit} 
+                    onSave={handleSaveRepo} 
+                    onCancel={handleCloseRepoForm}
+                    onRefreshState={refreshRepoState}
+                    setToast={setToast}
+                    confirmAction={confirmAction}
+                    defaultCategoryId={repoFormState.defaultCategoryId}
+                    onOpenWeblink={handleOpenWeblink}
+                  />;
+                case 'dashboard':
+                default:
+                  return <Dashboard 
+                    repositories={repositories} 
+                    categories={categories}
+                    uncategorizedOrder={uncategorizedOrder}
+                    onAddCategory={addCategory}
+                    onUpdateCategory={updateCategory}
+                    onDeleteCategory={(catId) => {
+                      confirmAction({
+                        title: 'Delete Category',
+                        message: 'Are you sure you want to delete this category? Repositories within it will become uncategorized.',
+                        confirmText: 'Delete',
+                        icon: <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400" aria-hidden="true" />,
+                        confirmButtonClass: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+                        onConfirm: () => {
+                          deleteCategory(catId);
+                          setToast({ message: 'Category deleted.', type: 'info' });
+                        }
+                      });
+                    }}
+                    onMoveRepositoryToCategory={moveRepositoryToCategory}
+                    onMoveRepository={moveRepository}
+                    onToggleCategoryCollapse={toggleCategoryCollapse}
+                    onMoveCategory={moveCategory}
+                    onReorderCategories={reorderCategories}
+                    onOpenTaskSelection={handleOpenTaskSelection} 
+                    onRunTask={handleRunTask}
+                    onViewLogs={handleViewLogs}
+                    onViewHistory={handleViewHistory}
+                    onOpenRepoForm={handleOpenRepoForm}
+                    onDeleteRepo={handleDeleteRepo}
+                    isProcessing={isProcessing}
+                    localPathStates={localPathStates}
+                    detectedExecutables={detectedExecutables}
+                    detailedStatuses={detailedStatuses}
+                    branchLists={branchLists}
+                    // FIX: Pass latestReleases prop to Dashboard.
+                    latestReleases={latestReleases}
+                    onSwitchBranch={handleSwitchBranch}
+                    onCloneRepo={(repoId) => {
+                      const repo = repositories.find(r => r.id === repoId);
+                      if (repo) handleCloneRepo(repo);
+                    }}
+                    onChooseLocationAndClone={handleChooseLocationAndClone}
+                    onRunLaunchConfig={handleRunLaunchConfig}
+                    onOpenLaunchSelection={handleOpenLaunchSelection}
+                    onOpenLocalPath={handleOpenLocalPath}
+                    onOpenWeblink={handleOpenWeblink}
+                    onOpenTerminal={handleOpenTerminal}
+                    setToast={setToast}
+                    onOpenContextMenu={handleOpenContextMenu}
+                    onRefreshRepoState={refreshRepoState}
+                  />;
+              }
+            })()}
+          </main>
+          
+          {taskLogState.isOpen && (
+            <TaskLogPanel
+              onClosePanel={handleCloseLogPanel}
+              onCloseTab={handleCloseLogTab}
+              onSelectTab={handleSelectLogTab}
+              logs={logs}
+              allRepositories={repositories}
+              activeRepoIds={taskLogState.activeIds}
+              selectedRepoId={taskLogState.selectedId}
+              height={taskLogState.height}
+              setHeight={(h) => setTaskLogState(p => ({ ...p, height: h }))}
+              isProcessing={isProcessing}
+            />
+          )}
 
           <StatusBar 
             repoCount={repositories.length} 
