@@ -15,10 +15,13 @@ This document provides a technical overview of the Git Automation Dashboard appl
 
 The application is split into three main processes, which is standard for Electron apps:
 
-### Header and Navigation
-The application's main navigation and primary actions are handled by a standard header component.
-- **`Header.tsx`:** This React component renders the main header bar. It contains buttons for dashboard-specific actions (e.g., "New Repo") and the primary navigation icons to switch between the main application views (Dashboard, Settings, Info).
-- **`CommandPalette.tsx`:** This component is a modal dialog that is opened via a keyboard shortcut (`Ctrl/Cmd+K`). It provides a search-driven interface for users to quickly find and execute commands, such as running tasks or navigating to different views. It is not integrated into the header.
+### Frameless Window and UI Structure
+The application uses a custom frameless window to achieve a modern, VSCode-like appearance.
+- **`electron/main.ts`:** Configures the `BrowserWindow` with `frame: false` and `titleBarStyle: 'hidden'` to remove the default OS window chrome. It also contains IPC handlers (`window-minimize`, `window-maximize`, `window-close`) to provide functionality for the custom controls.
+- **`components/Header.tsx`:** This component has been repurposed to act as the application's **Title Bar**. It is responsible for displaying the app title and providing a draggable region (`-webkit-app-region: drag`).
+- **`components/titlebar/WindowControls.tsx`:** A dedicated component that renders the custom minimize, maximize/restore, and close buttons. It communicates with the main process via IPC to execute window actions.
+- **`components/MenuBar.tsx`:** A new component that sits directly below the title bar. It contains the application's primary actions (e.g., "New Repo") and the main view navigation icons, separating them from the window's structural controls.
+- **`components/CommandPalette.tsx`:** This component is a modal dialog that is opened via a keyboard shortcut (`Ctrl/Cmd+K`). It provides a search-driven interface for users to quickly find and execute commands, such as running tasks or navigating to different views.
 
 ### Main Process
 

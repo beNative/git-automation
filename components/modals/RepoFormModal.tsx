@@ -260,7 +260,7 @@ const TaskStepItem: React.FC<{
                     </optgroup>
                     <optgroup label="Project Groups">
                         {/* FIX: Use Array.isArray as a type guard because the type from the Electron API might be unknown at compile time. */}
-                        {Array.isArray(projectInfo?.delphi?.groups) && projectInfo.delphi.groups.map(g => (
+                        {Array.isArray(projectInfo?.delphi?.groups) && projectInfo?.delphi.groups.map(g => (
                             <option key={g} value={g}>{g}</option>
                         ))}
                     </optgroup>

@@ -4,8 +4,8 @@ This application provides a simple, powerful dashboard to manage and automate th
 
 ## Core Features
 
+-   **Custom Frameless Window:** A modern, VSCode-inspired interface with a custom title bar (for window dragging and controls) and a separate menu bar for a clean, spacious layout.
 -   **Centralized Dashboard:** View the status, branch, and build health of all your repositories in one place.
--   **Modern Header:** A clean header bar provides quick access to primary actions like creating a new repository and checking all repositories for updates.
 -   **Customizable Dashboard Categories:** Organize your repositories into collapsible sections with **dual-theme (light/dark) color styling**, a library of predefined themes, full drag-and-drop support (for both repositories and categories), and alternative up/down reorder buttons.
 -   **Multi-VCS Support:** Manage both Git and Subversion (SVN) repositories seamlessly.
 -   **Repository-Specific Tasks:** Create custom, multi-step automation scripts (e.g., pull/update, install, build) for each repository.
@@ -35,7 +35,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 ## Quick Start
 
 1.  **Add a Repository:**
-    -   Click the **"New Repo"** button in the header.
+    -   Click the **"New Repo"** button in the menu bar.
     -   Select the Version Control System (Git or SVN).
     -   Fill in the required details on the "General" tab.
     -   Click **"Save Repository"**.

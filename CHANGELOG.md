@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.24.0]
+
+### Added
+- **Frameless Window Design:** Implemented a modern, VSCode-inspired frameless window with a custom title bar for dragging and custom window controls (minimize, maximize, close).
+- **Dedicated Menu Bar:** Created a new menu bar below the title bar to house primary application actions ("New Repo", "Check Updates") and view navigation, creating a cleaner and more organized layout.
+
+### Changed
+- **Documentation Overhaul:** Updated all documentation files (`README.md`, `FUNCTIONAL_MANUAL.md`, `TECHNICAL_MANUAL.md`) to accurately reflect the new frameless UI and all other recent feature updates and fixes.
+
+### Fixed
+- **Dropdown Clipping:** Resolved a critical UI bug where the branch switcher dropdown on repository cards would get cut off by application or card borders. The dropdown now uses a portal to render correctly above all other elements.
+- **Editor Layout:** Corrected a flexbox layout issue where the "Edit Repository" view was not sized correctly within the main content area and failed to scroll internally as intended.
+- **Startup Stability:** Fortified all calls to the backend Electron API with optional chaining to prevent crashes caused by race conditions during application startup.
+- **Module Resolution:** Fixed an invalid import path alias that was causing a `TypeError` when loading the `TitleBar` component.
+
 ## [0.23.1]
 
 ### Changed
