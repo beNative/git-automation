@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Full Release Publishing:** The GitHub release form now includes a release type selector, making it easy to publish full releases in addition to drafts and pre-releases.
+
 ## [0.24.2]
 
 ### Changed

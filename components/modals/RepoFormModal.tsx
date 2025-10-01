@@ -1796,10 +1796,67 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                             <label className={formLabelStyle}>Release Notes (Markdown)</label>
                             <textarea value={editingRelease.body || ''} onChange={e => setEditingRelease(p => ({...p!, body: e.target.value}))} rows={10} className={`${formInputStyle} font-mono`} />
                         </div>
-                        <div className="flex items-center gap-6">
-                             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editingRelease.isDraft} onChange={e => setEditingRelease(p => ({...p!, isDraft: e.target.checked}))} className="rounded" /> Draft</label>
-                             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editingRelease.isPrerelease} onChange={e => setEditingRelease(p => ({...p!, isPrerelease: e.target.checked}))} className="rounded" /> Pre-release</label>
-                        </div>
+                        {(() => {
+                            const releaseType = editingRelease.isDraft
+                                ? 'draft'
+                                : editingRelease.isPrerelease
+                                    ? 'prerelease'
+                                    : 'full';
+
+                            const updateReleaseType = (type: 'draft' | 'prerelease' | 'full') => {
+                                setEditingRelease(prev => {
+                                    if (!prev) return prev;
+                                    if (type === 'draft') {
+                                        return { ...prev, isDraft: true, isPrerelease: false };
+                                    }
+                                    if (type === 'prerelease') {
+                                        return { ...prev, isDraft: false, isPrerelease: true };
+                                    }
+                                    return { ...prev, isDraft: false, isPrerelease: false };
+                                });
+                            };
+
+                            return (
+                                <div>
+                                    <p className={formLabelStyle}>Release Type</p>
+                                    <div className="mt-1 flex flex-wrap items-center gap-6">
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <input
+                                                type="radio"
+                                                name="release-type"
+                                                value="full"
+                                                checked={releaseType === 'full'}
+                                                onChange={() => updateReleaseType('full')}
+                                                className="text-blue-600 focus:ring-blue-500"
+                                            />
+                                            Full release
+                                        </label>
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <input
+                                                type="radio"
+                                                name="release-type"
+                                                value="draft"
+                                                checked={releaseType === 'draft'}
+                                                onChange={() => updateReleaseType('draft')}
+                                                className="text-blue-600 focus:ring-blue-500"
+                                            />
+                                            Draft
+                                        </label>
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <input
+                                                type="radio"
+                                                name="release-type"
+                                                value="prerelease"
+                                                checked={releaseType === 'prerelease'}
+                                                onChange={() => updateReleaseType('prerelease')}
+                                                className="text-blue-600 focus:ring-blue-500"
+                                            />
+                                            Pre-release
+                                        </label>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                         <div className="flex gap-2">
                             <button onClick={handleSaveRelease} className="px-4 py-2 bg-blue-600 text-white rounded-md">Save Release</button>
                             <button onClick={() => setEditingRelease(null)} className="px-4 py-2 bg-gray-500 text-white rounded-md">Cancel</button>
@@ -1811,7 +1868,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 <div className="p-4 space-y-4">
                      <div className="flex justify-between items-center">
                         <h3 className="text-lg font-semibold">GitHub Releases</h3>
-                        <button onClick={() => setEditingRelease({ isNew: true, tagName: '', name: '', body: '', isDraft: true, isPrerelease: false })} className="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create New Release</button>
+                        <button onClick={() => setEditingRelease({ isNew: true, tagName: '', name: '', body: '', isDraft: false, isPrerelease: false })} className="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create New Release</button>
                      </div>
                      {releasesLoading && <p>Loading releases...</p>}
                      {releasesError && <p className="text-red-500">{releasesError}</p>}

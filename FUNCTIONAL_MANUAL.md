@@ -129,7 +129,7 @@ Provides a full interface to manage your Git branches. You can:
 #### Releases Tab (Git Only)
 This tab provides a complete interface for managing your project's GitHub releases. It requires a GitHub Personal Access Token to be configured in the global settings. To view and manage draft releases, the token must have repository permissions for **"Contents: Read & write"**.
 - **View Releases:** See a list of all existing releases, each with its name, tag, creation date, and status badges for "Draft" and "Pre-release". The release notes body is also displayed and supports Markdown rendering.
-- **Create Release:** Click the "Create New Release" button to open a form. You can specify a tag name, title, and release notes (in Markdown), and choose whether to create it as a draft or a pre-release.
+- **Create Release:** Click the "Create New Release" button to open a form. You can specify a tag name, title, and release notes (in Markdown), and choose whether to publish it immediately as a full release, keep it as a draft, or mark it as a pre-release.
 - **Edit Release:** Click the "Edit" button on any release to modify its details.
 - **Publish/Unpublish:** Quickly toggle a release's draft status.
 - **Toggle Pre-release:** Change a release from a stable to a pre-release and vice-versa.
