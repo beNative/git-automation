@@ -60,11 +60,12 @@ Follow this checklist when preparing a new minor or patch release:
     in-app messaging) match the new number.
 2.  **Review Documentation:** Re-read the README, Functional Manual, Technical Manual, and CHANGELOG to confirm terminology and
     screenshots reflect the current UI and workflow.
-3.  **Update Release Notes:** Add a new section to `CHANGELOG.md` summarizing the changes included in the release. This text
-    becomes the body of the GitHub release notes.
+3.  **Update Release Notes:** Add a new section to `CHANGELOG.md` summarizing the changes included in the release. Plan to reuse
+    this text verbatim in the GitHub release body.
 4.  **Build Installers:** Run `npm run pack` to generate platform installers and smoke-test the output locally.
-5.  **Publish on GitHub:** Draft a new GitHub release, attach the generated artifacts, verify the tag/version details, paste the
-    changelog entry into the release body, then publish.
+5.  **Publish on GitHub:** Draft a new GitHub release, attach the generated artifacts, verify the tag/version details, choose the
+    correct value in the **Release Type** selector (Full Release, Draft, or Pre-release), paste the changelog entry into the release
+    body, then publish.
 
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._
