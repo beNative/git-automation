@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BranchInfo } from '../../types';
 import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';
 import { XIcon } from '../icons/XIcon';
@@ -30,6 +30,9 @@ const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
   const [isKeyboardNavigating, setIsKeyboardNavigating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  const trimmedSearchTerm = searchTerm.trim();
+  const normalizedSearchTerm = trimmedSearchTerm.toLowerCase();
 
   useEffect(() => {
     if (isOpen) {
@@ -73,12 +76,41 @@ const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
   }, [branchInfo]);
 
   const filteredEntries = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    if (!normalizedSearch) {
+    if (!normalizedSearchTerm) {
       return branchEntries;
     }
-    return branchEntries.filter(entry => entry.name.toLowerCase().includes(normalizedSearch));
-  }, [branchEntries, searchTerm]);
+    return branchEntries.filter(entry => entry.name.toLowerCase().includes(normalizedSearchTerm));
+  }, [branchEntries, normalizedSearchTerm]);
+
+  const highlightBranchName = useCallback(
+    (name: string) => {
+      if (!trimmedSearchTerm) {
+        return name;
+      }
+
+      const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\$&');
+      const pattern = new RegExp(`(${escapeRegExp(trimmedSearchTerm)})`, 'ig');
+      const segments = name.split(pattern);
+
+      return segments.map((segment, index) => {
+        if (segment.toLowerCase() === normalizedSearchTerm) {
+          return (
+            <mark
+              key={`match-${index}`}
+              className="rounded bg-yellow-200 px-0.5 text-gray-900 dark:bg-yellow-300/60 dark:text-gray-900"
+            >
+              {segment}
+            </mark>
+          );
+        }
+
+        return (
+          <React.Fragment key={`text-${index}`}>{segment}</React.Fragment>
+        );
+      });
+    },
+    [normalizedSearchTerm, trimmedSearchTerm],
+  );
 
   useEffect(() => {
     setActiveIndex(prev => {
@@ -263,7 +295,7 @@ const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
                     } ${isCurrent ? 'border-l-4 border-blue-500' : ''}`}
                   >
                     <div className="flex flex-col">
-                      <span className="font-medium truncate">{entry.name}</span>
+                      <span className="font-medium truncate">{highlightBranchName(entry.name)}</span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         {entry.type === 'local' ? 'Local branch' : 'Remote branch'}
                       </span>
