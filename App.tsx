@@ -4,7 +4,6 @@ import { useRepositoryManager } from './hooks/useRepositoryManager';
 import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category, ReleaseInfo } from './types';
 import Dashboard from './components/Dashboard';
 import TitleBar from './components/Header';
-import MenuBar from './components/MenuBar';
 // FIX: RepoEditView is a default export, so it should be imported without curly braces.
 import RepoEditView from './components/modals/RepoFormModal';
 import Toast from './components/Toast';
@@ -889,10 +888,10 @@ const App: React.FC = () => {
     <IconContext.Provider value={settings.iconSet}>
       <TooltipProvider>
         <div className="flex flex-col h-screen">
-          <TitleBar activeView={activeView} onSetView={setActiveView} />
-          <MenuBar
-            onNewRepo={() => handleOpenRepoForm('new')}
+          <TitleBar
             activeView={activeView}
+            onSetView={setActiveView}
+            onNewRepo={() => handleOpenRepoForm('new')}
             onCheckAllForUpdates={handleCheckAllForUpdates}
             isCheckingAll={isCheckingAll}
             onToggleAllCategories={toggleAllCategoriesCollapse}

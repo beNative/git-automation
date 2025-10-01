@@ -4,15 +4,14 @@ This manual provides a detailed walkthrough of all the features available in the
 
 ## 1. Navigating the Application
 
-The application features a modern, frameless window design. Navigation and primary actions are split between two main components at the top.
+The application features a modern, frameless window design with a single, information-rich title bar at the top.
 
--   **Title Bar:** The very top bar of the application.
-    -   It displays the application title.
-    -   The entire bar (except for the buttons) is a **draggable region**, allowing you to move the window around your screen.
-    -   The far right contains custom **window controls** to minimize, maximize/restore, and close the application.
--   **Menu Bar:** Located directly below the title bar.
-    -   **Left Side:** Contains buttons for primary dashboard actions like "New Repo", "Check Updates", and "Expand/Collapse All".
-    -   **Right Side:** Houses the main view navigation icons and a quick-toggle button for switching between light and dark themes.
+-   **Title Bar:**
+    -   Displays the application title on the left.
+    -   Hosts the primary dashboard actions ("New Repo", "Check Updates", "Expand/Collapse All") when the dashboard is active, centered for easy access.
+    -   Provides quick navigation icons for the main views and a light/dark theme toggle on the right.
+    -   Keeps a dedicated **draggable region** outside of the interactive controls so you can reposition the window.
+    -   Contains custom **window controls** to minimize, maximize/restore, and close the application.
 
 The three main application views are:
 -   **Dashboard (Home Icon):** The main screen where you can see and interact with all your repository cards.
@@ -25,7 +24,7 @@ A powerful **Command Palette** can be opened at any time with the `Ctrl/Cmd+K` s
 
 The dashboard is the central hub of the application. It displays all your configured repositories as individual cards, now organized into categories. You can run tasks on multiple repositories at the same time. Starting a long build on one project won't stop you from running a quick update on another.
 
-The menu bar contains a **"Check Updates"** button to check all repositories for remote changes, and a button to **Expand/Collapse All** categories for quick layout management.
+The title bar contains a **"Check Updates"** button to check all repositories for remote changes, and a button to **Expand/Collapse All** categories for quick layout management.
 
 ### Organizing with Categories
 
@@ -92,7 +91,7 @@ Tasks (automation scripts) are configured on a per-repository basis.
 
 ### Adding a New Repository
 
-1.  Click the **"New Repo"** button in the menu bar.
+1.  Click the **"New Repo"** button in the title bar.
 2.  The "Add New Repository" view will appear.
 3.  Fill in the repository's details (Name, URL, Local Path, VCS type, etc.). The **Local Path** must be the absolute path to the repository on your computer for real execution to work.
 4.  Click **"Save Repository"**.
