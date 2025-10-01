@@ -5,7 +5,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 ## Core Features
 
 -   **Centralized Dashboard:** View the status, branch, and build health of all your repositories in one place.
--   **Custom Title Bar:** A sleek, modern title bar inspired by VS Code, integrating primary actions and the command palette for a cleaner look.
+-   **Modern Header:** A clean header bar provides quick access to primary actions like creating a new repository and checking all repositories for updates.
 -   **Customizable Dashboard Categories:** Organize your repositories into collapsible sections with **dual-theme (light/dark) color styling**, a library of predefined themes, full drag-and-drop support (for both repositories and categories), and alternative up/down reorder buttons.
 -   **Multi-VCS Support:** Manage both Git and Subversion (SVN) repositories seamlessly.
 -   **Repository-Specific Tasks:** Create custom, multi-step automation scripts (e.g., pull/update, install, build) for each repository.
@@ -13,7 +13,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Advanced Task Steps:** A rich library of specific, pre-built steps for different ecosystems, **now organized into logical categories in the UI for easy discovery**, simplifies creating complex workflows.
 -   **Task Environment Variables:** Define shell environment variables that are available to all command steps within a task.
 -   **Quick Actions:** Manually refresh repository state, copy URLs/paths with a single click, access all common actions via a right-click context menu, and reorder repositories with up/down buttons.
--   **Powerful Command Palette:** Quickly access any action, task, or repository by clicking the central search box in the title bar or using the keyboard shortcut (`Ctrl/Cmd+K`).
+-   **Powerful Command Palette:** Quickly access any action, task, or repository using the keyboard shortcut (`Ctrl/Cmd+K`) to open a powerful search-driven command modal.
 -   **Parallel Execution:** Run tasks on multiple repositories at the same time without waiting.
 -   **One-Click Update Check:** A "Check Updates" button fetches the latest information from all remotes, showing an "Updates Available" indicator on repositories that are behind.
 -   **Detailed VCS Status:** See ahead/behind status (Git) and a summary of file changes directly on the dashboard.
@@ -29,13 +29,13 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Persistent & Safe Configuration:** All your settings and repository configurations are stored safely in a persistent location, ensuring they are never lost during application updates.
 -   **Settings Import/Export:** Easily back up, restore, or share your complete application configuration using `.zip` or `.json` files.
 -   **Robust Executable Handling:** Manually configure paths to your Git/SVN executables, with auto-detect and testing, ensuring the app works in any environment.
--   **Global Settings:** Customize the application theme (with a quick-toggle button in the title bar), icon set (**Feather icons by default**), notifications, and behavior like enabling pre-release updates or choosing your preferred web browser.
+-   **Global Settings:** Customize the application theme (with a quick-toggle button in the header), icon set (**Feather icons by default**), notifications, and behavior like enabling pre-release updates or choosing your preferred web browser.
 -   **GUI Scaling:** Adjust the overall size of the application's interface for better readability on any screen.
 
 ## Quick Start
 
 1.  **Add a Repository:**
-    -   Click the **"New Repo"** button in the title bar.
+    -   Click the **"New Repo"** button in the header.
     -   Select the Version Control System (Git or SVN).
     -   Fill in the required details on the "General" tab.
     -   Click **"Save Repository"**.

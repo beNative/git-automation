@@ -9,14 +9,6 @@ All notable changes to this project will be documented in this file.
 
 ## [0.23.0]
 
-### Added
-- **Custom Title Bar:** Implemented a modern, VS Code-style custom title bar for a more integrated and professional user interface.
-- **Integrated Command Palette:** The command palette is now activated via a search input box directly integrated into the new title bar, replacing the previous modal implementation.
-- **Custom Window Controls:** Added custom-drawn minimize, maximize, and close buttons that adapt to the operating system (macOS vs. Windows/Linux) for a native feel.
-
-### Changed
-- **Major UI Overhaul:** The previous `Header` component has been completely replaced by the new `TitleBar` component, which now houses all primary navigation and actions.
-
 ### Fixed
 - **Dropdown Clipping:** Resolved a critical UI bug where the branch switcher dropdown on repository cards would get cut off by application or card borders. The dropdown now uses a portal to render correctly above all other elements.
 

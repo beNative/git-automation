@@ -15,12 +15,10 @@ This document provides a technical overview of the Git Automation Dashboard appl
 
 The application is split into three main processes, which is standard for Electron apps:
 
-### Custom Title Bar
-The application utilizes a frameless window to provide a custom, modern user interface.
-- **Frameless Window (Main Process):** In `electron/main.ts`, the `BrowserWindow` is instantiated with `frame: false` to remove the default OS chrome. IPC handlers (`ipcMain.handle`) are set up to manage window actions like minimize, maximize, and close, which are triggered by the custom UI buttons.
-- **Draggable UI (Renderer Process):** The new `TitleBar.tsx` component serves as the custom title bar. Its main container has the `-webkit-app-region: drag` CSS property, making it draggable.
-- **Interactive Elements:** All buttons and the search input within the title bar have `-webkit-app-region: no-drag` applied to ensure they remain clickable and don't interfere with window dragging.
-- **Component Refactor:** The old `Header.tsx` component has been removed. Its functionality, along with a refactored `CommandPalette.tsx` (which is now just a results list), is fully encapsulated within `TitleBar.tsx`.
+### Header and Navigation
+The application's main navigation and primary actions are handled by a standard header component.
+- **`Header.tsx`:** This React component renders the main header bar. It contains buttons for dashboard-specific actions (e.g., "New Repo") and the primary navigation icons to switch between the main application views (Dashboard, Settings, Info).
+- **`CommandPalette.tsx`:** This component is a modal dialog that is opened via a keyboard shortcut (`Ctrl/Cmd+K`). It provides a search-driven interface for users to quickly find and execute commands, such as running tasks or navigating to different views. It is not integrated into the header.
 
 ### Main Process
 
