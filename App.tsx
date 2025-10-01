@@ -889,11 +889,10 @@ const App: React.FC = () => {
     <IconContext.Provider value={settings.iconSet}>
       <TooltipProvider>
         <div className="flex flex-col h-screen">
-          <TitleBar />
-          <MenuBar 
-            onNewRepo={() => handleOpenRepoForm('new')} 
-            activeView={activeView} 
-            onSetView={setActiveView}
+          <TitleBar activeView={activeView} onSetView={setActiveView} />
+          <MenuBar
+            onNewRepo={() => handleOpenRepoForm('new')}
+            activeView={activeView}
             onCheckAllForUpdates={handleCheckAllForUpdates}
             isCheckingAll={isCheckingAll}
             onToggleAllCategories={toggleAllCategoriesCollapse}
