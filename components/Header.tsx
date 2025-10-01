@@ -56,27 +56,24 @@ const TitleBar: React.FC<TitleBarProps> = ({
   const checkUpdatesTooltip = useTooltip('Check all repositories for updates');
   const expandCollapseTooltip = useTooltip(canCollapseAll ? 'Collapse all categories' : 'Expand all categories');
 
+  const noDragStyle = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
+
   return (
     <header
-      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-      className="bg-gray-200 dark:bg-gray-800/90 h-[var(--title-bar-height)] flex items-center gap-2 pl-2 pr-0 flex-shrink-0"
+      style={{ WebkitAppRegion: 'drag', WebkitUserSelect: 'none' } as React.CSSProperties}
+      className="bg-gray-200 dark:bg-gray-800/90 h-[var(--title-bar-height)] flex items-center gap-2 pl-2 pr-0 flex-shrink-0 select-none"
     >
-      <div
-        className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300"
-        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-      >
+      <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
         <GitBranchIcon className="h-5 w-5 text-blue-600 dark:text-blue-500" />
         <span>Git Automation Dashboard</span>
       </div>
-      <div
-        className="flex flex-1 items-center justify-center"
-        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-      >
+      <div className="flex flex-1 items-center justify-center">
         {isDashboard && (
           <div className="flex items-center gap-1 sm:gap-2">
             <button
               {...newRepoTooltip}
               onClick={onNewRepo}
+              style={noDragStyle}
               className="flex items-center justify-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-200 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-offset-gray-700"
             >
               <PlusIcon className="h-4 w-4" />
@@ -86,6 +83,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
               {...checkUpdatesTooltip}
               onClick={onCheckAllForUpdates}
               disabled={isCheckingAll}
+              style={noDragStyle}
               className="flex items-center justify-center gap-1 rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-offset-gray-700"
             >
               <CloudArrowDownIcon className={`h-4 w-4 ${isCheckingAll ? 'animate-pulse' : ''}`} />
@@ -94,6 +92,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
             <button
               {...expandCollapseTooltip}
               onClick={onToggleAllCategories}
+              style={noDragStyle}
               className="flex items-center justify-center gap-1 rounded-md bg-gray-500 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:ring-offset-gray-200 dark:bg-gray-500 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-700"
             >
               {canCollapseAll ? (
@@ -106,12 +105,13 @@ const TitleBar: React.FC<TitleBarProps> = ({
           </div>
         )}
       </div>
-      <div className="flex items-center" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-        <div className="flex items-center gap-1 pr-1 border-r border-gray-300/60 dark:border-gray-700/60 mr-1">
+      <div className="flex items-center">
+        <div className="flex items-center gap-1 pr-1 border-r border-gray-300/60 dark:border-gray-700/60 mr-1" style={noDragStyle}>
           <button
             {...dashboardTooltip}
             onClick={() => onSetView('dashboard')}
             disabled={isEditing}
+            style={noDragStyle}
             className={isEditing ? disabledNavButtonStyle : (activeView === 'dashboard' ? activeDashboardStyle : navButtonStyle)}
             aria-label="Dashboard"
           >
@@ -121,6 +121,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
             {...settingsTooltip}
             onClick={() => onSetView('settings')}
             disabled={isEditing}
+            style={noDragStyle}
             className={isEditing ? disabledNavButtonStyle : (activeView === 'settings' ? activeSettingsStyle : navButtonStyle)}
             aria-label="Settings"
           >
@@ -130,6 +131,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
             {...infoTooltip}
             onClick={() => onSetView('info')}
             disabled={isEditing}
+            style={noDragStyle}
             className={isEditing ? disabledNavButtonStyle : (activeView === 'info' ? activeInfoStyle : navButtonStyle)}
             aria-label="Information"
           >
@@ -139,6 +141,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
             {...themeTooltip}
             onClick={handleToggleTheme}
             disabled={isEditing}
+            style={noDragStyle}
             className={isEditing ? disabledNavButtonStyle : navButtonStyle}
             aria-label="Toggle theme"
           >
