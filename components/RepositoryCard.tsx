@@ -18,6 +18,7 @@ import { FolderIcon } from './icons/FolderIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
 import { StatusIndicator } from './StatusIndicator';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { MagnifyingGlassIcon } from './icons/MagnifyingGlassIcon';
 import { ClockIcon } from './icons/ClockIcon';
 import { useTooltip } from '../hooks/useTooltip';
 import { TooltipContext } from '../contexts/TooltipContext';
@@ -26,6 +27,7 @@ import { ClipboardIcon } from './icons/ClipboardIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
 import { ArrowUpIcon } from './icons/ArrowUpIcon';
 import { ArrowDownIcon } from './icons/ArrowDownIcon';
+import BranchSelectionModal from './modals/BranchSelectionModal';
 
 
 interface RepositoryCardProps {
@@ -69,15 +71,17 @@ interface RepositoryCardProps {
 
 const BranchSwitcher: React.FC<{
   repoId: string;
+  repoName: string;
   branchInfo: BranchInfo | null;
   onSwitchBranch: (repoId: string, branch: string) => void;
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
-}> = ({ repoId, branchInfo, onSwitchBranch, isOpen, onToggle, onClose }) => {
+}> = ({ repoId, repoName, branchInfo, onSwitchBranch, isOpen, onToggle, onClose }) => {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+    const [isModalOpen, setIsModalOpen] = useState(false);
     
     useEffect(() => {
         if (isOpen && buttonRef.current) {
@@ -141,6 +145,20 @@ const BranchSwitcher: React.FC<{
       onClose();
     };
 
+    const openModal = () => {
+      setIsModalOpen(true);
+      onClose();
+    };
+
+    const closeModal = () => {
+      setIsModalOpen(false);
+    };
+
+    const handleModalSelect = (branch: string) => {
+      onSwitchBranch(repoId, branch);
+      setIsModalOpen(false);
+    };
+
     const DropdownContent = (
         <div 
             ref={dropdownRef}
@@ -177,21 +195,38 @@ const BranchSwitcher: React.FC<{
     );
 
     return (
-        <div>
+        <div className="flex items-center gap-1">
+            <div className="min-w-0 flex-1">
+                <button
+                    ref={buttonRef}
+                    type="button"
+                    className="inline-flex items-center justify-center w-full rounded-md disabled:cursor-not-allowed"
+                    onClick={onToggle}
+                    disabled={!hasOptions}
+                    aria-haspopup="true"
+                    aria-expanded={isOpen}
+                >
+                    <span className="truncate max-w-[150px] sm:max-w-[200px]">{current}</span>
+                    <ChevronDownIcon className={`ml-1 -mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+            </div>
             <button
-                ref={buttonRef}
                 type="button"
-                className="inline-flex items-center justify-center w-full rounded-md disabled:cursor-not-allowed"
-                onClick={onToggle}
-                disabled={!hasOptions}
-                aria-haspopup="true"
-                aria-expanded={isOpen}
+                onClick={openModal}
+                className="flex-shrink-0 p-1.5 rounded-md text-gray-500 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Open branch search dialog"
             >
-                <span className="truncate max-w-[150px] sm:max-w-[200px]">{current}</span>
-                <ChevronDownIcon className={`ml-1 -mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <MagnifyingGlassIcon className="h-4 w-4" />
             </button>
 
             {isOpen && hasOptions && createPortal(DropdownContent, document.body)}
+            <BranchSelectionModal
+                isOpen={isModalOpen}
+                repositoryName={repoName}
+                branchInfo={branchInfo}
+                onSelectBranch={handleModalSelect}
+                onClose={closeModal}
+            />
         </div>
     );
 };
@@ -565,13 +600,14 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
               {vcs === VcsType.Git ? (
                 <>
                   <GitBranchIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                  <BranchSwitcher 
+                  <BranchSwitcher
                     isOpen={isDropdownOpen}
                     onToggle={toggleDropdown}
                     onClose={closeDropdown}
-                    repoId={id} 
-                    branchInfo={branchInfo} 
-                    onSwitchBranch={onSwitchBranch} 
+                    repoId={id}
+                    repoName={name}
+                    branchInfo={branchInfo}
+                    onSwitchBranch={onSwitchBranch}
                   />
                 </>
               ) : (
