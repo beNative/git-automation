@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 
 - _No unreleased changes._
 
+## [0.24.4]
+
+### Changed
+- **Release Preparation Docs:** Clarified the README and Technical Manual checklists to explicitly set the Release Type selector
+  during publishing and to reuse the freshly written changelog entry for the GitHub release body.
+
+### Fixed
+- **Version Metadata:** Incremented the application version to `0.24.4` in `package.json` ahead of publishing this patch build.
+
 ## [0.24.3]
 
 ### Added

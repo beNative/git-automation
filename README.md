@@ -63,9 +63,9 @@ Follow this checklist when preparing a new minor or patch release:
 3.  **Update Release Notes:** Add a new section to `CHANGELOG.md` summarizing the changes included in the release. Plan to reuse
     this text verbatim in the GitHub release body.
 4.  **Build Installers:** Run `npm run pack` to generate platform installers and smoke-test the output locally.
-5.  **Publish on GitHub:** Draft a new GitHub release, attach the generated artifacts, verify the tag/version details, choose the
-    correct value in the **Release Type** selector (Full Release, Draft, or Pre-release), paste the changelog entry into the release
-    body, then publish.
+5.  **Publish on GitHub:** Draft a new GitHub release, attach the generated artifacts, verify the tag/version details, and set the
+    **Release Type** selector to the intended state (Full Release for GA builds, Draft or Pre-release as needed). Paste the freshly
+    written changelog entry into the release body so the GitHub notes exactly match the repository history, then publish.
 
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._
