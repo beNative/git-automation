@@ -1,6 +1,6 @@
 {
   "name": "git-automation-dashboard",
-  "version": "0.24.2",
+  "version": "0.24.3",
   "description": "A dashboard to manage and automate the workflow for a set of Git repositories.",
   "main": "dist/main.js",
   "author": "AI Assistant",

@@ -4,8 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- _No unreleased changes._
+
+## [0.24.3]
+
 ### Added
-- **Full Release Publishing:** The GitHub release form now includes a release type selector, making it easy to publish full releases in addition to drafts and pre-releases.
+- **Full Release Publishing:** The GitHub release form now includes a release type selector so you can promote a build to a fully published release without leaving the app's workflow.
+
+### Changed
+- **Release Documentation:** Updated the README and Technical Manual checklists to remind maintainers to set the release type appropriately when drafting GitHub releases and to reuse the latest changelog entry for the notes body.
+
+### Fixed
+- **Documentation Drift:** Re-reviewed the Markdown manuals to ensure they reflect the new release publishing controls before packaging this bugfix update.
 
 ## [0.24.2]
 
