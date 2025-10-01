@@ -56,13 +56,15 @@ This application provides a simple, powerful dashboard to manage and automate th
 
 Follow this checklist when preparing a new minor or patch release:
 
-1.  **Bump the Version:** Update the `version` field in `package.json` and ensure any user-facing references match.
+1.  **Bump the Version:** Update the `version` field in `package.json` and ensure any user-facing references (README, manuals,
+    in-app messaging) match the new number.
 2.  **Review Documentation:** Re-read the README, Functional Manual, Technical Manual, and CHANGELOG to confirm terminology and
     screenshots reflect the current UI and workflow.
-3.  **Update Release Notes:** Add a new section to `CHANGELOG.md` summarizing the changes included in the release.
+3.  **Update Release Notes:** Add a new section to `CHANGELOG.md` summarizing the changes included in the release. This text
+    becomes the body of the GitHub release notes.
 4.  **Build Installers:** Run `npm run pack` to generate platform installers and smoke-test the output locally.
-5.  **Publish on GitHub:** Draft a new GitHub release, attach the generated artifacts, paste the changelog entry as release
-    notes, then publish.
+5.  **Publish on GitHub:** Draft a new GitHub release, attach the generated artifacts, verify the tag/version details, paste the
+    changelog entry into the release body, then publish.
 
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._

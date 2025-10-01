@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.24.2]
+
+### Changed
+- **Release Documentation:** Refined the release checklist in the README and Technical Manual to better guide minor and patch
+  releases, emphasizing how to reuse changelog entries for GitHub publishing.
+
+### Fixed
+- **Documentation Drift:** Re-reviewed the Markdown manuals to ensure their wording matches the current release workflow before
+  publishing this bugfix build.
+
 ## [0.24.1]
 
 ### Changed
