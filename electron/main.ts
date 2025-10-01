@@ -136,12 +136,23 @@ const createWindow = () => {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
     },
+    frame: false,
+    titleBarStyle: 'hidden',
     autoHideMenuBar: true,
     icon: path.join(__dirname, 'assets/icon.png'), // Optional: add an icon
   });
 
   // Load the index.html of the app.
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  
+  // Add listeners to notify renderer of maximize status
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send('window-maximized-status', true);
+  });
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send('window-maximized-status', false);
+  });
+
 
   // Open the DevTools if not in production
   if (process.env.NODE_ENV !== 'production') {
@@ -221,6 +232,22 @@ app.on('activate', () => {
     createWindow();
   }
 });
+
+// --- IPC handlers for window controls ---
+ipcMain.on('window-close', () => {
+  mainWindow?.close();
+});
+ipcMain.on('window-minimize', () => {
+  mainWindow?.minimize();
+});
+ipcMain.on('window-maximize', () => {
+  if (mainWindow?.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow?.maximize();
+  }
+});
+
 
 // --- IPC Handler for fetching app version ---
 ipcMain.handle('get-app-version', () => {

@@ -259,7 +259,7 @@ const TaskStepItem: React.FC<{
                         ))}
                     </optgroup>
                     <optgroup label="Project Groups">
-                        {/* FIX: Added a fallback to an empty array to prevent calling .map on a non-array value, which could happen due to broken type inference. */}
+                        {/* FIX: Add fallback to an empty array to prevent calling .map on an undefined value. */}
                         {(projectInfo?.delphi?.groups || []).map(g => (
                             <option key={g} value={g}>{g}</option>
                         ))}

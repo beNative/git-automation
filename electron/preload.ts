@@ -10,6 +10,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // App Info
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version'),
   
+  // Window Controls
+  windowMinimize: () => ipcRenderer.send('window-minimize'),
+  windowMaximize: () => ipcRenderer.send('window-maximize'),
+  windowClose: () => ipcRenderer.send('window-close'),
+  onWindowMaximizedStatus: (callback: (event: IpcRendererEvent, status: boolean) => void) => {
+    ipcRenderer.on('window-maximized-status', callback);
+  },
+  removeWindowMaximizedStatusListener: (callback: (event: IpcRendererEvent, status: boolean) => void) => {
+    ipcRenderer.removeListener('window-maximized-status', callback);
+  },
+
   // App Data
   getAllData: (): Promise<AppDataContextState> => ipcRenderer.invoke('get-all-data'),
   saveAllData: (data: AppDataContextState) => ipcRenderer.send('save-all-data', data),
