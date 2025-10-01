@@ -160,13 +160,13 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
               className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900/50 pl-10 pr-3 py-1.5 text-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
             />
           </div>
-          <div className="h-6 mt-2 px-1">
-            {debouncedSearchQuery && !isLoading && (
+          {debouncedSearchQuery && !isLoading && (
+            <div className="mt-2 px-1">
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Found <span className="font-bold text-gray-700 dark:text-gray-200">{matchStats.occurrenceCount}</span> occurrence(s) in <span className="font-bold text-gray-700 dark:text-gray-200">{matchStats.commitCount}</span> commit(s).
               </p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         <main className="p-4 flex-1 overflow-y-auto">
