@@ -27,11 +27,13 @@
   "devDependencies": {
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@resvg/resvg-js": "^2.6.2",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "electron": "^31.2.1",
     "electron-builder": "^24.13.3",
     "esbuild": "^0.23.0",
+    "png-to-ico": "^2.0.4",
     "typescript": "^5.5.3",
     "wait-on": "^7.2.0"
   },
@@ -50,7 +52,8 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "dist/assets/icon.ico"
     },
     "mac": {
       "target": "dmg"

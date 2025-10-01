@@ -139,7 +139,7 @@ const createWindow = () => {
     frame: false,
     titleBarStyle: 'hidden',
     autoHideMenuBar: true,
-    icon: path.join(__dirname, 'assets/icon.png'), // Optional: add an icon
+    icon: path.join(__dirname, 'assets/icon.ico'),
   });
 
   // Load the index.html of the app.
