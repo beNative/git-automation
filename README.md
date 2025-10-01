@@ -51,5 +51,18 @@ This application provides a simple, powerful dashboard to manage and automate th
     -   Find your repository card on the dashboard.
     -   Click a task button or use the task selection menu to run your task.
     -   The resizable log panel will automatically appear at the bottom, showing the progress of your script.
+
+## Release Preparation Checklist
+
+Follow this checklist when preparing a new minor or patch release:
+
+1.  **Bump the Version:** Update the `version` field in `package.json` and ensure any user-facing references match.
+2.  **Review Documentation:** Re-read the README, Functional Manual, Technical Manual, and CHANGELOG to confirm terminology and
+    screenshots reflect the current UI and workflow.
+3.  **Update Release Notes:** Add a new section to `CHANGELOG.md` summarizing the changes included in the release.
+4.  **Build Installers:** Run `npm run pack` to generate platform installers and smoke-test the output locally.
+5.  **Publish on GitHub:** Draft a new GitHub release, attach the generated artifacts, paste the changelog entry as release
+    notes, then publish.
+
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._

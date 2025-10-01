@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.24.1]
+
+### Changed
+- **Release Preparation:** Added a concise checklist in the README and expanded guidance in the Technical Manual so maintainers
+  can confidently run through documentation reviews and release packaging steps for minor updates.
+- **Documentation Review:** Refreshed the Markdown manuals to ensure their instructions and terminology match the current
+  application experience prior to publishing this release.
+
 ## [0.24.0]
 
 ### Added
