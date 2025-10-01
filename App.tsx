@@ -826,20 +826,17 @@ const App: React.FC = () => {
   }, [activeView, repoFormState.repoId]);
 
   const mainContentClass = useMemo(() => {
-    let baseClasses = "";
     switch (activeView) {
       case 'dashboard':
-        baseClasses = `p-3 sm:p-4 lg:p-6`;
-        break;
+        return `flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6`;
       case 'info':
+        return `flex-1 overflow-y-auto`;
       case 'settings':
       case 'edit-repository':
-        baseClasses = ``;
-        break;
+        return `flex-1 flex flex-col min-h-0`;
       default:
-        baseClasses = "";
+        return "flex-1";
     }
-    return `${baseClasses} flex-1 overflow-y-auto`;
   }, [activeView]);
 
   // Log Panel Handlers
