@@ -43,7 +43,7 @@ const InfoView: React.FC = () => {
       if (props.href && (props.href.startsWith('http') || props.href.startsWith('https'))) {
         return <a {...props} onClick={(e) => {
           e.preventDefault();
-          window.electronAPI.openWeblink(props.href);
+          window.electronAPI?.openWeblink(props.href);
         }} />;
       }
       return <a {...props} />;

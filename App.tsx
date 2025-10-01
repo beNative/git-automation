@@ -588,13 +588,13 @@ const App: React.FC = () => {
       }
       setDirtyRepoModal(prev => ({ ...prev, isIgnoring: true }));
       try {
-        const result = await window.electronAPI.ignoreFilesAndPush({ repo, filesToIgnore });
-        if (result.success) {
+        const result = await window.electronAPI?.ignoreFilesAndPush({ repo, filesToIgnore });
+        if (result?.success) {
           setToast({ message: '.gitignore updated and pushed successfully.', type: 'success' });
           if (resolve) resolve('ignored_and_continue');
           setDirtyRepoModal({ isOpen: false, repo: null, task: null, status: null, resolve: null, isIgnoring: false });
         } else {
-          throw new Error(result.error);
+          throw new Error(result?.error || 'Failed to update .gitignore');
         }
       } catch (e: any) {
         setToast({ message: `Failed to update .gitignore: ${e.message}`, type: 'error' });

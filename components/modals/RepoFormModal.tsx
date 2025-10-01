@@ -1243,11 +1243,11 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     setReleasesLoading(true);
     setReleasesError(null);
     try {
-      const result = await window.electronAPI.getAllReleases(repository);
+      const result = await window.electronAPI?.getAllReleases(repository);
       if (result) {
         setReleases(result);
       } else {
-        const pat = await window.electronAPI.getGithubPat();
+        const pat = await window.electronAPI?.getGithubPat();
         if (!pat) {
           setReleasesError("A GitHub Personal Access Token is required to manage releases. Please set one in Settings > Behavior.");
         } else {
@@ -1267,7 +1267,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     if (repository?.localPath && isGitRepo) {
       if (branchInfo) return; // Don't re-fetch if we already have the info.
       const checkPathAndFetch = async () => {
-        const pathState = await window.electronAPI.checkLocalPath(repository.localPath);
+        const pathState = await window.electronAPI?.checkLocalPath(repository.localPath);
         if (pathState === 'valid') {
             fetchBranches();
         }
@@ -1527,7 +1527,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
 
     try {
-        const result = await window.electronAPI.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
+        const result = await window.electronAPI?.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
         if (result && result.url) {
             const discoveredUrl = result.url;
             const discoveredName = result.url.split('/').pop()?.replace(/\.git$/, '') || '';
@@ -1539,7 +1539,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             });
 
         } else {
-            const errorMsg = `Could not discover URL: ${result.error || 'No remote found.'}`;
+            const errorMsg = `Could not discover URL: ${result?.error || 'No remote found.'}`;
             setToast({ message: errorMsg, type: 'error' });
         }
     } catch (e: any) {
@@ -1549,20 +1549,20 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, [formData.localPath, formData.vcs, setToast]);
 
   const handleChooseLocalPath = useCallback(async () => {
-    const result = await window.electronAPI.showDirectoryPicker();
-    if (!result.canceled && result.filePaths.length > 0) {
+    const result = await window.electronAPI?.showDirectoryPicker();
+    if (result && !result.canceled && result.filePaths.length > 0) {
         setFormData(prev => ({ ...prev, localPath: result.filePaths[0] }));
     }
   }, []);
 
   const handleUpdateRelease = async (releaseId: number, options: Partial<ReleaseInfo>) => {
     if (!repository) return;
-    const result = await window.electronAPI.updateRelease({ repo: repository, releaseId, options });
-    if (result.success) {
+    const result = await window.electronAPI?.updateRelease({ repo: repository, releaseId, options });
+    if (result?.success) {
       setToast({ message: 'Release updated.', type: 'success' });
       fetchReleases();
     } else {
-      setToast({ message: `Error: ${result.error}`, type: 'error' });
+      setToast({ message: `Error: ${result?.error || 'API call failed.'}`, type: 'error' });
     }
   };
   
@@ -1574,12 +1574,12 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       confirmText: 'Delete',
       icon: <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />,
       onConfirm: async () => {
-        const result = await window.electronAPI.deleteRelease({ repo: repository, releaseId });
-        if (result.success) {
+        const result = await window.electronAPI?.deleteRelease({ repo: repository, releaseId });
+        if (result?.success) {
           setToast({ message: 'Release deleted.', type: 'success' });
           fetchReleases();
         } else {
-          setToast({ message: `Error: ${result.error}`, type: 'error' });
+          setToast({ message: `Error: ${result?.error || 'API call failed.'}`, type: 'error' });
         }
       },
     });
@@ -1598,17 +1598,17 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     
     let result;
     if (editingRelease.isNew) {
-      result = await window.electronAPI.createRelease({ repo: repository, options });
+      result = await window.electronAPI?.createRelease({ repo: repository, options });
     } else {
-      result = await window.electronAPI.updateRelease({ repo: repository, releaseId: editingRelease.id!, options });
+      result = await window.electronAPI?.updateRelease({ repo: repository, releaseId: editingRelease.id!, options });
     }
 
-    if (result.success) {
+    if (result?.success) {
       setToast({ message: `Release ${editingRelease.isNew ? 'created' : 'saved'}.`, type: 'success' });
       setEditingRelease(null);
       fetchReleases();
     } else {
-      setToast({ message: `Error: ${result.error}`, type: 'error' });
+      setToast({ message: `Error: ${result?.error || 'API call failed.'}`, type: 'error' });
     }
   };
 

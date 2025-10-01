@@ -45,7 +45,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
 
   useEffect(() => {
     if (activeCategory === 'behavior') {
-      window.electronAPI.getTaskLogPath().then(setTaskLogDisplayPath);
+      window.electronAPI?.getTaskLogPath().then(path => path && setTaskLogDisplayPath(path));
     }
   }, [activeCategory, settings.taskLogPath]);
 
@@ -90,8 +90,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
   };
   
   const handleBrowse = async (vcsType: 'git' | 'svn') => {
-    const result = await window.electronAPI.showFilePicker();
-    if (!result.canceled && result.filePaths.length > 0) {
+    const result = await window.electronAPI?.showFilePicker();
+    if (result && !result.canceled && result.filePaths.length > 0) {
         const path = result.filePaths[0];
         setSettings(prev => ({
             ...prev,
@@ -101,7 +101,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
   };
 
   const handleAutodetect = async (vcsType: 'git' | 'svn') => {
-      const path = await window.electronAPI.autodetectExecutablePath(vcsType);
+      const path = await window.electronAPI?.autodetectExecutablePath(vcsType);
       if (path) {
           setSettings(prev => ({
               ...prev,
@@ -119,17 +119,17 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
       setToast({ message: `Path for ${vcsType.toUpperCase()} is not set.`, type: 'info' });
       return;
     }
-    const result = await window.electronAPI.testExecutablePath({ path, vcsType });
-    if (result.success) {
+    const result = await window.electronAPI?.testExecutablePath({ path, vcsType });
+    if (result?.success) {
       setToast({ message: `Success! Version: ${result.version}`, type: 'success' });
     } else {
-      setToast({ message: `Test failed: ${result.error}`, type: 'error' });
+      setToast({ message: `Test failed: ${result?.error || 'Execution failed.'}`, type: 'error' });
     }
   };
   
   const handleSelectTaskLogPath = async () => {
-      const result = await window.electronAPI.selectTaskLogPath();
-      if (!result.canceled && result.path) {
+      const result = await window.electronAPI?.selectTaskLogPath();
+      if (result && !result.canceled && result.path) {
           setSettings(prev => ({ ...prev, taskLogPath: result.path! }));
       }
   };
@@ -226,7 +226,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                           </button>
                       </div>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500">Required for fetching release info. <a {...patTooltip} href="#" onClick={(e) => { e.preventDefault(); window.electronAPI.openWeblink('https://github.com/settings/tokens?type=beta'); }} className="text-blue-600 dark:text-blue-400 hover:underline">Create one here</a>.</p>
+                  <p className="mt-2 text-xs text-gray-500">Required for fetching release info. <a {...patTooltip} href="#" onClick={(e) => { e.preventDefault(); window.electronAPI?.openWeblink('https://github.com/settings/tokens?type=beta'); }} className="text-blue-600 dark:text-blue-400 hover:underline">Create one here</a>.</p>
               </div>
 
              {/* Executable Paths */}
