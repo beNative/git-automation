@@ -1,6 +1,8 @@
 const esbuild = require('esbuild');
 const path = require('path');
 const fs = require('fs');
+const { Resvg } = require('@resvg/resvg-js');
+const pngToIco = require('png-to-ico');
 
 const isWatch = process.argv.includes('--watch');
 const isProd = process.env.NODE_ENV === 'production';
@@ -62,7 +64,46 @@ const preloadConfig = {
 
 
 // --- Copy Static Files ---
-function copyStaticFiles() {
+async function generateWindowsIcon() {
+    const svgSrc = path.resolve(__dirname, 'assets/icon.svg');
+    const iconDestDir = path.resolve(distPath, 'assets');
+    const iconDest = path.join(iconDestDir, 'icon.ico');
+
+    if (!fs.existsSync(svgSrc)) {
+        if (isWatch) {
+            console.warn('Windows icon source SVG not found at', svgSrc);
+        }
+        return;
+    }
+
+    try {
+        fs.mkdirSync(iconDestDir, { recursive: true });
+
+        const svgContent = fs.readFileSync(svgSrc, 'utf8');
+        const sizes = [16, 24, 32, 48, 64, 128, 256];
+        const pngBuffers = sizes.map(size => {
+            const resvg = new Resvg(svgContent, {
+                fitTo: {
+                    mode: 'width',
+                    value: size,
+                },
+                background: 'rgba(0,0,0,0)'
+            });
+            return resvg.render().asPng();
+        });
+
+        const icoBuffer = await pngToIco(pngBuffers);
+        fs.writeFileSync(iconDest, icoBuffer);
+
+        if (isWatch) {
+            console.log(`Generated Windows icon at ${iconDest}`);
+        }
+    } catch (e) {
+        console.error('Failed to generate Windows icon from SVG:', e);
+    }
+}
+
+async function copyStaticFiles() {
     // Copy index.html
     try {
         fs.copyFileSync(path.resolve(__dirname, 'index.html'), path.resolve(distPath, 'index.html'));
@@ -100,6 +141,7 @@ function copyStaticFiles() {
      if (isWatch) {
         console.log('Copied documentation files to dist/docs/');
     }
+    await generateWindowsIcon();
 }
 
 // --- Create production package.json for electron-builder ---
@@ -144,16 +186,31 @@ async function build() {
             const mainContext = await esbuild.context(mainConfig);
             const preloadContext = await esbuild.context(preloadConfig);
             
-            copyStaticFiles(); // Initial copy
+            await copyStaticFiles(); // Initial copy
             createProdPackageJson(); // Initial create
-            
+
             // Simple file watcher for static files
-            fs.watch('index.html', () => copyStaticFiles());
-            fs.watch('README.md', () => copyStaticFiles());
-            fs.watch('FUNCTIONAL_MANUAL.md', () => copyStaticFiles());
-            fs.watch('TECHNICAL_MANUAL.md', () => copyStaticFiles());
-            fs.watch('CHANGELOG.md', () => copyStaticFiles());
-            fs.watch('package.json', () => createProdPackageJson());
+            const copyWatcher = (target) => {
+                try {
+                    fs.watch(target, () => {
+                        copyStaticFiles().catch(err => console.error(`Failed to refresh static assets after ${target} change:`, err));
+                    });
+                } catch (e) {
+                    console.error(`Failed to watch ${target}:`, e);
+                }
+            };
+
+            copyWatcher('index.html');
+            copyWatcher('README.md');
+            copyWatcher('FUNCTIONAL_MANUAL.md');
+            copyWatcher('TECHNICAL_MANUAL.md');
+            copyWatcher('CHANGELOG.md');
+            copyWatcher('assets');
+            try {
+                fs.watch('package.json', () => createProdPackageJson());
+            } catch (e) {
+                console.error('Failed to watch package.json for production manifest updates:', e);
+            }
 
             await rendererContext.watch();
             await mainContext.watch();
@@ -164,7 +221,7 @@ async function build() {
             await esbuild.build(rendererConfig);
             await esbuild.build(mainConfig);
             await esbuild.build(preloadConfig);
-            copyStaticFiles();
+            await copyStaticFiles();
             createProdPackageJson();
             console.log('Build successful.');
         }
