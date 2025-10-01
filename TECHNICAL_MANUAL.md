@@ -89,11 +89,11 @@ All application data, including repositories, categories, and global settings, i
 
 Use this process when shipping a new minor update or bugfix:
 
-1.  **Increment the Version:** Update the `version` in `package.json` and verify the README and manuals reference the new number if applicable.
+1.  **Increment the Version:** Update the `version` in `package.json` and verify the README, manuals, and any in-app references reflect the new number where applicable.
 2.  **Refresh Documentation:** Re-read `README.md`, `FUNCTIONAL_MANUAL.md`, `TECHNICAL_MANUAL.md`, and `CHANGELOG.md` to ensure screenshots, feature descriptions, and workflows match the current UI.
-3.  **Update Release Notes:** Add a new entry to `CHANGELOG.md` summarizing the changes. This text can be copied directly into the GitHub release body.
+3.  **Update Release Notes:** Add a new entry to `CHANGELOG.md` summarizing the changes. Plan to reuse this text verbatim in the GitHub release body.
 4.  **Build Installers:** Run `npm run pack`. The command produces platform installers in the `release/` directory. Perform a quick smoke test of the generated artifacts before distribution.
-5.  **Publish on GitHub:** Draft a new release on GitHub, attach the installers from the `release/` folder, paste the changelog entry, and publish.
+5.  **Publish on GitHub:** Draft a new release on GitHub, attach the installers from the `release/` folder, verify the tag/version details, paste the changelog entry into the notes, and publish.
 ## 7. Automatic Updates
 
 The application is configured to automatically check for updates on startup using the `electron-updater` library.
