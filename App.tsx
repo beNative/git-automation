@@ -20,6 +20,7 @@ import LaunchSelectionModal from './components/modals/LaunchSelectionModal';
 import CommitHistoryModal from './components/modals/CommitHistoryModal';
 import ExecutableSelectionModal from './components/modals/ExecutableSelectionModal';
 import { VcsType } from './types';
+import { MIN_AUTO_CHECK_INTERVAL_SECONDS } from './constants';
 import { TooltipProvider } from './contexts/TooltipContext';
 import Tooltip from './components/Tooltip';
 import { useLogger } from './hooks/useLogger';
@@ -493,10 +494,13 @@ const App: React.FC = () => {
       return;
     }
 
-    const intervalMinutes = Math.max(1, settings.repoUpdateCheckInterval || 0);
-    const intervalMs = intervalMinutes * 60 * 1000;
+    const intervalSeconds = Math.max(
+      MIN_AUTO_CHECK_INTERVAL_SECONDS,
+      settings.repoUpdateCheckInterval || 0,
+    );
+    const intervalMs = intervalSeconds * 1000;
 
-    logger.info('Enabling automatic repository update checks.', { intervalMinutes });
+    logger.info('Enabling automatic repository update checks.', { intervalSeconds });
 
     const runAutoCheck = () => {
       const repos = repositoriesRef.current;

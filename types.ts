@@ -169,6 +169,7 @@ export interface GlobalSettings {
   taskLogPath: string;
   autoCheckRepoUpdates: boolean;
   repoUpdateCheckInterval: number;
+  repoUpdateCheckIntervalUnit: 'seconds';
   keyboardShortcuts: KeyboardShortcutSettings;
 }
 
