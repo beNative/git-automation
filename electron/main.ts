@@ -9,6 +9,7 @@ import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 import JSZip from 'jszip';
 import { createDefaultKeyboardShortcutSettings, mergeKeyboardShortcutSettings } from '../keyboardShortcuts';
+import { MIN_AUTO_CHECK_INTERVAL_SECONDS, MAX_AUTO_CHECK_INTERVAL_SECONDS } from '../constants';
 
 
 declare const require: (id: string) => any;
@@ -106,8 +107,17 @@ const DEFAULTS: GlobalSettings = {
     zoomFactor: 1,
     saveTaskLogs: true,
     taskLogPath: '',
+    autoCheckRepoUpdates: false,
+    repoUpdateCheckInterval: 1800,
+    repoUpdateCheckIntervalUnit: 'seconds',
     keyboardShortcuts: createDefaultKeyboardShortcutSettings(),
 };
+
+const clampRepoUpdateInterval = (value: number) =>
+  Math.max(
+    MIN_AUTO_CHECK_INTERVAL_SECONDS,
+    Math.min(MAX_AUTO_CHECK_INTERVAL_SECONDS, Math.round(value || 0)),
+  );
 
 async function readSettings(): Promise<GlobalSettings> {
     if (globalSettingsCache) {
@@ -119,6 +129,13 @@ async function readSettings(): Promise<GlobalSettings> {
         if (parsedData && parsedData.globalSettings) {
             const settings = { ...DEFAULTS, ...parsedData.globalSettings };
             settings.keyboardShortcuts = mergeKeyboardShortcutSettings(parsedData.globalSettings.keyboardShortcuts ?? settings.keyboardShortcuts);
+            const hasSecondsUnit = 'repoUpdateCheckIntervalUnit' in parsedData.globalSettings;
+            if (!hasSecondsUnit && parsedData.globalSettings.repoUpdateCheckInterval !== undefined) {
+                settings.repoUpdateCheckInterval = clampRepoUpdateInterval(settings.repoUpdateCheckInterval * 60);
+            } else {
+                settings.repoUpdateCheckInterval = clampRepoUpdateInterval(settings.repoUpdateCheckInterval);
+            }
+            settings.repoUpdateCheckIntervalUnit = 'seconds';
             globalSettingsCache = settings;
             return settings;
         }

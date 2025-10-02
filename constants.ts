@@ -14,3 +14,6 @@ export const BUILD_HEALTH_COLORS: Record<BuildHealth, string> = {
   [BuildHealth.Failing]: 'text-red-600 dark:text-red-500',
   [BuildHealth.Unknown]: 'text-gray-400',
 };
+
+export const MIN_AUTO_CHECK_INTERVAL_SECONDS = 5;
+export const MAX_AUTO_CHECK_INTERVAL_SECONDS = 86400;

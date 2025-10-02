@@ -2,6 +2,7 @@ import React, { createContext, useState, useCallback, ReactNode, useMemo, useEff
 // FIX: Import DropTarget type for DnD operations.
 import type { GlobalSettings, Repository, Category, DropTarget } from '../types';
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
+import { MIN_AUTO_CHECK_INTERVAL_SECONDS, MAX_AUTO_CHECK_INTERVAL_SECONDS } from '../constants';
 import { useLogger } from '../hooks/useLogger';
 import { createDefaultKeyboardShortcutSettings, mergeKeyboardShortcutSettings } from '../keyboardShortcuts';
 
@@ -43,8 +44,17 @@ const DEFAULTS: GlobalSettings = {
     zoomFactor: 1,
     saveTaskLogs: true,
     taskLogPath: '',
+    autoCheckRepoUpdates: false,
+    repoUpdateCheckInterval: 1800,
+    repoUpdateCheckIntervalUnit: 'seconds',
     keyboardShortcuts: createDefaultKeyboardShortcutSettings(),
 };
+
+const clampRepoUpdateInterval = (value: number) =>
+  Math.max(
+    MIN_AUTO_CHECK_INTERVAL_SECONDS,
+    Math.min(MAX_AUTO_CHECK_INTERVAL_SECONDS, Math.round(value || 0)),
+  );
 
 const initialState: AppDataContextState = {
   settings: DEFAULTS,
@@ -329,8 +339,24 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     if (window.electronAPI?.getAllData) {
       window.electronAPI.getAllData().then(data => {
-          const loadedSettings = data.globalSettings ? { ...DEFAULTS, ...data.globalSettings } : { ...DEFAULTS, keyboardShortcuts: createDefaultKeyboardShortcutSettings() };
-          loadedSettings.keyboardShortcuts = mergeKeyboardShortcutSettings(data.globalSettings?.keyboardShortcuts ?? loadedSettings.keyboardShortcuts);
+          const loadedSettings = data.globalSettings
+            ? { ...DEFAULTS, ...data.globalSettings }
+            : { ...DEFAULTS, keyboardShortcuts: createDefaultKeyboardShortcutSettings() };
+          loadedSettings.keyboardShortcuts = mergeKeyboardShortcutSettings(
+            data.globalSettings?.keyboardShortcuts ?? loadedSettings.keyboardShortcuts,
+          );
+
+          const hasSecondsUnit = !!data.globalSettings && 'repoUpdateCheckIntervalUnit' in data.globalSettings;
+          if (!hasSecondsUnit && data.globalSettings?.repoUpdateCheckInterval !== undefined) {
+            loadedSettings.repoUpdateCheckInterval = clampRepoUpdateInterval(
+              loadedSettings.repoUpdateCheckInterval * 60,
+            );
+          } else {
+            loadedSettings.repoUpdateCheckInterval = clampRepoUpdateInterval(
+              loadedSettings.repoUpdateCheckInterval,
+            );
+          }
+          loadedSettings.repoUpdateCheckIntervalUnit = 'seconds';
           const migratedRepos = migrateRepositories(data.repositories || [], loadedSettings);
           
           setSettings(loadedSettings);
@@ -370,7 +396,12 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, [settings, repositories, categories, uncategorizedOrder, isLoading]);
 
   const saveSettings = useCallback((newSettings: GlobalSettings) => {
-    setSettings(newSettings);
+    setSettings(prev => ({
+      ...prev,
+      ...newSettings,
+      repoUpdateCheckInterval: clampRepoUpdateInterval(newSettings.repoUpdateCheckInterval),
+      repoUpdateCheckIntervalUnit: 'seconds',
+    }));
   }, []);
   
   const addRepository = useCallback((repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>, categoryId?: string) => {

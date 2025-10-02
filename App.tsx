@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
 // FIX: Add missing ReleaseInfo type to the import.
 import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category, ReleaseInfo } from './types';
@@ -20,6 +20,7 @@ import LaunchSelectionModal from './components/modals/LaunchSelectionModal';
 import CommitHistoryModal from './components/modals/CommitHistoryModal';
 import ExecutableSelectionModal from './components/modals/ExecutableSelectionModal';
 import { VcsType } from './types';
+import { MIN_AUTO_CHECK_INTERVAL_SECONDS } from './constants';
 import { TooltipProvider } from './contexts/TooltipContext';
 import Tooltip from './components/Tooltip';
 import { useLogger } from './hooks/useLogger';
@@ -79,6 +80,16 @@ const App: React.FC = () => {
   const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
   const [appVersion, setAppVersion] = useState<string>('');
   const [isCheckingAll, setIsCheckingAll] = useState(false);
+
+  const repositoriesRef = useRef(repositories);
+  useEffect(() => {
+    repositoriesRef.current = repositories;
+  }, [repositories]);
+
+  const localPathStatesRef = useRef(localPathStates);
+  useEffect(() => {
+    localPathStatesRef.current = localPathStates;
+  }, [localPathStates]);
   const [updateReady, setUpdateReady] = useState(false);
 
   // New states for deeper VCS integration
@@ -434,28 +445,82 @@ const App: React.FC = () => {
     }
   }, [contextMenu.isOpen, handleCloseContextMenu]);
 
-  const handleCheckAllForUpdates = useCallback(async () => {
+  const handleCheckAllForUpdates = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (isCheckingAll) {
+      if (silent) {
+        logger.debug('Skipping update check because one is already in progress.');
+      } else {
+        setToast({ message: 'Already checking repositories for updates.', type: 'info' });
+      }
+      return;
+    }
     const validRepos = repositories.filter(r => localPathStates[r.id] === 'valid');
     if (validRepos.length === 0) {
-      setToast({ message: 'No repositories with valid local paths to check.', type: 'info' });
+      if (silent) {
+        logger.debug('Skipping automatic update check: no repositories with valid local paths.');
+      } else {
+        setToast({ message: 'No repositories with valid local paths to check.', type: 'info' });
+      }
       return;
     }
 
     setIsCheckingAll(true);
-    setToast({ message: `Checking ${validRepos.length} repositories for updates...`, type: 'info' });
+    if (silent) {
+      logger.debug('Automatically checking repositories for updates.', { count: validRepos.length });
+    } else {
+      setToast({ message: `Checking ${validRepos.length} repositories for updates...`, type: 'info' });
+    }
 
     const updatePromises = validRepos.map(repo => refreshRepoState(repo.id));
-    
+
     try {
         await Promise.all(updatePromises);
-        setToast({ message: 'Update check complete.', type: 'success' });
+        if (silent) {
+          logger.debug('Automatic repository update check completed successfully.');
+        } else {
+          setToast({ message: 'Update check complete.', type: 'success' });
+        }
     } catch (e: any) {
         logger.error('An error occurred during the update check for all repos.', { error: e.message });
         setToast({ message: 'An error occurred during update check.', type: 'error' });
     } finally {
         setIsCheckingAll(false);
     }
-  }, [repositories, localPathStates, refreshRepoState, logger]);
+  }, [repositories, localPathStates, refreshRepoState, logger, isCheckingAll]);
+
+  useEffect(() => {
+    if (!settings.autoCheckRepoUpdates) {
+      logger.debug('Automatic repository update checks are disabled.');
+      return;
+    }
+
+    const intervalSeconds = Math.max(
+      MIN_AUTO_CHECK_INTERVAL_SECONDS,
+      settings.repoUpdateCheckInterval || 0,
+    );
+    const intervalMs = intervalSeconds * 1000;
+
+    logger.info('Enabling automatic repository update checks.', { intervalSeconds });
+
+    const runAutoCheck = () => {
+      const repos = repositoriesRef.current;
+      const paths = localPathStatesRef.current;
+      const hasValidRepo = repos.some(repo => paths[repo.id] === 'valid');
+      if (!hasValidRepo) {
+        logger.debug('Skipping automatic update check: no repositories with valid local paths.');
+        return;
+      }
+      handleCheckAllForUpdates({ silent: true });
+    };
+
+    const intervalId = window.setInterval(runAutoCheck, intervalMs);
+    runAutoCheck();
+
+    return () => {
+      logger.info('Disabling automatic repository update checks.', { reason: 'cleanup' });
+      window.clearInterval(intervalId);
+    };
+  }, [settings.autoCheckRepoUpdates, settings.repoUpdateCheckInterval, handleCheckAllForUpdates, logger]);
 
   const handleSwitchBranch = useCallback(async (repoId: string, branch: string) => {
     const repo = repositories.find(r => r.id === repoId);
