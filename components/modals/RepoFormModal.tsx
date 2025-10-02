@@ -1166,6 +1166,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [branchesLoading, setBranchesLoading] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const [branchToMerge, setBranchToMerge] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState<{ name: string; type: 'local' | 'remote' } | null>(null);
 
   // State for Releases Tab
   const [releases, setReleases] = useState<ReleaseInfo[] | null>(null);
@@ -1179,6 +1180,34 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   const isGitRepo = formData.vcs === VcsType.Git;
   const isGitHubRepo = useMemo(() => isGitRepo && formData.remoteUrl?.includes('github.com'), [isGitRepo, formData.remoteUrl]);
+
+  useEffect(() => {
+    if (!branchInfo) {
+      if (selectedBranch) {
+        setSelectedBranch(null);
+      }
+      return;
+    }
+
+    const isSelectedBranchValid = selectedBranch
+      ? (selectedBranch.type === 'local'
+          ? branchInfo.local.includes(selectedBranch.name)
+          : branchInfo.remote.includes(selectedBranch.name))
+      : false;
+
+    if (!selectedBranch && branchInfo.current) {
+      setSelectedBranch({ name: branchInfo.current, type: 'local' });
+      return;
+    }
+
+    if (selectedBranch && !isSelectedBranchValid) {
+      if (branchInfo.current) {
+        setSelectedBranch({ name: branchInfo.current, type: 'local' });
+      } else {
+        setSelectedBranch(null);
+      }
+    }
+  }, [branchInfo, selectedBranch]);
 
   // Debounce history search
   useEffect(() => {
@@ -1739,54 +1768,135 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             );
         case 'branches':
             return (
-                 <div className="p-4 space-y-4">
-                    {branchesLoading && <p>Loading branches...</p>}
-                    {!hasBranches && !branchesLoading && <p>No branches found. This may be a new repository.</p>}
-                    {hasBranches && !branchesLoading && (
+                <div className="flex-1 flex flex-col min-h-0 p-4 gap-4">
+                    {branchesLoading && (
+                        <div className="flex-1 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                            Loading branches...
+                        </div>
+                    )}
+                    {!branchesLoading && !hasBranches && (
+                        <div className="flex-1 flex items-center justify-center text-sm text-gray-500 text-center dark:text-gray-400">
+                            No branches found. This may be a new repository.
+                        </div>
+                    )}
+                    {!branchesLoading && hasBranches && (
                         <>
-                            <p className="text-sm">Current branch: <span className="font-bold font-mono text-blue-600 dark:text-blue-400">{branchInfo?.current}</span></p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <h4 className="font-semibold mb-2">Local Branches</h4>
-                                    <ul className="space-y-1">
-                                        {(branchInfo?.local || []).map(b => (
-                                            <li key={b} className="flex justify-between items-center p-2 rounded-md bg-gray-50 dark:bg-gray-900/50">
-                                                <span className="font-mono text-sm">{b}</span>
-                                                {b !== branchInfo?.current && <button type="button" onClick={() => handleDeleteBranch(b, false)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>}
-                                            </li>
-                                        ))}
+                            <p className="text-sm">
+                                Current branch:{' '}
+                                <span className="font-bold font-mono text-blue-600 dark:text-blue-400">{branchInfo?.current}</span>
+                            </p>
+                            <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="flex flex-col min-h-0">
+                                    <h4 className="font-semibold mb-2 flex-shrink-0">Local Branches</h4>
+                                    <ul className="space-y-1 flex-1 overflow-y-auto pr-1">
+                                        {(branchInfo?.local || []).map(b => {
+                                            const isSelected = selectedBranch?.type === 'local' && selectedBranch.name === b;
+                                            return (
+                                                <li
+                                                    key={b}
+                                                    onClick={() => setSelectedBranch({ name: b, type: 'local' })}
+                                                    className={`flex items-center justify-between gap-2 rounded-md border p-2 transition-colors cursor-pointer ${
+                                                        isSelected
+                                                            ? 'border-blue-500 bg-blue-50 text-blue-900 dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-100'
+                                                            : 'border-transparent bg-gray-50 hover:border-blue-200 hover:bg-blue-50/60 dark:bg-gray-900/50 dark:hover:border-blue-500/60 dark:hover:bg-blue-900/40'
+                                                    }`}
+                                                >
+                                                    <span className="font-mono text-sm break-all">{b}</span>
+                                                    {b !== branchInfo?.current && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={e => {
+                                                                e.stopPropagation();
+                                                                handleDeleteBranch(b, false);
+                                                            }}
+                                                            className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"
+                                                        >
+                                                            <TrashIcon className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 </div>
-                                <div>
-                                    <h4 className="font-semibold mb-2">Remote Branches</h4>
-                                    <ul className="space-y-1 max-h-48 overflow-y-auto">
-                                        {(branchInfo?.remote || []).map(b => (
-                                            <li key={b} className="flex justify-between items-center p-2 rounded-md bg-gray-50 dark:bg-gray-900/50">
-                                                <span className="font-mono text-sm">{b}</span>
-                                                <button type="button" onClick={() => handleDeleteBranch(b.split('/').slice(1).join('/'), true)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
-                                            </li>
-                                        ))}
+                                <div className="flex flex-col min-h-0">
+                                    <h4 className="font-semibold mb-2 flex-shrink-0">Remote Branches</h4>
+                                    <ul className="space-y-1 flex-1 overflow-y-auto pr-1">
+                                        {(branchInfo?.remote || []).map(b => {
+                                            const isSelected = selectedBranch?.type === 'remote' && selectedBranch.name === b;
+                                            return (
+                                                <li
+                                                    key={b}
+                                                    onClick={() => setSelectedBranch({ name: b, type: 'remote' })}
+                                                    className={`flex items-center justify-between gap-2 rounded-md border p-2 transition-colors cursor-pointer ${
+                                                        isSelected
+                                                            ? 'border-blue-500 bg-blue-50 text-blue-900 dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-100'
+                                                            : 'border-transparent bg-gray-50 hover:border-blue-200 hover:bg-blue-50/60 dark:bg-gray-900/50 dark:hover:border-blue-500/60 dark:hover:bg-blue-900/40'
+                                                    }`}
+                                                >
+                                                    <span className="font-mono text-sm break-all">{b}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={e => {
+                                                            e.stopPropagation();
+                                                            handleDeleteBranch(b.split('/').slice(1).join('/'), true);
+                                                        }}
+                                                        className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"
+                                                    >
+                                                        <TrashIcon className="h-4 w-4" />
+                                                    </button>
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 </div>
                             </div>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
                                 <div>
                                     <h4 className="font-semibold mb-2">Create New Branch</h4>
                                     <div className="flex gap-2">
-                                        <input type="text" value={newBranchName} onChange={e => setNewBranchName(e.target.value)} placeholder="new-branch-name" className={formInputStyle}/>
-                                        <button type="button" onClick={handleCreateBranch} className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create</button>
+                                        <input
+                                            type="text"
+                                            value={newBranchName}
+                                            onChange={e => setNewBranchName(e.target.value)}
+                                            placeholder="new-branch-name"
+                                            className={formInputStyle}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleCreateBranch}
+                                            className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700"
+                                        >
+                                            Create
+                                        </button>
                                     </div>
                                 </div>
-                                 <div>
+                                <div>
                                     <h4 className="font-semibold mb-2">Merge Branch into Current</h4>
                                     <div className="flex gap-2">
-                                        <select value={branchToMerge || ''} onChange={e => setBranchToMerge(e.target.value)} className={formInputStyle}>
-                                            <option value="" disabled>Select a branch</option>
-                                            {(branchInfo?.local || []).filter(b => b !== branchInfo?.current).map(b => (
-                                                <option key={b} value={b}>{b}</option>
-                                            ))}
+                                        <select
+                                            value={branchToMerge || ''}
+                                            onChange={e => setBranchToMerge(e.target.value)}
+                                            className={formInputStyle}
+                                        >
+                                            <option value="" disabled>
+                                                Select a branch
+                                            </option>
+                                            {(branchInfo?.local || [])
+                                                .filter(b => b !== branchInfo?.current)
+                                                .map(b => (
+                                                    <option key={b} value={b}>
+                                                        {b}
+                                                    </option>
+                                                ))}
                                         </select>
-                                        <button type="button" onClick={handleMergeBranch} className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700">Merge</button>
+                                        <button
+                                            type="button"
+                                            onClick={handleMergeBranch}
+                                            className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700"
+                                        >
+                                            Merge
+                                        </button>
                                     </div>
                                 </div>
                             </div>
