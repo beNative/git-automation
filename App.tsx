@@ -30,12 +30,30 @@ import UpdateBanner from './components/UpdateBanner';
 import ConfirmationModal from './components/modals/ConfirmationModal';
 import { ExclamationTriangleIcon } from './components/icons/ExclamationTriangleIcon';
 import AboutModal from './components/modals/AboutModal';
+import { createDiagnosticsScope, formatErrorForLogging } from './diagnostics';
 
 const App: React.FC = () => {
+  const instanceIdRef = useRef<string>();
+  if (!instanceIdRef.current) {
+    instanceIdRef.current = `AppInstance-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  const diagnostics = useMemo(
+    () => createDiagnosticsScope(instanceIdRef.current ?? 'App'),
+    [],
+  );
+
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
+  diagnostics.debug('Render cycle executed', {
+    renderCount: renderCountRef.current,
+  });
+
   const logger = useLogger();
-  const { 
-    settings, 
-    saveSettings, 
+  diagnostics.debug('Logger hook initialised');
+  const {
+    settings,
+    saveSettings,
     repositories,
     // FIX: Remove unused and unsafe setters that bypass the context's logic.
     addRepository,
@@ -56,6 +74,11 @@ const App: React.FC = () => {
     moveCategory,
     reorderCategories,
   } = useSettings();
+  diagnostics.debug('Settings context resolved', {
+    repositoryCount: repositories.length,
+    categoryCount: categories.length,
+    isLoading: isDataLoading,
+  });
 
   const {
     runTask,
@@ -66,44 +89,122 @@ const App: React.FC = () => {
     clearLogs,
     isProcessing,
   } = useRepositoryManager({ repositories, updateRepository });
+  diagnostics.debug('Repository manager hook ready', {
+    logRepoIds: Object.keys(logs),
+    processingCount: isProcessing.size,
+  });
+
+  useEffect(() => {
+    diagnostics.info('App component mounted', {
+      repositoryCount: repositories.length,
+      categoryCount: categories.length,
+      settingsTheme: settings.theme,
+    });
+    return () => {
+      diagnostics.info('App component unmounted');
+    };
+    // We only want to log mount/unmount once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diagnostics]);
   
   const [repoFormState, setRepoFormState] = useState<{
     repoId: string | 'new' | null;
     defaultCategoryId?: string;
   }>({ repoId: null });
+  useEffect(() => {
+    diagnostics.debug('Repo form state updated', repoFormState);
+  }, [diagnostics, repoFormState]);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  useEffect(() => {
+    diagnostics.debug('Toast state updated', toast);
+  }, [diagnostics, toast]);
   const [activeView, setActiveView] = useState<AppView>('dashboard');
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isDebugPanelOpen, setIsDebugPanelOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [localPathStates, setLocalPathStates] = useState<Record<string, LocalPathState>>({});
+  useEffect(() => {
+    diagnostics.debug('Local path states updated', localPathStates);
+  }, [diagnostics, localPathStates]);
   const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
+  useEffect(() => {
+    diagnostics.debug('Detected executables updated', detectedExecutables);
+  }, [diagnostics, detectedExecutables]);
   const [appVersion, setAppVersion] = useState<string>('');
+  useEffect(() => {
+    diagnostics.debug('App version state updated', { appVersion });
+  }, [diagnostics, appVersion]);
   const [isCheckingAll, setIsCheckingAll] = useState(false);
+  useEffect(() => {
+    diagnostics.debug('Checking-all flag changed', { isCheckingAll });
+  }, [diagnostics, isCheckingAll]);
+
+  useEffect(() => {
+    diagnostics.debug('Settings updated', {
+      theme: settings.theme,
+      simulationMode: settings.simulationMode,
+      repoUpdateInterval: settings.repoUpdateCheckInterval,
+      repoCount: repositories.length,
+      isDataLoading,
+    });
+  }, [diagnostics, settings, repositories.length, isDataLoading]);
+
+  useEffect(() => {
+    diagnostics.debug('Active view updated', { activeView });
+  }, [diagnostics, activeView]);
+
+  useEffect(() => {
+    diagnostics.debug('Command palette visibility changed', { isCommandPaletteOpen });
+  }, [diagnostics, isCommandPaletteOpen]);
+
+  useEffect(() => {
+    diagnostics.debug('Debug panel visibility changed', { isDebugPanelOpen });
+  }, [diagnostics, isDebugPanelOpen]);
+
+  useEffect(() => {
+    diagnostics.debug('About modal visibility changed', { isAboutModalOpen });
+  }, [diagnostics, isAboutModalOpen]);
 
   const repositoriesRef = useRef(repositories);
   useEffect(() => {
     repositoriesRef.current = repositories;
+    diagnostics.debug('repositoriesRef updated', { count: repositories.length });
   }, [repositories]);
 
   const localPathStatesRef = useRef(localPathStates);
   useEffect(() => {
     localPathStatesRef.current = localPathStates;
+    diagnostics.debug('localPathStatesRef updated', { repoIds: Object.keys(localPathStates) });
   }, [localPathStates]);
   const [updateReady, setUpdateReady] = useState(false);
+  useEffect(() => {
+    diagnostics.debug('Update readiness changed', { updateReady });
+  }, [diagnostics, updateReady]);
 
   // New states for deeper VCS integration
   const [detailedStatuses, setDetailedStatuses] = useState<Record<string, DetailedStatus | null>>({});
+  useEffect(() => {
+    diagnostics.debug('Detailed statuses updated', detailedStatuses);
+  }, [diagnostics, detailedStatuses]);
   const [branchLists, setBranchLists] = useState<Record<string, BranchInfo | null>>({});
+  useEffect(() => {
+    diagnostics.debug('Branch lists updated', branchLists);
+  }, [diagnostics, branchLists]);
   // FIX: Add state for latestReleases to satisfy DashboardProps.
   const [latestReleases, setLatestReleases] = useState<Record<string, ReleaseInfo | null>>({});
-  
+  useEffect(() => {
+    diagnostics.debug('Latest releases updated', latestReleases);
+  }, [diagnostics, latestReleases]);
+
   const [taskLogState, setTaskLogState] = useState({
     isOpen: false,
     activeIds: [] as string[],
     selectedId: null as string | null,
     height: 300,
   });
+  useEffect(() => {
+    diagnostics.debug('Task log state updated', taskLogState);
+  }, [diagnostics, taskLogState]);
 
   const [contextMenu, setContextMenu] = useState<{
     isOpen: boolean;
@@ -111,6 +212,9 @@ const App: React.FC = () => {
     y: number;
     repo: Repository | null;
   }>({ isOpen: false, x: 0, y: 0, repo: null });
+  useEffect(() => {
+    diagnostics.debug('Context menu state updated', contextMenu);
+  }, [diagnostics, contextMenu]);
 
   const [dirtyRepoModal, setDirtyRepoModal] = useState<{
     isOpen: boolean;
@@ -120,17 +224,26 @@ const App: React.FC = () => {
     resolve: ((choice: 'stash' | 'force' | 'cancel' | 'ignored_and_continue') => void) | null;
     isIgnoring: boolean;
   }>({ isOpen: false, repo: null, task: null, status: null, resolve: null, isIgnoring: false });
+  useEffect(() => {
+    diagnostics.debug('Dirty repo modal state updated', dirtyRepoModal);
+  }, [diagnostics, dirtyRepoModal]);
 
   const [taskSelectionModal, setTaskSelectionModal] = useState<{
     isOpen: boolean;
     repo: Repository | null;
   }>({ isOpen: false, repo: null });
+  useEffect(() => {
+    diagnostics.debug('Task selection modal state updated', taskSelectionModal);
+  }, [diagnostics, taskSelectionModal]);
 
   const [launchSelectionModal, setLaunchSelectionModal] = useState<{
     isOpen: boolean;
     repo: Repository | null;
     launchables: Launchable[];
   }>({ isOpen: false, repo: null, launchables: [] });
+  useEffect(() => {
+    diagnostics.debug('Launch selection modal state updated', launchSelectionModal);
+  }, [diagnostics, launchSelectionModal]);
 
   const [executableSelectionModal, setExecutableSelectionModal] = useState<{
     isOpen: boolean;
@@ -138,11 +251,17 @@ const App: React.FC = () => {
     launchConfig: LaunchConfig | null;
     executables: string[];
   }>({ isOpen: false, repo: null, launchConfig: null, executables: [] });
+  useEffect(() => {
+    diagnostics.debug('Executable selection modal state updated', executableSelectionModal);
+  }, [diagnostics, executableSelectionModal]);
 
   const [historyModal, setHistoryModal] = useState<{
     isOpen: boolean;
     repo: Repository | null;
   }>({ isOpen: false, repo: null });
+  useEffect(() => {
+    diagnostics.debug('History modal state updated', historyModal);
+  }, [diagnostics, historyModal]);
 
   const [confirmationModal, setConfirmationModal] = useState<{
     isOpen: boolean;
@@ -160,8 +279,12 @@ const App: React.FC = () => {
     onConfirm: () => {},
     onCancel: () => {},
   });
+  useEffect(() => {
+    diagnostics.debug('Confirmation modal state updated', confirmationModal);
+  }, [diagnostics, confirmationModal]);
 
   const handleCloseConfirmationModal = () => {
+    diagnostics.debug('Closing confirmation modal');
     setConfirmationModal(prev => ({ ...prev, isOpen: false }));
   };
 
@@ -174,14 +297,17 @@ const App: React.FC = () => {
     confirmButtonClass?: string;
     icon?: React.ReactNode;
   }) => {
+    diagnostics.info('Opening confirmation modal', options);
     setConfirmationModal({
       isOpen: true,
       ...options,
       onConfirm: () => {
+        diagnostics.info('Confirmation modal confirmed');
         options.onConfirm();
         handleCloseConfirmationModal();
       },
       onCancel: () => {
+        diagnostics.info('Confirmation modal cancelled');
         if (options.onCancel) {
           options.onCancel();
         }
@@ -193,32 +319,53 @@ const App: React.FC = () => {
   // Effect for app version
   useEffect(() => {
     logger.debug('App component mounted. Initializing API listeners.');
+    diagnostics.info('Requesting application version from main process');
     if (window.electronAPI?.getAppVersion) {
-      window.electronAPI.getAppVersion().then(setAppVersion);
+      window.electronAPI
+        .getAppVersion()
+        .then(version => {
+          diagnostics.info('Received application version', { version });
+          setAppVersion(version);
+        })
+        .catch(error => {
+          diagnostics.error('Failed to retrieve application version', formatErrorForLogging(error));
+        });
+    } else {
+      diagnostics.warn('window.electronAPI.getAppVersion is unavailable');
     }
-  }, [logger]);
+  }, [logger, diagnostics]);
 
   // Effect to listen for logs from the main process
   useEffect(() => {
-      const handleLogFromMain = (
-          _event: any, 
-          log: { level: 'debug' | 'info' | 'warn' | 'error'; message: string; data?: any }
-      ) => {
-          logger[log.level](log.message, log.data);
-      };
-      
-      window.electronAPI?.onLogFromMain(handleLogFromMain);
-      
-      return () => {
-          window.electronAPI?.removeLogFromMainListener(handleLogFromMain);
-      };
-  }, [logger]);
+    const handleLogFromMain = (
+      _event: any,
+      log: { level: 'debug' | 'info' | 'warn' | 'error'; message: string; data?: any }
+    ) => {
+      diagnostics.debug('Received log from main process', log);
+      logger[log.level](log.message, log.data);
+    };
+
+    if (window.electronAPI?.onLogFromMain) {
+      diagnostics.info('Subscribing to main-process log stream');
+      window.electronAPI.onLogFromMain(handleLogFromMain);
+    } else {
+      diagnostics.warn('window.electronAPI.onLogFromMain is unavailable');
+    }
+
+    return () => {
+      if (window.electronAPI?.removeLogFromMainListener) {
+        diagnostics.info('Removing main-process log listener');
+        window.electronAPI.removeLogFromMainListener(handleLogFromMain);
+      }
+    };
+  }, [logger, diagnostics]);
 
 
   // Effect for auto-updater
   useEffect(() => {
     const handleUpdateStatus = (_event: any, data: UpdateStatusMessage) => {
         logger.info(`Update status change received: ${data.status}`, data);
+        diagnostics.info('Auto-update status event received', data);
         switch (data.status) {
             case 'available':
                 setToast({ message: data.message, type: 'info' });
@@ -234,15 +381,19 @@ const App: React.FC = () => {
     };
 
     if (window.electronAPI?.onUpdateStatusChange) {
+        diagnostics.info('Subscribing to auto-update status channel');
         window.electronAPI.onUpdateStatusChange(handleUpdateStatus);
+    } else {
+        diagnostics.warn('window.electronAPI.onUpdateStatusChange is unavailable');
     }
 
     return () => {
         if (window.electronAPI?.removeUpdateStatusChangeListener) {
+            diagnostics.info('Removing auto-update status listener');
             window.electronAPI.removeUpdateStatusChangeListener(handleUpdateStatus);
         }
     };
-  }, [logger]);
+  }, [logger, diagnostics]);
   
   // Effect to check local paths
   useEffect(() => {

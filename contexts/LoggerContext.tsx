@@ -1,6 +1,7 @@
 import React, { createContext, useState, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
 import type { DebugLogEntry, DebugLogLevel } from '../types';
 import { useSettings } from './SettingsContext';
+import { createDiagnosticsScope } from '../diagnostics';
 
 type LogFilters = Record<DebugLogLevel, boolean>;
 
@@ -39,6 +40,10 @@ export const LoggerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [filters, setFilters] = useState<LogFilters>(initialState.filters);
   const [isSavingToFile, setIsSavingToFile] = useState(false);
   const isSavingToFileRef = useRef(isSavingToFile);
+  const diagnostics = useMemo(() => createDiagnosticsScope('LoggerProvider'), []);
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
+  diagnostics.debug('Render cycle executed', { renderCount: renderCountRef.current });
   
   // Ref to track previous state to avoid running effect on mount
   const prevIsSavingToFile = useRef<boolean | undefined>(undefined);
@@ -50,6 +55,7 @@ export const LoggerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Only send IPC messages when the state actually changes from its previous state.
     // This avoids running on initial mount. `prevIsSavingToFile.current` is initially undefined.
     if (prevIsSavingToFile.current !== undefined && prevIsSavingToFile.current !== isSavingToFile) {
+        diagnostics.info('Log file persistence toggled', { isSavingToFile });
         if (isSavingToFile) {
             window.electronAPI?.logToFileInit();
         } else {
@@ -58,22 +64,25 @@ export const LoggerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
     prevIsSavingToFile.current = isSavingToFile;
 
-  }, [isSavingToFile]);
+  }, [isSavingToFile, diagnostics]);
 
   // Effect for cleanup when the provider unmounts (e.g., app closes)
   useEffect(() => {
     return () => {
       // If we were saving to file when the app closes, tell the main process to close the stream.
       if (isSavingToFileRef.current) {
+        diagnostics.info('LoggerProvider unmount cleanup closing log file');
         window.electronAPI?.logToFileClose();
       }
     };
-  }, []); // Empty array ensures this only runs on mount and unmount
+  }, [diagnostics]); // Empty array ensures this only runs on mount and unmount
 
 
   const addLog = useCallback((level: DebugLogLevel, message: string, data?: any) => {
+    diagnostics.debug('addLog invoked', { level, message, hasData: Boolean(data) });
     // If debug logging is disabled in settings, do nothing.
     if (!settings.debugLogging) {
+      diagnostics.debug('Debug logging disabled, skipping addLog');
       return;
     }
 
@@ -87,21 +96,25 @@ export const LoggerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setLogs(prev => [...prev.slice(-499), newLog]); // Keep max 500 logs in memory
 
     if (isSavingToFileRef.current) {
+        diagnostics.debug('Forwarding log entry to file persistence', { logId: newLog.id });
         window.electronAPI?.logToFileWrite(newLog);
     }
-  }, [settings.debugLogging]);
+  }, [settings.debugLogging, diagnostics]);
 
   const clearLogs = useCallback(() => {
+    diagnostics.info('clearLogs invoked');
     setLogs([]);
-  }, []);
+  }, [diagnostics]);
 
   const setFilter = useCallback((level: DebugLogLevel, value: boolean) => {
+    diagnostics.debug('setFilter invoked', { level, value });
     setFilters(prev => ({ ...prev, [level]: value }));
-  }, []);
-  
+  }, [diagnostics]);
+
   const toggleSaveToFile = useCallback(() => {
+    diagnostics.info('toggleSaveToFile invoked');
     setIsSavingToFile(prev => !prev);
-  }, []);
+  }, [diagnostics]);
 
   const value = useMemo(() => ({
     logs,

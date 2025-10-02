@@ -1,6 +1,7 @@
 import React from 'react';
 import { LoggerContext } from '../contexts/LoggerContext';
 import { DebugLogLevel } from '../types';
+import { createDiagnosticsScope, formatErrorForLogging } from '../diagnostics';
 
 interface AppErrorBoundaryProps {
   children: React.ReactNode;
@@ -16,6 +17,8 @@ export class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, App
   static contextType = LoggerContext;
   declare context: React.ContextType<typeof LoggerContext>;
 
+  private diagnostics = createDiagnosticsScope('AppErrorBoundary');
+
   state: AppErrorBoundaryState = {
     hasError: false,
     error: null,
@@ -23,10 +26,15 @@ export class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, App
   };
 
   static getDerivedStateFromError(error: Error): AppErrorBoundaryState {
+    createDiagnosticsScope('AppErrorBoundary').error('getDerivedStateFromError triggered', formatErrorForLogging(error));
     return { hasError: true, error, errorInfo: null };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    this.diagnostics.error('componentDidCatch captured error', {
+      error: formatErrorForLogging(error),
+      componentStack: errorInfo.componentStack,
+    });
     console.error('[AppErrorBoundary] Caught unhandled error', error, errorInfo);
 
     try {
@@ -45,11 +53,16 @@ export class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, App
   }
 
   handleRetry = () => {
+    this.diagnostics.info('Retry button clicked');
     this.setState({ hasError: false, error: null, errorInfo: null });
   };
 
   render() {
     if (this.state.hasError) {
+      this.diagnostics.debug('Rendering fallback UI', {
+        message: this.state.error?.message,
+        stack: this.state.error?.stack,
+      });
       return (
         <div className="flex h-full flex-col items-center justify-center gap-4 bg-red-900/10 p-8 text-center">
           <h1 className="text-2xl font-semibold text-red-600 dark:text-red-400">Something went wrong</h1>
@@ -75,6 +88,7 @@ export class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, App
       );
     }
 
+    this.diagnostics.debug('Rendering children');
     return this.props.children;
   }
 }
