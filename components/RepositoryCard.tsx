@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useContext } from 'react';
+import React, { useState, useRef, useEffect, useContext, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig, WebLinkConfig, ToastMessage, ReleaseInfo } from '../types';
 import { VcsType } from '../types';
@@ -84,34 +84,72 @@ const BranchSwitcher: React.FC<{
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     
-    useEffect(() => {
-        if (isOpen && buttonRef.current) {
-            const rect = buttonRef.current.getBoundingClientRect();
-            const dropdownHeight = 240; // Estimated height for max-h-60
+    const computeDropdownMetrics = useCallback(() => {
+        if (!isOpen || !buttonRef.current) return;
 
-            let top: number;
-            
-            // Position vertically: open upwards if not enough space below
-            if ((rect.bottom + dropdownHeight + 4) > window.innerHeight && rect.top > dropdownHeight) {
-                top = rect.top - dropdownHeight - 4;
-            } else {
-                top = rect.bottom + 4;
-            }
+        const rect = buttonRef.current.getBoundingClientRect();
+        const dropdownHeight = 240; // Estimated height for max-h-60
 
-            // Position horizontally, aligning to the right of the button
-            let left = rect.right - 224; // 224 is w-56 from tailwind
-            
-            // Clamp to viewport to prevent going off-screen
-            if (left < 5) left = 5;
-            if (left + 224 > window.innerWidth - 5) left = window.innerWidth - 224 - 5;
+        let top: number;
 
-            setDropdownStyle({
-                position: 'fixed',
-                top: `${top}px`,
-                left: `${left}px`,
-            });
+        // Position vertically: open upwards if not enough space below
+        if ((rect.bottom + dropdownHeight + 4) > window.innerHeight && rect.top > dropdownHeight) {
+            top = rect.top - dropdownHeight - 4;
+        } else {
+            top = rect.bottom + 4;
         }
-    }, [isOpen]);
+
+        let longestBranchWidth = 0;
+        if (branchLabelsForWidth.length > 0) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            const computedStyle = window.getComputedStyle(buttonRef.current);
+            if (context) {
+                const font = computedStyle.font || `${computedStyle.fontSize || '14px'} ${computedStyle.fontFamily || 'sans-serif'}`;
+                context.font = font;
+                longestBranchWidth = branchLabelsForWidth.reduce((max, branchLabel) => {
+                    return Math.max(max, context.measureText(branchLabel).width);
+                }, 0);
+            } else {
+                longestBranchWidth = branchLabelsForWidth.reduce((max, branchLabel) => Math.max(max, branchLabel.length * 8), 0);
+            }
+        }
+
+        const triggerWidth = rect.width;
+        const horizontalPadding = 32; // Accounts for px-4 on both sides of menu items
+        const desiredWidth = Math.max(triggerWidth, longestBranchWidth + horizontalPadding);
+        const maxWidth = window.innerWidth - 10;
+        const minWidth = 200;
+        const width = Math.min(Math.max(desiredWidth, minWidth), maxWidth);
+
+        let left = rect.right - width;
+        if (left < 5) left = 5;
+        if (left + width > window.innerWidth - 5) left = window.innerWidth - width - 5;
+
+        setDropdownStyle({
+            position: 'fixed',
+            top: `${top}px`,
+            left: `${left}px`,
+            width: `${width}px`,
+        });
+    }, [branchLabelsForWidth, isOpen]);
+
+    useEffect(() => {
+        if (isOpen) {
+            computeDropdownMetrics();
+        }
+    }, [isOpen, computeDropdownMetrics]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleResize = () => computeDropdownMetrics();
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, [isOpen, computeDropdownMetrics]);
 
     // Effect to handle clicks outside the dropdown to close it
     useEffect(() => {
@@ -133,17 +171,45 @@ const BranchSwitcher: React.FC<{
 
     const { local, remote, current } = branchInfo;
     
-    const remoteBranchesToOffer = remote.filter(rBranch => {
-        const localEquivalent = rBranch.split('/').slice(1).join('/');
-        return !local.includes(localEquivalent);
-    });
+    const remoteBranchesToOffer = useMemo(() => {
+        return remote.filter(rBranch => {
+            const localEquivalent = rBranch.split('/').slice(1).join('/');
+            return !local.includes(localEquivalent);
+        });
+    }, [remote, local]);
 
-    const otherLocalBranches = local.filter(b => b !== current);
+    const otherLocalBranches = useMemo(() => {
+        return local.filter(b => b !== current);
+    }, [local, current]);
+
+    const branchLabelsForWidth = useMemo(() => {
+        return [...otherLocalBranches, ...remoteBranchesToOffer];
+    }, [otherLocalBranches, remoteBranchesToOffer]);
+
+    const mainBranch = useMemo(() => {
+        if (local.includes('main')) {
+            return { name: 'main', type: 'local' as const };
+        }
+
+        const remoteMain = remote.find(branchName => branchName.endsWith('/main'));
+        if (remoteMain) {
+            return { name: remoteMain, type: 'remote' as const };
+        }
+
+        return null;
+    }, [local, remote]);
+
     const hasOptions = otherLocalBranches.length > 0 || remoteBranchesToOffer.length > 0;
     
     const handleBranchClick = (branch: string) => {
       onSwitchBranch(repoId, branch);
       onClose();
+    };
+
+    const handleSwitchToMain = () => {
+        if (!mainBranch) return;
+        onSwitchBranch(repoId, mainBranch.name);
+        onClose();
     };
 
     const openModal = () => {
@@ -166,10 +232,10 @@ const BranchSwitcher: React.FC<{
     };
 
     const DropdownContent = (
-        <div 
+        <div
             ref={dropdownRef}
             style={dropdownStyle}
-            className="w-56 z-50 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none"
+            className="z-50 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none"
         >
             <div className="py-1 max-h-60 overflow-y-auto" role="menu" aria-orientation="vertical">
                 {otherLocalBranches.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Local</div>}
@@ -177,7 +243,7 @@ const BranchSwitcher: React.FC<{
                     <button
                         key={`local-${branch}`}
                         onClick={() => handleBranchClick(branch)}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 truncate"
                         role="menuitem"
                     >
                         {branch}
@@ -189,7 +255,7 @@ const BranchSwitcher: React.FC<{
                         <button
                             key={`remote-${branch}`}
                             onClick={() => handleBranchClick(branch)}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 truncate"
                             role="menuitem"
                         >
                             {branch}
@@ -223,6 +289,16 @@ const BranchSwitcher: React.FC<{
                 aria-label="Open branch search dialog"
             >
                 <MagnifyingGlassIcon className="h-4 w-4" />
+            </button>
+            <button
+                type="button"
+                onClick={handleSwitchToMain}
+                disabled={!mainBranch || (mainBranch.type === 'local' && current === mainBranch.name)}
+                className="flex-shrink-0 px-2 py-1 rounded-md text-sm font-medium text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={mainBranch ? `Switch to ${mainBranch.type === 'remote' ? mainBranch.name : 'main'} branch` : 'Main branch not found'}
+                aria-label="Switch to main branch"
+            >
+                main
             </button>
 
             {isOpen && hasOptions && createPortal(DropdownContent, document.body)}
