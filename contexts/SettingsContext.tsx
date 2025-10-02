@@ -356,14 +356,19 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
           }
           loadedSettings.repoUpdateCheckIntervalUnit = 'seconds';
           const migratedRepos = migrateRepositories(data.repositories || [], loadedSettings);
-          
+
           setSettings(loadedSettings);
           setRepositories(migratedRepos);
           // FIX: Dispatch a single action to set initial state atomically.
           dispatch({ type: 'SET_ALL_DATA', payload: { categories: data.categories || [], uncategorizedOrder: data.uncategorizedOrder || [] }});
+          console.info('[SettingsProvider] Renderer state hydrated from main process', {
+            repositoryCount: migratedRepos.length,
+            categoryCount: (data.categories || []).length,
+            hasUncategorizedOrder: Boolean(data.uncategorizedOrder && data.uncategorizedOrder.length),
+          });
           setIsLoading(false);
       }).catch(e => {
-          console.error("Failed to load app data, using defaults.", e);
+          console.error('[SettingsProvider] Failed to load app data, using defaults.', e);
           setIsLoading(false);
       });
     } else {
