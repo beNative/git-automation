@@ -38,13 +38,6 @@ const SCOPE_LABEL: Record<ShortcutScope, string> = {
   global: 'Global',
 };
 
-const PLATFORM_LABEL: Record<ShortcutBinding['platform'], string> = {
-  all: 'All platforms',
-  mac: 'macOS only',
-  windows: 'Windows only',
-  linux: 'Linux only',
-};
-
 const isMacPlatform = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(window.navigator.platform ?? '');
 
 const KEY_NAME_MAP: Record<string, string> = {
@@ -368,18 +361,6 @@ const KeyboardShortcutEditor: React.FC<KeyboardShortcutEditorProps> = ({
     );
   };
 
-  const handlePlatformChange = (
-    actionId: string,
-    bindingId: string,
-    platform: ShortcutBinding['platform'],
-  ) => {
-    updateActionBindings(actionId, bindings =>
-      bindings.map(binding =>
-        binding.id === bindingId ? { ...binding, platform } : binding,
-      ),
-    );
-  };
-
   const handleClearBinding = (
     actionId: string,
     bindingId: string,
@@ -647,26 +628,6 @@ const KeyboardShortcutEditor: React.FC<KeyboardShortcutEditorProps> = ({
                                       </select>
                                     </label>
 
-                                    <label className="flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300">
-                                      <span>Platform</span>
-                                      <select
-                                        value={binding.platform}
-                                        onChange={event =>
-                                          handlePlatformChange(
-                                            action.id,
-                                            binding.id,
-                                            event.target.value as ShortcutBinding['platform'],
-                                          )
-                                        }
-                                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900"
-                                      >
-                                        {Object.entries(PLATFORM_LABEL).map(([key, label]) => (
-                                          <option key={key} value={key}>
-                                            {label}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </label>
                                   </div>
 
                                   <div className="flex items-center gap-2">
