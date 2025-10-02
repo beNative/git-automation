@@ -43,6 +43,8 @@ const DEFAULTS: GlobalSettings = {
     zoomFactor: 1,
     saveTaskLogs: true,
     taskLogPath: '',
+    autoCheckRepoUpdates: false,
+    repoUpdateCheckInterval: 30,
     keyboardShortcuts: createDefaultKeyboardShortcutSettings(),
 };
 

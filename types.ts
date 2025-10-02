@@ -167,6 +167,8 @@ export interface GlobalSettings {
   zoomFactor: number;
   saveTaskLogs: boolean;
   taskLogPath: string;
+  autoCheckRepoUpdates: boolean;
+  repoUpdateCheckInterval: number;
   keyboardShortcuts: KeyboardShortcutSettings;
 }
 
