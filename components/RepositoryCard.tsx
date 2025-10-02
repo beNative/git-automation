@@ -30,6 +30,31 @@ import { ArrowDownIcon } from './icons/ArrowDownIcon';
 import BranchSelectionModal from './modals/BranchSelectionModal';
 
 
+const getOtherLocalBranches = (info: BranchInfo) =>
+  info.local.filter(branch => branch !== info.current);
+
+const getRemoteBranchesToOffer = (info: BranchInfo) =>
+  info.remote.filter(remoteBranch => {
+    const localEquivalent = remoteBranch.split('/').slice(1).join('/');
+    return !info.local.includes(localEquivalent);
+  });
+
+const getLongestBranchLabelLength = (info: BranchInfo) => {
+  const lengths: number[] = [];
+
+  if (info.current) {
+    lengths.push(info.current.length);
+  }
+
+  lengths.push(
+    ...getOtherLocalBranches(info).map(branch => branch.length),
+    ...getRemoteBranchesToOffer(info).map(branch => branch.length),
+  );
+
+  return lengths.length ? Math.max(...lengths) : 0;
+};
+
+
 interface RepositoryCardProps {
   repository: Repository;
   categoryId: string | 'uncategorized';
@@ -64,7 +89,7 @@ interface RepositoryCardProps {
   onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
   setToast: (toast: ToastMessage | null) => void;
   onContextMenu: (event: React.MouseEvent, repo: Repository) => void;
-  onRefreshRepoState: (repoId: string) => void;
+  onRefreshRepoState: (repoId: string) => Promise<void> | void;
   activeDropdown: string | null;
   setActiveDropdown: (id: string | null) => void;
 }
@@ -77,19 +102,38 @@ const BranchSwitcher: React.FC<{
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
-}> = ({ repoId, repoName, branchInfo, onSwitchBranch, isOpen, onToggle, onClose }) => {
+  onRefreshBranches?: (repoId: string) => Promise<void> | void;
+}> = ({ repoId, repoName, branchInfo, onSwitchBranch, isOpen, onToggle, onClose, onRefreshBranches }) => {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     
     useEffect(() => {
-        if (isOpen && buttonRef.current) {
+        if (!isOpen) {
+            return;
+        }
+
+        const updateDropdownPosition = () => {
+            if (!buttonRef.current || !branchInfo) {
+                return;
+            }
+
             const rect = buttonRef.current.getBoundingClientRect();
             const dropdownHeight = 240; // Estimated height for max-h-60
+            const maxWidth = Math.max(window.innerWidth - 10, 0);
+            const longestBranchLabelLength = getLongestBranchLabelLength(branchInfo);
+            const estimatedLabelWidth = longestBranchLabelLength > 0
+                ? (longestBranchLabelLength * 8) + 32 // Approximate character width plus padding
+                : rect.width;
+            const buttonContentWidth = buttonRef.current.scrollWidth + 16;
+            const dropdownWidth = Math.min(
+                Math.max(rect.width, estimatedLabelWidth, buttonContentWidth),
+                maxWidth,
+            );
 
             let top: number;
-            
+
             // Position vertically: open upwards if not enough space below
             if ((rect.bottom + dropdownHeight + 4) > window.innerHeight && rect.top > dropdownHeight) {
                 top = rect.top - dropdownHeight - 4;
@@ -97,20 +141,32 @@ const BranchSwitcher: React.FC<{
                 top = rect.bottom + 4;
             }
 
-            // Position horizontally, aligning to the right of the button
-            let left = rect.right - 224; // 224 is w-56 from tailwind
-            
+            // Align the dropdown with the left edge of the button
+            let left = rect.left;
+
             // Clamp to viewport to prevent going off-screen
             if (left < 5) left = 5;
-            if (left + 224 > window.innerWidth - 5) left = window.innerWidth - 224 - 5;
+            if (left + dropdownWidth > window.innerWidth - 5) {
+                left = Math.max(window.innerWidth - dropdownWidth - 5, 5);
+            }
 
             setDropdownStyle({
                 position: 'fixed',
                 top: `${top}px`,
                 left: `${left}px`,
+                width: `${dropdownWidth}px`,
             });
-        }
-    }, [isOpen]);
+        };
+
+        updateDropdownPosition();
+        window.addEventListener('resize', updateDropdownPosition);
+        window.addEventListener('scroll', updateDropdownPosition, true);
+
+        return () => {
+            window.removeEventListener('resize', updateDropdownPosition);
+            window.removeEventListener('scroll', updateDropdownPosition, true);
+        };
+    }, [isOpen, branchInfo]);
 
     // Effect to handle clicks outside the dropdown to close it
     useEffect(() => {
@@ -130,15 +186,29 @@ const BranchSwitcher: React.FC<{
 
     if (!branchInfo) return null;
 
-    const { local, remote, current } = branchInfo;
-    
-    const remoteBranchesToOffer = remote.filter(rBranch => {
-        const localEquivalent = rBranch.split('/').slice(1).join('/');
-        return !local.includes(localEquivalent);
-    });
-
-    const otherLocalBranches = local.filter(b => b !== current);
+    const { current } = branchInfo;
+    const otherLocalBranches = getOtherLocalBranches(branchInfo);
+    const remoteBranchesToOffer = getRemoteBranchesToOffer(branchInfo);
     const hasOptions = otherLocalBranches.length > 0 || remoteBranchesToOffer.length > 0;
+
+    const MAIN_BRANCH_NAME = 'main';
+    const remoteMainBranch = branchInfo.remote.find(branch => branch.endsWith(`/${MAIN_BRANCH_NAME}`));
+    const availableMainBranch = branchInfo.local.includes(MAIN_BRANCH_NAME)
+        ? MAIN_BRANCH_NAME
+        : remoteMainBranch ?? null;
+    const isOnMainBranch = Boolean(
+        current && (current === MAIN_BRANCH_NAME || current.endsWith(`/${MAIN_BRANCH_NAME}`))
+    );
+    const canSwitchToMain = Boolean(availableMainBranch) && !isOnMainBranch;
+
+    const handleSwitchToMain = () => {
+      if (!availableMainBranch || !canSwitchToMain) {
+        return;
+      }
+
+      onSwitchBranch(repoId, availableMainBranch);
+      onClose();
+    };
     
     const handleBranchClick = (branch: string) => {
       onSwitchBranch(repoId, branch);
@@ -146,8 +216,13 @@ const BranchSwitcher: React.FC<{
     };
 
     const openModal = () => {
-      setIsModalOpen(true);
       onClose();
+      setIsModalOpen(true);
+      if (onRefreshBranches) {
+        Promise.resolve(onRefreshBranches(repoId)).catch((error) => {
+          console.error(`Failed to refresh branches for repo ${repoName}:`, error);
+        });
+      }
     };
 
     const closeModal = () => {
@@ -160,10 +235,10 @@ const BranchSwitcher: React.FC<{
     };
 
     const DropdownContent = (
-        <div 
+        <div
             ref={dropdownRef}
             style={dropdownStyle}
-            className="w-56 z-50 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none"
+            className="z-50 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none"
         >
             <div className="py-1 max-h-60 overflow-y-auto" role="menu" aria-orientation="vertical">
                 {otherLocalBranches.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Local</div>}
@@ -171,7 +246,7 @@ const BranchSwitcher: React.FC<{
                     <button
                         key={`local-${branch}`}
                         onClick={() => handleBranchClick(branch)}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap overflow-hidden text-ellipsis"
                         role="menuitem"
                     >
                         {branch}
@@ -183,7 +258,7 @@ const BranchSwitcher: React.FC<{
                         <button
                             key={`remote-${branch}`}
                             onClick={() => handleBranchClick(branch)}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap overflow-hidden text-ellipsis"
                             role="menuitem"
                         >
                             {branch}
@@ -195,21 +270,30 @@ const BranchSwitcher: React.FC<{
     );
 
     return (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
             <div className="min-w-0 flex-1">
                 <button
                     ref={buttonRef}
                     type="button"
-                    className="inline-flex items-center justify-center w-full rounded-md disabled:cursor-not-allowed"
+                    className="inline-flex w-full max-w-full items-center justify-between gap-1 rounded-md disabled:cursor-not-allowed"
                     onClick={onToggle}
                     disabled={!hasOptions}
                     aria-haspopup="true"
                     aria-expanded={isOpen}
                 >
-                    <span className="truncate max-w-[150px] sm:max-w-[200px]">{current}</span>
-                    <ChevronDownIcon className={`ml-1 -mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    <span className="truncate min-w-0 text-left">{current}</span>
+                    <ChevronDownIcon className={`-mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
             </div>
+            <button
+                type="button"
+                onClick={handleSwitchToMain}
+                disabled={!canSwitchToMain}
+                className="flex-shrink-0 p-1.5 rounded-md text-gray-500 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Switch to main branch"
+            >
+                <ArrowUpIcon className="h-4 w-4" />
+            </button>
             <button
                 type="button"
                 onClick={openModal}
@@ -595,7 +679,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 <CopyButton textToCopy={localPath} tooltipText="Copy Path" setToast={setToast} />
             </div>
           )}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-start justify-between gap-y-2">
             <div className="flex items-center min-w-0">
               {vcs === VcsType.Git ? (
                 <>
@@ -608,6 +692,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                     repoName={name}
                     branchInfo={branchInfo}
                     onSwitchBranch={onSwitchBranch}
+                    onRefreshBranches={onRefreshRepoState}
                   />
                 </>
               ) : (
@@ -617,8 +702,10 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 </>
               )}
             </div>
-            <div className="flex-shrink-0 ml-4">
-              {isPathValid && detailedStatus && <StatusIndicator status={detailedStatus} />}
+            <div className="flex-shrink-0 ml-0 sm:ml-4 w-full sm:w-auto">
+              <div className="flex justify-end">
+                {isPathValid && detailedStatus && <StatusIndicator status={detailedStatus} />}
+              </div>
             </div>
           </div>
         </div>
