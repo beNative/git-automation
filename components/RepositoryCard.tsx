@@ -64,7 +64,7 @@ interface RepositoryCardProps {
   onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
   setToast: (toast: ToastMessage | null) => void;
   onContextMenu: (event: React.MouseEvent, repo: Repository) => void;
-  onRefreshRepoState: (repoId: string) => void;
+  onRefreshRepoState: (repoId: string) => Promise<void> | void;
   activeDropdown: string | null;
   setActiveDropdown: (id: string | null) => void;
 }
@@ -77,7 +77,8 @@ const BranchSwitcher: React.FC<{
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
-}> = ({ repoId, repoName, branchInfo, onSwitchBranch, isOpen, onToggle, onClose }) => {
+  onRefreshBranches?: (repoId: string) => Promise<void> | void;
+}> = ({ repoId, repoName, branchInfo, onSwitchBranch, isOpen, onToggle, onClose, onRefreshBranches }) => {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -146,8 +147,13 @@ const BranchSwitcher: React.FC<{
     };
 
     const openModal = () => {
-      setIsModalOpen(true);
       onClose();
+      setIsModalOpen(true);
+      if (onRefreshBranches) {
+        Promise.resolve(onRefreshBranches(repoId)).catch((error) => {
+          console.error(`Failed to refresh branches for repo ${repoName}:`, error);
+        });
+      }
     };
 
     const closeModal = () => {
@@ -200,14 +206,14 @@ const BranchSwitcher: React.FC<{
                 <button
                     ref={buttonRef}
                     type="button"
-                    className="inline-flex items-center justify-center w-full rounded-md disabled:cursor-not-allowed"
+                    className="inline-flex w-full items-center justify-between gap-1 rounded-md disabled:cursor-not-allowed"
                     onClick={onToggle}
                     disabled={!hasOptions}
                     aria-haspopup="true"
                     aria-expanded={isOpen}
                 >
-                    <span className="truncate max-w-[150px] sm:max-w-[200px]">{current}</span>
-                    <ChevronDownIcon className={`ml-1 -mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    <span className="truncate min-w-0 text-left">{current}</span>
+                    <ChevronDownIcon className={`-mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
             </div>
             <button
@@ -608,6 +614,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                     repoName={name}
                     branchInfo={branchInfo}
                     onSwitchBranch={onSwitchBranch}
+                    onRefreshBranches={onRefreshRepoState}
                   />
                 </>
               ) : (
