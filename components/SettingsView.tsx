@@ -10,6 +10,9 @@ import { SparklesIcon } from './icons/SparklesIcon';
 import { BeakerIcon } from './icons/BeakerIcon';
 import { useTooltip } from '../hooks/useTooltip';
 import { ClipboardDocumentIcon } from './icons/ClipboardDocumentIcon';
+import { KeyboardIcon } from './icons/KeyboardIcon';
+import KeyboardShortcutEditor from './settings/KeyboardShortcutEditor';
+import { createDefaultKeyboardShortcutSettings } from '../keyboardShortcuts';
 
 interface SettingsViewProps {
   onSave: (settings: GlobalSettings) => void;
@@ -26,7 +29,7 @@ interface SettingsViewProps {
   }) => void;
 }
 
-type SettingsCategory = 'appearance' | 'behavior' | 'jsonConfig';
+type SettingsCategory = 'appearance' | 'behavior' | 'shortcuts' | 'jsonConfig';
 
 const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, setToast, confirmAction }) => {
   const [settings, setSettings] = useState<GlobalSettings>(currentSettings);
@@ -289,6 +292,26 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
         );
       case 'jsonConfig':
         return <JsonConfigView setToast={setToast} confirmAction={confirmAction} />;
+      case 'shortcuts':
+        return (
+          <KeyboardShortcutEditor
+            value={settings.keyboardShortcuts}
+            onChange={next =>
+              setSettings(prev => ({
+                ...prev,
+                keyboardShortcuts: next,
+              }))
+            }
+            onResetToDefaults={() =>
+              setSettings(prev => ({
+                ...prev,
+                keyboardShortcuts: createDefaultKeyboardShortcutSettings(),
+              }))
+            }
+            confirmAction={confirmAction}
+            showToast={setToast}
+          />
+        );
       default:
         return null;
     }
@@ -304,6 +327,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                     </button>
                     <button type="button" onClick={() => setActiveCategory('behavior')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'behavior' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
                         <BeakerIcon className="h-5 w-5" /> Behavior
+                    </button>
+                    <button type="button" onClick={() => setActiveCategory('shortcuts')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'shortcuts' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                        <KeyboardIcon className="h-5 w-5" /> Shortcuts
                     </button>
                     <button type="button" onClick={() => setActiveCategory('jsonConfig')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'jsonConfig' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
                         <CodeBracketIcon className="h-5 w-5" /> JSON Config

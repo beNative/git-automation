@@ -8,6 +8,7 @@ import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectS
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 import JSZip from 'jszip';
+import { createDefaultKeyboardShortcutSettings, mergeKeyboardShortcutSettings } from '../keyboardShortcuts';
 
 
 declare const require: (id: string) => any;
@@ -105,6 +106,7 @@ const DEFAULTS: GlobalSettings = {
     zoomFactor: 1,
     saveTaskLogs: true,
     taskLogPath: '',
+    keyboardShortcuts: createDefaultKeyboardShortcutSettings(),
 };
 
 async function readSettings(): Promise<GlobalSettings> {
@@ -116,14 +118,16 @@ async function readSettings(): Promise<GlobalSettings> {
         const parsedData = JSON.parse(data);
         if (parsedData && parsedData.globalSettings) {
             const settings = { ...DEFAULTS, ...parsedData.globalSettings };
+            settings.keyboardShortcuts = mergeKeyboardShortcutSettings(parsedData.globalSettings.keyboardShortcuts ?? settings.keyboardShortcuts);
             globalSettingsCache = settings;
             return settings;
         }
     } catch (error) {
         // File not found or invalid, return defaults.
     }
-    globalSettingsCache = DEFAULTS;
-    return DEFAULTS;
+    const defaults = { ...DEFAULTS, keyboardShortcuts: createDefaultKeyboardShortcutSettings() };
+    globalSettingsCache = defaults;
+    return defaults;
 }
 
 const createWindow = () => {
