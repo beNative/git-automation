@@ -51,6 +51,7 @@ interface RepoEditViewProps {
   }) => void;
   defaultCategoryId?: string;
   onOpenWeblink: (url: string) => void;
+  detectedExecutables: Record<string, string[]>;
 }
 
 const NEW_REPO_TEMPLATE: Omit<GitRepository, 'id'> = {
@@ -1107,8 +1108,23 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
   );
 };
 
-const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction, defaultCategoryId, onOpenWeblink }) => {
+const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction, defaultCategoryId, onOpenWeblink, detectedExecutables }) => {
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
+
+  const repoIdForSuggestions = useMemo(() => {
+    if ('id' in formData) {
+      return formData.id;
+    }
+    return repository?.id ?? null;
+  }, [formData, repository]);
+
+  const commandSuggestions = useMemo(() => {
+    if (!repoIdForSuggestions) {
+      return [] as string[];
+    }
+    const suggestions = detectedExecutables[repoIdForSuggestions] || [];
+    return Array.from(new Set(suggestions)).sort((a, b) => a.localeCompare(b));
+  }, [detectedExecutables, repoIdForSuggestions]);
 
   // Ref to track previous remoteUrl to fire toast only once on discovery
   const prevRemoteUrlRef = useRef(formData.remoteUrl);
@@ -2005,9 +2021,33 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                         </select>
                                         <button type="button" onClick={() => handleRemoveLaunchConfig(lc.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
                                     </div>
-                                    {lc.type === 'command' && (
-                                        <input type="text" placeholder="e.g., npm start" value={lc.command} onChange={e => handleUpdateLaunchConfig(lc.id, 'command', e.target.value)} className={`${formInputStyle} text-xs font-mono`} />
-                                    )}
+                                    {lc.type === 'command' && (() => {
+                                        const datalistId = `launch-command-suggestions-${lc.id}`;
+                                        return (
+                                            <div className="space-y-1">
+                                                <input
+                                                    type="text"
+                                                    placeholder="e.g., npm start"
+                                                    value={lc.command}
+                                                    onChange={e => handleUpdateLaunchConfig(lc.id, 'command', e.target.value)}
+                                                    className={`${formInputStyle} text-xs font-mono`}
+                                                    list={commandSuggestions.length > 0 ? datalistId : undefined}
+                                                />
+                                                {commandSuggestions.length > 0 && (
+                                                    <>
+                                                        <datalist id={datalistId}>
+                                                            {commandSuggestions.map(path => (
+                                                                <option key={path} value={path} />
+                                                            ))}
+                                                        </datalist>
+                                                        <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                            Suggestions are populated from detected executables in this repository.
+                                                        </p>
+                                                    </>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                     <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400"><input type="checkbox" checked={lc.showOnDashboard} onChange={e => handleUpdateLaunchConfig(lc.id, 'showOnDashboard', e.target.checked)} className="rounded" /> Show on card</label>
                                 </div>
                             ))}
