@@ -59,11 +59,13 @@ Follow this checklist when preparing a new minor or patch release:
 1.  **Bump the Version:** Update the `version` field in `package.json` and ensure any user-facing references (README, manuals,
     in-app messaging) match the new number.
 2.  **Review Documentation:** Re-read the README, Functional Manual, Technical Manual, and CHANGELOG to confirm terminology and
-    screenshots reflect the current UI and workflow.
-3.  **Update Release Notes:** Add a new section to `CHANGELOG.md` summarizing the changes included in the release. Plan to reuse
-    this text verbatim in the GitHub release body.
-4.  **Build Installers:** Run `npm run pack` to generate platform installers and smoke-test the output locally.
-5.  **Publish on GitHub:** Draft a new GitHub release, attach the generated artifacts, verify the tag/version details, and set the
+    screenshots reflect the current UI and workflow. Capture any documentation-only tweaks in the upcoming changelog entry so the
+    review is recorded.
+3.  **Update Release Notes:** Add a new section to `CHANGELOG.md` summarizing the changes included in the release, including
+    any documentation adjustments or reminders for maintainers. Plan to reuse this text verbatim in the GitHub release body.
+4.  **Run Automated Checks:** Execute `npm test` (or the appropriate suite documented in the Technical Manual) and confirm it completes successfully before packaging.
+5.  **Build Installers:** Run `npm run pack` to generate platform installers and smoke-test the output locally.
+6.  **Publish on GitHub:** Draft a new GitHub release, attach the generated artifacts, verify the tag/version details, and set the
     **Release Type** selector to the intended state (Full Release for GA builds, Draft or Pre-release as needed). Paste the freshly
     written changelog entry into the release body so the GitHub notes exactly match the repository history, then publish.
 
