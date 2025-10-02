@@ -4,6 +4,56 @@
 // FIX: Add 'heroicons' and 'phosphor' to the IconSet type to support more icon libraries.
 export type IconSet = 'lucide' | 'tabler' | 'feather' | 'remix' | 'heroicons' | 'phosphor';
 
+export type ShortcutScope = 'app' | 'global';
+export type ShortcutPlatform = 'all' | 'mac' | 'windows' | 'linux';
+
+export interface ShortcutContextOption {
+  id: string;
+  label: string;
+  description?: string;
+}
+
+export interface ShortcutBinding {
+  id: string;
+  scope: ShortcutScope;
+  shortcut: string;
+  context: string;
+  platform: ShortcutPlatform;
+  isDefault?: boolean;
+}
+
+export interface KeyboardShortcutSettings {
+  version: number;
+  lastUpdated: string | null;
+  bindings: Record<string, ShortcutBinding[]>;
+}
+
+export interface ShortcutCategoryDefinition {
+  id: string;
+  title: string;
+  description: string;
+  icon?: string;
+}
+
+export interface ShortcutDefinition {
+  id: string;
+  label: string;
+  description: string;
+  categoryId: string;
+  keywords: string[];
+  allowApp: boolean;
+  allowGlobal: boolean;
+  contexts?: Partial<Record<ShortcutScope, ShortcutContextOption[]>>;
+  defaultBindings: Array<Omit<ShortcutBinding, 'id' | 'isDefault'>>;
+  relatedActions?: string[];
+}
+
+export interface ShortcutConflict {
+  actionId: string;
+  binding: ShortcutBinding;
+  conflictsWith: Array<{ actionId: string; binding: ShortcutBinding }>;
+}
+
 export enum RepoStatus {
   Idle = 'Idle',
   Syncing = 'Syncing',
@@ -117,6 +167,7 @@ export interface GlobalSettings {
   zoomFactor: number;
   saveTaskLogs: boolean;
   taskLogPath: string;
+  keyboardShortcuts: KeyboardShortcutSettings;
 }
 
 export interface TaskStep {

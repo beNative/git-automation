@@ -3,6 +3,7 @@ import React, { createContext, useState, useCallback, ReactNode, useMemo, useEff
 import type { GlobalSettings, Repository, Category, DropTarget } from '../types';
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
 import { useLogger } from '../hooks/useLogger';
+import { createDefaultKeyboardShortcutSettings, mergeKeyboardShortcutSettings } from '../keyboardShortcuts';
 
 interface AppDataContextState {
   settings: GlobalSettings;
@@ -42,6 +43,7 @@ const DEFAULTS: GlobalSettings = {
     zoomFactor: 1,
     saveTaskLogs: true,
     taskLogPath: '',
+    keyboardShortcuts: createDefaultKeyboardShortcutSettings(),
 };
 
 const initialState: AppDataContextState = {
@@ -327,7 +329,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     if (window.electronAPI?.getAllData) {
       window.electronAPI.getAllData().then(data => {
-          const loadedSettings = data.globalSettings ? { ...DEFAULTS, ...data.globalSettings } : DEFAULTS;
+          const loadedSettings = data.globalSettings ? { ...DEFAULTS, ...data.globalSettings } : { ...DEFAULTS, keyboardShortcuts: createDefaultKeyboardShortcutSettings() };
+          loadedSettings.keyboardShortcuts = mergeKeyboardShortcutSettings(data.globalSettings?.keyboardShortcuts ?? loadedSettings.keyboardShortcuts);
           const migratedRepos = migrateRepositories(data.repositories || [], loadedSettings);
           
           setSettings(loadedSettings);
