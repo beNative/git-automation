@@ -908,16 +908,17 @@ const App: React.FC = () => {
                     return <InfoView />;
                   case 'edit-repository':
                     // The key ensures the component re-mounts when switching between editing different repos
-                    return <RepoEditView 
-                      key={repoFormState.repoId} 
-                      repository={repositoryToEdit} 
-                      onSave={handleSaveRepo} 
+                    return <RepoEditView
+                      key={repoFormState.repoId}
+                      repository={repositoryToEdit}
+                      onSave={handleSaveRepo}
                       onCancel={handleCloseRepoForm}
                       onRefreshState={refreshRepoState}
                       setToast={setToast}
                       confirmAction={confirmAction}
                       defaultCategoryId={repoFormState.defaultCategoryId}
                       onOpenWeblink={handleOpenWeblink}
+                      detectedExecutables={detectedExecutables}
                     />;
                   case 'dashboard':
                   default:
