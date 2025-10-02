@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 - _No unreleased changes._
 
+## [0.24.5]
+
+### Changed
+- **Release Process Guidance:** Clarified the README and Technical Manual checklists to explicitly record documentation reviews in the changelog so maintainers have an audit trail when preparing releases.
+
+### Fixed
+- **Version Metadata:** Incremented the application version to `0.24.5` in `package.json` ahead of publishing this patch build.
+
 ## [0.24.4]
 
 ### Changed

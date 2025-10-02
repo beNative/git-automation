@@ -90,8 +90,8 @@ All application data, including repositories, categories, and global settings, i
 Use this process when shipping a new minor update or bugfix:
 
 1.  **Increment the Version:** Update the `version` in `package.json` and verify the README, manuals, and any in-app references reflect the new number where applicable.
-2.  **Refresh Documentation:** Re-read `README.md`, `FUNCTIONAL_MANUAL.md`, `TECHNICAL_MANUAL.md`, and `CHANGELOG.md` to ensure screenshots, feature descriptions, and workflows match the current UI.
-3.  **Update Release Notes:** Add a new entry to `CHANGELOG.md` summarizing the changes. Plan to reuse this text verbatim in the GitHub release body.
+2.  **Refresh Documentation:** Re-read `README.md`, `FUNCTIONAL_MANUAL.md`, `TECHNICAL_MANUAL.md`, and `CHANGELOG.md` to ensure screenshots, feature descriptions, and workflows match the current UI. Note any documentation-only edits in the changelog so the audit trail is preserved.
+3.  **Update Release Notes:** Add a new entry to `CHANGELOG.md` summarizing the changes, calling out documentation adjustments alongside any fixes or features. Plan to reuse this text verbatim in the GitHub release body.
 4.  **Build Installers:** Run `npm run pack`. The command produces platform installers in the `release/` directory. Perform a quick smoke test of the generated artifacts before distribution.
 5.  **Publish on GitHub:** Draft a new release on GitHub, attach the installers from the `release/` folder, verify the tag/version details, and explicitly set the **Release Type** selector to match your intent (Full Release for GA builds or Draft/Pre-release when staging). Paste the current changelog entry into the notes so the GitHub release matches the repository history, then publish.
 ## 7. Automatic Updates
