@@ -84,56 +84,6 @@ const BranchSwitcher: React.FC<{
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     
-    const computeDropdownMetrics = useCallback(() => {
-        if (!isOpen || !buttonRef.current) return;
-
-        const rect = buttonRef.current.getBoundingClientRect();
-        const dropdownHeight = 240; // Estimated height for max-h-60
-
-        let top: number;
-
-        // Position vertically: open upwards if not enough space below
-        if ((rect.bottom + dropdownHeight + 4) > window.innerHeight && rect.top > dropdownHeight) {
-            top = rect.top - dropdownHeight - 4;
-        } else {
-            top = rect.bottom + 4;
-        }
-
-        let longestBranchWidth = 0;
-        if (branchLabelsForWidth.length > 0) {
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            const computedStyle = window.getComputedStyle(buttonRef.current);
-            if (context) {
-                const font = computedStyle.font || `${computedStyle.fontSize || '14px'} ${computedStyle.fontFamily || 'sans-serif'}`;
-                context.font = font;
-                longestBranchWidth = branchLabelsForWidth.reduce((max, branchLabel) => {
-                    return Math.max(max, context.measureText(branchLabel).width);
-                }, 0);
-            } else {
-                longestBranchWidth = branchLabelsForWidth.reduce((max, branchLabel) => Math.max(max, branchLabel.length * 8), 0);
-            }
-        }
-
-        const triggerWidth = rect.width;
-        const horizontalPadding = 32; // Accounts for px-4 on both sides of menu items
-        const desiredWidth = Math.max(triggerWidth, longestBranchWidth + horizontalPadding);
-        const maxWidth = window.innerWidth - 10;
-        const minWidth = 200;
-        const width = Math.min(Math.max(desiredWidth, minWidth), maxWidth);
-
-        let left = rect.right - width;
-        if (left < 5) left = 5;
-        if (left + width > window.innerWidth - 5) left = window.innerWidth - width - 5;
-
-        setDropdownStyle({
-            position: 'fixed',
-            top: `${top}px`,
-            left: `${left}px`,
-            width: `${width}px`,
-        });
-    }, [branchLabelsForWidth, isOpen]);
-
     useEffect(() => {
         if (isOpen) {
             computeDropdownMetrics();
@@ -185,6 +135,56 @@ const BranchSwitcher: React.FC<{
     const branchLabelsForWidth = useMemo(() => {
         return [...otherLocalBranches, ...remoteBranchesToOffer];
     }, [otherLocalBranches, remoteBranchesToOffer]);
+
+    const computeDropdownMetrics = useCallback(() => {
+        if (!isOpen || !buttonRef.current) return;
+
+        const rect = buttonRef.current.getBoundingClientRect();
+        const dropdownHeight = 240; // Estimated height for max-h-60
+
+        let top: number;
+
+        // Position vertically: open upwards if not enough space below
+        if ((rect.bottom + dropdownHeight + 4) > window.innerHeight && rect.top > dropdownHeight) {
+            top = rect.top - dropdownHeight - 4;
+        } else {
+            top = rect.bottom + 4;
+        }
+
+        let longestBranchWidth = 0;
+        if (branchLabelsForWidth.length > 0) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            const computedStyle = window.getComputedStyle(buttonRef.current);
+            if (context) {
+                const font = computedStyle.font || `${computedStyle.fontSize || '14px'} ${computedStyle.fontFamily || 'sans-serif'}`;
+                context.font = font;
+                longestBranchWidth = branchLabelsForWidth.reduce((max, branchLabel) => {
+                    return Math.max(max, context.measureText(branchLabel).width);
+                }, 0);
+            } else {
+                longestBranchWidth = branchLabelsForWidth.reduce((max, branchLabel) => Math.max(max, branchLabel.length * 8), 0);
+            }
+        }
+
+        const triggerWidth = rect.width;
+        const horizontalPadding = 32; // Accounts for px-4 on both sides of menu items
+        const desiredWidth = Math.max(triggerWidth, longestBranchWidth + horizontalPadding);
+        const maxWidth = window.innerWidth - 10;
+        const minWidth = 200;
+        const width = Math.min(Math.max(desiredWidth, minWidth), maxWidth);
+
+        let left = rect.right - width;
+        if (left < 5) left = 5;
+        if (left + width > window.innerWidth - 5) left = window.innerWidth - width - 5;
+
+        setDropdownStyle({
+            position: 'fixed',
+            top: `${top}px`,
+            left: `${left}px`,
+            width: `${width}px`,
+        });
+    }, [branchLabelsForWidth, isOpen]);
 
     const mainBranch = useMemo(() => {
         if (local.includes('main')) {
