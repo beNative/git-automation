@@ -3,7 +3,6 @@ import React, { createContext, useState, useCallback, ReactNode, useMemo, useEff
 import type { GlobalSettings, Repository, Category, DropTarget } from '../types';
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
 import { MIN_AUTO_CHECK_INTERVAL_SECONDS, MAX_AUTO_CHECK_INTERVAL_SECONDS } from '../constants';
-import { useLogger } from '../hooks/useLogger';
 import { createDefaultKeyboardShortcutSettings, mergeKeyboardShortcutSettings } from '../keyboardShortcuts';
 
 interface AppDataContextState {
@@ -324,7 +323,6 @@ const categoryReducer = (state: CategoryState, action: CategoryAction): Category
 };
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const logger = useLogger();
   const [settings, setSettings] = useState<GlobalSettings>(DEFAULTS);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   
@@ -358,14 +356,19 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
           }
           loadedSettings.repoUpdateCheckIntervalUnit = 'seconds';
           const migratedRepos = migrateRepositories(data.repositories || [], loadedSettings);
-          
+
           setSettings(loadedSettings);
           setRepositories(migratedRepos);
           // FIX: Dispatch a single action to set initial state atomically.
           dispatch({ type: 'SET_ALL_DATA', payload: { categories: data.categories || [], uncategorizedOrder: data.uncategorizedOrder || [] }});
+          console.info('[SettingsProvider] Renderer state hydrated from main process', {
+            repositoryCount: migratedRepos.length,
+            categoryCount: (data.categories || []).length,
+            hasUncategorizedOrder: Boolean(data.uncategorizedOrder && data.uncategorizedOrder.length),
+          });
           setIsLoading(false);
       }).catch(e => {
-          console.error("Failed to load app data, using defaults.", e);
+          console.error('[SettingsProvider] Failed to load app data, using defaults.', e);
           setIsLoading(false);
       });
     } else {
@@ -439,9 +442,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // FIX: Refactor moveRepositoryToCategory to dispatch an action to the central reducer.
   const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', target: DropTarget) => {
-    logger.debug(`[DnD] Dispatching MOVE_REPOSITORY_DND`, { repoId, sourceId, target });
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[DnD] Dispatching MOVE_REPOSITORY_DND', { repoId, sourceId, target });
+    }
     dispatch({ type: 'MOVE_REPOSITORY_DND', payload: { repoId, sourceId, target } });
-  }, [logger]);
+  }, []);
 
   const moveRepository = useCallback((repoId: string, direction: 'up' | 'down') => {
     dispatch({ type: 'MOVE_REPOSITORY_BUTTONS', payload: { repoId, direction } });

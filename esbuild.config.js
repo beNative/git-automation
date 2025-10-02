@@ -24,6 +24,7 @@ const rendererConfig = {
     format: 'iife',
     sourcemap: !isProd,
     minify: isProd,
+    keepNames: true,
     define: {
         'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
         // API_KEY needs to be available in the renderer process
