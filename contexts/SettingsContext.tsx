@@ -3,7 +3,6 @@ import React, { createContext, useState, useCallback, ReactNode, useMemo, useEff
 import type { GlobalSettings, Repository, Category, DropTarget } from '../types';
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
 import { MIN_AUTO_CHECK_INTERVAL_SECONDS, MAX_AUTO_CHECK_INTERVAL_SECONDS } from '../constants';
-import { useLogger } from '../hooks/useLogger';
 import { createDefaultKeyboardShortcutSettings, mergeKeyboardShortcutSettings } from '../keyboardShortcuts';
 
 interface AppDataContextState {
@@ -324,7 +323,6 @@ const categoryReducer = (state: CategoryState, action: CategoryAction): Category
 };
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const logger = useLogger();
   const [settings, setSettings] = useState<GlobalSettings>(DEFAULTS);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   
@@ -439,9 +437,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // FIX: Refactor moveRepositoryToCategory to dispatch an action to the central reducer.
   const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', target: DropTarget) => {
-    logger.debug(`[DnD] Dispatching MOVE_REPOSITORY_DND`, { repoId, sourceId, target });
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[DnD] Dispatching MOVE_REPOSITORY_DND', { repoId, sourceId, target });
+    }
     dispatch({ type: 'MOVE_REPOSITORY_DND', payload: { repoId, sourceId, target } });
-  }, [logger]);
+  }, []);
 
   const moveRepository = useCallback((repoId: string, direction: 'up' | 'down') => {
     dispatch({ type: 'MOVE_REPOSITORY_BUTTONS', payload: { repoId, direction } });
