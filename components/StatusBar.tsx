@@ -15,9 +15,10 @@ interface StatusBarProps {
     appVersion: string;
     onToggleDebugPanel: () => void;
     onOpenAboutModal: () => void;
+    commandPaletteShortcut: string;
 }
 
-const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog, appVersion, onToggleDebugPanel, onOpenAboutModal }) => {
+const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog, appVersion, onToggleDebugPanel, onOpenAboutModal, commandPaletteShortcut }) => {
     const LOG_LEVEL_COLOR_CLASSES: Record<string, string> = {
         info: 'text-gray-500 dark:text-gray-400',
         command: 'text-blue-500 dark:text-blue-400',
@@ -29,7 +30,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
     const repoCountTooltip = useTooltip('Total Repositories');
     const processingTooltip = useTooltip(`${processingCount} tasks running`);
     const simModeTooltip = useTooltip('Simulation mode is active. No real commands will be run.');
-    const commandPaletteTooltip = useTooltip('Command Palette (Ctrl+K)');
+    const commandPaletteTooltip = useTooltip(`Command Palette (${commandPaletteShortcut || 'Ctrl+K'})`);
     const debugPanelTooltip = useTooltip('Toggle Debug Panel (Ctrl+D)');
     const latestLogTooltip = useTooltip(latestLog?.message || '');
     const aboutTooltip = useTooltip('About this application');
@@ -87,7 +88,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                  <div
  {...commandPaletteTooltip} className="flex items-center">
                     <KeyboardIcon className="h-4 w-4 mr-1.5" />
-                    <span>Ctrl+K</span>
+                    <span>{commandPaletteShortcut || 'Ctrl+K'}</span>
                 </div>
 
                 {appVersion && (

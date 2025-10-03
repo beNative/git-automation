@@ -12,6 +12,7 @@ import {
   SHORTCUT_DEFINITIONS,
   createDefaultKeyboardShortcutSettings,
   findShortcutDefinition,
+  formatShortcutForDisplay,
   getDefaultBindingsForAction,
   shortcutKey,
 } from '../../keyboardShortcuts';
@@ -58,33 +59,6 @@ const KEY_NAME_MAP: Record<string, string> = {
   End: 'End',
   PageUp: 'PageUp',
   PageDown: 'PageDown',
-};
-
-const getDisplayName = (shortcut: string): string => {
-  return shortcut
-    .split('+')
-    .map(part => {
-      if (part === 'Cmd') {
-        return '⌘';
-      }
-      if (part === 'Ctrl') {
-        return 'Ctrl';
-      }
-      if (part === 'Win') {
-        return 'Win';
-      }
-      if (part === 'Option') {
-        return '⌥';
-      }
-      if (part === 'Alt') {
-        return 'Alt';
-      }
-      if (part === 'Shift') {
-        return '⇧';
-      }
-      return part;
-    })
-    .join(' + ');
 };
 
 const normalizePrimaryKey = (key: string): string => {
@@ -605,7 +579,7 @@ const KeyboardShortcutEditor: React.FC<KeyboardShortcutEditorProps> = ({
                                       }`}
                                     >
                                       {binding.shortcut
-                                        ? getDisplayName(binding.shortcut)
+                                        ? formatShortcutForDisplay(binding.shortcut)
                                         : isCapturing
                                           ? 'Listening...'
                                           : 'Assign shortcut'}

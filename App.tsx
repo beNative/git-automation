@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
 // FIX: Add missing ReleaseInfo type to the import.
-import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category, ReleaseInfo } from './types';
+import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category, ReleaseInfo, ShortcutPlatform } from './types';
 import Dashboard from './components/Dashboard';
 import TitleBar from './components/Header';
 // FIX: RepoEditView is a default export, so it should be imported without curly braces.
@@ -29,12 +29,108 @@ import UpdateBanner from './components/UpdateBanner';
 import ConfirmationModal from './components/modals/ConfirmationModal';
 import { ExclamationTriangleIcon } from './components/icons/ExclamationTriangleIcon';
 import AboutModal from './components/modals/AboutModal';
+import { detectShortcutPlatform, formatShortcutForDisplay } from './keyboardShortcuts';
+
+type ShortcutMatcher = {
+  key: string;
+  ctrl: boolean;
+  meta: boolean;
+  alt: boolean;
+  shift: boolean;
+};
+
+const normalizeEventKey = (key: string): string => {
+  if (key === ' ') {
+    return 'space';
+  }
+  if (key === 'Spacebar') {
+    return 'space';
+  }
+  return key.length === 1 ? key.toLowerCase() : key.toLowerCase();
+};
+
+const parseShortcutString = (
+  shortcut: string,
+  platform: ShortcutPlatform,
+): ShortcutMatcher | null => {
+  if (!shortcut) {
+    return null;
+  }
+
+  const parts = shortcut.split('+');
+  let key: string | null = null;
+  let ctrl = false;
+  let meta = false;
+  let alt = false;
+  let shift = false;
+
+  parts.forEach(part => {
+    const normalized = part.trim();
+    switch (normalized) {
+      case 'Mod':
+        if (platform === 'mac') {
+          meta = true;
+        } else {
+          ctrl = true;
+        }
+        break;
+      case 'Cmd':
+        meta = true;
+        break;
+      case 'Ctrl':
+        ctrl = true;
+        break;
+      case 'Win':
+        meta = true;
+        break;
+      case 'Option':
+        alt = true;
+        break;
+      case 'Alt':
+        alt = true;
+        break;
+      case 'Shift':
+        shift = true;
+        break;
+      default:
+        if (!key) {
+          key = normalized.toLowerCase();
+        }
+        break;
+    }
+  });
+
+  if (!key) {
+    return null;
+  }
+
+  return { key, ctrl, meta, alt, shift };
+};
+
+const eventMatchesShortcut = (event: KeyboardEvent, shortcut: ShortcutMatcher): boolean => {
+  if (event.ctrlKey !== shortcut.ctrl) {
+    return false;
+  }
+  if (event.metaKey !== shortcut.meta) {
+    return false;
+  }
+  if (event.altKey !== shortcut.alt) {
+    return false;
+  }
+  if (event.shiftKey !== shortcut.shift) {
+    return false;
+  }
+
+  const eventKey = normalizeEventKey(event.key);
+  return eventKey === shortcut.key;
+};
 
 const App: React.FC = () => {
   const logger = useLogger();
-  const { 
-    settings, 
-    saveSettings, 
+  const [shortcutPlatform] = useState<ShortcutPlatform>(() => detectShortcutPlatform());
+  const {
+    settings,
+    saveSettings,
     repositories,
     // FIX: Remove unused and unsafe setters that bypass the context's logic.
     addRepository,
@@ -149,6 +245,22 @@ const App: React.FC = () => {
     onConfirm: () => {},
     onCancel: () => {},
   });
+
+  const commandPaletteShortcutLabel = useMemo(() => {
+    const bindings = settings.keyboardShortcuts?.bindings?.['app.navigation.commandPalette'];
+    const activeBinding = bindings?.find(
+      binding =>
+        binding.scope === 'app' &&
+        binding.shortcut &&
+        (binding.platform === 'all' || binding.platform === shortcutPlatform),
+    );
+
+    if (activeBinding?.shortcut) {
+      return formatShortcutForDisplay(activeBinding.shortcut, shortcutPlatform);
+    }
+
+    return formatShortcutForDisplay('Mod+K', shortcutPlatform);
+  }, [settings.keyboardShortcuts, shortcutPlatform]);
 
   const handleCloseConfirmationModal = () => {
     setConfirmationModal(prev => ({ ...prev, isOpen: false }));
@@ -363,20 +475,118 @@ const App: React.FC = () => {
     document.documentElement.style.fontSize = `${zoom * 100}%`;
   }, [settings?.zoomFactor, logger]);
   
-  // Effect for Command Palette & Debug Panel
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-            e.preventDefault();
-            setCommandPaletteOpen(prev => !prev);
-        }
-        if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
-            e.preventDefault();
-            setIsDebugPanelOpen(prev => !prev);
-        }
+    const bindings = settings.keyboardShortcuts?.bindings;
+    if (!bindings) {
+      return;
+    }
+
+    const entries: Array<{ matcher: ShortcutMatcher; handler: () => void }> = [];
+
+    const isContextActive = (contextId?: string) => {
+      if (!contextId || contextId === 'global') {
+        return true;
+      }
+      if (contextId === 'dashboard' || contextId === 'repositories') {
+        return activeView === 'dashboard';
+      }
+      if (contextId === 'settings') {
+        return activeView === 'settings';
+      }
+      if (contextId === 'tasks') {
+        return taskLogState.isOpen;
+      }
+      return true;
     };
+
+    const register = (actionId: string, handler: () => void) => {
+      const actionBindings = bindings[actionId];
+      if (!actionBindings) {
+        return;
+      }
+
+      actionBindings.forEach(binding => {
+        if (binding.scope !== 'app') {
+          return;
+        }
+        if (binding.platform !== 'all' && binding.platform !== shortcutPlatform) {
+          return;
+        }
+        if (!binding.shortcut) {
+          return;
+        }
+        if (!isContextActive(binding.context)) {
+          return;
+        }
+
+        const matcher = parseShortcutString(binding.shortcut, shortcutPlatform);
+        if (!matcher) {
+          return;
+        }
+
+        entries.push({ matcher, handler });
+      });
+    };
+
+    register('app.navigation.commandPalette', () => setCommandPaletteOpen(prev => !prev));
+    register('app.navigation.switchDashboard', () => setActiveView('dashboard'));
+    register('app.navigation.openSettings', () => setActiveView('settings'));
+    register('app.view.toggleTaskLog', () =>
+      setTaskLogState(prev => {
+        if (prev.isOpen) {
+          return { ...prev, isOpen: false };
+        }
+
+        const selectedId = prev.selectedId ?? prev.activeIds[0] ?? null;
+        return { ...prev, isOpen: true, selectedId };
+      }),
+    );
+
+    if (entries.length === 0) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+
+      for (const entry of entries) {
+        if (eventMatchesShortcut(event, entry.matcher)) {
+          event.preventDefault();
+          entry.handler();
+          break;
+        }
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [
+    settings.keyboardShortcuts,
+    shortcutPlatform,
+    activeView,
+    taskLogState.isOpen,
+    setActiveView,
+    setCommandPaletteOpen,
+    setTaskLogState,
+  ]);
+
+  // Keep default debug panel toggle for now.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd') {
+        event.preventDefault();
+        setIsDebugPanelOpen(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const refreshRepoState = useCallback(async (repoId: string) => {
@@ -994,14 +1204,15 @@ const App: React.FC = () => {
             )}
           </div>
           
-          <StatusBar 
-            repoCount={repositories.length} 
-            processingCount={isProcessing.size} 
+          <StatusBar
+            repoCount={repositories.length}
+            processingCount={isProcessing.size}
             isSimulationMode={settings.simulationMode}
             latestLog={latestLog}
             appVersion={appVersion}
             onToggleDebugPanel={() => setIsDebugPanelOpen(p => !p)}
             onOpenAboutModal={() => setIsAboutModalOpen(true)}
+            commandPaletteShortcut={commandPaletteShortcutLabel}
           />
 
           <DebugPanel 
