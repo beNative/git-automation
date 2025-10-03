@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 
 - _No unreleased changes._
 
+## [0.24.7]
+
+### Changed
+- **Documentation Review:** Reconfirmed that `README.md`, `TECHNICAL_MANUAL.md`, and `FUNCTIONAL_MANUAL.md` accurately describe the
+  current release workflow and UI, so no content edits were required before publishing this build.
+
+### Fixed
+- **Version Metadata:** Incremented the application version to `0.24.7` in `package.json` to prepare this bugfix release.
+
 ## [0.24.6]
 
 ### Changed
