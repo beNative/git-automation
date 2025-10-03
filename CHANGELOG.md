@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 - _No unreleased changes._
 
+## [0.24.6]
+
+### Changed
+- **Documentation Checklist Clarity:** Clarified the release preparation steps in `README.md` and `TECHNICAL_MANUAL.md` so
+  maintainers explicitly record the outcome of their documentation review (even when no edits are required) before publishing a
+  release.
+
+### Fixed
+- **Version Metadata:** Incremented the application version to `0.24.6` in `package.json` ahead of publishing this patch build.
+
 ## [0.24.5]
 
 ### Changed
