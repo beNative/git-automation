@@ -84,7 +84,28 @@ const BranchSwitcher: React.FC<{
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isRefreshingBranches, setIsRefreshingBranches] = useState(false);
-    
+
+    const localBranches = branchInfo?.local ?? [];
+    const remoteBranches = branchInfo?.remote ?? [];
+    const currentBranch = branchInfo?.current ?? '';
+
+    const remoteBranchesToOffer = remoteBranches.filter(rBranch => {
+        const localEquivalent = rBranch.split('/').slice(1).join('/');
+        return !localBranches.includes(localEquivalent);
+    });
+
+    const otherLocalBranches = localBranches.filter(b => b !== currentBranch);
+    const hasOptions = otherLocalBranches.length > 0 || remoteBranchesToOffer.length > 0;
+
+    const branchDropdownTooltip = useTooltip(
+        branchInfo
+            ? (hasOptions ? 'Switch branches' : 'No other branches available')
+            : 'Branch information unavailable'
+    );
+    const branchSearchTooltip = useTooltip(
+        isRefreshingBranches ? 'Refreshing branches…' : 'Search all branches'
+    );
+
     useEffect(() => {
         if (isOpen && buttonRef.current) {
             const rect = buttonRef.current.getBoundingClientRect();
@@ -129,19 +150,8 @@ const BranchSwitcher: React.FC<{
         }
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [isOpen, onClose]);
-
     if (!branchInfo) return null;
 
-    const { local, remote, current } = branchInfo;
-    
-    const remoteBranchesToOffer = remote.filter(rBranch => {
-        const localEquivalent = rBranch.split('/').slice(1).join('/');
-        return !local.includes(localEquivalent);
-    });
-
-    const otherLocalBranches = local.filter(b => b !== current);
-    const hasOptions = otherLocalBranches.length > 0 || remoteBranchesToOffer.length > 0;
-    
     const handleBranchClick = (branch: string) => {
       onSwitchBranch(repoId, branch);
       onClose();
@@ -208,6 +218,7 @@ const BranchSwitcher: React.FC<{
         <div className="flex items-center gap-1">
             <div className="min-w-0 flex-1">
                 <button
+                    {...branchDropdownTooltip}
                     ref={buttonRef}
                     type="button"
                     className="inline-flex items-center justify-center w-full rounded-md disabled:cursor-not-allowed"
@@ -216,11 +227,12 @@ const BranchSwitcher: React.FC<{
                     aria-haspopup="true"
                     aria-expanded={isOpen}
                 >
-                    <span className="truncate max-w-[150px] sm:max-w-[200px]">{current}</span>
+                    <span className="truncate max-w-[150px] sm:max-w-[200px]">{currentBranch}</span>
                     <ChevronDownIcon className={`ml-1 -mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
             </div>
             <button
+                {...branchSearchTooltip}
                 type="button"
                 onClick={openModal}
                 className="flex-shrink-0 p-1.5 rounded-md text-gray-500 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
