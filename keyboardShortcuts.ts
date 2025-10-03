@@ -4,6 +4,7 @@ import type {
   ShortcutCategoryDefinition,
   ShortcutContextOption,
   ShortcutDefinition,
+  ShortcutPlatform,
   ShortcutScope,
 } from './types';
 
@@ -453,3 +454,67 @@ export const findShortcutDefinition = (actionId: string): ShortcutDefinition | u
 
 export const shortcutKey = (binding: ShortcutBinding): string =>
   `${binding.scope}:${binding.context}:${binding.platform}:${binding.shortcut.toLowerCase()}`;
+
+export const detectShortcutPlatform = (): ShortcutPlatform => {
+  if (typeof navigator !== 'undefined') {
+    const platform = navigator.platform ?? navigator.userAgent ?? '';
+    if (/Mac|iPod|iPhone|iPad/i.test(platform)) {
+      return 'mac';
+    }
+    if (/Win/i.test(platform)) {
+      return 'windows';
+    }
+    if (/Linux/i.test(platform)) {
+      return 'linux';
+    }
+  }
+
+  if (typeof process !== 'undefined' && typeof process.platform === 'string') {
+    if (process.platform === 'darwin') {
+      return 'mac';
+    }
+    if (process.platform === 'win32') {
+      return 'windows';
+    }
+    if (process.platform === 'linux') {
+      return 'linux';
+    }
+  }
+
+  return 'windows';
+};
+
+const displayPart = (part: string, platform: ShortcutPlatform): string => {
+  switch (part) {
+    case 'Mod':
+      return platform === 'mac' ? '⌘' : 'Ctrl';
+    case 'Cmd':
+      return '⌘';
+    case 'Ctrl':
+      return 'Ctrl';
+    case 'Win':
+      return platform === 'mac' ? '⌘' : 'Win';
+    case 'Option':
+      return platform === 'mac' ? '⌥' : 'Alt';
+    case 'Alt':
+      return 'Alt';
+    case 'Shift':
+      return '⇧';
+    default:
+      return part;
+  }
+};
+
+export const formatShortcutForDisplay = (
+  shortcut: string,
+  platform: ShortcutPlatform = detectShortcutPlatform(),
+): string => {
+  if (!shortcut) {
+    return '';
+  }
+
+  return shortcut
+    .split('+')
+    .map(part => displayPart(part, platform))
+    .join(' + ');
+};
