@@ -36,6 +36,8 @@ const DEFAULTS: GlobalSettings = {
     iconSet: 'feather',
     debugLogging: true,
     allowPrerelease: true,
+    autoCheckForUpdates: false,
+    autoCheckIntervalSeconds: 300,
     openLinksIn: 'default',
     githubPat: '',
     gitExecutablePath: '',

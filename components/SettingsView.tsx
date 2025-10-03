@@ -87,9 +87,17 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
     e.preventDefault();
     onSave(settings);
   };
-  
+
   const handleCancel = () => {
       setSettings(currentSettings);
+  };
+
+  const handleIntervalChange = (value: string) => {
+      const parsed = parseInt(value, 10);
+      setSettings(prev => ({
+          ...prev,
+          autoCheckIntervalSeconds: Number.isNaN(parsed) ? prev.autoCheckIntervalSeconds : Math.max(parsed, 30),
+      }));
   };
   
   const handleBrowse = async (vcsType: 'git' | 'svn') => {
@@ -272,6 +280,42 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                     <label className="flex items-start gap-3"><input type="checkbox" name="simulationMode" checked={settings.simulationMode} onChange={handleChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/><div>Enable Simulation Mode<p className="text-xs text-gray-500">If enabled, no real commands are run.</p></div></label>
                     <label className="flex items-start gap-3"><input type="checkbox" name="allowPrerelease" checked={settings.allowPrerelease} onChange={handleChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/><div>Check for Pre-Releases<p className="text-xs text-gray-500">Include beta versions in auto-updates.</p></div></label>
                     <label className="flex items-start gap-3"><input type="checkbox" name="debugLogging" checked={settings.debugLogging} onChange={handleChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/><div>Enable Debug Logging<p className="text-xs text-gray-500">Verbose logging for troubleshooting.</p></div></label>
+                </div>
+             </div>
+
+             <div className="space-y-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-lg font-semibold">Automatic Update Checks</h4>
+                <label className="flex items-start gap-3">
+                    <input
+                        type="checkbox"
+                        name="autoCheckForUpdates"
+                        checked={settings.autoCheckForUpdates}
+                        onChange={handleChange}
+                        className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"
+                    />
+                    <div>
+                        Enable Automatic Checks
+                        <p className="text-xs text-gray-500">Periodically refresh repositories to look for remote updates.</p>
+                    </div>
+                </label>
+                <div className="grid sm:grid-cols-[220px_1fr] gap-3 items-center">
+                    <label htmlFor="autoCheckIntervalSeconds" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Check Interval (seconds)
+                    </label>
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="number"
+                            id="autoCheckIntervalSeconds"
+                            name="autoCheckIntervalSeconds"
+                            min={30}
+                            step={15}
+                            value={settings.autoCheckIntervalSeconds}
+                            onChange={(e) => handleIntervalChange(e.target.value)}
+                            disabled={!settings.autoCheckForUpdates}
+                            className="w-32 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-50 dark:bg-gray-900 disabled:opacity-50"
+                        />
+                        <span className="text-xs text-gray-500">Minimum 30 seconds.</span>
+                    </div>
                 </div>
              </div>
 
