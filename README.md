@@ -59,8 +59,8 @@ Follow this checklist when preparing a new minor or patch release:
 1.  **Bump the Version:** Update the `version` field in `package.json` and ensure any user-facing references (README, manuals,
     in-app messaging) match the new number.
 2.  **Review Documentation:** Re-read the README, Functional Manual, Technical Manual, and CHANGELOG to confirm terminology and
-    screenshots reflect the current UI and workflow. Capture any documentation-only tweaks in the upcoming changelog entry so the
-    review is recorded.
+    screenshots reflect the current UI and workflow. Capture any documentation-only tweaks in the upcoming changelog entry, and
+    if everything is still accurate, explicitly state that outcome so the review itself is recorded.
 3.  **Update Release Notes:** Add a new section to `CHANGELOG.md` summarizing the changes included in the release, including
     any documentation adjustments or reminders for maintainers. Plan to reuse this text verbatim in the GitHub release body.
 4.  **Run Automated Checks:** Execute `npm test` (or the appropriate suite documented in the Technical Manual) and confirm it completes successfully before packaging.

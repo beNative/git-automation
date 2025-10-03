@@ -90,7 +90,7 @@ All application data, including repositories, categories, and global settings, i
 Use this process when shipping a new minor update or bugfix:
 
 1.  **Increment the Version:** Update the `version` in `package.json` and verify the README, manuals, and any in-app references reflect the new number where applicable.
-2.  **Refresh Documentation:** Re-read `README.md`, `FUNCTIONAL_MANUAL.md`, `TECHNICAL_MANUAL.md`, and `CHANGELOG.md` to ensure screenshots, feature descriptions, and workflows match the current UI. Note any documentation-only edits in the changelog so the audit trail is preserved.
+2.  **Refresh Documentation:** Re-read `README.md`, `FUNCTIONAL_MANUAL.md`, `TECHNICAL_MANUAL.md`, and `CHANGELOG.md` to ensure screenshots, feature descriptions, and workflows match the current UI. Note any documentation-only edits in the changelog, and if no changes are required, explicitly record that the review confirmed the docs remain accurate so the audit trail is preserved.
 3.  **Update Release Notes:** Add a new entry to `CHANGELOG.md` summarizing the changes, calling out documentation adjustments alongside any fixes or features. Plan to reuse this text verbatim in the GitHub release body.
 4.  **Run Automated Checks:** Execute `npm test` (or the broader QA suite defined for the project) and confirm a passing result before packaging binaries.
 5.  **Build Installers:** Run `npm run pack`. The command produces platform installers in the `release/` directory. Perform a quick smoke test of the generated artifacts before distribution.
