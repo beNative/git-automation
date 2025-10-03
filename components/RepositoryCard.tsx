@@ -19,6 +19,7 @@ import { TerminalIcon } from './icons/TerminalIcon';
 import { StatusIndicator } from './StatusIndicator';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { MagnifyingGlassIcon } from './icons/MagnifyingGlassIcon';
+import { HomeIcon } from './icons/HomeIcon';
 import { ClockIcon } from './icons/ClockIcon';
 import { useTooltip } from '../hooks/useTooltip';
 import { TooltipContext } from '../contexts/TooltipContext';
@@ -89,6 +90,11 @@ const BranchSwitcher: React.FC<{
     const remoteBranches = branchInfo?.remote ?? [];
     const currentBranch = branchInfo?.current ?? '';
 
+    const remoteMainBranch = remoteBranches.find(branch => branch.split('/').slice(-1)[0] === 'main');
+    const hasLocalMainBranch = localBranches.includes('main');
+    const mainBranchTarget = hasLocalMainBranch ? 'main' : remoteMainBranch;
+    const showMainBranchButton = Boolean(mainBranchTarget && currentBranch !== 'main');
+
     const remoteBranchesToOffer = remoteBranches.filter(rBranch => {
         const localEquivalent = rBranch.split('/').slice(1).join('/');
         return !localBranches.includes(localEquivalent);
@@ -104,6 +110,13 @@ const BranchSwitcher: React.FC<{
     );
     const branchSearchTooltip = useTooltip(
         isRefreshingBranches ? 'Refreshing branches…' : 'Search all branches'
+    );
+    const mainBranchTooltip = useTooltip(
+        mainBranchTarget
+            ? hasLocalMainBranch
+                ? 'Switch to the main branch'
+                : 'Track and switch to the remote main branch'
+            : 'Main branch not available'
     );
 
     useEffect(() => {
@@ -154,6 +167,12 @@ const BranchSwitcher: React.FC<{
 
     const handleBranchClick = (branch: string) => {
       onSwitchBranch(repoId, branch);
+      onClose();
+    };
+
+    const handleSwitchToMain = () => {
+      if (!mainBranchTarget) return;
+      onSwitchBranch(repoId, mainBranchTarget);
       onClose();
     };
 
@@ -245,6 +264,17 @@ const BranchSwitcher: React.FC<{
                   <MagnifyingGlassIcon className="h-4 w-4" />
                 )}
             </button>
+            {showMainBranchButton && (
+                <button
+                    {...mainBranchTooltip}
+                    type="button"
+                    onClick={handleSwitchToMain}
+                    className="flex-shrink-0 p-1.5 rounded-md text-gray-500 hover:text-green-600 dark:text-gray-300 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/40 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    aria-label="Switch to main branch"
+                >
+                    <HomeIcon className="h-4 w-4" />
+                </button>
+            )}
 
             {isOpen && hasOptions && createPortal(DropdownContent, document.body)}
             <BranchSelectionModal
