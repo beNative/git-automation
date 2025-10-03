@@ -694,6 +694,117 @@ const PythonTaskGenerator: React.FC<{
     );
 };
 
+const DockerTaskGenerator: React.FC<{
+    dockerCaps: DockerCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ dockerCaps, onAddTask }) => {
+    if (!dockerCaps) return null;
+    const dockerfiles = dockerCaps.dockerfiles ?? [];
+    const composeFiles = dockerCaps.composeFiles ?? [];
+    if (dockerfiles.length === 0 && composeFiles.length === 0) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+
+    const createDockerBuildTask = (dockerfile: string) => {
+        onAddTask({
+            name: `Build Image (${getBasename(dockerfile)})`,
+            steps: [
+                {
+                    type: TaskStepType.DOCKER_BUILD_IMAGE,
+                    dockerfilePath: dockerfile,
+                },
+            ].map(step => ({ ...step, id: '', enabled: true })),
+        });
+    };
+
+    const createComposeTask = (
+        composePath: string,
+        type: TaskStepType.DOCKER_COMPOSE_UP | TaskStepType.DOCKER_COMPOSE_DOWN | TaskStepType.DOCKER_COMPOSE_BUILD,
+    ) => {
+        const labelMap: Record<
+            TaskStepType.DOCKER_COMPOSE_UP | TaskStepType.DOCKER_COMPOSE_DOWN | TaskStepType.DOCKER_COMPOSE_BUILD,
+            string
+        > = {
+            [TaskStepType.DOCKER_COMPOSE_UP]: 'Compose Up',
+            [TaskStepType.DOCKER_COMPOSE_DOWN]: 'Compose Down',
+            [TaskStepType.DOCKER_COMPOSE_BUILD]: 'Compose Build',
+        };
+
+        const name = `${labelMap[type]} (${getBasename(composePath)})`;
+        onAddTask({
+            name,
+            steps: [
+                {
+                    type,
+                    dockerComposePath: composePath,
+                },
+            ].map(step => ({ ...step, id: '', enabled: true })),
+        });
+    };
+
+    const detectedArtifacts = [
+        ...dockerfiles.map(file => `Dockerfile: ${getBasename(file)}`),
+        ...composeFiles.map(file => `Compose: ${getBasename(file)}`),
+    ];
+
+    return (
+        <div className="p-3 mb-4 bg-sky-50 dark:bg-gray-900/50 rounded-lg border border-sky-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <DockerIcon className="h-5 w-5 text-sky-500" />
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Docker Artifacts Detected</h3>
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                {detectedArtifacts.map(artifact => (
+                    <span
+                        key={artifact}
+                        className="bg-sky-100 dark:bg-sky-900/50 text-sky-800 dark:text-sky-300 px-2 py-0.5 rounded-full"
+                    >
+                        {artifact}
+                    </span>
+                ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+                {dockerfiles.map(file => (
+                    <button
+                        key={`dockerfile-${file}`}
+                        type="button"
+                        onClick={() => createDockerBuildTask(file)}
+                        className="text-xs font-medium text-white bg-sky-600 hover:bg-sky-700 px-3 py-1.5 rounded-md"
+                    >
+                        Add Build Task for {getBasename(file)}
+                    </button>
+                ))}
+                {composeFiles.flatMap(file => [
+                    <button
+                        key={`compose-up-${file}`}
+                        type="button"
+                        onClick={() => createComposeTask(file, TaskStepType.DOCKER_COMPOSE_UP)}
+                        className="text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-md"
+                    >
+                        Add Compose Up Task ({getBasename(file)})
+                    </button>,
+                    <button
+                        key={`compose-down-${file}`}
+                        type="button"
+                        onClick={() => createComposeTask(file, TaskStepType.DOCKER_COMPOSE_DOWN)}
+                        className="text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded-md"
+                    >
+                        Add Compose Down Task ({getBasename(file)})
+                    </button>,
+                    <button
+                        key={`compose-build-${file}`}
+                        type="button"
+                        onClick={() => createComposeTask(file, TaskStepType.DOCKER_COMPOSE_BUILD)}
+                        className="text-xs font-medium text-white bg-slate-600 hover:bg-slate-700 px-3 py-1.5 rounded-md"
+                    >
+                        Add Compose Build Task ({getBasename(file)})
+                    </button>,
+                ])}
+            </div>
+        </div>
+    );
+};
+
 const DelphiTaskGenerator: React.FC<{
     delphiCaps: DelphiCapabilities | undefined;
     onAddTask: (task: Partial<Task>) => void;
@@ -956,6 +1067,7 @@ const TaskStepsEditor: React.FC<{
           </div>
       )}
       
+      <DockerTaskGenerator dockerCaps={projectInfo?.docker} onAddTask={onAddTask} />
       <NodejsTaskGenerator nodejsCaps={projectInfo?.nodejs} onAddTask={onAddTask} />
       <LazarusTaskGenerator lazarusCaps={projectInfo?.lazarus} onAddTask={onAddTask} />
       <DelphiTaskGenerator delphiCaps={projectInfo?.delphi} onAddTask={onAddTask} />
