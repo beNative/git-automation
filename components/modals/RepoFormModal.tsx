@@ -27,6 +27,7 @@ import { NodeIcon } from '../icons/NodeIcon';
 import { DockerIcon } from '../icons/DockerIcon';
 import { FolderOpenIcon } from '../icons/FolderOpenIcon';
 import { DocumentDuplicateIcon } from '../icons/DocumentDuplicateIcon';
+import { SparklesIcon } from '../icons/SparklesIcon';
 import { ServerIcon } from '../icons/ServerIcon';
 import { TagIcon } from '../icons/TagIcon';
 import ReactMarkdown from 'react-markdown';
@@ -1021,9 +1022,10 @@ interface TaskListItemProps {
   onSelect: (taskId: string) => void;
   onDelete: (taskId: string) => void;
   onDuplicate: (taskId: string) => void;
+  showOnDashboard: boolean;
 }
 
-const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect, onDelete, onDuplicate }) => {
+const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect, onDelete, onDuplicate, showOnDashboard }) => {
   const deleteTooltip = useTooltip('Delete Task');
   const duplicateTooltip = useTooltip('Duplicate Task');
 
@@ -1041,7 +1043,16 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect,
     <li className={isSelected ? 'bg-blue-500/10' : ''}>
       <button type="button" onClick={() => onSelect(task.id)} className="w-full text-left px-3 py-2 group">
         <div className="flex justify-between items-start">
-          <p className={`font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
+          <div className="flex items-center gap-2">
+            <p className={`font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
+            {showOnDashboard && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors group-hover:bg-blue-100 group-focus-visible:bg-blue-100 dark:group-hover:bg-blue-900/60 dark:group-focus-visible:bg-blue-900/60">
+                <SparklesIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                <span aria-hidden="true">Dashboard</span>
+                <span className="sr-only">Task shown on repository dashboard</span>
+              </span>
+            )}
+          </div>
           <div className="flex items-center opacity-0 group-hover:opacity-100">
             <button
                 {...duplicateTooltip}
@@ -1847,6 +1858,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                               onSelect={setSelectedTaskId}
                               onDelete={handleDeleteTask}
                               onDuplicate={handleDuplicateTask}
+                              showOnDashboard={task.showOnDashboard ?? false}
                             />
                           ))}
                            {(formData.tasks || []).length === 0 && (
