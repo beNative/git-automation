@@ -160,6 +160,8 @@ export interface GlobalSettings {
   iconSet: IconSet;
   debugLogging: boolean;
   allowPrerelease: boolean;
+  autoCheckForUpdates: boolean;
+  autoCheckIntervalSeconds: number;
   openLinksIn: 'default' | 'chrome' | 'firefox';
   githubPat: string;
   gitExecutablePath: string;

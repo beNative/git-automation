@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
 // FIX: Add missing ReleaseInfo type to the import.
 import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category, ReleaseInfo, ShortcutPlatform } from './types';
@@ -175,6 +175,8 @@ const App: React.FC = () => {
   const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
   const [appVersion, setAppVersion] = useState<string>('');
   const [isCheckingAll, setIsCheckingAll] = useState(false);
+  const autoCheckIntervalRef = useRef<number | null>(null);
+  const isAutoCheckingRef = useRef(false);
   const [updateReady, setUpdateReady] = useState(false);
 
   // New states for deeper VCS integration
@@ -644,28 +646,89 @@ const App: React.FC = () => {
     }
   }, [contextMenu.isOpen, handleCloseContextMenu]);
 
-  const handleCheckAllForUpdates = useCallback(async () => {
+  const performUpdateCheck = useCallback(async (options: { silent?: boolean; manageCheckingState?: boolean } = {}) => {
+    const { silent = false, manageCheckingState = true } = options;
     const validRepos = repositories.filter(r => localPathStates[r.id] === 'valid');
     if (validRepos.length === 0) {
-      setToast({ message: 'No repositories with valid local paths to check.', type: 'info' });
+      if (!silent) {
+        setToast({ message: 'No repositories with valid local paths to check.', type: 'info' });
+      }
+      return false;
+    }
+
+    if (manageCheckingState) {
+      setIsCheckingAll(true);
+    }
+    if (!silent) {
+      setToast({ message: `Checking ${validRepos.length} repositories for updates...`, type: 'info' });
+    }
+
+    const updatePromises = validRepos.map(repo => refreshRepoState(repo.id));
+
+    try {
+        await Promise.all(updatePromises);
+        if (!silent) {
+          setToast({ message: 'Update check complete.', type: 'success' });
+        }
+        return true;
+    } catch (e: any) {
+        logger.error('An error occurred during the update check for all repos.', { error: e.message });
+        if (!silent) {
+          setToast({ message: 'An error occurred during update check.', type: 'error' });
+        }
+        return false;
+    } finally {
+        if (manageCheckingState) {
+          setIsCheckingAll(false);
+        }
+    }
+  }, [repositories, localPathStates, refreshRepoState, logger, setToast]);
+
+  const handleCheckAllForUpdates = useCallback(async () => {
+    await performUpdateCheck();
+  }, [performUpdateCheck]);
+
+  useEffect(() => {
+    if (autoCheckIntervalRef.current) {
+      window.clearInterval(autoCheckIntervalRef.current);
+      autoCheckIntervalRef.current = null;
+    }
+
+    if (!settings.autoCheckForUpdates) {
       return;
     }
 
-    setIsCheckingAll(true);
-    setToast({ message: `Checking ${validRepos.length} repositories for updates...`, type: 'info' });
-
-    const updatePromises = validRepos.map(repo => refreshRepoState(repo.id));
-    
-    try {
-        await Promise.all(updatePromises);
-        setToast({ message: 'Update check complete.', type: 'success' });
-    } catch (e: any) {
-        logger.error('An error occurred during the update check for all repos.', { error: e.message });
-        setToast({ message: 'An error occurred during update check.', type: 'error' });
-    } finally {
-        setIsCheckingAll(false);
+    const intervalSeconds = Math.max(30, settings.autoCheckIntervalSeconds || 0);
+    if (!Number.isFinite(intervalSeconds) || intervalSeconds <= 0) {
+      logger.warn('Skipping automatic update checks due to invalid interval.', { interval: settings.autoCheckIntervalSeconds });
+      return;
     }
-  }, [repositories, localPathStates, refreshRepoState, logger]);
+
+    const runAutoCheck = async () => {
+      if (isCheckingAll || isAutoCheckingRef.current) {
+        return;
+      }
+      isAutoCheckingRef.current = true;
+      try {
+        await performUpdateCheck({ silent: true, manageCheckingState: false });
+      } catch (error: any) {
+        logger.error('Automatic update check failed.', { error: error?.message || error });
+      } finally {
+        isAutoCheckingRef.current = false;
+      }
+    };
+
+    runAutoCheck();
+
+    autoCheckIntervalRef.current = window.setInterval(runAutoCheck, intervalSeconds * 1000);
+
+    return () => {
+      if (autoCheckIntervalRef.current) {
+        window.clearInterval(autoCheckIntervalRef.current);
+        autoCheckIntervalRef.current = null;
+      }
+    };
+  }, [settings.autoCheckForUpdates, settings.autoCheckIntervalSeconds, isCheckingAll, performUpdateCheck, logger]);
 
   const handleSwitchBranch = useCallback(async (repoId: string, branch: string) => {
     const repo = repositories.find(r => r.id === repoId);
