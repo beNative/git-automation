@@ -77,11 +77,13 @@ const BranchSwitcher: React.FC<{
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
-}> = ({ repoId, repoName, branchInfo, onSwitchBranch, isOpen, onToggle, onClose }) => {
+  onRefreshBranches: () => Promise<void> | void;
+}> = ({ repoId, repoName, branchInfo, onSwitchBranch, isOpen, onToggle, onClose, onRefreshBranches }) => {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isRefreshingBranches, setIsRefreshingBranches] = useState(false);
     
     useEffect(() => {
         if (isOpen && buttonRef.current) {
@@ -145,9 +147,17 @@ const BranchSwitcher: React.FC<{
       onClose();
     };
 
-    const openModal = () => {
-      setIsModalOpen(true);
-      onClose();
+    const openModal = async () => {
+      setIsRefreshingBranches(true);
+      try {
+        await onRefreshBranches();
+      } catch (error) {
+        console.error('Failed to refresh branches before opening modal', error);
+      } finally {
+        setIsRefreshingBranches(false);
+        setIsModalOpen(true);
+        onClose();
+      }
     };
 
     const closeModal = () => {
@@ -213,10 +223,15 @@ const BranchSwitcher: React.FC<{
             <button
                 type="button"
                 onClick={openModal}
-                className="flex-shrink-0 p-1.5 rounded-md text-gray-500 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-shrink-0 p-1.5 rounded-md text-gray-500 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                 aria-label="Open branch search dialog"
+                disabled={isRefreshingBranches}
             >
-                <MagnifyingGlassIcon className="h-4 w-4" />
+                {isRefreshingBranches ? (
+                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MagnifyingGlassIcon className="h-4 w-4" />
+                )}
             </button>
 
             {isOpen && hasOptions && createPortal(DropdownContent, document.body)}
@@ -608,6 +623,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                     repoName={name}
                     branchInfo={branchInfo}
                     onSwitchBranch={onSwitchBranch}
+                    onRefreshBranches={() => onRefreshRepoState(id)}
                   />
                 </>
               ) : (
