@@ -1169,6 +1169,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [selectedBranch, setSelectedBranch] = useState<{ name: string; scope: 'local' | 'remote' } | null>(null);
   const [branchFilter, setBranchFilter] = useState('');
   const [debouncedBranchFilter, setDebouncedBranchFilter] = useState('');
+  const branchItemRefs = useRef<{ local: Map<string, HTMLDivElement>; remote: Map<string, HTMLDivElement> }>({
+    local: new Map<string, HTMLDivElement>(),
+    remote: new Map<string, HTMLDivElement>(),
+  });
 
   // State for Releases Tab
   const [releases, setReleases] = useState<ReleaseInfo[] | null>(null);
@@ -1589,12 +1593,63 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   }, [branchInfo?.current]);
 
+  const setBranchItemRef = useCallback((scope: 'local' | 'remote', branchName: string, element: HTMLDivElement | null) => {
+    const scopeMap = branchItemRefs.current[scope];
+    if (!scopeMap) {
+        return;
+    }
+    if (element) {
+        scopeMap.set(branchName, element);
+    } else {
+        scopeMap.delete(branchName);
+    }
+  }, []);
+
+  const focusBranchItem = useCallback((scope: 'local' | 'remote', branchName: string) => {
+    const scopeMap = branchItemRefs.current[scope];
+    const element = scopeMap?.get(branchName);
+    element?.focus();
+  }, []);
+
   const handleBranchKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>, branchName: string, scope: 'local' | 'remote') => {
     if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         handleSelectBranch(branchName, scope);
+        return;
     }
-  }, [handleSelectBranch]);
+
+    const scopedBranches = scope === 'local' ? filteredLocalBranches : filteredRemoteBranches;
+    if (!scopedBranches.length) {
+        return;
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const currentIndex = scopedBranches.findIndex(branch => branch === branchName);
+        const delta = event.key === 'ArrowDown' ? 1 : -1;
+        const nextIndex = (() => {
+            if (currentIndex === -1) {
+                return event.key === 'ArrowDown' ? 0 : scopedBranches.length - 1;
+            }
+            return Math.min(scopedBranches.length - 1, Math.max(0, currentIndex + delta));
+        })();
+        const nextBranch = scopedBranches[nextIndex];
+        if (nextBranch) {
+            handleSelectBranch(nextBranch, scope);
+            requestAnimationFrame(() => focusBranchItem(scope, nextBranch));
+        }
+        return;
+    }
+
+    if (event.key === 'Home' || event.key === 'End') {
+        event.preventDefault();
+        const targetBranch = event.key === 'Home' ? scopedBranches[0] : scopedBranches[scopedBranches.length - 1];
+        if (targetBranch) {
+            handleSelectBranch(targetBranch, scope);
+            requestAnimationFrame(() => focusBranchItem(scope, targetBranch));
+        }
+    }
+  }, [filteredLocalBranches, filteredRemoteBranches, focusBranchItem, handleSelectBranch]);
   
   const handleDiscoverRemote = useCallback(async () => {
     const currentLocalPath = formData.localPath;
@@ -1835,7 +1890,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                             aria-selected={isSelected}
                                                             onClick={() => handleSelectBranch(b, 'local')}
                                                             onKeyDown={(event) => handleBranchKeyDown(event, b, 'local')}
-                                                            className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isSelected ? 'border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-900/40 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                                                            ref={element => setBranchItemRef('local', b, element)}
+                                                            className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-0 ${isSelected ? 'border-transparent bg-blue-100 text-blue-900 dark:bg-blue-900/50 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                                                         >
                                                             <div className="flex items-center gap-2">
                                                                 <span className="font-mono text-sm break-all">
@@ -1874,7 +1930,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                             aria-selected={isSelected}
                                                             onClick={() => handleSelectBranch(b, 'remote')}
                                                             onKeyDown={(event) => handleBranchKeyDown(event, b, 'remote')}
-                                                            className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isSelected ? 'border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-900/40 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                                                            ref={element => setBranchItemRef('remote', b, element)}
+                                                            className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-0 ${isSelected ? 'border-transparent bg-blue-100 text-blue-900 dark:bg-blue-900/50 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                                                         >
                                                             <span className="font-mono text-sm break-all">
                                                                 <HighlightedText text={b} highlight={debouncedBranchFilter} />
