@@ -1866,14 +1866,29 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 <p className="text-sm">
                                     Current branch: <span className="font-bold font-mono text-blue-600 dark:text-blue-400">{branchInfo?.current}</span>
                                 </p>
-                                <div className="max-w-md">
+                                <div className="max-w-md flex flex-col sm:flex-row sm:items-center gap-2">
                                     <input
                                         type="text"
                                         value={branchFilter}
                                         onChange={event => setBranchFilter(event.target.value)}
                                         placeholder="Filter branches"
-                                        className={formInputStyle}
+                                        className={`${formInputStyle} flex-1`}
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={fetchBranches}
+                                        disabled={branchesLoading}
+                                        className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 border border-blue-600 rounded-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 hover:bg-blue-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        {branchesLoading ? (
+                                            <>
+                                                <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                                                Refreshing...
+                                            </>
+                                        ) : (
+                                            'Refresh'
+                                        )}
+                                    </button>
                                 </div>
                                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden">
                                     <div className="flex flex-col min-h-0">
