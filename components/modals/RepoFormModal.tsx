@@ -1167,6 +1167,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [newBranchName, setNewBranchName] = useState('');
   const [branchToMerge, setBranchToMerge] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<{ name: string; scope: 'local' | 'remote' } | null>(null);
+  const [branchFilter, setBranchFilter] = useState('');
+  const [debouncedBranchFilter, setDebouncedBranchFilter] = useState('');
 
   // State for Releases Tab
   const [releases, setReleases] = useState<ReleaseInfo[] | null>(null);
@@ -1188,6 +1190,35 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }, 300);
     return () => clearTimeout(handler);
   }, [historySearch]);
+
+  // Debounce branch search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+        setDebouncedBranchFilter(branchFilter);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [branchFilter]);
+
+  const normalizedBranchFilter = debouncedBranchFilter.trim().toLowerCase();
+  const filteredLocalBranches = useMemo(() => {
+    const localBranches = branchInfo?.local ?? [];
+    if (!normalizedBranchFilter) return localBranches;
+    return localBranches.filter(branch => branch.toLowerCase().includes(normalizedBranchFilter));
+  }, [branchInfo?.local, normalizedBranchFilter]);
+
+  const filteredRemoteBranches = useMemo(() => {
+    const remoteBranches = branchInfo?.remote ?? [];
+    if (!normalizedBranchFilter) return remoteBranches;
+    return remoteBranches.filter(branch => branch.toLowerCase().includes(normalizedBranchFilter));
+  }, [branchInfo?.remote, normalizedBranchFilter]);
+
+  useEffect(() => {
+    if (!selectedBranch) return;
+    const branches = selectedBranch.scope === 'local' ? filteredLocalBranches : filteredRemoteBranches;
+    if (!branches.includes(selectedBranch.name)) {
+        setSelectedBranch(null);
+    }
+  }, [selectedBranch, filteredLocalBranches, filteredRemoteBranches]);
 
   const fetchHistory = useCallback(async (loadMore = false) => {
     if (!repository) return;
@@ -1780,11 +1811,20 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 <p className="text-sm">
                                     Current branch: <span className="font-bold font-mono text-blue-600 dark:text-blue-400">{branchInfo?.current}</span>
                                 </p>
+                                <div className="max-w-md">
+                                    <input
+                                        type="text"
+                                        value={branchFilter}
+                                        onChange={event => setBranchFilter(event.target.value)}
+                                        placeholder="Filter branches"
+                                        className={formInputStyle}
+                                    />
+                                </div>
                                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden">
                                     <div className="flex flex-col min-h-0">
                                         <h4 className="font-semibold mb-2 flex-shrink-0">Local Branches</h4>
                                         <ul className="flex-1 overflow-y-auto space-y-2 pr-1">
-                                            {(branchInfo?.local || []).map(b => {
+                                            {filteredLocalBranches.map(b => {
                                                 const isCurrent = b === branchInfo?.current;
                                                 const isSelected = selectedBranch?.scope === 'local' && selectedBranch.name === b;
                                                 return (
@@ -1822,7 +1862,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                     <div className="flex flex-col min-h-0">
                                         <h4 className="font-semibold mb-2 flex-shrink-0">Remote Branches</h4>
                                         <ul className="flex-1 overflow-y-auto space-y-2 pr-1">
-                                            {(branchInfo?.remote || []).map(b => {
+                                            {filteredRemoteBranches.map(b => {
                                                 const isSelected = selectedBranch?.scope === 'remote' && selectedBranch.name === b;
                                                 return (
                                                     <li key={b}>
