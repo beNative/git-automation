@@ -1021,20 +1021,36 @@ interface TaskListItemProps {
   onSelect: (taskId: string) => void;
   onDelete: (taskId: string) => void;
   onDuplicate: (taskId: string) => void;
+  onMove: (taskId: string, direction: 'up' | 'down') => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }
 
-const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect, onDelete, onDuplicate }) => {
+const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect, onDelete, onDuplicate, onMove, canMoveUp, canMoveDown }) => {
   const deleteTooltip = useTooltip('Delete Task');
   const duplicateTooltip = useTooltip('Duplicate Task');
+  const moveUpTooltip = useTooltip('Move Task Up');
+  const moveDownTooltip = useTooltip('Move Task Down');
+
+  const moveButtonBaseClass = 'p-1 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
+  const getMoveButtonClass = (canMove: boolean) =>
+    canMove
+      ? `${moveButtonBaseClass} text-gray-500 hover:text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/50`
+      : `${moveButtonBaseClass} text-gray-300 cursor-not-allowed`;
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDelete(task.id);
   };
-  
+
   const handleDuplicate = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDuplicate(task.id);
+  };
+
+  const handleMove = (e: React.MouseEvent, direction: 'up' | 'down') => {
+    e.stopPropagation();
+    onMove(task.id, direction);
   };
 
   return (
@@ -1042,22 +1058,42 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, isSelected, onSelect,
       <button type="button" onClick={() => onSelect(task.id)} className="w-full text-left px-3 py-2 group">
         <div className="flex justify-between items-start">
           <p className={`font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</p>
-          <div className="flex items-center opacity-0 group-hover:opacity-100">
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
             <button
-                {...duplicateTooltip}
-                type="button"
-                onClick={handleDuplicate}
-                className="p-1 text-blue-500 hover:text-blue-700 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50"
+              {...moveUpTooltip}
+              type="button"
+              onClick={(e) => handleMove(e, 'up')}
+              disabled={!canMoveUp}
+              aria-label="Move task up"
+              className={getMoveButtonClass(canMoveUp)}
             >
-                <DocumentDuplicateIcon className="h-4 w-4"/>
+              <ArrowUpIcon className="h-4 w-4"/>
             </button>
             <button
-                {...deleteTooltip}
-                type="button"
-                onClick={handleDelete}
-                className="p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50"
+              {...moveDownTooltip}
+              type="button"
+              onClick={(e) => handleMove(e, 'down')}
+              disabled={!canMoveDown}
+              aria-label="Move task down"
+              className={getMoveButtonClass(canMoveDown)}
             >
-                <TrashIcon className="h-4 w-4"/>
+              <ArrowDownIcon className="h-4 w-4"/>
+            </button>
+            <button
+              {...duplicateTooltip}
+              type="button"
+              onClick={handleDuplicate}
+              className="p-1 text-blue-500 hover:text-blue-700 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50"
+            >
+              <DocumentDuplicateIcon className="h-4 w-4"/>
+            </button>
+            <button
+              {...deleteTooltip}
+              type="button"
+              onClick={handleDelete}
+              className="p-1 text-red-500 hover:text-red-700 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50"
+            >
+              <TrashIcon className="h-4 w-4"/>
             </button>
           </div>
         </div>
@@ -1464,7 +1500,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const handleDuplicateTask = (taskId: string) => {
     const taskToDuplicate = formData.tasks?.find(t => t.id === taskId);
     if (!taskToDuplicate) return;
-    
+
     // Deep copy, assign new IDs to task and steps
     const newTask = {
         ...JSON.parse(JSON.stringify(taskToDuplicate)),
@@ -1486,6 +1522,29 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
     setFormData(prev => ({...prev, tasks: newTasks}));
     setSelectedTaskId(newTask.id);
+  };
+
+  const handleMoveTask = (taskId: string, direction: 'up' | 'down') => {
+    setFormData(prev => {
+      const tasks = prev.tasks || [];
+      const currentIndex = tasks.findIndex(t => t.id === taskId);
+      if (currentIndex === -1) {
+        return prev;
+      }
+
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= tasks.length) {
+        return prev;
+      }
+
+      const newTasks = [...tasks];
+      const [movedTask] = newTasks.splice(currentIndex, 1);
+      newTasks.splice(targetIndex, 0, movedTask);
+
+      return { ...prev, tasks: newTasks };
+    });
+
+    setSelectedTaskId(prevSelected => (prevSelected === taskId ? taskId : prevSelected));
   };
 
   const handleAddWebLink = () => {
@@ -1839,7 +1898,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                           </button>
                         </div>
                         <ul className="flex-1 overflow-y-auto">
-                          {(formData.tasks || []).map(task => (
+                          {(formData.tasks || []).map((task, index, array) => (
                             <TaskListItem
                               key={task.id}
                               task={task}
@@ -1847,6 +1906,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                               onSelect={setSelectedTaskId}
                               onDelete={handleDeleteTask}
                               onDuplicate={handleDuplicateTask}
+                              onMove={handleMoveTask}
+                              canMoveUp={index > 0}
+                              canMoveDown={index < array.length - 1}
                             />
                           ))}
                            {(formData.tasks || []).length === 0 && (
