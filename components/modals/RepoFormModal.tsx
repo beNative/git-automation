@@ -1838,7 +1838,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                             className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isSelected ? 'border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-900/40 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                                                         >
                                                             <div className="flex items-center gap-2">
-                                                                <span className="font-mono text-sm break-all">{b}</span>
+                                                                <span className="font-mono text-sm break-all">
+                                                                    <HighlightedText text={b} highlight={debouncedBranchFilter} />
+                                                                </span>
                                                                 {isCurrent && <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200">Current</span>}
                                                             </div>
                                                             {b !== branchInfo?.current && (
@@ -1874,7 +1876,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                             onKeyDown={(event) => handleBranchKeyDown(event, b, 'remote')}
                                                             className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isSelected ? 'border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-900/40 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                                                         >
-                                                            <span className="font-mono text-sm break-all">{b}</span>
+                                                            <span className="font-mono text-sm break-all">
+                                                                <HighlightedText text={b} highlight={debouncedBranchFilter} />
+                                                            </span>
                                                             <button
                                                                 type="button"
                                                                 onClick={(event) => {
