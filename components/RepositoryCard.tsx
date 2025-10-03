@@ -99,7 +99,7 @@ const BranchSwitcher: React.FC<{
 
     const branchDropdownTooltip = useTooltip(
         branchInfo
-            ? (hasOptions ? 'Switch branches' : 'No other branches available')
+            ? (currentBranch ? `Current branch: ${currentBranch}` : 'Branch name unavailable')
             : 'Branch information unavailable'
     );
     const branchSearchTooltip = useTooltip(
