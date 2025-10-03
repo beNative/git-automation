@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Repository, Commit } from '../../types';
 import { ClockIcon } from '../icons/ClockIcon';
 import { XIcon } from '../icons/XIcon';
@@ -7,6 +7,7 @@ import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';
 interface CommitHistoryModalProps {
   isOpen: boolean;
   repository: Repository | null;
+  initialCommits: Commit[] | null;
   onClose: () => void;
 }
 
@@ -32,7 +33,7 @@ const HighlightedText: React.FC<{ text: string; highlight: string }> = ({ text, 
 };
 
 
-const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, repository, onClose }) => {
+const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, repository, initialCommits, onClose }) => {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isMoreLoading, setIsMoreLoading] = useState(false);
@@ -54,35 +55,46 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
 
   // Fetch initial history when modal opens or search query changes
   useEffect(() => {
-    if (isOpen && repository) {
-      const fetchInitialHistory = async () => {
-        setIsLoading(true);
-        setCommits([]); // Reset on open or new search
-        setHasMore(true); // Reset on open or new search
-        setMatchStats({ commitCount: 0, occurrenceCount: 0 }); // Reset stats
-        try {
-          const initialCommits = await window.electronAPI.getCommitHistory(repository, 0, debouncedSearchQuery);
-          setCommits(initialCommits);
-          setHasMore(initialCommits.length === 100);
-
-          if (debouncedSearchQuery) {
-            let occurrences = 0;
-            const regex = new RegExp(debouncedSearchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
-            initialCommits.forEach(commit => {
-              occurrences += (commit.message.match(regex) || []).length;
-            });
-            setMatchStats({ commitCount: initialCommits.length, occurrenceCount: occurrences });
-          }
-        } catch (error) {
-          console.error(`Failed to load history for ${repository.name}:`, error);
-          setCommits([]);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchInitialHistory();
+    if (!isOpen || !repository) {
+      return;
     }
-  }, [isOpen, repository, debouncedSearchQuery]);
+
+    if (!debouncedSearchQuery && initialCommits) {
+      setIsLoading(false);
+      setCommits(initialCommits);
+      setHasMore(initialCommits.length === 100);
+      setMatchStats({ commitCount: initialCommits.length, occurrenceCount: 0 });
+      return;
+    }
+
+    const fetchInitialHistory = async () => {
+      setIsLoading(true);
+      setCommits([]);
+      setHasMore(true);
+      setMatchStats({ commitCount: 0, occurrenceCount: 0 });
+      try {
+        const fetchedCommits = await window.electronAPI.getCommitHistory(repository, 0, debouncedSearchQuery);
+        setCommits(fetchedCommits);
+        setHasMore(fetchedCommits.length === 100);
+
+        if (debouncedSearchQuery) {
+          let occurrences = 0;
+          const regex = new RegExp(debouncedSearchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+          fetchedCommits.forEach(commit => {
+            occurrences += (commit.message.match(regex) || []).length;
+          });
+          setMatchStats({ commitCount: fetchedCommits.length, occurrenceCount: occurrences });
+        }
+      } catch (error) {
+        console.error(`Failed to load history for ${repository.name}:`, error);
+        setCommits([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInitialHistory();
+  }, [isOpen, repository, debouncedSearchQuery, initialCommits]);
   
   // Reset search query when modal is closed
   useEffect(() => {

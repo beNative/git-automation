@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRepositoryManager } from './hooks/useRepositoryManager';
 // FIX: Add missing ReleaseInfo type to the import.
-import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category, ReleaseInfo, ShortcutPlatform } from './types';
+import type { Repository, GlobalSettings, AppView, Task, LogEntry, LocalPathState, Launchable, LaunchConfig, DetailedStatus, BranchInfo, UpdateStatusMessage, ToastMessage, Category, ReleaseInfo, ShortcutPlatform, Commit } from './types';
 import Dashboard from './components/Dashboard';
 import TitleBar from './components/Header';
 // FIX: RepoEditView is a default export, so it should be imported without curly braces.
@@ -227,7 +227,8 @@ const App: React.FC = () => {
   const [historyModal, setHistoryModal] = useState<{
     isOpen: boolean;
     repo: Repository | null;
-  }>({ isOpen: false, repo: null });
+    initialCommits: Commit[] | null;
+  }>({ isOpen: false, repo: null, initialCommits: null });
 
   const [confirmationModal, setConfirmationModal] = useState<{
     isOpen: boolean;
@@ -826,12 +827,45 @@ const App: React.FC = () => {
     openLogPanelForRepo(repoId, false);
   };
   
-  const handleViewHistory = useCallback((repoId: string) => {
+  const handleViewHistory = useCallback(async (repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
-    if (repo) {
-        setHistoryModal({ isOpen: true, repo });
+    if (!repo) {
+      logger.warn('Attempted to open history for unknown repository.', { repoId });
+      return;
     }
-  }, [repositories]);
+
+    let initialCommits: Commit[] | null = null;
+
+    if (localPathStates[repo.id] === 'valid') {
+      try {
+        await refreshRepoState(repoId);
+      } catch (error: any) {
+        logger.warn('Failed to refresh repository state before opening history modal.', {
+          repoId,
+          error: error?.message || error,
+        });
+      }
+
+      if (window.electronAPI?.getCommitHistory) {
+        try {
+          initialCommits = await window.electronAPI.getCommitHistory(repo, 0);
+        } catch (error: any) {
+          logger.error('Failed to prefetch commit history.', {
+            repoId,
+            error: error?.message || error,
+          });
+          setToast({ message: 'Failed to fetch commit history. Data may be outdated.', type: 'error' });
+        }
+      } else {
+        logger.warn('Commit history API is not available in the current environment.');
+      }
+    } else {
+      logger.warn('Cannot open history modal because repository path is not valid.', { repoId });
+      setToast({ message: 'Repository path is unavailable. Cannot load commit history.', type: 'error' });
+    }
+
+    setHistoryModal({ isOpen: true, repo, initialCommits });
+  }, [repositories, logger, localPathStates, refreshRepoState, setToast]);
 
   const handleRunLaunchable = useCallback(async (repo: Repository, launchable: Launchable) => {
       logger.info('Running launchable', { repoId: repo.id, launchable });
@@ -1294,7 +1328,8 @@ const App: React.FC = () => {
           <CommitHistoryModal
               isOpen={historyModal.isOpen}
               repository={historyModal.repo}
-              onClose={() => setHistoryModal({ isOpen: false, repo: null })}
+              initialCommits={historyModal.initialCommits}
+              onClose={() => setHistoryModal({ isOpen: false, repo: null, initialCommits: null })}
           />
           
           <ConfirmationModal
