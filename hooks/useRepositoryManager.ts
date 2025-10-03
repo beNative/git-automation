@@ -1,8 +1,7 @@
 
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import type { Repository, LogEntry, Task, GlobalSettings, TaskStep, GitRepository } from '../types';
 import { RepoStatus, BuildHealth, LogLevel, TaskStepType, VcsType } from '../types';
-import { createDiagnosticsScope, formatErrorForLogging } from '../diagnostics';
 
 // --- Simulation logic moved from the now-obsolete automationService ---
 const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -35,27 +34,10 @@ const substituteVariables = (command: string, variables: Task['variables'] = [])
 
 
 export const useRepositoryManager = ({ repositories, updateRepository }: { repositories: Repository[], updateRepository: (repo: Repository) => void }) => {
-  const instanceIdRef = useRef<string>();
-  if (!instanceIdRef.current) {
-    instanceIdRef.current = `RepositoryManager-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  }
-  const diagnostics = useMemo(
-    () => createDiagnosticsScope(instanceIdRef.current ?? 'RepositoryManager'),
-    [],
-  );
-  const renderCountRef = useRef(0);
-  renderCountRef.current += 1;
-  diagnostics.debug('Hook render cycle executed', { renderCount: renderCountRef.current, repositoryCount: repositories.length });
-
   const [logs, setLogs] = useState<Record<string, LogEntry[]>>({});
   const [isProcessing, setIsProcessing] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    diagnostics.debug('Tracked processing repositories updated', { ids: Array.from(isProcessing) });
-  }, [diagnostics, isProcessing]);
   
   const addLogEntry = useCallback((repoId: string, message: string, level: LogLevel) => {
-    diagnostics.debug('addLogEntry invoked', { repoId, level, message });
     const newEntry: LogEntry = {
       timestamp: new Date().toISOString(),
       message,
@@ -65,10 +47,9 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
       ...prevLogs,
       [repoId]: [...(prevLogs[repoId] || []), newEntry],
     }));
-  }, [diagnostics]);
+  }, []);
 
   const updateRepoStatus = useCallback((repoId: string, status: RepoStatus, buildHealth?: BuildHealth) => {
-    diagnostics.info('updateRepoStatus invoked', { repoId, status, buildHealth });
     const repoToUpdate = repositories.find(r => r.id === repoId);
     if (repoToUpdate) {
         updateRepository({
@@ -78,7 +59,7 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
             ...(buildHealth && { buildHealth }),
         });
     }
-  }, [repositories, updateRepository, diagnostics]);
+  }, [repositories, updateRepository]);
 
   const runTask = useCallback(async (
     repo: Repository,
@@ -86,11 +67,10 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
     settings: GlobalSettings,
     onDirty: (statusResult: { untrackedFiles: string[]; changedFiles: string[]; output: string; }) => Promise<'stash' | 'force' | 'cancel' | 'ignored_and_continue'>
   ) => {
-    diagnostics.info('runTask invoked', { repoId: repo.id, taskId: task.id, stepCount: task.steps.length });
     const taskExecutionId = `exec_${repo.id}_${task.id}_${Date.now()}`;
     const { id: repoId } = repo;
     setIsProcessing(prev => new Set(prev).add(repoId));
-
+    
     try {
       updateRepoStatus(repoId, RepoStatus.Syncing);
       addLogEntry(repoId, `Starting task: '${task.name}'...`, LogLevel.Info);
@@ -151,7 +131,6 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
       addLogEntry(repoId, `Task '${task.name}' completed successfully.`, LogLevel.Success);
       updateRepoStatus(repoId, RepoStatus.Success, BuildHealth.Healthy);
     } catch (error: any) {
-      diagnostics.error('runTask failed', formatErrorForLogging(error));
       if (error.message === 'cancelled') throw error;
       const errorMessage = error.message || 'An unknown error occurred.';
       addLogEntry(repoId, `Error during task '${task.name}': ${errorMessage}`, LogLevel.Error);
@@ -159,21 +138,19 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
       updateRepoStatus(repoId, RepoStatus.Failed, BuildHealth.Failing);
       throw error;
     } finally {
-      diagnostics.debug('runTask cleanup', { repoId, taskId: task.id });
       setIsProcessing(prev => {
         const newSet = new Set(prev);
         newSet.delete(repoId);
         return newSet;
       });
     }
-  }, [addLogEntry, updateRepoStatus, diagnostics]);
+  }, [addLogEntry, updateRepoStatus]);
 
   const cloneRepository = useCallback(async (repo: Repository) => {
-    diagnostics.info('cloneRepository invoked', { repoId: repo.id, remoteUrl: repo.remoteUrl });
     const executionId = `clone_${repo.id}_${Date.now()}`;
     const { id: repoId } = repo;
     setIsProcessing(prev => new Set(prev).add(repoId));
-
+    
     try {
       updateRepoStatus(repoId, RepoStatus.Syncing);
       addLogEntry(repoId, `Cloning repository from '${repo.remoteUrl}'...`, LogLevel.Info);
@@ -183,26 +160,23 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
       addLogEntry(repoId, `Repository cloned successfully.`, LogLevel.Success);
       updateRepoStatus(repoId, RepoStatus.Success, BuildHealth.Healthy);
     } catch (error: any) {
-      diagnostics.error('cloneRepository failed', formatErrorForLogging(error));
       const errorMessage = error.message || 'An unknown error occurred.';
       addLogEntry(repoId, `Error during clone: ${errorMessage}`, LogLevel.Error);
       updateRepoStatus(repoId, RepoStatus.Failed, BuildHealth.Failing);
       throw error;
     } finally {
-      diagnostics.debug('cloneRepository cleanup', { repoId });
       setIsProcessing(prev => {
         const newSet = new Set(prev);
         newSet.delete(repoId);
         return newSet;
       });
     }
-  }, [addLogEntry, updateRepoStatus, diagnostics]);
+  }, [addLogEntry, updateRepoStatus]);
 
   const launchApplication = useCallback(async (repo: Repository, command: string) => {
-      diagnostics.info('launchApplication invoked', { repoId: repo.id, command });
       const { id: repoId } = repo;
       if (!command) return;
-
+      
       addLogEntry(repoId, `Executing launch command: '${command}'...`, LogLevel.Command);
       try {
         const result = await window.electronAPI?.launchApplication({ repo, command });
@@ -214,13 +188,11 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
             if (result?.output) addLogEntry(repoId, result.output, LogLevel.Error);
         }
       } catch (e: any) {
-        diagnostics.error('launchApplication errored', formatErrorForLogging(e));
         addLogEntry(repoId, `Failed to invoke launch command: ${e.message}`, LogLevel.Error);
       }
-  }, [addLogEntry, diagnostics]);
+  }, [addLogEntry]);
 
   const launchExecutable = useCallback(async (repo: Repository, executablePath: string) => {
-      diagnostics.info('launchExecutable invoked', { repoId: repo.id, executablePath });
       const { id: repoId } = repo;
       addLogEntry(repoId, `Executing detected executable: '${executablePath}'...`, LogLevel.Command);
       try {
@@ -233,13 +205,11 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
             if (result?.output) addLogEntry(repoId, result.output, LogLevel.Error);
         }
       } catch (e: any) {
-        diagnostics.error('launchExecutable errored', formatErrorForLogging(e));
         addLogEntry(repoId, `Failed to launch executable: ${e.message}`, LogLevel.Error);
       }
-  }, [addLogEntry, diagnostics]);
+  }, [addLogEntry]);
   
   const clearLogs = (repoId: string) => {
-      diagnostics.debug('clearLogs invoked', { repoId });
       setLogs(prev => ({...prev, [repoId]: []}));
   };
 

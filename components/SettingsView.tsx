@@ -13,7 +13,6 @@ import { ClipboardDocumentIcon } from './icons/ClipboardDocumentIcon';
 import { KeyboardIcon } from './icons/KeyboardIcon';
 import KeyboardShortcutEditor from './settings/KeyboardShortcutEditor';
 import { createDefaultKeyboardShortcutSettings } from '../keyboardShortcuts';
-import { MIN_AUTO_CHECK_INTERVAL_SECONDS, MAX_AUTO_CHECK_INTERVAL_SECONDS } from '../constants';
 
 interface SettingsViewProps {
   onSave: (settings: GlobalSettings) => void;
@@ -273,26 +272,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
                     <label className="flex items-start gap-3"><input type="checkbox" name="simulationMode" checked={settings.simulationMode} onChange={handleChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/><div>Enable Simulation Mode<p className="text-xs text-gray-500">If enabled, no real commands are run.</p></div></label>
                     <label className="flex items-start gap-3"><input type="checkbox" name="allowPrerelease" checked={settings.allowPrerelease} onChange={handleChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/><div>Check for Pre-Releases<p className="text-xs text-gray-500">Include beta versions in auto-updates.</p></div></label>
                     <label className="flex items-start gap-3"><input type="checkbox" name="debugLogging" checked={settings.debugLogging} onChange={handleChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/><div>Enable Debug Logging<p className="text-xs text-gray-500">Verbose logging for troubleshooting.</p></div></label>
-                    <div className="space-y-2">
-                      <label className="flex items-start gap-3"><input type="checkbox" name="autoCheckRepoUpdates" checked={settings.autoCheckRepoUpdates} onChange={handleChange} className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"/><div>Automatically Check Repositories<p className="text-xs text-gray-500">Periodically refresh repository status information.</p></div></label>
-                      <label className="block">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Check Interval (seconds)</span>
-                        <input
-                          type="number"
-                          name="repoUpdateCheckInterval"
-                          min={MIN_AUTO_CHECK_INTERVAL_SECONDS}
-                          max={MAX_AUTO_CHECK_INTERVAL_SECONDS}
-                          value={settings.repoUpdateCheckInterval}
-                          onChange={handleChange}
-                          disabled={!settings.autoCheckRepoUpdates}
-                          className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-50 dark:bg-gray-900 disabled:opacity-60 disabled:cursor-not-allowed"
-                        />
-                        <p className="mt-1 text-xs text-gray-500">
-                          Disable automatic checks using the toggle above. Allowed range:{' '}
-                          {MIN_AUTO_CHECK_INTERVAL_SECONDS}-{MAX_AUTO_CHECK_INTERVAL_SECONDS} seconds.
-                        </p>
-                      </label>
-                    </div>
                 </div>
              </div>
 

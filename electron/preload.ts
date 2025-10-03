@@ -1,63 +1,12 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, Category, AppDataContextState, ReleaseInfo } from '../types';
-import { createDiagnosticsScope, formatErrorForLogging } from '../diagnostics';
 
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
 const logToRendererChannel = 'log-to-renderer';
-const diagnostics = createDiagnosticsScope('Preload');
 
-const sanitize = (value: unknown): unknown => {
-  if (value instanceof Error) {
-    return formatErrorForLogging(value);
-  }
-  if (typeof value === 'function') {
-    return '[Function]';
-  }
-  if (value && typeof value === 'object') {
-    try {
-      return JSON.parse(JSON.stringify(value));
-    } catch {
-      return { summary: '[Unserializable object]' };
-    }
-  }
-  return value;
-};
 
-const wrapApi = <T extends Record<string, any>>(api: T): T => {
-  const wrapped: Record<string, any> = {};
-  for (const [key, value] of Object.entries(api)) {
-    if (typeof value === 'function') {
-      wrapped[key] = ((...args: any[]) => {
-        diagnostics.debug(`electronAPI.${key} invoked`, { args: args.map(sanitize) });
-        try {
-          const result = value(...args);
-          if (result && typeof (result as Promise<unknown>).then === 'function') {
-            return (result as Promise<unknown>)
-              .then(res => {
-                diagnostics.debug(`electronAPI.${key} resolved`, { result: sanitize(res) });
-                return res;
-              })
-              .catch(error => {
-                diagnostics.error(`electronAPI.${key} rejected`, formatErrorForLogging(error));
-                throw error;
-              });
-          }
-          diagnostics.debug(`electronAPI.${key} returned`, { result: sanitize(result) });
-          return result;
-        } catch (error) {
-          diagnostics.error(`electronAPI.${key} threw`, formatErrorForLogging(error));
-          throw error;
-        }
-      }) as T[keyof T];
-    } else {
-      wrapped[key] = value;
-    }
-  }
-  return wrapped as T;
-};
-
-const rawElectronApi = {
+contextBridge.exposeInMainWorld('electronAPI', {
   // App Info
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version'),
   
@@ -173,9 +122,4 @@ const rawElectronApi = {
   getTaskLogPath: (): Promise<string> => ipcRenderer.invoke('get-task-log-path'),
   openTaskLogPath: () => ipcRenderer.invoke('open-task-log-path'),
   selectTaskLogPath: (): Promise<{ canceled: boolean, path: string | null }> => ipcRenderer.invoke('select-task-log-path'),
-};
-
-const electronApi = wrapApi(rawElectronApi);
-diagnostics.info('Exposing electronAPI to renderer', { methodCount: Object.keys(electronApi).length });
-
-contextBridge.exposeInMainWorld('electronAPI', electronApi);
+});

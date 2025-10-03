@@ -82,9 +82,9 @@ const TitleBar: React.FC<TitleBarProps> = ({
             <button
               {...checkUpdatesTooltip}
               onClick={onCheckAllForUpdates}
+              disabled={isCheckingAll}
               style={noDragStyle}
-              aria-disabled={isCheckingAll}
-              className={`flex items-center justify-center gap-1 rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-200 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-offset-gray-700 ${isCheckingAll ? 'opacity-70 cursor-progress' : ''}`}
+              className="flex items-center justify-center gap-1 rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-offset-gray-700"
             >
               <CloudArrowDownIcon className={`h-4 w-4 ${isCheckingAll ? 'animate-pulse' : ''}`} />
               <span className="hidden sm:inline">{isCheckingAll ? 'Checking…' : 'Check Updates'}</span>

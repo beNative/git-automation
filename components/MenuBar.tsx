@@ -39,9 +39,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ onNewRepo, activeView, onCheckAllForU
                 <button
                   {...checkUpdatesTooltip}
                   onClick={onCheckAllForUpdates}
-                  disabled={isEditing}
-                  aria-disabled={isCheckingAll}
-                  className={`flex items-center justify-center px-3 py-1.5 sm:px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isCheckingAll ? 'opacity-70 cursor-progress' : ''}`}
+                  disabled={isCheckingAll || isEditing}
+                  className="flex items-center justify-center px-3 py-1.5 sm:px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-800 focus:ring-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <CloudArrowDownIcon className={`h-5 w-5 mr-0 sm:mr-2 ${isCheckingAll ? 'animate-pulse' : ''}`} />
                   <span className="hidden sm:inline">{isCheckingAll ? 'Checking...' : 'Check Updates'}</span>

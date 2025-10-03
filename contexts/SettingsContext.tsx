@@ -2,9 +2,8 @@ import React, { createContext, useState, useCallback, ReactNode, useMemo, useEff
 // FIX: Import DropTarget type for DnD operations.
 import type { GlobalSettings, Repository, Category, DropTarget } from '../types';
 import { RepoStatus, BuildHealth, VcsType, TaskStepType } from '../types';
-import { MIN_AUTO_CHECK_INTERVAL_SECONDS, MAX_AUTO_CHECK_INTERVAL_SECONDS } from '../constants';
+import { useLogger } from '../hooks/useLogger';
 import { createDefaultKeyboardShortcutSettings, mergeKeyboardShortcutSettings } from '../keyboardShortcuts';
-import { createDiagnosticsScope, formatErrorForLogging } from '../diagnostics';
 
 interface AppDataContextState {
   settings: GlobalSettings;
@@ -44,17 +43,8 @@ const DEFAULTS: GlobalSettings = {
     zoomFactor: 1,
     saveTaskLogs: true,
     taskLogPath: '',
-    autoCheckRepoUpdates: false,
-    repoUpdateCheckInterval: 1800,
-    repoUpdateCheckIntervalUnit: 'seconds',
     keyboardShortcuts: createDefaultKeyboardShortcutSettings(),
 };
-
-const clampRepoUpdateInterval = (value: number) =>
-  Math.max(
-    MIN_AUTO_CHECK_INTERVAL_SECONDS,
-    Math.min(MAX_AUTO_CHECK_INTERVAL_SECONDS, Math.round(value || 0)),
-  );
 
 const initialState: AppDataContextState = {
   settings: DEFAULTS,
@@ -324,130 +314,50 @@ const categoryReducer = (state: CategoryState, action: CategoryAction): Category
 };
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const instanceIdRef = useRef<string>();
-  if (!instanceIdRef.current) {
-    instanceIdRef.current = `SettingsProvider-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  }
-
-  const diagnostics = useMemo(
-    () => createDiagnosticsScope(instanceIdRef.current ?? 'SettingsProvider'),
-    [],
-  );
-
-  const renderCountRef = useRef(0);
-  renderCountRef.current += 1;
-  diagnostics.debug('Render cycle executed', { renderCount: renderCountRef.current });
-
+  const logger = useLogger();
   const [settings, setSettings] = useState<GlobalSettings>(DEFAULTS);
   const [repositories, setRepositories] = useState<Repository[]>([]);
-
+  
   // FIX: Use a single reducer for all category/order state.
-  const [categoryState, categoryDispatch] = useReducer(categoryReducer, { categories: [], uncategorizedOrder: [] });
-  const dispatch = useCallback((action: CategoryAction) => {
-    diagnostics.debug('Category reducer dispatch', action);
-    categoryDispatch(action);
-  }, [categoryDispatch, diagnostics]);
+  const [categoryState, dispatch] = useReducer(categoryReducer, { categories: [], uncategorizedOrder: [] });
   const { categories, uncategorizedOrder } = categoryState;
-
+  
   const [isLoading, setIsLoading] = useState(true);
   const isInitialLoad = useRef(true);
 
-  useEffect(() => {
-    diagnostics.info('SettingsProvider mounted');
-    return () => diagnostics.info('SettingsProvider unmounted');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    diagnostics.debug('Settings state changed', settings);
-  }, [diagnostics, settings]);
-
-  useEffect(() => {
-    diagnostics.debug('Repositories state changed', { count: repositories.length, ids: repositories.map(repo => repo.id) });
-  }, [diagnostics, repositories]);
-
-  useEffect(() => {
-    diagnostics.debug('Category state changed', {
-      categoryCount: categories.length,
-      uncategorizedCount: uncategorizedOrder.length,
-    });
-  }, [diagnostics, categories, uncategorizedOrder]);
-
-  useEffect(() => {
-    diagnostics.debug('Loading flag changed', { isLoading });
-  }, [diagnostics, isLoading]);
-
   // Load all data from main process on startup
   useEffect(() => {
-    diagnostics.info('Requesting persisted state from main process');
     if (window.electronAPI?.getAllData) {
-      window.electronAPI
-        .getAllData()
-        .then(data => {
-          diagnostics.info('Received persisted state payload', {
-            hasGlobalSettings: Boolean(data.globalSettings),
-            repositoryCount: data.repositories?.length ?? 0,
-            categoryCount: data.categories?.length ?? 0,
-          });
-          const loadedSettings = data.globalSettings
-            ? { ...DEFAULTS, ...data.globalSettings }
-            : { ...DEFAULTS, keyboardShortcuts: createDefaultKeyboardShortcutSettings() };
-          loadedSettings.keyboardShortcuts = mergeKeyboardShortcutSettings(
-            data.globalSettings?.keyboardShortcuts ?? loadedSettings.keyboardShortcuts,
-          );
-
-          const hasSecondsUnit = !!data.globalSettings && 'repoUpdateCheckIntervalUnit' in data.globalSettings;
-          if (!hasSecondsUnit && data.globalSettings?.repoUpdateCheckInterval !== undefined) {
-            diagnostics.debug('Migrating repoUpdateCheckInterval from minutes to seconds');
-            loadedSettings.repoUpdateCheckInterval = clampRepoUpdateInterval(
-              loadedSettings.repoUpdateCheckInterval * 60,
-            );
-          } else {
-            loadedSettings.repoUpdateCheckInterval = clampRepoUpdateInterval(
-              loadedSettings.repoUpdateCheckInterval,
-            );
-          }
-          loadedSettings.repoUpdateCheckIntervalUnit = 'seconds';
+      window.electronAPI.getAllData().then(data => {
+          const loadedSettings = data.globalSettings ? { ...DEFAULTS, ...data.globalSettings } : { ...DEFAULTS, keyboardShortcuts: createDefaultKeyboardShortcutSettings() };
+          loadedSettings.keyboardShortcuts = mergeKeyboardShortcutSettings(data.globalSettings?.keyboardShortcuts ?? loadedSettings.keyboardShortcuts);
           const migratedRepos = migrateRepositories(data.repositories || [], loadedSettings);
-          diagnostics.debug('Repository migration completed', {
-            originalCount: data.repositories?.length ?? 0,
-            migratedCount: migratedRepos.length,
-          });
-
+          
           setSettings(loadedSettings);
           setRepositories(migratedRepos);
           // FIX: Dispatch a single action to set initial state atomically.
           dispatch({ type: 'SET_ALL_DATA', payload: { categories: data.categories || [], uncategorizedOrder: data.uncategorizedOrder || [] }});
-          diagnostics.info('Renderer state hydrated from main process', {
-            repositoryCount: migratedRepos.length,
-            categoryCount: (data.categories || []).length,
-            hasUncategorizedOrder: Boolean(data.uncategorizedOrder && data.uncategorizedOrder.length),
-          });
           setIsLoading(false);
-        })
-        .catch(error => {
-          diagnostics.error('Failed to load app data, using defaults.', formatErrorForLogging(error));
+      }).catch(e => {
+          console.error("Failed to load app data, using defaults.", e);
           setIsLoading(false);
-        });
+      });
     } else {
-      diagnostics.warn('Electron API not found. Using default settings.');
+      console.warn("Electron API not found. Running in browser mode or preload script failed. Using default settings.");
       setIsLoading(false);
     }
-  }, [dispatch, diagnostics]);
+  }, []);
 
   // Save all data back to main process when it changes
   useEffect(() => {
     if (isLoading || isInitialLoad.current) {
         if (!isLoading) {
-            diagnostics.debug('Initial load completed, enabling persistence');
             isInitialLoad.current = false;
         }
         return;
     };
 
-    diagnostics.debug('Scheduling persistence of app data');
     const handler = setTimeout(() => {
-        diagnostics.info('Persisting app data to main process');
         window.electronAPI?.saveAllData({
             globalSettings: settings,
             repositories: repositories,
@@ -456,22 +366,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         });
     }, 1000);
 
-    return () => {
-        diagnostics.debug('Clearing pending persistence timer');
-        clearTimeout(handler);
-    };
-  }, [settings, repositories, categories, uncategorizedOrder, isLoading, diagnostics]);
+    return () => clearTimeout(handler);
+  }, [settings, repositories, categories, uncategorizedOrder, isLoading]);
 
   const saveSettings = useCallback((newSettings: GlobalSettings) => {
-    diagnostics.info('saveSettings invoked', newSettings);
-    setSettings(prev => ({
-      ...prev,
-      ...newSettings,
-      repoUpdateCheckInterval: clampRepoUpdateInterval(newSettings.repoUpdateCheckInterval),
-      repoUpdateCheckIntervalUnit: 'seconds',
-    }));
-  }, [diagnostics]);
-
+    setSettings(newSettings);
+  }, []);
+  
   const addRepository = useCallback((repoData: Omit<Repository, 'id' | 'status' | 'lastUpdated' | 'buildHealth'>, categoryId?: string) => {
     const newRepo: Repository = {
       id: `repo_${Date.now()}`,
@@ -480,67 +381,56 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       buildHealth: BuildHealth.Unknown,
       ...repoData
     } as Repository;
-    diagnostics.info('addRepository invoked', { repo: newRepo, categoryId });
     setRepositories(prev => [...prev, newRepo]);
     dispatch({ type: 'ADD_REPOSITORY', payload: { repoId: newRepo.id, categoryId } });
-  }, [dispatch, diagnostics]);
-
+  }, []);
+  
   const updateRepository = useCallback((updatedRepo: Repository) => {
-    diagnostics.info('updateRepository invoked', { repoId: updatedRepo.id });
     setRepositories(prev => prev.map(repo => (repo.id === updatedRepo.id ? updatedRepo : repo)));
-  }, [diagnostics]);
-
+  }, []);
+  
   const deleteRepository = useCallback((repoId: string) => {
-    diagnostics.info('deleteRepository invoked', { repoId });
     setRepositories(prev => prev.filter(repo => repo.id !== repoId));
     dispatch({ type: 'DELETE_REPOSITORY', payload: { repoId } });
-  }, [dispatch, diagnostics]);
+  }, []);
 
   const addCategory = useCallback((name: string) => {
-    diagnostics.info('addCategory invoked', { name });
     dispatch({ type: 'ADD_CATEGORY', payload: { name } });
-  }, [dispatch, diagnostics]);
+  }, []);
 
   const updateCategory = useCallback((updatedCategory: Category) => {
-    diagnostics.info('updateCategory invoked', { categoryId: updatedCategory.id });
     dispatch({ type: 'UPDATE_CATEGORY', payload: { category: updatedCategory } });
-  }, [dispatch, diagnostics]);
+  }, []);
 
   const deleteCategory = useCallback((categoryId: string) => {
-    diagnostics.info('deleteCategory invoked', { categoryId });
     dispatch({ type: 'DELETE_CATEGORY', payload: { categoryId } });
-  }, [dispatch, diagnostics]);
+  }, []);
 
   // FIX: Refactor moveRepositoryToCategory to dispatch an action to the central reducer.
   const moveRepositoryToCategory = useCallback((repoId: string, sourceId: string | 'uncategorized', target: DropTarget) => {
-    diagnostics.debug('moveRepositoryToCategory invoked', { repoId, sourceId, target });
+    logger.debug(`[DnD] Dispatching MOVE_REPOSITORY_DND`, { repoId, sourceId, target });
     dispatch({ type: 'MOVE_REPOSITORY_DND', payload: { repoId, sourceId, target } });
-  }, [dispatch, diagnostics]);
+  }, [logger]);
 
   const moveRepository = useCallback((repoId: string, direction: 'up' | 'down') => {
-    diagnostics.debug('moveRepository invoked', { repoId, direction });
     dispatch({ type: 'MOVE_REPOSITORY_BUTTONS', payload: { repoId, direction } });
-  }, [dispatch, diagnostics]);
+  }, []);
 
   const toggleCategoryCollapse = useCallback((categoryId: string) => {
-    diagnostics.debug('toggleCategoryCollapse invoked', { categoryId });
     dispatch({ type: 'TOGGLE_CATEGORY_COLLAPSE', payload: { categoryId } });
-  }, [dispatch, diagnostics]);
+  }, []);
   
   const toggleAllCategoriesCollapse = useCallback(() => {
-    diagnostics.debug('toggleAllCategoriesCollapse invoked');
     dispatch({ type: 'TOGGLE_ALL_CATEGORIES_COLLAPSE' });
-  }, [dispatch, diagnostics]);
-
+  }, []);
+  
   const moveCategory = useCallback((categoryId: string, direction: 'up' | 'down') => {
-    diagnostics.debug('moveCategory invoked', { categoryId, direction });
     dispatch({ type: 'MOVE_CATEGORY', payload: { categoryId, direction } });
-  }, [dispatch, diagnostics]);
+  }, []);
 
   const reorderCategories = useCallback((draggedId: string, targetId: string, position: 'before' | 'after') => {
-    diagnostics.debug('reorderCategories invoked', { draggedId, targetId, position });
     dispatch({ type: 'REORDER_CATEGORIES', payload: { draggedId, targetId, position } });
-  }, [dispatch, diagnostics]);
+  }, []);
 
   const value = useMemo(() => ({
     settings,

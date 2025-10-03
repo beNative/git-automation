@@ -9,7 +9,6 @@ import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 import JSZip from 'jszip';
 import { createDefaultKeyboardShortcutSettings, mergeKeyboardShortcutSettings } from '../keyboardShortcuts';
-import { MIN_AUTO_CHECK_INTERVAL_SECONDS, MAX_AUTO_CHECK_INTERVAL_SECONDS } from '../constants';
 
 
 declare const require: (id: string) => any;
@@ -107,17 +106,8 @@ const DEFAULTS: GlobalSettings = {
     zoomFactor: 1,
     saveTaskLogs: true,
     taskLogPath: '',
-    autoCheckRepoUpdates: false,
-    repoUpdateCheckInterval: 1800,
-    repoUpdateCheckIntervalUnit: 'seconds',
     keyboardShortcuts: createDefaultKeyboardShortcutSettings(),
 };
-
-const clampRepoUpdateInterval = (value: number) =>
-  Math.max(
-    MIN_AUTO_CHECK_INTERVAL_SECONDS,
-    Math.min(MAX_AUTO_CHECK_INTERVAL_SECONDS, Math.round(value || 0)),
-  );
 
 async function readSettings(): Promise<GlobalSettings> {
     if (globalSettingsCache) {
@@ -129,13 +119,6 @@ async function readSettings(): Promise<GlobalSettings> {
         if (parsedData && parsedData.globalSettings) {
             const settings = { ...DEFAULTS, ...parsedData.globalSettings };
             settings.keyboardShortcuts = mergeKeyboardShortcutSettings(parsedData.globalSettings.keyboardShortcuts ?? settings.keyboardShortcuts);
-            const hasSecondsUnit = 'repoUpdateCheckIntervalUnit' in parsedData.globalSettings;
-            if (!hasSecondsUnit && parsedData.globalSettings.repoUpdateCheckInterval !== undefined) {
-                settings.repoUpdateCheckInterval = clampRepoUpdateInterval(settings.repoUpdateCheckInterval * 60);
-            } else {
-                settings.repoUpdateCheckInterval = clampRepoUpdateInterval(settings.repoUpdateCheckInterval);
-            }
-            settings.repoUpdateCheckIntervalUnit = 'seconds';
             globalSettingsCache = settings;
             return settings;
         }
@@ -148,7 +131,6 @@ async function readSettings(): Promise<GlobalSettings> {
 }
 
 const createWindow = () => {
-  mainLogger.info('Creating main BrowserWindow instance');
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -166,22 +148,18 @@ const createWindow = () => {
 
   // Load the index.html of the app.
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
-  mainLogger.info('Main window load initiated', { url: path.join(__dirname, 'index.html') });
-
+  
   // Add listeners to notify renderer of maximize status
   mainWindow.on('maximize', () => {
-    mainLogger.debug('Main window maximized');
     mainWindow?.webContents.send('window-maximized-status', true);
   });
   mainWindow.on('unmaximize', () => {
-    mainLogger.debug('Main window unmaximized');
     mainWindow?.webContents.send('window-maximized-status', false);
   });
 
 
   // Open the DevTools if not in production
   if (process.env.NODE_ENV !== 'production') {
-    mainLogger.info('Opening devtools (non-production mode)');
     mainWindow.webContents.openDevTools();
   }
 };
@@ -189,7 +167,6 @@ const createWindow = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.on('ready', async () => {
-  mainLogger.info('Electron app ready event received');
   // Run migration before anything else that might access settings.
   await migrateSettingsIfNeeded();
   
@@ -198,11 +175,9 @@ app.on('ready', async () => {
   fs.mkdir(logDir, { recursive: true }).catch(err => {
       mainLogger.error("Could not create logs directory.", err);
   });
-  mainLogger.debug('Logs directory ensured', { logDir });
   createWindow();
-
+  
   const settings = await readSettings();
-  mainLogger.debug('Settings loaded on startup', settings);
 
   // --- Auto-updater logic ---
   if (app.isPackaged) {
@@ -242,7 +217,6 @@ app.on('ready', async () => {
 
 // Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', () => {
-  mainLogger.info('All windows closed');
   if (logStream) {
     logStream.write(`--- Log session ended by app quit at ${new Date().toISOString()} ---\n`);
     logStream.end();
@@ -251,7 +225,6 @@ app.on('window-all-closed', () => {
   taskLogStreams.forEach(stream => stream.end());
   taskLogStreams.clear();
   if (platform() !== 'darwin') {
-    mainLogger.info('Quitting app due to all windows closed and non-macOS platform');
     app.quit();
   }
 });
@@ -266,15 +239,12 @@ app.on('activate', () => {
 
 // --- IPC handlers for window controls ---
 ipcMain.on('window-close', () => {
-  mainLogger.info('Received window-close IPC event');
   mainWindow?.close();
 });
 ipcMain.on('window-minimize', () => {
-  mainLogger.info('Received window-minimize IPC event');
   mainWindow?.minimize();
 });
 ipcMain.on('window-maximize', () => {
-  mainLogger.info('Received window-maximize IPC event');
   if (mainWindow?.isMaximized()) {
     mainWindow.unmaximize();
   } else {
@@ -285,20 +255,17 @@ ipcMain.on('window-maximize', () => {
 
 // --- IPC Handler for fetching app version ---
 ipcMain.handle('get-app-version', () => {
-  mainLogger.debug('Handling get-app-version request');
   return app.getVersion();
 });
 
 // --- IPC handler to trigger restart & update ---
 ipcMain.on('restart-and-install-update', () => {
-  mainLogger.info('IPC restart-and-install-update received');
   autoUpdater.quitAndInstall();
 });
 
 
 // --- IPC Handlers for Settings ---
 ipcMain.handle('get-all-data', async (): Promise<AppDataContextState> => {
-  mainLogger.debug('Handling get-all-data request');
   try {
     const data = await fs.readFile(settingsPath, 'utf-8');
     const parsedData = JSON.parse(data);
@@ -330,7 +297,6 @@ ipcMain.handle('get-all-data', async (): Promise<AppDataContextState> => {
 });
 
 ipcMain.on('save-all-data', async (event, data: AppDataContextState) => {
-    mainLogger.debug('Handling save-all-data IPC event', { repositoryCount: data.repositories.length, categoryCount: data.categories.length });
     try {
         await fs.mkdir(userDataPath, { recursive: true });
         await fs.writeFile(settingsPath, JSON.stringify(data, null, 2));
