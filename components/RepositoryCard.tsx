@@ -19,6 +19,7 @@ import { TerminalIcon } from './icons/TerminalIcon';
 import { StatusIndicator } from './StatusIndicator';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { MagnifyingGlassIcon } from './icons/MagnifyingGlassIcon';
+import { HomeIcon } from './icons/HomeIcon';
 import { ClockIcon } from './icons/ClockIcon';
 import { useTooltip } from '../hooks/useTooltip';
 import { TooltipContext } from '../contexts/TooltipContext';
@@ -105,6 +106,7 @@ const BranchSwitcher: React.FC<{
     const branchSearchTooltip = useTooltip(
         isRefreshingBranches ? 'Refreshing branches…' : 'Search all branches'
     );
+    const switchToMainTooltip = useTooltip('Switch to main branch');
 
     useEffect(() => {
         if (isOpen && buttonRef.current) {
@@ -214,6 +216,22 @@ const BranchSwitcher: React.FC<{
         </div>
     );
 
+    const MAIN_BRANCH_NAME = 'main';
+    const remoteMainBranch = remoteBranches.find(remoteBranch => {
+        const localEquivalent = remoteBranch.split('/').slice(1).join('/');
+        return localEquivalent === MAIN_BRANCH_NAME;
+    });
+    const checkoutTargetForMain = localBranches.includes(MAIN_BRANCH_NAME)
+        ? MAIN_BRANCH_NAME
+        : remoteMainBranch;
+    const canSwitchToMain = Boolean(checkoutTargetForMain) && currentBranch !== MAIN_BRANCH_NAME;
+
+    const handleSwitchToMain = () => {
+        if (!checkoutTargetForMain) return;
+        onSwitchBranch(repoId, checkoutTargetForMain);
+        onClose();
+    };
+
     return (
         <div className="flex items-center gap-1">
             <div className="min-w-0 flex-1">
@@ -231,6 +249,17 @@ const BranchSwitcher: React.FC<{
                     <ChevronDownIcon className={`ml-1 -mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
             </div>
+            {canSwitchToMain && (
+                <button
+                    {...switchToMainTooltip}
+                    type="button"
+                    onClick={handleSwitchToMain}
+                    className="flex-shrink-0 p-1.5 rounded-md text-gray-500 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Switch to main branch"
+                >
+                    <HomeIcon className="h-4 w-4" />
+                </button>
+            )}
             <button
                 {...branchSearchTooltip}
                 type="button"
