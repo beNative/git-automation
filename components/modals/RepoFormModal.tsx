@@ -1167,6 +1167,12 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [newBranchName, setNewBranchName] = useState('');
   const [branchToMerge, setBranchToMerge] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<{ name: string; scope: 'local' | 'remote' } | null>(null);
+  const [branchFilter, setBranchFilter] = useState('');
+  const [debouncedBranchFilter, setDebouncedBranchFilter] = useState('');
+  const branchItemRefs = useRef<{ local: Map<string, HTMLDivElement>; remote: Map<string, HTMLDivElement> }>({
+    local: new Map<string, HTMLDivElement>(),
+    remote: new Map<string, HTMLDivElement>(),
+  });
 
   // State for Releases Tab
   const [releases, setReleases] = useState<ReleaseInfo[] | null>(null);
@@ -1188,6 +1194,35 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }, 300);
     return () => clearTimeout(handler);
   }, [historySearch]);
+
+  // Debounce branch search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+        setDebouncedBranchFilter(branchFilter);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [branchFilter]);
+
+  const normalizedBranchFilter = debouncedBranchFilter.trim().toLowerCase();
+  const filteredLocalBranches = useMemo(() => {
+    const localBranches = branchInfo?.local ?? [];
+    if (!normalizedBranchFilter) return localBranches;
+    return localBranches.filter(branch => branch.toLowerCase().includes(normalizedBranchFilter));
+  }, [branchInfo?.local, normalizedBranchFilter]);
+
+  const filteredRemoteBranches = useMemo(() => {
+    const remoteBranches = branchInfo?.remote ?? [];
+    if (!normalizedBranchFilter) return remoteBranches;
+    return remoteBranches.filter(branch => branch.toLowerCase().includes(normalizedBranchFilter));
+  }, [branchInfo?.remote, normalizedBranchFilter]);
+
+  useEffect(() => {
+    if (!selectedBranch) return;
+    const branches = selectedBranch.scope === 'local' ? filteredLocalBranches : filteredRemoteBranches;
+    if (!branches.includes(selectedBranch.name)) {
+        setSelectedBranch(null);
+    }
+  }, [selectedBranch, filteredLocalBranches, filteredRemoteBranches]);
 
   const fetchHistory = useCallback(async (loadMore = false) => {
     if (!repository) return;
@@ -1558,12 +1593,63 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   }, [branchInfo?.current]);
 
+  const setBranchItemRef = useCallback((scope: 'local' | 'remote', branchName: string, element: HTMLDivElement | null) => {
+    const scopeMap = branchItemRefs.current[scope];
+    if (!scopeMap) {
+        return;
+    }
+    if (element) {
+        scopeMap.set(branchName, element);
+    } else {
+        scopeMap.delete(branchName);
+    }
+  }, []);
+
+  const focusBranchItem = useCallback((scope: 'local' | 'remote', branchName: string) => {
+    const scopeMap = branchItemRefs.current[scope];
+    const element = scopeMap?.get(branchName);
+    element?.focus();
+  }, []);
+
   const handleBranchKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>, branchName: string, scope: 'local' | 'remote') => {
     if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         handleSelectBranch(branchName, scope);
+        return;
     }
-  }, [handleSelectBranch]);
+
+    const scopedBranches = scope === 'local' ? filteredLocalBranches : filteredRemoteBranches;
+    if (!scopedBranches.length) {
+        return;
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const currentIndex = scopedBranches.findIndex(branch => branch === branchName);
+        const delta = event.key === 'ArrowDown' ? 1 : -1;
+        const nextIndex = (() => {
+            if (currentIndex === -1) {
+                return event.key === 'ArrowDown' ? 0 : scopedBranches.length - 1;
+            }
+            return Math.min(scopedBranches.length - 1, Math.max(0, currentIndex + delta));
+        })();
+        const nextBranch = scopedBranches[nextIndex];
+        if (nextBranch) {
+            handleSelectBranch(nextBranch, scope);
+            requestAnimationFrame(() => focusBranchItem(scope, nextBranch));
+        }
+        return;
+    }
+
+    if (event.key === 'Home' || event.key === 'End') {
+        event.preventDefault();
+        const targetBranch = event.key === 'Home' ? scopedBranches[0] : scopedBranches[scopedBranches.length - 1];
+        if (targetBranch) {
+            handleSelectBranch(targetBranch, scope);
+            requestAnimationFrame(() => focusBranchItem(scope, targetBranch));
+        }
+    }
+  }, [filteredLocalBranches, filteredRemoteBranches, focusBranchItem, handleSelectBranch]);
   
   const handleDiscoverRemote = useCallback(async () => {
     const currentLocalPath = formData.localPath;
@@ -1780,11 +1866,20 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 <p className="text-sm">
                                     Current branch: <span className="font-bold font-mono text-blue-600 dark:text-blue-400">{branchInfo?.current}</span>
                                 </p>
+                                <div className="max-w-md">
+                                    <input
+                                        type="text"
+                                        value={branchFilter}
+                                        onChange={event => setBranchFilter(event.target.value)}
+                                        placeholder="Filter branches"
+                                        className={formInputStyle}
+                                    />
+                                </div>
                                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden">
                                     <div className="flex flex-col min-h-0">
                                         <h4 className="font-semibold mb-2 flex-shrink-0">Local Branches</h4>
                                         <ul className="flex-1 overflow-y-auto space-y-2 pr-1">
-                                            {(branchInfo?.local || []).map(b => {
+                                            {filteredLocalBranches.map(b => {
                                                 const isCurrent = b === branchInfo?.current;
                                                 const isSelected = selectedBranch?.scope === 'local' && selectedBranch.name === b;
                                                 return (
@@ -1795,10 +1890,13 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                             aria-selected={isSelected}
                                                             onClick={() => handleSelectBranch(b, 'local')}
                                                             onKeyDown={(event) => handleBranchKeyDown(event, b, 'local')}
-                                                            className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isSelected ? 'border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-900/40 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                                                            ref={element => setBranchItemRef('local', b, element)}
+                                                            className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-0 ${isSelected ? 'border-transparent bg-blue-100 text-blue-900 dark:bg-blue-900/50 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                                                         >
                                                             <div className="flex items-center gap-2">
-                                                                <span className="font-mono text-sm break-all">{b}</span>
+                                                                <span className="font-mono text-sm break-all">
+                                                                    <HighlightedText text={b} highlight={debouncedBranchFilter} />
+                                                                </span>
                                                                 {isCurrent && <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200">Current</span>}
                                                             </div>
                                                             {b !== branchInfo?.current && (
@@ -1822,7 +1920,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                     <div className="flex flex-col min-h-0">
                                         <h4 className="font-semibold mb-2 flex-shrink-0">Remote Branches</h4>
                                         <ul className="flex-1 overflow-y-auto space-y-2 pr-1">
-                                            {(branchInfo?.remote || []).map(b => {
+                                            {filteredRemoteBranches.map(b => {
                                                 const isSelected = selectedBranch?.scope === 'remote' && selectedBranch.name === b;
                                                 return (
                                                     <li key={b}>
@@ -1832,9 +1930,12 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                             aria-selected={isSelected}
                                                             onClick={() => handleSelectBranch(b, 'remote')}
                                                             onKeyDown={(event) => handleBranchKeyDown(event, b, 'remote')}
-                                                            className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isSelected ? 'border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-900/40 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                                                            ref={element => setBranchItemRef('remote', b, element)}
+                                                            className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-0 ${isSelected ? 'border-transparent bg-blue-100 text-blue-900 dark:bg-blue-900/50 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                                                         >
-                                                            <span className="font-mono text-sm break-all">{b}</span>
+                                                            <span className="font-mono text-sm break-all">
+                                                                <HighlightedText text={b} highlight={debouncedBranchFilter} />
+                                                            </span>
                                                             <button
                                                                 type="button"
                                                                 onClick={(event) => {
