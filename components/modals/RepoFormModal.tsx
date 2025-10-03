@@ -1167,12 +1167,24 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [newBranchName, setNewBranchName] = useState('');
   const [branchToMerge, setBranchToMerge] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<{ name: string; scope: 'local' | 'remote' } | null>(null);
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [branchFilter, setBranchFilter] = useState('');
   const [debouncedBranchFilter, setDebouncedBranchFilter] = useState('');
   const branchItemRefs = useRef<{ local: Map<string, HTMLDivElement>; remote: Map<string, HTMLDivElement> }>({
     local: new Map<string, HTMLDivElement>(),
     remote: new Map<string, HTMLDivElement>(),
   });
+
+  const normalizedSelectedBranchName = useMemo(() => {
+    if (!selectedBranch) {
+        return '';
+    }
+    if (selectedBranch.scope === 'remote') {
+        const segments = selectedBranch.name.split('/').slice(1);
+        return segments.join('/') || selectedBranch.name;
+    }
+    return selectedBranch.name;
+  }, [selectedBranch]);
 
   // State for Releases Tab
   const [releases, setReleases] = useState<ReleaseInfo[] | null>(null);
@@ -1611,6 +1623,44 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     element?.focus();
   }, []);
 
+  const handleCheckoutBranch = useCallback(async () => {
+    if (!repository || !selectedBranch) {
+        return;
+    }
+
+    const currentBranch = branchInfo?.current;
+    const focusTarget = normalizedSelectedBranchName || selectedBranch.name;
+    const checkoutLabel = selectedBranch.name;
+
+    if (currentBranch && normalizedSelectedBranchName && normalizedSelectedBranchName === currentBranch) {
+        setToast({ message: `Already on '${currentBranch}'.`, type: 'info' });
+        return;
+    }
+
+    setIsCheckoutLoading(true);
+    const checkoutTarget = selectedBranch.name;
+
+    try {
+        const result = await window.electronAPI?.checkoutBranch(repository.localPath, checkoutTarget);
+        if (result?.success) {
+            setToast({ message: `Checked out '${checkoutLabel}'.`, type: 'success' });
+            await fetchBranches();
+            await onRefreshState(repository.id);
+            setBranchToMerge('');
+            setSelectedBranch(null);
+            if (focusTarget) {
+                requestAnimationFrame(() => focusBranchItem('local', focusTarget));
+            }
+        } else {
+            setToast({ message: `Checkout failed: ${result?.error || 'Electron API not available.'}`, type: 'error' });
+        }
+    } catch (error: any) {
+        setToast({ message: `Checkout failed: ${error.message}`, type: 'error' });
+    } finally {
+        setIsCheckoutLoading(false);
+    }
+  }, [repository, selectedBranch, branchInfo?.current, normalizedSelectedBranchName, setToast, fetchBranches, onRefreshState, focusBranchItem]);
+
   const handleBranchKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>, branchName: string, scope: 'local' | 'remote') => {
     if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
@@ -1853,7 +1903,12 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                     </div>
                 </div>
             );
-        case 'branches':
+        case 'branches': {
+            const isCurrentSelection = Boolean(normalizedSelectedBranchName && branchInfo?.current && normalizedSelectedBranchName === branchInfo.current);
+            const checkoutDisabled = !selectedBranch || isCheckoutLoading || branchesLoading || isCurrentSelection;
+            const selectionDescription = selectedBranch
+                ? `${selectedBranch.scope === 'remote' ? 'Remote' : 'Local'} branch: ${selectedBranch.name}`
+                : 'Select a branch to checkout.';
             return (
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
@@ -1953,24 +2008,37 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                         </ul>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 mt-2 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-                                    <div>
-                                        <h4 className="font-semibold mb-2">Create New Branch</h4>
-                                        <div className="flex gap-2">
-                                            <input type="text" value={newBranchName} onChange={e => setNewBranchName(e.target.value)} placeholder="new-branch-name" className={formInputStyle}/>
-                                            <button type="button" onClick={handleCreateBranch} className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create</button>
-                                        </div>
+                                <div className="pt-4 mt-2 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-4 flex-shrink-0">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <p className="text-sm text-gray-600 dark:text-gray-300">{selectionDescription}</p>
+                                        <button
+                                            type="button"
+                                            onClick={handleCheckoutBranch}
+                                            disabled={checkoutDisabled}
+                                            className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed ${isCheckoutLoading ? 'cursor-wait' : ''}`}
+                                        >
+                                            {isCheckoutLoading ? 'Checking out...' : 'Checkout'}
+                                        </button>
                                     </div>
-                                    <div>
-                                        <h4 className="font-semibold mb-2">Merge Branch into Current</h4>
-                                        <div className="flex gap-2">
-                                            <select value={branchToMerge || ''} onChange={e => setBranchToMerge(e.target.value)} className={formInputStyle}>
-                                                <option value="" disabled>Select a branch</option>
-                                                {(branchInfo?.local || []).filter(b => b !== branchInfo?.current).map(b => (
-                                                    <option key={b} value={b}>{b}</option>
-                                                ))}
-                                            </select>
-                                            <button type="button" onClick={handleMergeBranch} className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700">Merge</button>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <h4 className="font-semibold mb-2">Create New Branch</h4>
+                                            <div className="flex gap-2">
+                                                <input type="text" value={newBranchName} onChange={e => setNewBranchName(e.target.value)} placeholder="new-branch-name" className={formInputStyle}/>
+                                                <button type="button" onClick={handleCreateBranch} className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create</button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h4 className="font-semibold mb-2">Merge Branch into Current</h4>
+                                            <div className="flex gap-2">
+                                                <select value={branchToMerge || ''} onChange={e => setBranchToMerge(e.target.value)} className={formInputStyle}>
+                                                    <option value="" disabled>Select a branch</option>
+                                                    {(branchInfo?.local || []).filter(b => b !== branchInfo?.current).map(b => (
+                                                        <option key={b} value={b}>{b}</option>
+                                                    ))}
+                                                </select>
+                                                <button type="button" onClick={handleMergeBranch} className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700">Merge</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1979,6 +2047,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                     </div>
                 </div>
             );
+        }
         case 'releases':
             if (!isGitHubRepo) return <div className="p-4 text-center text-gray-500">Release management is only available for repositories hosted on GitHub.</div>;
             if (editingRelease) {
