@@ -19,6 +19,7 @@ import { TerminalIcon } from './icons/TerminalIcon';
 import { StatusIndicator } from './StatusIndicator';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { MagnifyingGlassIcon } from './icons/MagnifyingGlassIcon';
+import { HomeIcon } from './icons/HomeIcon';
 import { ClockIcon } from './icons/ClockIcon';
 import { useTooltip } from '../hooks/useTooltip';
 import { TooltipContext } from '../contexts/TooltipContext';
@@ -68,6 +69,8 @@ interface RepositoryCardProps {
   activeDropdown: string | null;
   setActiveDropdown: (id: string | null) => void;
 }
+
+const MAIN_BRANCH_NAME = 'main';
 
 const BranchSwitcher: React.FC<{
   repoId: string;
@@ -131,7 +134,7 @@ const BranchSwitcher: React.FC<{
     if (!branchInfo) return null;
 
     const { local, remote, current } = branchInfo;
-    
+
     const remoteBranchesToOffer = remote.filter(rBranch => {
         const localEquivalent = rBranch.split('/').slice(1).join('/');
         return !local.includes(localEquivalent);
@@ -139,7 +142,19 @@ const BranchSwitcher: React.FC<{
 
     const otherLocalBranches = local.filter(b => b !== current);
     const hasOptions = otherLocalBranches.length > 0 || remoteBranchesToOffer.length > 0;
-    
+
+    const mainBranchTarget = local.includes(MAIN_BRANCH_NAME)
+        ? MAIN_BRANCH_NAME
+        : remote.find(branch => branch.split('/').pop() === MAIN_BRANCH_NAME) ?? null;
+
+    const canSwitchToMain = Boolean(
+        current &&
+        current !== MAIN_BRANCH_NAME &&
+        mainBranchTarget
+    );
+
+    const switchToMainTooltip = useTooltip('Switch to main branch');
+
     const handleBranchClick = (branch: string) => {
       onSwitchBranch(repoId, branch);
       onClose();
@@ -210,6 +225,17 @@ const BranchSwitcher: React.FC<{
                     <ChevronDownIcon className={`ml-1 -mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
             </div>
+            {canSwitchToMain && (
+                <button
+                    {...switchToMainTooltip}
+                    type="button"
+                    onClick={() => handleBranchClick(mainBranchTarget!)}
+                    className="flex-shrink-0 p-1.5 rounded-md text-gray-500 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Switch to main branch"
+                >
+                    <HomeIcon className="h-4 w-4" />
+                </button>
+            )}
             <button
                 type="button"
                 onClick={openModal}
