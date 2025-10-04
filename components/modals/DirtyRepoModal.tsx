@@ -41,12 +41,13 @@ const DirtyRepoModal: React.FC<DirtyRepoModalProps> = ({ isOpen, status, onChoos
   const hasChanged = status.changedFiles.length > 0;
 
   return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" 
-      aria-labelledby="modal-title" 
-      role="dialog" 
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
+      aria-labelledby="modal-title"
+      role="dialog"
       aria-modal="true"
       onMouseDown={() => onChoose('cancel')} // clicking backdrop cancels
+      data-automation-id="dirty-repo-modal"
     >
       <div 
         className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl mx-4 transform transition-all flex flex-col max-h-[90vh]"
@@ -109,6 +110,7 @@ const DirtyRepoModal: React.FC<DirtyRepoModalProps> = ({ isOpen, status, onChoos
             className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 sm:w-auto sm:text-sm transition-colors"
             onClick={() => onChoose('stash')}
             disabled={isIgnoring}
+            data-automation-id="dirty-modal-stash"
           >
             Stash & Continue
           </button>
@@ -117,6 +119,7 @@ const DirtyRepoModal: React.FC<DirtyRepoModalProps> = ({ isOpen, status, onChoos
             onClick={handleIgnoreClick}
             disabled={selectedFiles.size === 0 || isIgnoring}
             className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-green-500 sm:w-auto sm:text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            data-automation-id="dirty-modal-ignore"
           >
             {isIgnoring ? <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin"/> : <GitCommitIcon className="h-5 w-5 mr-2"/>}
             {isIgnoring ? 'Processing...' : 'Ignore Selected & Push'}
@@ -126,6 +129,7 @@ const DirtyRepoModal: React.FC<DirtyRepoModalProps> = ({ isOpen, status, onChoos
             className="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 sm:w-auto sm:text-sm transition-colors"
             onClick={() => onChoose('force')}
             disabled={isIgnoring}
+            data-automation-id="dirty-modal-force"
           >
             Pull Anyway
           </button>
@@ -134,6 +138,7 @@ const DirtyRepoModal: React.FC<DirtyRepoModalProps> = ({ isOpen, status, onChoos
             className="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 sm:w-auto sm:text-sm transition-colors"
             onClick={() => onChoose('cancel')}
             disabled={isIgnoring}
+            data-automation-id="dirty-modal-cancel"
           >
             Cancel Task
           </button>

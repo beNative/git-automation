@@ -292,6 +292,7 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
       role="dialog"
       aria-modal="true"
       onMouseDown={onClose}
+      data-automation-id="commit-history-modal"
     >
       <div
         className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl mx-4 transform transition-all flex flex-col h-[80vh]"
@@ -307,7 +308,11 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
               <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-md">for '{repository.name}'</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            data-automation-id="commit-history-close"
+          >
             <XIcon className="h-5 w-5" />
           </button>
         </header>
@@ -321,6 +326,7 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900/50 pl-10 pr-3 py-1.5 text-sm focus:border-blue-500 focus:ring-blue-500 transition-colors"
+              data-automation-id="commit-history-search"
             />
           </div>
           {debouncedSearchQuery && !isLoading && (

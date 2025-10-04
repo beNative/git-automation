@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { LoggerProvider } from './contexts/LoggerContext';
 import { SettingsProvider } from './contexts/SettingsContext';
+import { InstrumentationProvider } from './contexts/InstrumentationContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -14,7 +15,9 @@ root.render(
   <React.StrictMode>
     <SettingsProvider>
       <LoggerProvider>
-        <App />
+        <InstrumentationProvider>
+          <App />
+        </InstrumentationProvider>
       </LoggerProvider>
     </SettingsProvider>
   </React.StrictMode>

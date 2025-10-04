@@ -362,20 +362,24 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-800">
+    <form
+      onSubmit={handleSubmit}
+      className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-800"
+      data-automation-id="settings-view"
+    >
         <div className="flex-1 flex overflow-hidden">
             <aside className="w-1/4 xl:w-1/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800/50 p-4">
                 <nav className="space-y-2">
-                    <button type="button" onClick={() => setActiveCategory('appearance')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'appearance' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                    <button type="button" onClick={() => setActiveCategory('appearance')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'appearance' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`} data-automation-id="settings-tab-appearance">
                         <SparklesIcon className="h-5 w-5" /> Appearance
                     </button>
-                    <button type="button" onClick={() => setActiveCategory('behavior')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'behavior' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                    <button type="button" onClick={() => setActiveCategory('behavior')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'behavior' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`} data-automation-id="settings-tab-behavior">
                         <BeakerIcon className="h-5 w-5" /> Behavior
                     </button>
-                    <button type="button" onClick={() => setActiveCategory('shortcuts')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'shortcuts' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                    <button type="button" onClick={() => setActiveCategory('shortcuts')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'shortcuts' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`} data-automation-id="settings-tab-shortcuts">
                         <KeyboardIcon className="h-5 w-5" /> Shortcuts
                     </button>
-                    <button type="button" onClick={() => setActiveCategory('jsonConfig')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'jsonConfig' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                    <button type="button" onClick={() => setActiveCategory('jsonConfig')} className={`w-full text-left px-3 py-2 rounded-md font-medium text-sm flex items-center gap-3 ${activeCategory === 'jsonConfig' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`} data-automation-id="settings-tab-json">
                         <CodeBracketIcon className="h-5 w-5" /> JSON Config
                     </button>
                 </nav>
@@ -388,10 +392,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
         {isDirty && (
             <footer className="flex justify-end items-center p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 gap-3 animate-fade-in">
                 <span className="text-sm text-yellow-600 dark:text-yellow-500">You have unsaved changes.</span>
-                <button type="button" onClick={handleCancel} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 transition-colors">
+                <button type="button" onClick={handleCancel} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 transition-colors" data-automation-id="settings-reset">
                     Reset
                 </button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors" data-automation-id="settings-save">
                     Save Changes
                 </button>
             </footer>

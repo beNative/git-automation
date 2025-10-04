@@ -75,6 +75,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
               onClick={onNewRepo}
               style={noDragStyle}
               className="flex items-center justify-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-200 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-offset-gray-700"
+              data-automation-id="header-new-repo"
             >
               <PlusIcon className="h-4 w-4" />
               <span className="hidden sm:inline">New Repo</span>
@@ -85,6 +86,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
               disabled={isCheckingAll}
               style={noDragStyle}
               className="flex items-center justify-center gap-1 rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-offset-gray-700"
+              data-automation-id="header-check-updates"
             >
               <CloudArrowDownIcon className={`h-4 w-4 ${isCheckingAll ? 'animate-pulse' : ''}`} />
               <span className="hidden sm:inline">{isCheckingAll ? 'Checking…' : 'Check Updates'}</span>
@@ -94,6 +96,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
               onClick={onToggleAllCategories}
               style={noDragStyle}
               className="flex items-center justify-center gap-1 rounded-md bg-gray-500 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:ring-offset-gray-200 dark:bg-gray-500 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-700"
+              data-automation-id="header-toggle-categories"
             >
               {canCollapseAll ? (
                 <ArrowsPointingInIcon className="h-4 w-4" />
@@ -114,6 +117,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
             style={noDragStyle}
             className={isEditing ? disabledNavButtonStyle : (activeView === 'dashboard' ? activeDashboardStyle : navButtonStyle)}
             aria-label="Dashboard"
+            data-automation-id="nav-dashboard"
           >
             <HomeIcon className="h-5 w-5" />
           </button>
@@ -124,6 +128,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
             style={noDragStyle}
             className={isEditing ? disabledNavButtonStyle : (activeView === 'settings' ? activeSettingsStyle : navButtonStyle)}
             aria-label="Settings"
+            data-automation-id="nav-settings"
           >
             <CogIcon className="h-5 w-5" />
           </button>
@@ -134,6 +139,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
             style={noDragStyle}
             className={isEditing ? disabledNavButtonStyle : (activeView === 'info' ? activeInfoStyle : navButtonStyle)}
             aria-label="Information"
+            data-automation-id="nav-info"
           >
             <InformationCircleIcon className="h-5 w-5" />
           </button>
@@ -144,6 +150,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
             style={noDragStyle}
             className={isEditing ? disabledNavButtonStyle : navButtonStyle}
             aria-label="Toggle theme"
+            data-automation-id="header-toggle-theme"
           >
             {settings.theme === 'dark' ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
           </button>

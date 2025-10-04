@@ -23,6 +23,7 @@ import { VcsType } from './types';
 import { TooltipProvider } from './contexts/TooltipContext';
 import Tooltip from './components/Tooltip';
 import { useLogger } from './hooks/useLogger';
+import { useInstrumentation } from './hooks/useInstrumentation';
 import { useSettings } from './contexts/SettingsContext';
 import ContextMenu from './components/ContextMenu';
 import UpdateBanner from './components/UpdateBanner';
@@ -127,6 +128,7 @@ const eventMatchesShortcut = (event: KeyboardEvent, shortcut: ShortcutMatcher): 
 
 const App: React.FC = () => {
   const logger = useLogger();
+  const instrumentation = useInstrumentation();
   const [shortcutPlatform] = useState<ShortcutPlatform>(() => detectShortcutPlatform());
   const {
     settings,
@@ -199,6 +201,8 @@ const App: React.FC = () => {
     repo: Repository | null;
   }>({ isOpen: false, x: 0, y: 0, repo: null });
 
+  
+
   const [dirtyRepoModal, setDirtyRepoModal] = useState<{
     isOpen: boolean;
     repo: Repository | null;
@@ -248,6 +252,146 @@ const App: React.FC = () => {
     onConfirm: () => {},
     onCancel: () => {},
   });
+
+  useEffect(() => {
+    if (!instrumentation) {
+      return;
+    }
+
+    const unregisterViewHook = instrumentation.registerTestHook<AppView>('app:setView', async (view?: AppView) => {
+      setActiveView(view ?? 'dashboard');
+    });
+
+    const unregisterSnapshotHook = instrumentation.registerTestHook('app:getState', async () => ({
+      activeView,
+      repositoryCount: repositories.length,
+      processingCount: isProcessing.size,
+      openModals: {
+        commandPalette: isCommandPaletteOpen,
+        debugPanel: isDebugPanelOpen,
+        dirtyRepo: dirtyRepoModal.isOpen,
+        repoForm: repoFormState.repoId,
+        taskSelection: taskSelectionModal.isOpen,
+        launchSelection: launchSelectionModal.isOpen,
+        executableSelection: executableSelectionModal.isOpen,
+        history: historyModal.isOpen,
+      },
+    }));
+
+    const unregisterTogglePalette = instrumentation.registerTestHook('app:toggleCommandPalette', async () => {
+      setCommandPaletteOpen(prev => !prev);
+    });
+
+    const unregisterOpenRepoForm = instrumentation.registerTestHook(
+      'app:openRepoForm',
+      async (options?: { repoId?: string; categoryId?: string }) => {
+        const repoId = (options?.repoId as string | undefined) ?? 'new';
+        logger.info('Automation opening repository form.', { repoId, categoryId: options?.categoryId });
+        setRepoFormState({ repoId, defaultCategoryId: options?.categoryId });
+        setActiveView('edit-repository');
+        instrumentation.trace('repo:form-opened', { repoId });
+      },
+    );
+
+    const unregisterCloseRepoForm = instrumentation.registerTestHook('app:closeRepoForm', async () => {
+      logger.info('Automation closing repository form.');
+      setRepoFormState({ repoId: null });
+      setActiveView('dashboard');
+      instrumentation.trace('repo:form-closed', { source: 'automation' });
+    });
+
+    const categoryMap = new Map<string, string>();
+    categories.forEach(category => {
+      category.repositoryIds.forEach(repoId => {
+        categoryMap.set(repoId, category.id);
+      });
+    });
+
+    const unregisterRepoList = instrumentation.registerTestHook('repositories:list', async () =>
+      repositories.map(repo => ({
+        id: repo.id,
+        name: repo.name,
+        status: repo.status,
+        categoryId: categoryMap.get(repo.id) ?? 'uncategorized',
+      })),
+    );
+
+    return () => {
+      unregisterViewHook();
+      unregisterSnapshotHook();
+      unregisterTogglePalette();
+      unregisterOpenRepoForm();
+      unregisterCloseRepoForm();
+      unregisterRepoList();
+    };
+  }, [
+    instrumentation,
+    activeView,
+    repositories,
+    repositories.length,
+    categories,
+    isProcessing.size,
+    isCommandPaletteOpen,
+    isDebugPanelOpen,
+    dirtyRepoModal.isOpen,
+    repoFormState,
+    taskSelectionModal.isOpen,
+    launchSelectionModal.isOpen,
+    executableSelectionModal.isOpen,
+    historyModal.isOpen,
+    logger,
+  ]);
+
+  useEffect(() => {
+    if (!instrumentation) {
+      return;
+    }
+
+    return instrumentation.registerUiSurface({
+      getActiveView: () => activeView,
+      setActiveView: (view: AppView) => {
+        setActiveView(view);
+      },
+      getStateSnapshot: () => ({
+        activeView,
+        repositoryCount: repositories.length,
+        processingCount: isProcessing.size,
+        openModals: {
+          commandPalette: isCommandPaletteOpen,
+          debugPanel: isDebugPanelOpen,
+          dirtyRepo: dirtyRepoModal.isOpen,
+          repoForm: repoFormState.repoId,
+          taskSelection: taskSelectionModal.isOpen,
+          launchSelection: launchSelectionModal.isOpen,
+          executableSelection: executableSelectionModal.isOpen,
+          history: historyModal.isOpen,
+        },
+      }),
+    });
+  }, [
+    instrumentation,
+    activeView,
+    repositories.length,
+    isProcessing.size,
+    isCommandPaletteOpen,
+    isDebugPanelOpen,
+    dirtyRepoModal.isOpen,
+    repoFormState,
+    taskSelectionModal.isOpen,
+    launchSelectionModal.isOpen,
+    executableSelectionModal.isOpen,
+    historyModal.isOpen,
+  ]);
+
+  useEffect(() => {
+    if (!instrumentation) {
+      return;
+    }
+    instrumentation.trace('view:changed', {
+      view: activeView,
+      repoFormState,
+    });
+  }, [instrumentation, activeView, repoFormState]);
 
   const commandPaletteShortcutLabel = useMemo(() => {
     const bindings = settings.keyboardShortcuts?.bindings?.['app.navigation.commandPalette'];
@@ -759,23 +903,27 @@ const App: React.FC = () => {
 
   const handleOpenRepoForm = (repoId: string | 'new', defaultCategoryId?: string) => {
     logger.info('Changing view to edit-repository', { repoId, defaultCategoryId });
+    instrumentation?.trace('repo:form-opened', { repoId, defaultCategoryId, source: 'ui' });
     setRepoFormState({ repoId, defaultCategoryId });
     setActiveView('edit-repository');
   };
 
   const handleCloseRepoForm = useCallback(() => {
     logger.info('Changing view to dashboard');
+    instrumentation?.trace('repo:form-closed', { source: 'ui' });
     setRepoFormState({ repoId: null });
     setActiveView('dashboard');
-  }, [logger]);
+  }, [logger, instrumentation]);
   
   const handleSaveRepo = (repo: Repository, categoryId?: string) => {
     if (repositories.some(r => r.id === repo.id)) {
       logger.info('Updating repository', { repoId: repo.id, name: repo.name });
+      instrumentation?.trace('repo:updated', { repoId: repo.id, name: repo.name, categoryId });
       updateRepository(repo);
       setToast({ message: 'Repository updated!', type: 'success' });
     } else {
       logger.info('Adding new repository', { name: repo.name, categoryId });
+      instrumentation?.trace('repo:created', { name: repo.name, categoryId });
       // The repo object from the form doesn't have an ID yet.
       // addRepository creates it. We pass the raw data without the temporary ID.
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -795,6 +943,7 @@ const App: React.FC = () => {
       confirmButtonClass: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
       onConfirm: () => {
         logger.warn('Deleting repository', { repoId });
+        instrumentation?.trace('repo:deleted', { repoId });
         deleteRepository(repoId);
         setToast({ message: 'Repository deleted.', type: 'error' });
       }
@@ -828,8 +977,9 @@ const App: React.FC = () => {
     }
 
     logger.info(`Running task '${task.name}' on '${repo.name}'`, { repoId, taskId });
+    instrumentation?.trace('task:run-start', { repoId, taskId, taskName: task.name });
     openLogPanelForRepo(repo.id, true);
-    
+
     const onDirty = (statusResult: { untrackedFiles: string[]; changedFiles: string[]; output: string; }) => {
       return new Promise<'stash' | 'force' | 'cancel' | 'ignored_and_continue'>((resolve) => {
         setDirtyRepoModal({ isOpen: true, repo, task, status: statusResult, resolve, isIgnoring: false });
@@ -841,15 +991,18 @@ const App: React.FC = () => {
     } catch (e: any) {
       if (e.message !== 'cancelled') { // Don't show toast for user cancellation
         logger.error(`Task '${task.name}' failed on '${repo.name}'`, { repoId, taskId, error: e.message });
+        instrumentation?.trace('task:run-error', { repoId, taskId, error: e?.message ?? e });
         setToast({ message: e.message || 'Task failed!', type: 'error' });
       } else {
         logger.warn(`Task '${task.name}' was cancelled by user.`, { repoId, taskId });
+        instrumentation?.trace('task:run-cancelled', { repoId, taskId });
         setToast({ message: 'Task was cancelled.', type: 'info' });
       }
     } finally {
-        refreshRepoState(repoId); // Refresh status after task run
+      refreshRepoState(repoId); // Refresh status after task run
+      instrumentation?.trace('task:run-finish', { repoId, taskId });
     }
-  }, [repositories, settings, runTask, openLogPanelForRepo, refreshRepoState, logger]);
+  }, [repositories, settings, runTask, openLogPanelForRepo, refreshRepoState, logger, instrumentation]);
 
   const handleDirtyRepoChoice = async (choice: 'stash' | 'force' | 'cancel' | 'ignore', filesToIgnore?: string[]) => {
     const { resolve, repo } = dirtyRepoModal;
@@ -882,6 +1035,7 @@ const App: React.FC = () => {
   const handleOpenTaskSelection = (repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
     if (repo && repo.tasks.length > 0) {
+      instrumentation?.trace('task:selection-opened', { repoId, taskCount: repo.tasks.length });
       setTaskSelectionModal({ isOpen: true, repo });
     }
   };
@@ -931,18 +1085,23 @@ const App: React.FC = () => {
   }, [repositories, logger, localPathStates, refreshRepoState, setToast]);
 
   const handleRunLaunchable = useCallback(async (repo: Repository, launchable: Launchable) => {
-      logger.info('Running launchable', { repoId: repo.id, launchable });
-      openLogPanelForRepo(repo.id, true);
-      if (launchable.type === 'manual') {
-        if(launchable.config.type === 'command' && launchable.config.command) {
-            await launchApplication(repo, launchable.config.command);
-        } else if (launchable.config.type === 'select-executable') {
-            handleOpenExecutableSelection(repo.id, launchable.config.id);
-        }
-      } else {
-        await launchExecutable(repo, launchable.path);
+    logger.info('Running launchable', { repoId: repo.id, launchable });
+    instrumentation?.trace('launch:run', {
+      repoId: repo.id,
+      type: launchable.type,
+      identifier: launchable.type === 'manual' ? launchable.config.id : launchable.path,
+    });
+    openLogPanelForRepo(repo.id, true);
+    if (launchable.type === 'manual') {
+      if (launchable.config.type === 'command' && launchable.config.command) {
+        await launchApplication(repo, launchable.config.command);
+      } else if (launchable.config.type === 'select-executable') {
+        handleOpenExecutableSelection(repo.id, launchable.config.id);
       }
-    }, [launchApplication, launchExecutable, openLogPanelForRepo, logger]);
+    } else {
+      await launchExecutable(repo, launchable.path);
+    }
+  }, [launchApplication, launchExecutable, openLogPanelForRepo, logger, instrumentation]);
 
   const handleRunLaunchConfig = useCallback(async (repoId: string, configId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -953,6 +1112,7 @@ const App: React.FC = () => {
         return;
     }
 
+    instrumentation?.trace('launch:config-trigger', { repoId, configId, configType: config.type });
     if (config.type === 'command' && config.command) {
         logger.info('Running launch config (command)', { repoId, config });
         openLogPanelForRepo(repoId, true);
@@ -961,12 +1121,12 @@ const App: React.FC = () => {
         logger.info('Opening executable selection for launch config', { repoId, config });
         handleOpenExecutableSelection(repoId, configId);
     }
-  }, [repositories, launchApplication, openLogPanelForRepo, logger]);
+  }, [repositories, launchApplication, openLogPanelForRepo, logger, instrumentation]);
 
   const handleOpenLaunchSelection = useCallback((repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
     if (!repo) return;
-    
+
     const unpinnedConfigs = (repo.launchConfigs || []).filter(lc => !lc.showOnDashboard);
     const detected = detectedExecutables[repo.id] || [];
 
@@ -976,11 +1136,13 @@ const App: React.FC = () => {
     ];
 
     if (launchables.length > 0) {
+        instrumentation?.trace('launch:selection-opened', { repoId, launchableCount: launchables.length });
         setLaunchSelectionModal({ isOpen: true, repo, launchables });
     } else {
+        instrumentation?.trace('launch:selection-empty', { repoId });
         setToast({ message: 'No other launch options found.', type: 'info' });
     }
-  }, [repositories, detectedExecutables]);
+  }, [repositories, detectedExecutables, instrumentation]);
 
   const handleOpenExecutableSelection = (repoId: string, configId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -988,6 +1150,7 @@ const App: React.FC = () => {
     const executables = detectedExecutables[repoId] || [];
 
     if (repo && config && executables.length > 0) {
+      instrumentation?.trace('launch:executable-selection-opened', { repoId, configId, candidates: executables.length });
       setExecutableSelectionModal({
         isOpen: true,
         repo,
@@ -995,6 +1158,7 @@ const App: React.FC = () => {
         executables
       });
     } else {
+      instrumentation?.trace('launch:executable-selection-unavailable', { repoId, configId, candidates: executables.length });
       setToast({ message: 'No executables detected in release/dist/build folders.', type: 'info' });
     }
   };
@@ -1002,18 +1166,21 @@ const App: React.FC = () => {
 
   const handleCloneRepo = useCallback(async (repo: Repository) => {
     logger.info('Cloning repository', { repoId: repo.id, url: repo.remoteUrl });
+    instrumentation?.trace('repo:clone-start', { repoId: repo.id });
     openLogPanelForRepo(repo.id, true);
-    
+
     try {
-        await cloneRepository(repo);
-        // After cloning, re-check the path status
-        const newState = await window.electronAPI?.checkLocalPath(repo.localPath) ?? 'missing';
-        setLocalPathStates(prev => ({...prev, [repo.id]: newState}));
+      await cloneRepository(repo);
+      // After cloning, re-check the path status
+      const newState = await window.electronAPI?.checkLocalPath(repo.localPath) ?? 'missing';
+      setLocalPathStates(prev => ({...prev, [repo.id]: newState}));
+      instrumentation?.trace('repo:clone-success', { repoId: repo.id, newState });
     } catch (e: any) {
-        logger.error('Clone failed', { repoId: repo.id, error: e.message });
-        setToast({ message: e.message || 'Clone failed!', type: 'error' });
+      logger.error('Clone failed', { repoId: repo.id, error: e.message });
+      instrumentation?.trace('repo:clone-error', { repoId: repo.id, error: e?.message ?? e });
+      setToast({ message: e.message || 'Clone failed!', type: 'error' });
     }
-  }, [cloneRepository, openLogPanelForRepo, logger]);
+  }, [cloneRepository, openLogPanelForRepo, logger, instrumentation]);
 
   const handleChooseLocationAndClone = useCallback(async (repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -1025,6 +1192,7 @@ const App: React.FC = () => {
     try {
       const result = await window.electronAPI?.showDirectoryPicker();
       if (!result || result.canceled || result.filePaths.length === 0) {
+        instrumentation?.trace('repo:clone-location-cancelled', { repoId });
         setToast({ message: 'Location selection was cancelled.', type: 'info' });
         return;
       }
@@ -1041,15 +1209,18 @@ const App: React.FC = () => {
 
       const updatedRepo = { ...repo, localPath: newLocalPath };
       updateRepository(updatedRepo);
-      
+
+      instrumentation?.trace('repo:clone-location-selected', { repoId, newLocalPath });
+
       // Immediately trigger the clone with the updated repo object
       await handleCloneRepo(updatedRepo);
 
     } catch (e: any) {
       logger.error('Failed to set up path for cloning', { repoId, error: e.message });
+      instrumentation?.trace('repo:clone-location-error', { repoId, error: e?.message ?? e });
       setToast({ message: e.message || 'Failed to set up repository path.', type: 'error' });
     }
-  }, [repositories, updateRepository, handleCloneRepo, logger]);
+  }, [repositories, updateRepository, handleCloneRepo, logger, instrumentation]);
 
   const handleOpenLocalPath = useCallback(async (path: string) => {
     if (!path) {
@@ -1194,7 +1365,11 @@ const App: React.FC = () => {
   return (
     <IconContext.Provider value={settings.iconSet}>
       <TooltipProvider>
-        <div className="flex flex-col h-screen">
+        <div
+          className="flex flex-col h-screen"
+          data-automation-id="app-shell"
+          data-active-view={activeView}
+        >
           <TitleBar
             activeView={activeView}
             onSetView={setActiveView}
@@ -1206,7 +1381,11 @@ const App: React.FC = () => {
           />
           <div className="flex-1 flex flex-col min-h-0">
             {updateReady && <UpdateBanner onInstall={handleRestartAndUpdate} />}
-            <main className={mainContentClass}>
+            <main
+              className={mainContentClass}
+              data-automation-id="main-content"
+              data-active-view={activeView}
+            >
               {(() => {
                 switch (activeView) {
                   case 'settings':

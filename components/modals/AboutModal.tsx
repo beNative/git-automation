@@ -20,6 +20,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, appVersion }) 
       role="dialog"
       aria-modal="true"
       onMouseDown={onClose}
+      data-automation-id="about-modal"
     >
       <div
         className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 transform transition-all"
@@ -32,7 +33,11 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, appVersion }) 
               About
             </h3>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            data-automation-id="about-modal-close"
+          >
             <XIcon className="h-5 w-5" />
           </button>
         </div>
@@ -56,6 +61,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, appVersion }) 
             type="button"
             className="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 sm:w-auto sm:text-sm"
             onClick={onClose}
+            data-automation-id="about-modal-dismiss"
           >
             Close
           </button>

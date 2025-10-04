@@ -3023,7 +3023,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   };
   
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-800 animate-fade-in">
+    <div
+      className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-800 animate-fade-in"
+      data-automation-id="repo-form"
+    >
         <header className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center">
                 <div className="flex items-center">
@@ -3043,11 +3046,27 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 <div className="p-3 space-y-3 flex-1 overflow-y-auto">
                     <div>
                         <label htmlFor="name" className={formLabelStyle}>Repository Name</label>
-                        <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} required className={formInputStyle} />
+                        <input
+                          type="text"
+                          id="name"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleChange}
+                          required
+                          className={formInputStyle}
+                          data-automation-id="repo-form-name"
+                        />
                     </div>
                      <div>
                         <label htmlFor="vcs" className={formLabelStyle}>Version Control</label>
-                        <select id="vcs" name="vcs" value={formData.vcs} onChange={handleVcsChange} className={formInputStyle}>
+                        <select
+                          id="vcs"
+                          name="vcs"
+                          value={formData.vcs}
+                          onChange={handleVcsChange}
+                          className={formInputStyle}
+                          data-automation-id="repo-form-vcs"
+                        >
                             <option value={VcsType.Git}>Git</option>
                             <option value={VcsType.Svn}>SVN</option>
                         </select>
@@ -3055,21 +3074,56 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                      <div>
                         <label htmlFor="localPath" className={formLabelStyle}>Local Path</label>
                         <div className="mt-1 flex items-center gap-2">
-                          <input type="text" id="localPath" name="localPath" value={formData.localPath} onChange={handleChange} required className={formInputStyle} />
-                          <button type="button" onClick={handleChooseLocalPath} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><FolderOpenIcon className="h-5 w-5"/></button>
+                          <input
+                            type="text"
+                            id="localPath"
+                            name="localPath"
+                            value={formData.localPath}
+                            onChange={handleChange}
+                            required
+                            className={formInputStyle}
+                            data-automation-id="repo-form-local-path"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleChooseLocalPath}
+                            className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
+                            data-automation-id="repo-form-choose-path"
+                          ><FolderOpenIcon className="h-5 w-5"/></button>
                         </div>
                     </div>
                     <div>
                         <label htmlFor="remoteUrl" className={formLabelStyle}>Remote URL</label>
                         <div className="mt-1 flex items-center gap-2">
-                           <input type="text" id="remoteUrl" name="remoteUrl" value={formData.remoteUrl} onChange={handleChange} required className={formInputStyle} />
-                           <button type="button" onClick={handleDiscoverRemote} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"><MagnifyingGlassIcon className="h-5 w-5"/></button>
+                           <input
+                             type="text"
+                             id="remoteUrl"
+                             name="remoteUrl"
+                             value={formData.remoteUrl}
+                             onChange={handleChange}
+                             required
+                             className={formInputStyle}
+                             data-automation-id="repo-form-remote-url"
+                           />
+                           <button
+                             type="button"
+                             onClick={handleDiscoverRemote}
+                             className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
+                             data-automation-id="repo-form-discover-remote"
+                           ><MagnifyingGlassIcon className="h-5 w-5"/></button>
                         </div>
                     </div>
                     {isGitRepo && 'branch' in formData && (
                       <div>
                           <label htmlFor="branch" className={formLabelStyle}>Default Branch</label>
-                          <select id="branch" name="branch" value={formData.branch} onChange={handleChange} className={formInputStyle}>
+                          <select
+                            id="branch"
+                            name="branch"
+                            value={formData.branch}
+                            onChange={handleChange}
+                            className={formInputStyle}
+                            data-automation-id="repo-form-branch"
+                          >
                             {branchInfo?.current && <option value={branchInfo.current}>{branchInfo.current} (current)</option>}
                             {(branchInfo?.local || []).filter(b => b !== branchInfo?.current).map(b => <option key={b} value={b}>{b}</option>)}
                             <optgroup label="Remotes">
@@ -3146,7 +3200,12 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 </div>
                             ))}
                         </div>
-                        <button type="button" onClick={handleAddLaunchConfig} className="mt-2 flex items-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"><PlusIcon className="h-3 w-3 mr-1"/>Add Launch Config</button>
+                        <button
+                          type="button"
+                          onClick={handleAddLaunchConfig}
+                          className="mt-2 flex items-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                          data-automation-id="repo-form-add-launch-config"
+                        ><PlusIcon className="h-3 w-3 mr-1"/>Add Launch Config</button>
                     </div>
                 </div>
             </aside>
@@ -3167,16 +3226,31 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
         <footer className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
             {repository && 'id' in repository && (
-                <button type="button" onClick={() => onRefreshState(repository.id)} className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-400 hover:underline">
+                <button
+                  type="button"
+                  onClick={() => onRefreshState(repository.id)}
+                  className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-400 hover:underline"
+                  data-automation-id="repo-form-refresh-state"
+                >
                     <ArrowPathIcon className="h-4 w-4 mr-1.5"/>
                     Refresh State
                 </button>
             )}
             <div className="flex gap-3">
-                 <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 transition-colors">
+                 <button
+                   type="button"
+                   onClick={onCancel}
+                   className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 transition-colors"
+                   data-automation-id="repo-form-cancel"
+                 >
                     {repository ? 'Close' : 'Cancel'}
                 </button>
-                <button type="button" onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  data-automation-id="repo-form-save"
+                >
                     Save Repository
                 </button>
             </div>

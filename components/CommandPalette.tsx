@@ -126,7 +126,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center pt-20 bg-black/50 backdrop-blur-sm" onMouseDown={onClose} role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-40 flex items-start justify-center pt-20 bg-black/50 backdrop-blur-sm"
+      onMouseDown={onClose}
+      role="dialog"
+      aria-modal="true"
+      data-automation-id="command-palette"
+    >
       <div 
         className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-3xl mx-4 flex flex-col max-h-[70vh] ring-1 ring-black/5"
         onMouseDown={(e) => e.stopPropagation()}
@@ -141,6 +147,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                 placeholder="Find a repository, task or action..."
                 className="w-full bg-transparent border-none focus:ring-0 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
                 aria-label="Search commands"
+                data-automation-id="command-palette-search"
             />
         </div>
         <ul ref={commandListRef} className="overflow-y-auto" role="listbox">
@@ -155,6 +162,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                             onClose();
                         }}
                         className={`w-full text-left flex items-center px-3 py-2 transition-colors ${activeIndex === index ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}
+                        data-automation-id={`command-${cmd.id}`}
                     >
                         <span className="mr-4 text-gray-400 dark:text-gray-500">{cmd.icon}</span>
                         <div>

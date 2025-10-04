@@ -59,7 +59,7 @@ const InfoView: React.FC = () => {
   ), [content, markdownComponents]);
 
   return (
-    <div className="w-full mx-auto animate-fade-in">
+    <div className="w-full mx-auto animate-fade-in" data-automation-id="info-view">
         <div className="sticky top-0 z-10 flex border-b border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900">
             {DOCS.map(doc => (
                 <button
@@ -70,6 +70,7 @@ const InfoView: React.FC = () => {
                         ? 'border-b-2 border-cyan-500 text-gray-900 dark:text-white'
                         : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 hover:text-gray-800 dark:hover:text-gray-200'
                     }`}
+                    data-automation-id={`info-tab-${doc.id}`}
                 >
                     {doc.title}
                 </button>
