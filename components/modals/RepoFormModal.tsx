@@ -119,6 +119,61 @@ const STEP_CATEGORIES = [
     { name: 'Docker', types: [TaskStepType.DOCKER_BUILD_IMAGE, TaskStepType.DOCKER_COMPOSE_UP, TaskStepType.DOCKER_COMPOSE_DOWN, TaskStepType.DOCKER_COMPOSE_BUILD] },
 ];
 
+const PROTECTED_BRANCH_IDENTIFIERS = new Set(['main', 'origin', 'origin/main']);
+
+const parseRemoteBranchIdentifier = (fullBranchName: string): { remoteName: string; branchName: string } | null => {
+  const [remoteName, ...rest] = fullBranchName.split('/');
+  if (!remoteName || rest.length === 0) {
+      return null;
+  }
+  return { remoteName, branchName: rest.join('/') };
+};
+
+const formatBranchSelectionLabel = (selection: { name: string; scope: 'local' | 'remote' } | string, scopeOverride?: 'local' | 'remote'): string => {
+  if (typeof selection === 'string') {
+      const scope = scopeOverride ?? 'local';
+      if (scope === 'remote') {
+          const remoteDetails = parseRemoteBranchIdentifier(selection);
+          if (remoteDetails) {
+              return `${remoteDetails.remoteName}/${remoteDetails.branchName}`;
+          }
+      }
+      return selection;
+  }
+
+  if (selection.scope === 'remote') {
+      const remoteDetails = parseRemoteBranchIdentifier(selection.name);
+      if (remoteDetails) {
+          return `${remoteDetails.remoteName}/${remoteDetails.branchName}`;
+      }
+  }
+  return selection.name;
+};
+
+const isProtectedBranch = (branchIdentifier: string, scope: 'local' | 'remote'): boolean => {
+  const normalized = branchIdentifier.trim().toLowerCase();
+  if (PROTECTED_BRANCH_IDENTIFIERS.has(normalized)) {
+      return true;
+  }
+
+  if (scope === 'remote') {
+      const remoteDetails = parseRemoteBranchIdentifier(branchIdentifier);
+      if (remoteDetails) {
+          const remoteNormalized = remoteDetails.remoteName.trim().toLowerCase();
+          const branchNormalized = remoteDetails.branchName.trim().toLowerCase();
+          const composite = `${remoteNormalized}/${branchNormalized}`;
+          if (PROTECTED_BRANCH_IDENTIFIERS.has(composite)) {
+              return true;
+          }
+          if (remoteNormalized === 'origin' && PROTECTED_BRANCH_IDENTIFIERS.has(branchNormalized)) {
+              return true;
+          }
+      }
+  }
+
+  return false;
+};
+
 // Component for a single step in the TaskStepsEditor
 const TaskStepItem: React.FC<{
   step: TaskStep;
@@ -1236,6 +1291,8 @@ const HighlightedText: React.FC<{ text: string; highlight: string }> = ({ text, 
     );
 };
 
+type BranchSelectionMode = 'default' | 'toggle' | 'range';
+
 interface CommitListItemProps {
   commit: Commit;
   highlight: string;
@@ -1314,25 +1371,37 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [branchesLoading, setBranchesLoading] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const [branchToMerge, setBranchToMerge] = useState('');
-  const [selectedBranch, setSelectedBranch] = useState<{ name: string; scope: 'local' | 'remote' } | null>(null);
+  const [selectedBranches, setSelectedBranches] = useState<Array<{ name: string; scope: 'local' | 'remote' }>>([]);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [branchFilter, setBranchFilter] = useState('');
   const [debouncedBranchFilter, setDebouncedBranchFilter] = useState('');
+  const [isDeletingBranches, setIsDeletingBranches] = useState(false);
   const branchItemRefs = useRef<{ local: Map<string, HTMLDivElement>; remote: Map<string, HTMLDivElement> }>({
     local: new Map<string, HTMLDivElement>(),
     remote: new Map<string, HTMLDivElement>(),
   });
+  const lastSelectedBranchRef = useRef<{ name: string; scope: 'local' | 'remote' } | null>(null);
+
+  const primarySelectedBranch = useMemo(() => selectedBranches[0] ?? null, [selectedBranches]);
 
   const normalizedSelectedBranchName = useMemo(() => {
-    if (!selectedBranch) {
+    if (!primarySelectedBranch) {
         return '';
     }
-    if (selectedBranch.scope === 'remote') {
-        const segments = selectedBranch.name.split('/').slice(1);
-        return segments.join('/') || selectedBranch.name;
+    if (primarySelectedBranch.scope === 'remote') {
+        const segments = primarySelectedBranch.name.split('/').slice(1);
+        return segments.join('/') || primarySelectedBranch.name;
     }
-    return selectedBranch.name;
-  }, [selectedBranch]);
+    return primarySelectedBranch.name;
+  }, [primarySelectedBranch]);
+
+  const selectedBranchKeySet = useMemo(() => {
+    const keySet = new Set<string>();
+    selectedBranches.forEach(selection => {
+        keySet.add(`${selection.scope}:${selection.name}`);
+    });
+    return keySet;
+  }, [selectedBranches]);
 
   // State for Releases Tab
   const [releases, setReleases] = useState<ReleaseInfo[] | null>(null);
@@ -1377,12 +1446,56 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, [branchInfo?.remote, normalizedBranchFilter]);
 
   useEffect(() => {
-    if (!selectedBranch) return;
-    const branches = selectedBranch.scope === 'local' ? filteredLocalBranches : filteredRemoteBranches;
-    if (!branches.includes(selectedBranch.name)) {
-        setSelectedBranch(null);
+    setSelectedBranches(prev => {
+        if (prev.length === 0) {
+            return prev;
+        }
+        const next = prev.filter(selection => {
+            const availableBranches = selection.scope === 'local' ? filteredLocalBranches : filteredRemoteBranches;
+            return availableBranches.includes(selection.name);
+        });
+        if (next.length === prev.length) {
+            return prev;
+        }
+        if (next.length > 0) {
+            return next;
+        }
+        if (branchInfo?.current && filteredLocalBranches.includes(branchInfo.current)) {
+            return [{ name: branchInfo.current, scope: 'local' }];
+        }
+        return next;
+    });
+  }, [filteredLocalBranches, filteredRemoteBranches, branchInfo?.current]);
+
+  useEffect(() => {
+    if (!branchInfo) {
+        return;
     }
-  }, [selectedBranch, filteredLocalBranches, filteredRemoteBranches]);
+    if (branchToMerge && (branchInfo.local || []).includes(branchToMerge)) {
+        return;
+    }
+    if (branchInfo.current) {
+        setBranchToMerge(branchInfo.current);
+    } else {
+        setBranchToMerge('');
+    }
+  }, [branchInfo, branchToMerge]);
+
+  useEffect(() => {
+    if (!branchInfo) {
+        return;
+    }
+    const firstLocalSelection = selectedBranches.find(selection => selection.scope === 'local' && selection.name !== branchInfo.current);
+    if (!firstLocalSelection) {
+        return;
+    }
+    setBranchToMerge(prev => {
+        if (!prev || prev === branchInfo.current || !(branchInfo.local || []).includes(prev)) {
+            return firstLocalSelection.name;
+        }
+        return prev;
+    });
+  }, [selectedBranches, branchInfo]);
 
   const fetchHistory = useCallback(async (loadMore = false) => {
     if (!repository) return;
@@ -1443,20 +1556,21 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         if (branches?.current) {
             setBranchToMerge(branches.current);
         }
-        setSelectedBranch(prev => {
-            if (!branches) return null;
-            if (prev) {
-                const stillExists = prev.scope === 'local'
-                    ? branches.local.includes(prev.name)
-                    : branches.remote.includes(prev.name);
-                if (stillExists) {
-                    return prev;
-                }
+        setSelectedBranches(prev => {
+            if (!branches) {
+                return [];
+            }
+            const next = prev.filter(selection => {
+                const availableBranches = selection.scope === 'local' ? branches.local : branches.remote;
+                return availableBranches.includes(selection.name);
+            });
+            if (next.length > 0) {
+                return next;
             }
             if (branches.current) {
-                return { name: branches.current, scope: 'local' };
+                return [{ name: branches.current, scope: 'local' }];
             }
-            return null;
+            return [];
         });
     } catch (e: any) {
         setToast({ message: `Failed to load branches: ${e.message}`, type: 'error' });
@@ -1722,17 +1836,38 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   };
   
-  const handleDeleteBranch = async (branchName: string, isRemote: boolean) => {
+  const handleDeleteBranch = async (branchIdentifier: string, scope: 'local' | 'remote') => {
     if (!repository) return;
+    const isRemote = scope === 'remote';
+    const remoteDetails = isRemote ? parseRemoteBranchIdentifier(branchIdentifier) : null;
+    const branchLabel = formatBranchSelectionLabel(branchIdentifier, scope);
+
+    if (scope === 'local' && branchInfo?.current && branchIdentifier === branchInfo.current) {
+        setToast({ message: 'Cannot delete the currently checked out branch.', type: 'info' });
+        return;
+    }
+
+    if (isProtectedBranch(branchLabel, scope)) {
+        setToast({ message: `Branch '${branchLabel}' is protected and cannot be deleted.`, type: 'info' });
+        return;
+    }
+
     confirmAction({
         title: `Delete ${isRemote ? 'Remote' : 'Local'} Branch`,
-        message: `Are you sure you want to delete ${isRemote ? 'remote' : 'local'} branch '${branchName}'?`,
+        message: `Are you sure you want to delete ${isRemote ? 'remote' : 'local'} branch '${branchLabel}'?`,
         confirmText: "Delete",
         icon: <ExclamationCircleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />,
         onConfirm: async () => {
-            const result = await window.electronAPI?.deleteBranch(repository.localPath, branchName, isRemote);
+            const branchArgument = isRemote ? (remoteDetails?.branchName ?? branchIdentifier) : branchIdentifier;
+            const remoteName = remoteDetails?.remoteName;
+            const result = await window.electronAPI?.deleteBranch(
+                repository.localPath,
+                branchArgument,
+                isRemote,
+                remoteName
+            );
             if (result?.success) {
-                setToast({ message: `Branch '${branchName}' deleted`, type: 'success' });
+                setToast({ message: `Branch '${branchLabel}' deleted`, type: 'success' });
                 fetchBranches();
                 onRefreshState(repository.id);
             } else {
@@ -1741,6 +1876,130 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         }
     });
   };
+
+  const handleBulkDeleteSelectedBranches = useCallback(() => {
+    if (!repository || selectedBranches.length === 0) {
+        return;
+    }
+
+    const currentBranch = branchInfo?.current;
+    let skippedCurrentCount = 0;
+    let skippedProtectedCount = 0;
+
+    const deletable = selectedBranches.filter(selection => {
+        if (selection.scope === 'local' && currentBranch && selection.name === currentBranch) {
+            skippedCurrentCount += 1;
+            return false;
+        }
+        if (isProtectedBranch(selection.name, selection.scope)) {
+            skippedProtectedCount += 1;
+            return false;
+        }
+        return true;
+    });
+
+    if (deletable.length === 0) {
+        const messages: string[] = [];
+        if (skippedProtectedCount) {
+            messages.push(`Cannot delete protected branch${skippedProtectedCount > 1 ? 'es' : ''}.`);
+        }
+        if (skippedCurrentCount) {
+            messages.push('Cannot delete the currently checked out branch.');
+        }
+        setToast({ message: messages.join(' ') || 'No branches can be deleted.', type: 'info' });
+        return;
+    }
+
+    const summaryLines = deletable
+        .map(selection => `• ${selection.scope === 'remote' ? 'Remote' : 'Local'}: ${formatBranchSelectionLabel(selection)}`)
+        .join('\n');
+
+    confirmAction({
+        title: `Delete ${deletable.length} Branch${deletable.length > 1 ? 'es' : ''}`,
+        message: `Are you sure you want to delete the following branches?\n${summaryLines}`,
+        confirmText: 'Delete',
+        icon: <ExclamationCircleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />,
+        onConfirm: async () => {
+            setIsDeletingBranches(true);
+            try {
+                const results: Array<{ selection: { name: string; scope: 'local' | 'remote' }; success: boolean; error?: string }> = [];
+                for (const selection of deletable) {
+                    const isRemoteSelection = selection.scope === 'remote';
+                    const remoteDetails = isRemoteSelection ? parseRemoteBranchIdentifier(selection.name) : null;
+                    const branchArgument = isRemoteSelection
+                        ? (remoteDetails?.branchName ?? selection.name)
+                        : selection.name;
+                    const remoteName = remoteDetails?.remoteName;
+                    try {
+                        const result = await window.electronAPI?.deleteBranch(
+                            repository.localPath,
+                            branchArgument,
+                            isRemoteSelection,
+                            remoteName
+                        );
+                        if (result?.success) {
+                            results.push({ selection, success: true });
+                        } else {
+                            results.push({ selection, success: false, error: result?.error || 'Electron API not available.' });
+                        }
+                    } catch (error: any) {
+                        results.push({ selection, success: false, error: error.message });
+                    }
+                }
+
+                const failed = results.filter(result => !result.success);
+                const succeeded = results.filter(result => result.success);
+
+                const messages: string[] = [];
+                if (succeeded.length) {
+                    const successBase = `Deleted ${succeeded.length} branch${succeeded.length > 1 ? 'es' : ''}.`;
+                    const skippedMessages: string[] = [];
+                    if (skippedProtectedCount) {
+                        skippedMessages.push(`Skipped ${skippedProtectedCount} protected branch${skippedProtectedCount > 1 ? 'es' : ''}.`);
+                    }
+                    if (skippedCurrentCount) {
+                        skippedMessages.push('Skipped the currently checked out branch.');
+                    }
+                    const failureMention = failed.length ? 'Some branches could not be deleted.' : '';
+                    messages.push([successBase, skippedMessages.join(' '), failureMention].filter(Boolean).join(' '));
+                } else {
+                    if (skippedProtectedCount) {
+                        messages.push(`Skipped ${skippedProtectedCount} protected branch${skippedProtectedCount > 1 ? 'es' : ''}.`);
+                    }
+                    if (skippedCurrentCount) {
+                        messages.push('Skipped the currently checked out branch.');
+                    }
+                }
+
+                if (failed.length) {
+                    const failureList = failed
+                        .map(item => `${item.selection.scope === 'remote' ? 'remote' : 'local'}:${formatBranchSelectionLabel(item.selection)}`)
+                        .join(', ');
+                    messages.push(`Failed to delete ${failed.length} branch${failed.length > 1 ? 'es' : ''}: ${failureList}.`);
+                }
+
+                if (messages.length) {
+                    const toastType: 'success' | 'info' | 'error' = failed.length
+                        ? (succeeded.length ? 'info' : 'error')
+                        : 'success';
+                    setToast({ message: messages.join(' '), type: toastType });
+                }
+
+                const successfulKeys = new Set(
+                    succeeded.map(result => `${result.selection.scope}:${result.selection.name}`)
+                );
+                if (successfulKeys.size > 0) {
+                    setSelectedBranches(prev => prev.filter(selection => !successfulKeys.has(`${selection.scope}:${selection.name}`)));
+                }
+
+                await fetchBranches();
+                await onRefreshState(repository.id);
+            } finally {
+                setIsDeletingBranches(false);
+            }
+        }
+    });
+  }, [repository, selectedBranches, branchInfo?.current, confirmAction, setToast, fetchBranches, onRefreshState]);
 
   const handleMergeBranch = async () => {
       if (!repository || !branchToMerge) return;
@@ -1769,12 +2028,34 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       });
   };
 
-  const handleSelectBranch = useCallback((branchName: string, scope: 'local' | 'remote') => {
-    setSelectedBranch({ name: branchName, scope });
-    if (scope === 'local' && branchInfo?.current && branchName !== branchInfo.current) {
-        setBranchToMerge(branchName);
-    }
-  }, [branchInfo?.current]);
+  const handleSelectBranch = useCallback((branchName: string, scope: 'local' | 'remote', mode: BranchSelectionMode = 'default') => {
+    const scopedBranches = scope === 'local' ? filteredLocalBranches : filteredRemoteBranches;
+    setSelectedBranches(prev => {
+        if (mode === 'toggle') {
+            const exists = prev.some(selection => selection.scope === scope && selection.name === branchName);
+            if (exists) {
+                return prev.filter(selection => !(selection.scope === scope && selection.name === branchName));
+            }
+            const filteredPrev = prev.filter(selection => !(selection.scope === scope && selection.name === branchName));
+            return [{ name: branchName, scope }, ...filteredPrev];
+        }
+
+        if (mode === 'range' && lastSelectedBranchRef.current && lastSelectedBranchRef.current.scope === scope) {
+            const anchorName = lastSelectedBranchRef.current.name;
+            const anchorIndex = scopedBranches.indexOf(anchorName);
+            const targetIndex = scopedBranches.indexOf(branchName);
+            if (anchorIndex !== -1 && targetIndex !== -1) {
+                const start = Math.min(anchorIndex, targetIndex);
+                const end = Math.max(anchorIndex, targetIndex);
+                const rangeBranches = scopedBranches.slice(start, end + 1);
+                return rangeBranches.map(name => ({ name, scope }));
+            }
+        }
+
+        return [{ name: branchName, scope }];
+    });
+    lastSelectedBranchRef.current = { name: branchName, scope };
+  }, [filteredLocalBranches, filteredRemoteBranches]);
 
   const setBranchItemRef = useCallback((scope: 'local' | 'remote', branchName: string, element: HTMLDivElement | null) => {
     const scopeMap = branchItemRefs.current[scope];
@@ -1795,13 +2076,13 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, []);
 
   const handleCheckoutBranch = useCallback(async () => {
-    if (!repository || !selectedBranch) {
+    if (!repository || selectedBranches.length !== 1 || !primarySelectedBranch) {
         return;
     }
 
     const currentBranch = branchInfo?.current;
-    const focusTarget = normalizedSelectedBranchName || selectedBranch.name;
-    const checkoutLabel = selectedBranch.name;
+    const focusTarget = normalizedSelectedBranchName || primarySelectedBranch.name;
+    const checkoutLabel = primarySelectedBranch.name;
 
     if (currentBranch && normalizedSelectedBranchName && normalizedSelectedBranchName === currentBranch) {
         setToast({ message: `Already on '${currentBranch}'.`, type: 'info' });
@@ -1809,16 +2090,16 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
 
     setIsCheckoutLoading(true);
-    const checkoutTarget = selectedBranch.name;
+    const checkoutTarget = primarySelectedBranch.name;
 
     try {
         const result = await window.electronAPI?.checkoutBranch(repository.localPath, checkoutTarget);
         if (result?.success) {
             setToast({ message: `Checked out '${checkoutLabel}'.`, type: 'success' });
+            setBranchToMerge('');
+            setSelectedBranches([]);
             await fetchBranches();
             await onRefreshState(repository.id);
-            setBranchToMerge('');
-            setSelectedBranch(null);
             if (focusTarget) {
                 requestAnimationFrame(() => focusBranchItem('local', focusTarget));
             }
@@ -1830,12 +2111,17 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     } finally {
         setIsCheckoutLoading(false);
     }
-  }, [repository, selectedBranch, branchInfo?.current, normalizedSelectedBranchName, setToast, fetchBranches, onRefreshState, focusBranchItem]);
+  }, [repository, selectedBranches.length, primarySelectedBranch, branchInfo?.current, normalizedSelectedBranchName, setToast, fetchBranches, onRefreshState, focusBranchItem]);
 
   const handleBranchKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>, branchName: string, scope: 'local' | 'remote') => {
     if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
-        handleSelectBranch(branchName, scope);
+        const mode: BranchSelectionMode = event.shiftKey
+            ? 'range'
+            : (event.metaKey || event.ctrlKey)
+                ? 'toggle'
+                : 'default';
+        handleSelectBranch(branchName, scope, mode);
         return;
     }
 
@@ -1871,6 +2157,15 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         }
     }
   }, [filteredLocalBranches, filteredRemoteBranches, focusBranchItem, handleSelectBranch]);
+
+  const handleBranchClick = useCallback((event: React.MouseEvent<HTMLDivElement>, branchName: string, scope: 'local' | 'remote') => {
+    const mode: BranchSelectionMode = event.shiftKey
+        ? 'range'
+        : (event.metaKey || event.ctrlKey)
+            ? 'toggle'
+            : 'default';
+    handleSelectBranch(branchName, scope, mode);
+  }, [handleSelectBranch]);
   
   const handleDiscoverRemote = useCallback(async () => {
     const currentLocalPath = formData.localPath;
@@ -2078,11 +2373,56 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 </div>
             );
         case 'branches': {
-            const isCurrentSelection = Boolean(normalizedSelectedBranchName && branchInfo?.current && normalizedSelectedBranchName === branchInfo.current);
-            const checkoutDisabled = !selectedBranch || isCheckoutLoading || branchesLoading || isCurrentSelection;
-            const selectionDescription = selectedBranch
-                ? `${selectedBranch.scope === 'remote' ? 'Remote' : 'Local'} branch: ${selectedBranch.name}`
-                : 'Select a branch to checkout.';
+            const selectedBranchCount = selectedBranches.length;
+            const selectedLocalCount = selectedBranches.filter(selection => selection.scope === 'local').length;
+            const selectedRemoteCount = selectedBranchCount - selectedLocalCount;
+            const isCurrentSelection = Boolean(
+                selectedBranchCount === 1 &&
+                primarySelectedBranch?.scope === 'local' &&
+                branchInfo?.current &&
+                primarySelectedBranch.name === branchInfo.current
+            );
+            const checkoutDisabled = selectedBranchCount !== 1 || isCheckoutLoading || branchesLoading || isCurrentSelection;
+            const selectionDescription = (() => {
+                if (!selectedBranchCount) {
+                    return 'Select a branch to checkout.';
+                }
+                if (selectedBranchCount === 1 && primarySelectedBranch) {
+                    return `${primarySelectedBranch.scope === 'remote' ? 'Remote' : 'Local'} branch: ${primarySelectedBranch.name}`;
+                }
+                const parts: string[] = [];
+                if (selectedLocalCount) {
+                    parts.push(`${selectedLocalCount} local`);
+                }
+                if (selectedRemoteCount) {
+                    parts.push(`${selectedRemoteCount} remote`);
+                }
+                return `${selectedBranchCount} branches selected (${parts.join(', ')})`;
+            })();
+            const hasProtectedSelection = selectedBranches.some(selection => isProtectedBranch(selection.name, selection.scope));
+            const hasCurrentBranchSelected = selectedBranches.some(selection => selection.scope === 'local' && branchInfo?.current && selection.name === branchInfo.current);
+            const hasDeletableSelection = selectedBranches.some(selection => {
+                if (selection.scope === 'local' && branchInfo?.current && selection.name === branchInfo.current) {
+                    return false;
+                }
+                if (isProtectedBranch(selection.name, selection.scope)) {
+                    return false;
+                }
+                return true;
+            });
+            const bulkDeleteDisabled = !hasDeletableSelection || isDeletingBranches || branchesLoading;
+            const bulkDeleteTitle = (() => {
+                if (hasDeletableSelection) {
+                    return undefined;
+                }
+                if (hasProtectedSelection) {
+                    return 'Cannot delete protected branches.';
+                }
+                if (hasCurrentBranchSelected) {
+                    return 'Cannot delete the currently checked out branch.';
+                }
+                return undefined;
+            })();
             return (
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
@@ -2119,20 +2459,22 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                         )}
                                     </button>
                                 </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Tip: Use Shift or Ctrl/Cmd-click to select multiple branches.</p>
                                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden">
                                     <div className="flex flex-col min-h-0">
                                         <h4 className="font-semibold mb-2 flex-shrink-0">Local Branches</h4>
                                         <ul className="flex-1 overflow-y-auto space-y-2 pr-1">
                                             {filteredLocalBranches.map(b => {
                                                 const isCurrent = b === branchInfo?.current;
-                                                const isSelected = selectedBranch?.scope === 'local' && selectedBranch.name === b;
+                                                const isSelected = selectedBranchKeySet.has(`local:${b}`);
+                                                const isProtectedLocal = isProtectedBranch(b, 'local');
                                                 return (
                                                     <li key={b}>
                                                         <div
                                                             role="button"
                                                             tabIndex={0}
                                                             aria-selected={isSelected}
-                                                            onClick={() => handleSelectBranch(b, 'local')}
+                                                            onClick={(event) => handleBranchClick(event, b, 'local')}
                                                             onKeyDown={(event) => handleBranchKeyDown(event, b, 'local')}
                                                             ref={element => setBranchItemRef('local', b, element)}
                                                             className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-0 ${isSelected ? 'border-transparent bg-blue-100 text-blue-900 dark:bg-blue-900/50 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
@@ -2142,14 +2484,15 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                                     <HighlightedText text={b} highlight={debouncedBranchFilter} />
                                                                 </span>
                                                                 {isCurrent && <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200">Current</span>}
+                                                                {isProtectedLocal && <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200">Protected</span>}
                                                             </div>
-                                                            {b !== branchInfo?.current && (
+                                                            {!isCurrent && !isProtectedLocal && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={(event) => {
                                                                         event.stopPropagation();
-                                                                        handleDeleteBranch(b, false);
-                                                                    }}
+                                                                        handleDeleteBranch(b, 'local');
+                                                                }}
                                                                     className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"
                                                                 >
                                                                     <TrashIcon className="h-4 w-4" />
@@ -2165,31 +2508,37 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                         <h4 className="font-semibold mb-2 flex-shrink-0">Remote Branches</h4>
                                         <ul className="flex-1 overflow-y-auto space-y-2 pr-1">
                                             {filteredRemoteBranches.map(b => {
-                                                const isSelected = selectedBranch?.scope === 'remote' && selectedBranch.name === b;
+                                                const isSelected = selectedBranchKeySet.has(`remote:${b}`);
+                                                const isProtectedRemote = isProtectedBranch(b, 'remote');
                                                 return (
                                                     <li key={b}>
                                                         <div
                                                             role="button"
                                                             tabIndex={0}
                                                             aria-selected={isSelected}
-                                                            onClick={() => handleSelectBranch(b, 'remote')}
+                                                            onClick={(event) => handleBranchClick(event, b, 'remote')}
                                                             onKeyDown={(event) => handleBranchKeyDown(event, b, 'remote')}
                                                             ref={element => setBranchItemRef('remote', b, element)}
                                                             className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-0 ${isSelected ? 'border-transparent bg-blue-100 text-blue-900 dark:bg-blue-900/50 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                                                         >
-                                                            <span className="font-mono text-sm break-all">
-                                                                <HighlightedText text={b} highlight={debouncedBranchFilter} />
-                                                            </span>
-                                                            <button
-                                                                type="button"
-                                                                onClick={(event) => {
-                                                                    event.stopPropagation();
-                                                                    handleDeleteBranch(b.split('/').slice(1).join('/'), true);
-                                                                }}
-                                                                className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"
-                                                            >
-                                                                <TrashIcon className="h-4 w-4" />
-                                                            </button>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-mono text-sm break-all">
+                                                                    <HighlightedText text={b} highlight={debouncedBranchFilter} />
+                                                                </span>
+                                                                {isProtectedRemote && <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200">Protected</span>}
+                                                            </div>
+                                                            {!isProtectedRemote && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        handleDeleteBranch(b, 'remote');
+                                                                    }}
+                                                                    className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"
+                                                                >
+                                                                    <TrashIcon className="h-4 w-4" />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </li>
                                                 );
@@ -2200,14 +2549,25 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 <div className="pt-4 mt-2 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-4 flex-shrink-0">
                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                         <p className="text-sm text-gray-600 dark:text-gray-300">{selectionDescription}</p>
-                                        <button
-                                            type="button"
-                                            onClick={handleCheckoutBranch}
-                                            disabled={checkoutDisabled}
-                                            className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed ${isCheckoutLoading ? 'cursor-wait' : ''}`}
-                                        >
-                                            {isCheckoutLoading ? 'Checking out...' : 'Checkout'}
-                                        </button>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleBulkDeleteSelectedBranches}
+                                                disabled={bulkDeleteDisabled}
+                                                title={bulkDeleteTitle}
+                                                className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:bg-gray-400 disabled:cursor-not-allowed ${isDeletingBranches ? 'cursor-wait' : ''}`}
+                                            >
+                                                {isDeletingBranches ? 'Deleting…' : 'Delete Selected'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleCheckoutBranch}
+                                                disabled={checkoutDisabled}
+                                                className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed ${isCheckoutLoading ? 'cursor-wait' : ''}`}
+                                            >
+                                                {isCheckoutLoading ? 'Checking out...' : 'Checkout'}
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>

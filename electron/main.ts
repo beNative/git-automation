@@ -1915,30 +1915,89 @@ ipcMain.handle('get-commit-history', async (event, repo: Repository, skipCount?:
 
 // --- List Branches (Git only) ---
 ipcMain.handle('list-branches', async (event, repoPath: string): Promise<BranchInfo> => {
-    try {
-        const settings = await readSettings();
-        const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
-        const { stdout } = await execAsync(`${gitCmd} branch -a`, { cwd: repoPath });
-        const branches: BranchInfo = { local: [], remote: [], current: null };
-        stdout.split('\n').forEach(line => {
-            line = line.trim();
-            if (!line) return;
-            const isCurrent = line.startsWith('* ');
-            const branchName = isCurrent ? line.substring(2) : line;
-            if (isCurrent) branches.current = branchName;
+    const branches: BranchInfo = { local: [], remote: [], current: null };
 
-            if (branchName.startsWith('remotes/')) {
-                 if (!branchName.includes('->')) {
-                    branches.remote.push(branchName.substring(8));
-                }
-            } else {
-                branches.local.push(branchName);
-            }
-        });
-        return branches;
-    } catch (e) {
-        return { local: [], remote: [], current: null };
+    const settings = await readSettings();
+    const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
+
+    const parseForEachRef = async (ref: string) => {
+        const { stdout } = await execAsync(`${gitCmd} for-each-ref --format="%(refname:short)" --sort=-committerdate ${ref}`, { cwd: repoPath });
+        return stdout
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean);
+    };
+
+    try {
+        const currentResult = await execAsync(`${gitCmd} branch --show-current`, { cwd: repoPath });
+        const current = currentResult.stdout.trim();
+        branches.current = current ? current : null;
+    } catch (error) {
+        branches.current = null;
     }
+
+    let localResolved = false;
+    try {
+        branches.local = await parseForEachRef('refs/heads');
+        localResolved = true;
+    } catch (error) {
+        mainLogger.warn(`[Branches] Failed to list local branches via for-each-ref`, { error: (error as any)?.message });
+    }
+
+    let remoteResolved = false;
+    try {
+        const remoteBranches = await parseForEachRef('refs/remotes');
+        branches.remote = remoteBranches.filter(name => !/\/HEAD$/.test(name));
+        remoteResolved = true;
+    } catch (error) {
+        mainLogger.warn(`[Branches] Failed to list remote branches via for-each-ref`, { error: (error as any)?.message });
+    }
+
+    if (!localResolved || !remoteResolved || branches.current === null) {
+        try {
+            const { stdout } = await execAsync(`${gitCmd} branch -a`, { cwd: repoPath });
+            stdout.split('\n').forEach(line => {
+                let parsedLine = line.trim();
+                if (!parsedLine) {
+                    return;
+                }
+
+                const isCurrent = parsedLine.startsWith('* ');
+                if (isCurrent) {
+                    parsedLine = parsedLine.substring(2);
+                    if (!branches.current) {
+                        branches.current = parsedLine;
+                    }
+                }
+
+                if (parsedLine.startsWith('remotes/')) {
+                    if (!parsedLine.includes('->')) {
+                        const remoteName = parsedLine.substring(8);
+                        if (!branches.remote.includes(remoteName)) {
+                            branches.remote.push(remoteName);
+                        }
+                    }
+                } else {
+                    if (!branches.local.includes(parsedLine)) {
+                        branches.local.push(parsedLine);
+                    }
+                }
+            });
+
+            if (!localResolved) {
+                branches.local.sort((a, b) => a.localeCompare(b));
+            }
+            if (!remoteResolved) {
+                branches.remote = branches.remote.filter(name => !name.endsWith('/HEAD'));
+                branches.remote.sort((a, b) => a.localeCompare(b));
+            }
+        } catch (fallbackError) {
+            mainLogger.error(`[Branches] Failed to list branches for ${repoPath}`, { error: (fallbackError as any)?.message });
+            return { local: [], remote: [], current: null };
+        }
+    }
+
+    return branches;
 });
 
 const simpleGitCommand = async (repoPath: string, command: string): Promise<{ success: boolean; error?: string }> => {
@@ -1950,6 +2009,33 @@ const simpleGitCommand = async (repoPath: string, command: string): Promise<{ su
     } catch (e: any) {
         return { success: false, error: e.stderr || e.message };
     }
+};
+
+const PROTECTED_BRANCH_IDENTIFIERS = new Set(['main', 'origin', 'origin/main']);
+
+const isProtectedBranch = (
+    branchIdentifier: string,
+    scope: 'local' | 'remote',
+    remoteDetails?: { remoteName: string; branchName: string }
+): boolean => {
+    const normalized = branchIdentifier.trim().toLowerCase();
+    if (PROTECTED_BRANCH_IDENTIFIERS.has(normalized)) {
+        return true;
+    }
+
+    if (scope === 'remote' && remoteDetails) {
+        const remoteNormalized = remoteDetails.remoteName.trim().toLowerCase();
+        const branchNormalized = remoteDetails.branchName.trim().toLowerCase();
+        const composite = `${remoteNormalized}/${branchNormalized}`;
+        if (PROTECTED_BRANCH_IDENTIFIERS.has(composite)) {
+            return true;
+        }
+        if (remoteNormalized === 'origin' && PROTECTED_BRANCH_IDENTIFIERS.has(branchNormalized)) {
+            return true;
+        }
+    }
+
+    return false;
 };
 
 ipcMain.handle('checkout-branch', (e, repoPath: string, branch: string) => {
@@ -1964,13 +2050,41 @@ ipcMain.handle('checkout-branch', (e, repoPath: string, branch: string) => {
     return simpleGitCommand(repoPath, `checkout ${branch}`);
 });
 ipcMain.handle('create-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `checkout -b ${branch}`));
-ipcMain.handle('delete-branch', (e, repoPath: string, branch: string, isRemote: boolean) => {
+ipcMain.handle('delete-branch', (e, repoPath: string, branch: string, isRemote: boolean, remoteName?: string) => {
     if (isRemote) {
-        const remoteName = 'origin'; // This is a simplification
-        return simpleGitCommand(repoPath, `push ${remoteName} --delete ${branch}`);
-    } else {
-        return simpleGitCommand(repoPath, `branch -d ${branch}`);
+        const originalTrimmed = branch.trim();
+        let targetRemote = remoteName?.trim();
+        let branchRef = originalTrimmed;
+
+        if (!targetRemote && branchRef.includes('/')) {
+            const segments = branchRef.split('/');
+            targetRemote = segments.shift() || targetRemote;
+            branchRef = segments.join('/') || branchRef;
+        }
+
+        if (!targetRemote) {
+            targetRemote = 'origin';
+        }
+
+        const remoteDetails = targetRemote ? { remoteName: targetRemote, branchName: branchRef } : undefined;
+        const remoteLabelCandidate = targetRemote ? `${targetRemote}/${branchRef}` : undefined;
+        const displayLabel = originalTrimmed.includes('/')
+            ? originalTrimmed
+            : (remoteLabelCandidate && branchRef !== targetRemote ? remoteLabelCandidate : originalTrimmed);
+
+        if (isProtectedBranch(displayLabel, 'remote', remoteDetails)) {
+            return { success: false, error: `Branch '${displayLabel}' is protected and cannot be deleted.` };
+        }
+
+        return simpleGitCommand(repoPath, `push ${targetRemote} --delete ${branchRef}`);
     }
+
+    const branchName = branch.trim();
+    if (isProtectedBranch(branchName, 'local')) {
+        return { success: false, error: `Branch '${branchName}' is protected and cannot be deleted.` };
+    }
+
+    return simpleGitCommand(repoPath, `branch -d ${branchName}`);
 });
 ipcMain.handle('merge-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `merge ${branch}`));
 
