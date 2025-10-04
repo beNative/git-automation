@@ -2467,6 +2467,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                             {filteredLocalBranches.map(b => {
                                                 const isCurrent = b === branchInfo?.current;
                                                 const isSelected = selectedBranchKeySet.has(`local:${b}`);
+                                                const isProtectedLocal = isProtectedBranch(b, 'local');
                                                 return (
                                                     <li key={b}>
                                                         <div
@@ -2483,13 +2484,14 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                                     <HighlightedText text={b} highlight={debouncedBranchFilter} />
                                                                 </span>
                                                                 {isCurrent && <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200">Current</span>}
+                                                                {isProtectedLocal && <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200">Protected</span>}
                                                             </div>
-                                                            {b !== branchInfo?.current && (
+                                                            {!isCurrent && !isProtectedLocal && (
                                                                 <button
                                                                     type="button"
-                                                                onClick={(event) => {
-                                                                    event.stopPropagation();
-                                                                    handleDeleteBranch(b, 'local');
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        handleDeleteBranch(b, 'local');
                                                                 }}
                                                                     className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"
                                                                 >
@@ -2507,6 +2509,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                         <ul className="flex-1 overflow-y-auto space-y-2 pr-1">
                                             {filteredRemoteBranches.map(b => {
                                                 const isSelected = selectedBranchKeySet.has(`remote:${b}`);
+                                                const isProtectedRemote = isProtectedBranch(b, 'remote');
                                                 return (
                                                     <li key={b}>
                                                         <div
@@ -2518,19 +2521,24 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                             ref={element => setBranchItemRef('remote', b, element)}
                                                             className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-0 ${isSelected ? 'border-transparent bg-blue-100 text-blue-900 dark:bg-blue-900/50 dark:text-blue-100' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                                                         >
-                                                            <span className="font-mono text-sm break-all">
-                                                                <HighlightedText text={b} highlight={debouncedBranchFilter} />
-                                                            </span>
-                                                            <button
-                                                                type="button"
-                                                                onClick={(event) => {
-                                                                    event.stopPropagation();
-                                                                    handleDeleteBranch(b, 'remote');
-                                                                }}
-                                                                className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"
-                                                            >
-                                                                <TrashIcon className="h-4 w-4" />
-                                                            </button>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-mono text-sm break-all">
+                                                                    <HighlightedText text={b} highlight={debouncedBranchFilter} />
+                                                                </span>
+                                                                {isProtectedRemote && <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200">Protected</span>}
+                                                            </div>
+                                                            {!isProtectedRemote && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        handleDeleteBranch(b, 'remote');
+                                                                    }}
+                                                                    className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"
+                                                                >
+                                                                    <TrashIcon className="h-4 w-4" />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </li>
                                                 );
