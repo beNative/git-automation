@@ -1936,11 +1936,11 @@ ipcMain.handle('list-branches', async (event, repoPath: string): Promise<BranchI
             '%(objectname:short)',
             '%(subject)',
         ];
-        const format = `--format=${formatSegments.join('%00')}`;
+        const format = formatSegments.join('%00');
         const gitExecutable = getExecutableCommand(VcsTypeEnum.Git, settings, false);
         const { stdout } = await execFileAsync(
             gitExecutable,
-            ['for-each-ref', '--sort=-committerdate', format, 'refs/heads', 'refs/remotes'],
+            ['for-each-ref', '--sort=-committerdate', '--format', format, 'refs/heads', 'refs/remotes'],
             { cwd: repoPath },
         );
         const branches: BranchInfo = { local: [], remote: [], current, details: {} };
@@ -1955,9 +1955,10 @@ ipcMain.handle('list-branches', async (event, repoPath: string): Promise<BranchI
                 if (segments.length < 7) {
                     return;
                 }
-                const [refName, shortName, isoDate, relativeDate, authorName, shortHash, subject] = segments.map(segment =>
+                const [rawRefName, shortName, isoDate, relativeDate, authorName, shortHash, subject] = segments.map(segment =>
                     segment.trim(),
                 );
+                const refName = rawRefName.replace(/^'+|'+$/g, '');
                 const isRemote = refName.startsWith('refs/remotes/');
                 const isLocal = refName.startsWith('refs/heads/');
                 if (!isRemote && !isLocal) {
