@@ -87,6 +87,25 @@ export enum TaskStepType {
   DELPHI_PACKAGE_INNO = 'DELPHI_PACKAGE_INNO',
   DELPHI_PACKAGE_NSIS = 'DELPHI_PACKAGE_NSIS',
   DELPHI_TEST_DUNITX = 'DELPHI_TEST_DUNITX',
+  // Go
+  GO_MOD_TIDY = 'GO_MOD_TIDY',
+  GO_FMT = 'GO_FMT',
+  GO_TEST = 'GO_TEST',
+  GO_BUILD = 'GO_BUILD',
+  // Rust
+  RUST_CARGO_FMT = 'RUST_CARGO_FMT',
+  RUST_CARGO_CLIPPY = 'RUST_CARGO_CLIPPY',
+  RUST_CARGO_CHECK = 'RUST_CARGO_CHECK',
+  RUST_CARGO_TEST = 'RUST_CARGO_TEST',
+  RUST_CARGO_BUILD = 'RUST_CARGO_BUILD',
+  // Java / Maven
+  MAVEN_CLEAN = 'MAVEN_CLEAN',
+  MAVEN_TEST = 'MAVEN_TEST',
+  MAVEN_PACKAGE = 'MAVEN_PACKAGE',
+  // .NET
+  DOTNET_RESTORE = 'DOTNET_RESTORE',
+  DOTNET_BUILD = 'DOTNET_BUILD',
+  DOTNET_TEST = 'DOTNET_TEST',
   // Python
   PYTHON_CREATE_VENV = 'PYTHON_CREATE_VENV',
   PYTHON_INSTALL_DEPS = 'PYTHON_INSTALL_DEPS',
@@ -418,12 +437,81 @@ export interface NodejsCapabilities {
   monorepo: { workspaces: boolean, turbo: boolean, nx: boolean, yarnBerryPnp: boolean };
 }
 
+export interface GoModuleInfo {
+  path: string;
+  module: string | null;
+  goVersion: string | null;
+  toolchain: string | null;
+}
+
+export interface GoCapabilities {
+  modules: GoModuleInfo[];
+  hasGoWork: boolean;
+  hasGoSum: boolean;
+  hasTests: boolean;
+}
+
+export interface RustPackageInfo {
+  path: string;
+  name: string | null;
+  edition: string | null;
+  rustVersion: string | null;
+  isWorkspace: boolean;
+}
+
+export interface RustCapabilities {
+  packages: RustPackageInfo[];
+  hasLockfile: boolean;
+  hasWorkspace: boolean;
+  workspaceMembers: string[];
+  hasTests: boolean;
+}
+
+export interface MavenProjectInfo {
+  path: string;
+  groupId: string | null;
+  artifactId: string | null;
+  packaging: string | null;
+  javaVersion: string | null;
+}
+
+export interface MavenCapabilities {
+  projects: MavenProjectInfo[];
+  hasWrapper: boolean;
+}
+
+export interface DotnetProjectInfo {
+  path: string;
+  targetFrameworks: string[];
+  outputType: string | null;
+  sdk: string | null;
+}
+
+export interface DotnetCapabilities {
+  projects: DotnetProjectInfo[];
+  hasSolution: boolean;
+}
+
+export interface ProjectInfoFiles {
+  dproj: string[];
+  goMod?: string[];
+  goWork?: string[];
+  cargoToml?: string[];
+  pomXml?: string[];
+  csproj?: string[];
+  sln?: string[];
+}
+
 export interface ProjectInfo {
   tags: string[];
-  files: { dproj: string[] };
+  files: ProjectInfoFiles;
   python?: PythonCapabilities;
   delphi?: DelphiCapabilities;
   nodejs?: NodejsCapabilities;
   lazarus?: LazarusCapabilities;
   docker?: DockerCapabilities;
+  go?: GoCapabilities;
+  rust?: RustCapabilities;
+  maven?: MavenCapabilities;
+  dotnet?: DotnetCapabilities;
 }

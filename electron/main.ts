@@ -4,7 +4,7 @@ import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
-import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities, CommitDiffFile } from '../types';
+import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities, CommitDiffFile, GoCapabilities, RustCapabilities, MavenCapabilities, DotnetCapabilities } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 import JSZip from 'jszip';
@@ -435,13 +435,34 @@ const getXmlAttribute = (content: string, elementName: string, attributeName: st
     return results;
 }
 
+const getXmlTagValues = (content: string, tagName: string): string[] => {
+    const results: string[] = [];
+    const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\/${tagName}>`, 'gi');
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+        results.push(match[1].trim());
+    }
+    return results;
+};
+
+const getFirstXmlTagValue = (content: string, tagName: string, beforeIndex?: number): string | null => {
+    const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\/${tagName}>`, 'gi');
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+        if (beforeIndex === undefined || match.index < beforeIndex) {
+            return match[1].trim();
+        }
+    }
+    return null;
+};
+
 const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
-    if (!repoPath) return { tags: [], files: { dproj: [] } };
+    if (!repoPath) return { tags: [], files: { dproj: [], goMod: [], goWork: [], cargoToml: [], pomXml: [], csproj: [], sln: [] } };
 
     const tagsSet = new Set<string>();
     const info: ProjectInfo = {
         tags: [],
-        files: { dproj: [] },
+        files: { dproj: [], goMod: [], goWork: [], cargoToml: [], pomXml: [], csproj: [], sln: [] },
     };
 
     try {
@@ -511,6 +532,7 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
         };
 
         const dprojFiles = await findFilesByExtensionRecursive(repoPath, '.dproj', repoPath);
+        info.files.dproj = dprojFiles;
         delphiCaps.groups = await findFilesByExtensionRecursive(repoPath, '.groupproj', repoPath);
 
         if (dprojFiles.length > 0 || delphiCaps.groups.length > 0) {
@@ -561,6 +583,166 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
         if (isDelphiProject) {
             tagsSet.add('delphi');
             info.delphi = delphiCaps;
+        }
+
+
+        // --- Go Project Detection ---
+        const goModFiles = await findFilesByMatcherRecursive(repoPath, (entry) => entry.isFile() && entry.name === 'go.mod', repoPath);
+        const goWorkFiles = await findFilesByMatcherRecursive(repoPath, (entry) => entry.isFile() && entry.name === 'go.work', repoPath);
+        const goTestFiles = await findFilesByMatcherRecursive(repoPath, (entry) => entry.isFile() && entry.name.endsWith('_test.go'), repoPath);
+
+        if (goModFiles.length > 0 || goWorkFiles.length > 0) {
+            tagsSet.add('go');
+            info.files.goMod = goModFiles;
+            info.files.goWork = goWorkFiles;
+            const modules: GoCapabilities['modules'] = [];
+            let hasGoSum = false;
+
+            for (const goMod of goModFiles) {
+                try {
+                    const fullPath = path.join(repoPath, goMod);
+                    const content = await fs.readFile(fullPath, 'utf-8');
+                    const moduleMatch = content.match(/^module\s+([^\s]+)$/m);
+                    const goVersionMatch = content.match(/^go\s+([^\s]+)$/m);
+                    const toolchainMatch = content.match(/^toolchain\s+([^\s]+)$/m);
+                    const modDir = path.dirname(fullPath);
+                    if (await fileExists(modDir, 'go.sum')) hasGoSum = true;
+                    modules.push({
+                        path: goMod,
+                        module: moduleMatch ? moduleMatch[1] : null,
+                        goVersion: goVersionMatch ? goVersionMatch[1] : null,
+                        toolchain: toolchainMatch ? toolchainMatch[1] : null,
+                    });
+                } catch (e) { mainLogger.error(`Could not parse go.mod: ${goMod}`, e); }
+            }
+
+            info.go = {
+                modules,
+                hasGoWork: goWorkFiles.length > 0,
+                hasGoSum,
+                hasTests: goTestFiles.length > 0,
+            };
+        }
+
+        // --- Rust Project Detection ---
+        const cargoTomlFiles = await findFilesByMatcherRecursive(repoPath, (entry) => entry.isFile() && entry.name === 'Cargo.toml', repoPath);
+        if (cargoTomlFiles.length > 0) {
+            tagsSet.add('rust');
+            info.files.cargoToml = cargoTomlFiles;
+            const packages: RustCapabilities['packages'] = [];
+            let hasLockfile = false;
+            let hasWorkspace = false;
+            const workspaceMembers = new Set<string>();
+
+            for (const cargoFile of cargoTomlFiles) {
+                try {
+                    const fullPath = path.join(repoPath, cargoFile);
+                    const content = await fs.readFile(fullPath, 'utf-8');
+                    const packageSection = getTomlSection(content, 'package');
+                    const workspaceSection = getTomlSection(content, 'workspace');
+                    const lockPath = path.join(path.dirname(fullPath), 'Cargo.lock');
+                    try {
+                        await fs.access(lockPath);
+                        hasLockfile = true;
+                    } catch { /* ignore */ }
+
+                    const isWorkspace = Boolean(workspaceSection);
+                    if (isWorkspace) {
+                        hasWorkspace = true;
+                        const membersMatch = workspaceSection?.match(/members\s*=\s*\[([^\]]*)\]/);
+                        if (membersMatch) {
+                            membersMatch[1].split(',').map(m => m.replace(/["']/g, '').trim()).filter(Boolean).forEach(m => workspaceMembers.add(m));
+                        }
+                    }
+
+                    packages.push({
+                        path: cargoFile,
+                        name: packageSection ? getTomlValue(packageSection, 'name') : null,
+                        edition: packageSection ? getTomlValue(packageSection, 'edition') : null,
+                        rustVersion: packageSection ? getTomlValue(packageSection, 'rust-version') : null,
+                        isWorkspace,
+                    });
+                } catch (e) { mainLogger.error(`Could not parse Cargo.toml: ${cargoFile}`, e); }
+            }
+
+            const rustTestFiles = await findFilesByMatcherRecursive(repoPath, (entry) => entry.isFile() && entry.name.endsWith('_test.rs'), repoPath);
+
+            info.rust = {
+                packages,
+                hasLockfile,
+                hasWorkspace,
+                workspaceMembers: Array.from(workspaceMembers),
+                hasTests: rustTestFiles.length > 0,
+            };
+        }
+
+        // --- Java/Maven Project Detection ---
+        const pomFiles = await findFilesByMatcherRecursive(repoPath, (entry) => entry.isFile() && entry.name.toLowerCase() === 'pom.xml', repoPath);
+        if (pomFiles.length > 0) {
+            tagsSet.add('java');
+            tagsSet.add('maven');
+            info.files.pomXml = pomFiles;
+            const projects: MavenCapabilities['projects'] = [];
+
+            for (const pomFile of pomFiles) {
+                try {
+                    const fullPath = path.join(repoPath, pomFile);
+                    const content = await fs.readFile(fullPath, 'utf-8');
+                    const dependenciesIndex = content.indexOf('<dependencies>');
+                    const beforeIndex = dependenciesIndex === -1 ? undefined : dependenciesIndex;
+                    const groupId = getFirstXmlTagValue(content, 'groupId', beforeIndex);
+                    const artifactId = getFirstXmlTagValue(content, 'artifactId', beforeIndex);
+                    const packaging = getFirstXmlTagValue(content, 'packaging', beforeIndex);
+                    const javaVersion = getFirstXmlTagValue(content, 'maven.compiler.source') || getFirstXmlTagValue(content, 'java.version');
+                    projects.push({
+                        path: pomFile,
+                        groupId,
+                        artifactId,
+                        packaging,
+                        javaVersion,
+                    });
+                } catch (e) { mainLogger.error(`Could not parse pom.xml: ${pomFile}`, e); }
+            }
+
+            const hasWrapper = await fileExists(repoPath, 'mvnw') || await fileExists(repoPath, 'mvnw.cmd');
+
+            info.maven = {
+                projects,
+                hasWrapper,
+            };
+        }
+
+        // --- .NET Project Detection ---
+        const csprojFiles = await findFilesByExtensionRecursive(repoPath, '.csproj', repoPath);
+        const slnFiles = await findFilesByExtensionRecursive(repoPath, '.sln', repoPath);
+        if (csprojFiles.length > 0 || slnFiles.length > 0) {
+            tagsSet.add('dotnet');
+            info.files.csproj = csprojFiles;
+            info.files.sln = slnFiles;
+            const projects: DotnetCapabilities['projects'] = [];
+
+            for (const csproj of csprojFiles) {
+                try {
+                    const fullPath = path.join(repoPath, csproj);
+                    const content = await fs.readFile(fullPath, 'utf-8');
+                    const targetFrameworks = new Set<string>();
+                    getXmlTagValues(content, 'TargetFramework').forEach(v => v.split(';').map(x => x.trim()).filter(Boolean).forEach(x => targetFrameworks.add(x)));
+                    getXmlTagValues(content, 'TargetFrameworks').forEach(v => v.split(';').map(x => x.trim()).filter(Boolean).forEach(x => targetFrameworks.add(x)));
+                    const outputType = getFirstXmlTagValue(content, 'OutputType');
+                    const sdkMatch = content.match(/<Project[^>]*Sdk="([^"]+)"/i);
+                    projects.push({
+                        path: csproj,
+                        targetFrameworks: Array.from(targetFrameworks),
+                        outputType: outputType ?? null,
+                        sdk: sdkMatch ? sdkMatch[1] : null,
+                    });
+                } catch (e) { mainLogger.error(`Could not parse csproj: ${csproj}`, e); }
+            }
+
+            info.dotnet = {
+                projects,
+                hasSolution: slnFiles.length > 0,
+            };
         }
 
 
@@ -1475,6 +1657,10 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
         }
 
         const run = (cmd: string) => executeCommand(repo.localPath, cmd, sender, executionId, env);
+        const rustWorkspaceArgs = projectInfo.rust?.hasWorkspace ? ['--workspace'] : [];
+        const mavenCommand = projectInfo.maven?.hasWrapper
+            ? (os.platform() === 'win32' ? 'mvnw.cmd' : './mvnw')
+            : 'mvn';
 
         switch(step.type) {
             // Git Steps
@@ -1490,7 +1676,60 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
             case TaskStepType.RunCommand:
                 if (!step.command) { sendLog('Skipping empty command.', LogLevel.Warn); sendEnd(0); return; }
                 await run(step.command); break;
-            
+
+            // --- Go Steps ---
+            case TaskStepType.GO_MOD_TIDY:
+                await run('go mod tidy');
+                break;
+            case TaskStepType.GO_FMT:
+                await run('go fmt ./...');
+                break;
+            case TaskStepType.GO_TEST:
+                await run('go test ./...');
+                break;
+            case TaskStepType.GO_BUILD:
+                await run('go build ./...');
+                break;
+
+            // --- Rust Steps ---
+            case TaskStepType.RUST_CARGO_FMT:
+                await run(['cargo', 'fmt', projectInfo.rust?.hasWorkspace ? '--all' : ''].filter(Boolean).join(' '));
+                break;
+            case TaskStepType.RUST_CARGO_CLIPPY:
+                await run(['cargo', 'clippy', ...rustWorkspaceArgs, '--all-targets', '--all-features', '--', '-D', 'warnings'].join(' '));
+                break;
+            case TaskStepType.RUST_CARGO_CHECK:
+                await run(['cargo', 'check', ...rustWorkspaceArgs, '--all-targets', '--all-features'].join(' '));
+                break;
+            case TaskStepType.RUST_CARGO_TEST:
+                await run(['cargo', 'test', ...rustWorkspaceArgs, '--all-targets', '--all-features'].join(' '));
+                break;
+            case TaskStepType.RUST_CARGO_BUILD:
+                await run(['cargo', 'build', ...rustWorkspaceArgs, '--release', '--all-features'].join(' '));
+                break;
+
+            // --- Maven Steps ---
+            case TaskStepType.MAVEN_CLEAN:
+                await run(`${mavenCommand} -B clean`);
+                break;
+            case TaskStepType.MAVEN_TEST:
+                await run(`${mavenCommand} -B test`);
+                break;
+            case TaskStepType.MAVEN_PACKAGE:
+                await run(`${mavenCommand} -B package`);
+                break;
+
+            // --- .NET Steps ---
+            case TaskStepType.DOTNET_RESTORE:
+                await run('dotnet restore');
+                break;
+            case TaskStepType.DOTNET_BUILD:
+                await run('dotnet build --configuration Release');
+                break;
+            case TaskStepType.DOTNET_TEST:
+                await run('dotnet test --configuration Release --logger "trx"');
+                break;
+
             // --- Lazarus/FPC Steps ---
             case TaskStepType.LAZARUS_BUILD:
                 const lpiFile = step.lazarusProjectFile || projectInfo.lazarus?.projects[0]?.path;
