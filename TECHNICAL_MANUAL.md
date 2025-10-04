@@ -96,9 +96,9 @@ Use this process when shipping a new minor update or bugfix:
 5.  **Build Installers:** Run `npm run pack`. The command produces platform installers in the `release/` directory. Perform a quick smoke test of the generated artifacts before distribution.
 6.  **Publish on GitHub:** Draft a new release on GitHub, attach the installers from the `release/` folder, verify the tag/version details, and explicitly set the **Release Type** selector to match your intent (Full Release for GA builds or Draft/Pre-release when staging). Paste the current changelog entry into the notes so the GitHub release matches the repository history, then publish.
 
-### Documentation Status for 0.25.1
+### Documentation Status for 0.25.2
 
-- Reconfirmed that all technical guidance in this manual, the Functional Manual, the README, and the keyboard shortcut specification still aligns with the current codebase and UI for version `0.25.1`; no content corrections were necessary beyond this recorded audit.
+- Reconfirmed that all technical guidance in this manual, the Functional Manual, the README, and the keyboard shortcut specification still aligns with the current codebase and UI for version `0.25.2`; no content corrections were necessary beyond this recorded audit.
 ## 7. Automatic Updates
 
 The application is configured to automatically check for updates on startup using the `electron-updater` library.
