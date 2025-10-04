@@ -572,6 +572,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
       className={cardClasses}
       data-repo-id={id}
       data-category-id={categoryId}
+      data-automation-id={`repo-card-${id}`}
     >
       <div className="p-4 flex-grow">
         <div className="flex items-start justify-between">

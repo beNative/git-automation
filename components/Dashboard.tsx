@@ -250,7 +250,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-automation-id="dashboard-view">
       {categories.map((category, index) => {
         const categoryRepoIds = category.repositoryIds;
         const showDropIndicatorBefore = categoryDropIndicator?.categoryId === category.id && categoryDropIndicator.position === 'before';
