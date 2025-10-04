@@ -1927,10 +1927,20 @@ ipcMain.handle('list-branches', async (event, repoPath: string): Promise<BranchI
             current = null;
         }
 
-        const format =
-            '%(refname)%00%(refname:short)%00%(committerdate:iso8601)%00%(committerdate:relative)%00%(authorname)%00%(objectname:short)%00%(subject)';
-        const { stdout } = await execAsync(
-            `${gitCmd} for-each-ref --sort=-committerdate --format='${format}' refs/heads refs/remotes`,
+        const formatSegments = [
+            '%(refname)',
+            '%(refname:short)',
+            '%(committerdate:iso8601)',
+            '%(committerdate:relative)',
+            '%(authorname)',
+            '%(objectname:short)',
+            '%(subject)',
+        ];
+        const format = `--format=${formatSegments.join('%00')}`;
+        const gitExecutable = getExecutableCommand(VcsTypeEnum.Git, settings, false);
+        const { stdout } = await execFileAsync(
+            gitExecutable,
+            ['for-each-ref', '--sort=-committerdate', format, 'refs/heads', 'refs/remotes'],
             { cwd: repoPath },
         );
         const branches: BranchInfo = { local: [], remote: [], current, details: {} };
