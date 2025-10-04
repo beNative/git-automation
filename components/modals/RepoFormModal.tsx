@@ -119,6 +119,14 @@ const STEP_CATEGORIES = [
     { name: 'Docker', types: [TaskStepType.DOCKER_BUILD_IMAGE, TaskStepType.DOCKER_COMPOSE_UP, TaskStepType.DOCKER_COMPOSE_DOWN, TaskStepType.DOCKER_COMPOSE_BUILD] },
 ];
 
+const parseRemoteBranchIdentifier = (fullBranchName: string): { remoteName: string; branchName: string } | null => {
+  const [remoteName, ...rest] = fullBranchName.split('/');
+  if (!remoteName || rest.length === 0) {
+      return null;
+  }
+  return { remoteName, branchName: rest.join('/') };
+};
+
 // Component for a single step in the TaskStepsEditor
 const TaskStepItem: React.FC<{
   step: TaskStep;
@@ -1781,17 +1789,30 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
   };
   
-  const handleDeleteBranch = async (branchName: string, isRemote: boolean) => {
+  const handleDeleteBranch = async (branchIdentifier: string, scope: 'local' | 'remote') => {
     if (!repository) return;
+    const isRemote = scope === 'remote';
+    const remoteDetails = isRemote ? parseRemoteBranchIdentifier(branchIdentifier) : null;
+    const branchLabel = isRemote && remoteDetails
+        ? `${remoteDetails.remoteName}/${remoteDetails.branchName}`
+        : branchIdentifier;
+
     confirmAction({
         title: `Delete ${isRemote ? 'Remote' : 'Local'} Branch`,
-        message: `Are you sure you want to delete ${isRemote ? 'remote' : 'local'} branch '${branchName}'?`,
+        message: `Are you sure you want to delete ${isRemote ? 'remote' : 'local'} branch '${branchLabel}'?`,
         confirmText: "Delete",
         icon: <ExclamationCircleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />,
         onConfirm: async () => {
-            const result = await window.electronAPI?.deleteBranch(repository.localPath, branchName, isRemote);
+            const branchArgument = isRemote ? (remoteDetails?.branchName ?? branchIdentifier) : branchIdentifier;
+            const remoteName = remoteDetails?.remoteName;
+            const result = await window.electronAPI?.deleteBranch(
+                repository.localPath,
+                branchArgument,
+                isRemote,
+                remoteName
+            );
             if (result?.success) {
-                setToast({ message: `Branch '${branchName}' deleted`, type: 'success' });
+                setToast({ message: `Branch '${branchLabel}' deleted`, type: 'success' });
                 fetchBranches();
                 onRefreshState(repository.id);
             } else {
@@ -1829,11 +1850,19 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             try {
                 const results: Array<{ selection: { name: string; scope: 'local' | 'remote' }; success: boolean; error?: string }> = [];
                 for (const selection of deletable) {
-                    const branchArgument = selection.scope === 'remote'
-                        ? selection.name.split('/').slice(1).join('/') || selection.name
+                    const isRemoteSelection = selection.scope === 'remote';
+                    const remoteDetails = isRemoteSelection ? parseRemoteBranchIdentifier(selection.name) : null;
+                    const branchArgument = isRemoteSelection
+                        ? (remoteDetails?.branchName ?? selection.name)
                         : selection.name;
+                    const remoteName = remoteDetails?.remoteName;
                     try {
-                        const result = await window.electronAPI?.deleteBranch(repository.localPath, branchArgument, selection.scope === 'remote');
+                        const result = await window.electronAPI?.deleteBranch(
+                            repository.localPath,
+                            branchArgument,
+                            isRemoteSelection,
+                            remoteName
+                        );
                         if (result?.success) {
                             results.push({ selection, success: true });
                         } else {
@@ -2357,10 +2386,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                             {b !== branchInfo?.current && (
                                                                 <button
                                                                     type="button"
-                                                                    onClick={(event) => {
-                                                                        event.stopPropagation();
-                                                                        handleDeleteBranch(b, false);
-                                                                    }}
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    handleDeleteBranch(b, 'local');
+                                                                }}
                                                                     className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"
                                                                 >
                                                                     <TrashIcon className="h-4 w-4" />
@@ -2395,7 +2424,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                                 type="button"
                                                                 onClick={(event) => {
                                                                     event.stopPropagation();
-                                                                    handleDeleteBranch(b.split('/').slice(1).join('/'), true);
+                                                                    handleDeleteBranch(b, 'remote');
                                                                 }}
                                                                 className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"
                                                             >

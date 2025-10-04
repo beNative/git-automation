@@ -2023,13 +2023,25 @@ ipcMain.handle('checkout-branch', (e, repoPath: string, branch: string) => {
     return simpleGitCommand(repoPath, `checkout ${branch}`);
 });
 ipcMain.handle('create-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `checkout -b ${branch}`));
-ipcMain.handle('delete-branch', (e, repoPath: string, branch: string, isRemote: boolean) => {
+ipcMain.handle('delete-branch', (e, repoPath: string, branch: string, isRemote: boolean, remoteName?: string) => {
     if (isRemote) {
-        const remoteName = 'origin'; // This is a simplification
-        return simpleGitCommand(repoPath, `push ${remoteName} --delete ${branch}`);
-    } else {
-        return simpleGitCommand(repoPath, `branch -d ${branch}`);
+        let targetRemote = remoteName?.trim();
+        let branchRef = branch;
+
+        if (!targetRemote && branch.includes('/')) {
+            const segments = branch.split('/');
+            targetRemote = segments.shift() || targetRemote;
+            branchRef = segments.join('/') || branchRef;
+        }
+
+        if (!targetRemote) {
+            targetRemote = 'origin';
+        }
+
+        return simpleGitCommand(repoPath, `push ${targetRemote} --delete ${branchRef}`);
     }
+
+    return simpleGitCommand(repoPath, `branch -d ${branch}`);
 });
 ipcMain.handle('merge-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `merge ${branch}`));
 

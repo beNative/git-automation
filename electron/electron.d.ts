@@ -32,7 +32,7 @@ export interface IElectronAPI {
   listBranches: (repoPath: string) => Promise<BranchInfo>;
   checkoutBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
   createBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
-  deleteBranch: (repoPath: string, branch: string, isRemote: boolean) => Promise<{ success: boolean; error?: string }>;
+  deleteBranch: (repoPath: string, branch: string, isRemote: boolean, remoteName?: string) => Promise<{ success: boolean; error?: string }>;
   mergeBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
   ignoreFilesAndPush: (args: { repo: Repository; filesToIgnore: string[] }) => Promise<{ success: boolean; error?: string }>;
   

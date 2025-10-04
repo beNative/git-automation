@@ -40,7 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listBranches: (repoPath: string): Promise<BranchInfo> => ipcRenderer.invoke('list-branches', repoPath),
   checkoutBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('checkout-branch', repoPath, branch),
   createBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('create-branch', repoPath, branch),
-  deleteBranch: (repoPath: string, branch: string, isRemote: boolean): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('delete-branch', repoPath, branch, isRemote),
+  deleteBranch: (repoPath: string, branch: string, isRemote: boolean, remoteName?: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('delete-branch', repoPath, branch, isRemote, remoteName),
   mergeBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('merge-branch', repoPath, branch),
   ignoreFilesAndPush: (args: { repo: Repository, filesToIgnore: string[] }): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('ignore-files-and-push', args),
   
