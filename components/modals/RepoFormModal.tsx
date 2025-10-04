@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo, DockerCapabilities } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo, DockerCapabilities, GoCapabilities, RustCapabilities, MavenCapabilities, DotnetCapabilities } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -33,6 +33,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PencilIcon } from '../icons/PencilIcon';
 import { ArrowPathIcon } from '../icons/ArrowPathIcon';
+import { TerminalIcon } from '../icons/TerminalIcon';
 
 interface RepoEditViewProps {
   onSave: (repository: Repository, categoryId?: string) => void;
@@ -97,6 +98,27 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.NODE_RUN_TYPECHECK]: { label: 'Node: Type Check', icon: NodeIcon, description: 'Run the TypeScript compiler to check for type errors.' },
   [TaskStepType.NODE_RUN_TESTS]: { label: 'Node: Run Tests', icon: NodeIcon, description: 'Run unit/integration tests with Jest or Vitest.' },
   [TaskStepType.NODE_RUN_BUILD]: { label: 'Node: Build Project', icon: NodeIcon, description: 'Run the build script or detected bundler.' },
+  // Go
+  [TaskStepType.GO_MOD_DOWNLOAD]: { label: 'Go: Download Modules', icon: TerminalIcon, description: 'Download dependencies declared in go.mod.' },
+  [TaskStepType.GO_TEST]: { label: 'Go: Run Tests', icon: TerminalIcon, description: 'Execute go test across the module.' },
+  [TaskStepType.GO_BUILD]: { label: 'Go: Build', icon: TerminalIcon, description: 'Build Go binaries for the current module.' },
+  [TaskStepType.GO_FMT]: { label: 'Go: Format', icon: TerminalIcon, description: 'Format Go source files using go fmt.' },
+  [TaskStepType.GO_LINT]: { label: 'Go: Lint/Vet', icon: TerminalIcon, description: 'Run golangci-lint when available, otherwise go vet.' },
+  // Rust
+  [TaskStepType.RUST_CARGO_FETCH]: { label: 'Rust: Cargo Fetch', icon: TerminalIcon, description: 'Download Rust crate dependencies.' },
+  [TaskStepType.RUST_CARGO_BUILD]: { label: 'Rust: Cargo Build', icon: TerminalIcon, description: 'Build the project with cargo build --release.' },
+  [TaskStepType.RUST_CARGO_TEST]: { label: 'Rust: Cargo Test', icon: TerminalIcon, description: 'Run the Rust test suite with cargo test.' },
+  [TaskStepType.RUST_CARGO_FMT]: { label: 'Rust: Cargo Fmt', icon: TerminalIcon, description: 'Check formatting using cargo fmt -- --check.' },
+  [TaskStepType.RUST_CARGO_CLIPPY]: { label: 'Rust: Cargo Clippy', icon: TerminalIcon, description: 'Run cargo clippy (or cargo check when configuration is missing).' },
+  // Maven
+  [TaskStepType.MAVEN_CLEAN_INSTALL]: { label: 'Maven: Clean Install', icon: TerminalIcon, description: 'Run mvn clean install -B or the Maven wrapper.' },
+  [TaskStepType.MAVEN_TEST]: { label: 'Maven: Test', icon: TerminalIcon, description: 'Run mvn test -B to execute unit tests.' },
+  [TaskStepType.MAVEN_PACKAGE]: { label: 'Maven: Package', icon: TerminalIcon, description: 'Package artifacts with mvn package -B.' },
+  // .NET
+  [TaskStepType.DOTNET_RESTORE]: { label: '.NET: Restore', icon: TerminalIcon, description: 'Restore NuGet packages for the solution or project.' },
+  [TaskStepType.DOTNET_BUILD]: { label: '.NET: Build', icon: TerminalIcon, description: 'Build the solution or project in Release mode.' },
+  [TaskStepType.DOTNET_TEST]: { label: '.NET: Test', icon: TerminalIcon, description: 'Execute dotnet test for detected test projects.' },
+  [TaskStepType.DOTNET_PUBLISH]: { label: '.NET: Publish', icon: TerminalIcon, description: 'Publish the application to the ./publish directory.' },
   // Lazarus/FPC
   [TaskStepType.LAZARUS_BUILD]: { label: 'Lazarus: Build Project', icon: BeakerIcon, description: 'Build a Lazarus project (.lpi) using lazbuild.' },
   [TaskStepType.LAZARUS_BUILD_PACKAGE]: { label: 'Lazarus: Build Package', icon: BeakerIcon, description: 'Build a Lazarus package (.lpk) using lazbuild.' },
@@ -113,6 +135,10 @@ const STEP_CATEGORIES = [
     { name: 'Git', types: [TaskStepType.GitPull, TaskStepType.GitFetch, TaskStepType.GitCheckout, TaskStepType.GitStash] },
     { name: 'SVN', types: [TaskStepType.SvnUpdate] },
     { name: 'Node.js', types: [TaskStepType.NODE_INSTALL_DEPS, TaskStepType.NODE_RUN_BUILD, TaskStepType.NODE_RUN_TESTS, TaskStepType.NODE_RUN_LINT, TaskStepType.NODE_RUN_FORMAT, TaskStepType.NODE_RUN_TYPECHECK] },
+    { name: 'Go', types: [TaskStepType.GO_MOD_DOWNLOAD, TaskStepType.GO_LINT, TaskStepType.GO_FMT, TaskStepType.GO_TEST, TaskStepType.GO_BUILD] },
+    { name: 'Rust', types: [TaskStepType.RUST_CARGO_FETCH, TaskStepType.RUST_CARGO_FMT, TaskStepType.RUST_CARGO_CLIPPY, TaskStepType.RUST_CARGO_TEST, TaskStepType.RUST_CARGO_BUILD] },
+    { name: 'Maven', types: [TaskStepType.MAVEN_CLEAN_INSTALL, TaskStepType.MAVEN_TEST, TaskStepType.MAVEN_PACKAGE] },
+    { name: '.NET', types: [TaskStepType.DOTNET_RESTORE, TaskStepType.DOTNET_BUILD, TaskStepType.DOTNET_TEST, TaskStepType.DOTNET_PUBLISH] },
     { name: 'Python', types: [TaskStepType.PYTHON_CREATE_VENV, TaskStepType.PYTHON_INSTALL_DEPS, TaskStepType.PYTHON_RUN_BUILD, TaskStepType.PYTHON_RUN_TESTS, TaskStepType.PYTHON_RUN_LINT, TaskStepType.PYTHON_RUN_FORMAT, TaskStepType.PYTHON_RUN_TYPECHECK] },
     { name: 'Delphi', types: [TaskStepType.DelphiBuild, TaskStepType.DELPHI_BOSS_INSTALL, TaskStepType.DELPHI_PACKAGE_INNO, TaskStepType.DELPHI_PACKAGE_NSIS, TaskStepType.DELPHI_TEST_DUNITX] },
     { name: 'Lazarus/FPC', types: [TaskStepType.LAZARUS_BUILD, TaskStepType.LAZARUS_BUILD_PACKAGE, TaskStepType.FPC_TEST_FPCUNIT] },
@@ -684,6 +710,252 @@ const NodejsTaskGenerator: React.FC<{
     );
 };
 
+const GoTaskGenerator: React.FC<{
+    goCaps: GoCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ goCaps, onAddTask }) => {
+    if (!goCaps || (goCaps.modules.length === 0 && !goCaps.hasGoWork)) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+
+    const createDownloadTask = () => {
+        onAddTask({
+            name: 'Go: Download Modules',
+            steps: [{ type: TaskStepType.GO_MOD_DOWNLOAD, enabled: true, id: '' }],
+        });
+    };
+
+    const createVerifyTask = () => {
+        const steps: Omit<TaskStep, 'id'>[] = [
+            { type: TaskStepType.GO_MOD_DOWNLOAD, enabled: true },
+            { type: TaskStepType.GO_LINT, enabled: true },
+        ];
+        if (goCaps.hasTests) steps.push({ type: TaskStepType.GO_TEST, enabled: true });
+        steps.push({ type: TaskStepType.GO_BUILD, enabled: true });
+        onAddTask({
+            name: 'Go: Verify & Build',
+            steps: steps.map(s => ({ ...s, id: '' })),
+        });
+    };
+
+    const createFormatTask = () => {
+        onAddTask({
+            name: 'Go: Format',
+            steps: [{ type: TaskStepType.GO_FMT, enabled: true, id: '' }],
+        });
+    };
+
+    const detected = [
+        ...goCaps.modules.map(module => module.module ?? getBasename(module.path)),
+        ...(goCaps.hasGoWork ? ['go.work'] : []),
+        ...(goCaps.hasGoSum ? ['go.sum'] : []),
+        ...(goCaps.lintTools.map(tool => tool.replace('golangci-lint', 'GolangCI-Lint'))),
+        ...(goCaps.hasTests ? ['Tests'] : []),
+    ].filter(Boolean);
+
+    return (
+        <div className="p-3 mb-4 bg-emerald-50 dark:bg-gray-900/50 rounded-lg border border-emerald-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <TerminalIcon className="h-5 w-5 text-emerald-500" />
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Go Project Detected</h3>
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                {detected.map(item => (
+                    <span key={item} className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full">{item}</span>
+                ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={createDownloadTask} className="text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-md">Add Download Task</button>
+                <button type="button" onClick={createVerifyTask} className="text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-md">Add Verify Task</button>
+                {goCaps.formatters.length > 0 && (
+                    <button type="button" onClick={createFormatTask} className="text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-md">Add Format Task</button>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const RustTaskGenerator: React.FC<{
+    rustCaps: RustCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ rustCaps, onAddTask }) => {
+    if (!rustCaps || rustCaps.manifests.length === 0) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+
+    const createFetchTask = () => {
+        onAddTask({
+            name: 'Rust: Fetch Dependencies',
+            steps: [{ type: TaskStepType.RUST_CARGO_FETCH, enabled: true, id: '' }],
+        });
+    };
+
+    const createChecksTask = () => {
+        const steps: Omit<TaskStep, 'id'>[] = [];
+        steps.push({ type: TaskStepType.RUST_CARGO_FETCH, enabled: true });
+        steps.push({ type: TaskStepType.RUST_CARGO_CLIPPY, enabled: true });
+        steps.push({ type: TaskStepType.RUST_CARGO_TEST, enabled: true });
+        onAddTask({
+            name: 'Rust: Lint & Test',
+            steps: steps.map(s => ({ ...s, id: '' })),
+        });
+    };
+
+    const createBuildTask = () => {
+        const steps: Omit<TaskStep, 'id'>[] = [];
+        steps.push({ type: TaskStepType.RUST_CARGO_BUILD, enabled: true });
+        if (rustCaps.hasFmtConfig) steps.unshift({ type: TaskStepType.RUST_CARGO_FMT, enabled: true });
+        onAddTask({
+            name: 'Rust: Format & Build',
+            steps: steps.map(s => ({ ...s, id: '' })),
+        });
+    };
+
+    const detected = [
+        ...rustCaps.manifests.map(manifest => manifest.name ?? getBasename(manifest.path)),
+        ...(rustCaps.hasLockfile ? ['Cargo.lock'] : []),
+        ...(rustCaps.hasClippyConfig ? ['Clippy config'] : []),
+        ...(rustCaps.hasFmtConfig ? ['rustfmt config'] : []),
+    ];
+
+    return (
+        <div className="p-3 mb-4 bg-orange-50 dark:bg-gray-900/50 rounded-lg border border-orange-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <TerminalIcon className="h-5 w-5 text-orange-500" />
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Rust Project Detected</h3>
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                {detected.map(item => (
+                    <span key={item} className="bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300 px-2 py-0.5 rounded-full">{item}</span>
+                ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={createFetchTask} className="text-xs font-medium text-white bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-md">Add Fetch Task</button>
+                <button type="button" onClick={createChecksTask} className="text-xs font-medium text-white bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-md">Add Lint/Test Task</button>
+                <button type="button" onClick={createBuildTask} className="text-xs font-medium text-white bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-md">Add Build Task</button>
+            </div>
+        </div>
+    );
+};
+
+const MavenTaskGenerator: React.FC<{
+    mavenCaps: MavenCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ mavenCaps, onAddTask }) => {
+    if (!mavenCaps || mavenCaps.modules.length === 0) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+
+    const createInstallTask = () => {
+        onAddTask({
+            name: 'Maven: Clean Install',
+            steps: [{ type: TaskStepType.MAVEN_CLEAN_INSTALL, enabled: true, id: '' }],
+        });
+    };
+
+    const createTestTask = () => {
+        onAddTask({
+            name: 'Maven: Run Tests',
+            steps: [{ type: TaskStepType.MAVEN_TEST, enabled: true, id: '' }],
+        });
+    };
+
+    const createPackageTask = () => {
+        onAddTask({
+            name: 'Maven: Package',
+            steps: [{ type: TaskStepType.MAVEN_PACKAGE, enabled: true, id: '' }],
+        });
+    };
+
+    const detected = [
+        ...mavenCaps.modules.map(module => module.artifactId ?? getBasename(module.path)),
+        ...(mavenCaps.usesWrapper ? ['Wrapper'] : []),
+    ];
+
+    return (
+        <div className="p-3 mb-4 bg-purple-50 dark:bg-gray-900/50 rounded-lg border border-purple-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <TerminalIcon className="h-5 w-5 text-purple-500" />
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Maven Project Detected</h3>
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                {detected.map(item => (
+                    <span key={item} className="bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded-full">{item}</span>
+                ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={createInstallTask} className="text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-md">Add Clean Install Task</button>
+                <button type="button" onClick={createTestTask} className="text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-md">Add Test Task</button>
+                <button type="button" onClick={createPackageTask} className="text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-md">Add Package Task</button>
+            </div>
+        </div>
+    );
+};
+
+const DotnetTaskGenerator: React.FC<{
+    dotnetCaps: DotnetCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ dotnetCaps, onAddTask }) => {
+    if (!dotnetCaps || (dotnetCaps.projects.length === 0 && dotnetCaps.solutions.length === 0)) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+
+    const createRestoreBuildTask = () => {
+        onAddTask({
+            name: '.NET: Restore & Build',
+            steps: [
+                { type: TaskStepType.DOTNET_RESTORE, enabled: true },
+                { type: TaskStepType.DOTNET_BUILD, enabled: true },
+            ].map(s => ({ ...s, id: '' })),
+        });
+    };
+
+    const createTestTask = () => {
+        onAddTask({
+            name: '.NET: Run Tests',
+            steps: [{ type: TaskStepType.DOTNET_TEST, enabled: true, id: '' }],
+        });
+    };
+
+    const createPublishTask = () => {
+        onAddTask({
+            name: '.NET: Publish',
+            steps: [{ type: TaskStepType.DOTNET_PUBLISH, enabled: true, id: '' }],
+        });
+    };
+
+    const detected = [
+        ...dotnetCaps.solutions.map(sol => `Solution: ${getBasename(sol)}`),
+        ...dotnetCaps.projects.map(project => {
+            const frameworks = project.targetFrameworks.length > 0 ? ` (${project.targetFrameworks.join(', ')})` : '';
+            return `${getBasename(project.path)}${frameworks}`;
+        }),
+    ];
+
+    const hasTestProject = dotnetCaps.projects.some(p => p.isTestProject);
+
+    return (
+        <div className="p-3 mb-4 bg-indigo-50 dark:bg-gray-900/50 rounded-lg border border-indigo-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <TerminalIcon className="h-5 w-5 text-indigo-500" />
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">.NET Project Detected</h3>
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                {detected.map(item => (
+                    <span key={item} className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300 px-2 py-0.5 rounded-full">{item}</span>
+                ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={createRestoreBuildTask} className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-md">Add Restore &amp; Build Task</button>
+                {hasTestProject && (
+                    <button type="button" onClick={createTestTask} className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-md">Add Test Task</button>
+                )}
+                <button type="button" onClick={createPublishTask} className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-md">Add Publish Task</button>
+            </div>
+        </div>
+    );
+};
+
 const PythonTaskGenerator: React.FC<{
     pythonCaps: PythonCapabilities | undefined;
     onAddTask: (task: Partial<Task>) => void;
@@ -1083,6 +1355,10 @@ const TaskStepsEditor: React.FC<{
         if (type.startsWith('DELPHI_')) return tags.includes('delphi');
         if (type.startsWith('PYTHON_')) return tags.includes('python');
         if (type.startsWith('NODE_')) return tags.includes('nodejs');
+        if (type.startsWith('GO_')) return tags.includes('go');
+        if (type.startsWith('RUST_')) return tags.includes('rust');
+        if (type.startsWith('MAVEN_')) return tags.includes('maven');
+        if (type.startsWith('DOTNET_')) return tags.includes('dotnet');
         if (type.startsWith('LAZARUS_') || type.startsWith('FPC_')) return tags.includes('lazarus');
         if (type.startsWith('DOCKER_')) return tags.includes('docker');
         // All other steps (like RunCommand) are always available.
@@ -1124,6 +1400,10 @@ const TaskStepsEditor: React.FC<{
       
       <DockerTaskGenerator dockerCaps={projectInfo?.docker} onAddTask={onAddTask} />
       <NodejsTaskGenerator nodejsCaps={projectInfo?.nodejs} onAddTask={onAddTask} />
+      <GoTaskGenerator goCaps={projectInfo?.go} onAddTask={onAddTask} />
+      <RustTaskGenerator rustCaps={projectInfo?.rust} onAddTask={onAddTask} />
+      <MavenTaskGenerator mavenCaps={projectInfo?.maven} onAddTask={onAddTask} />
+      <DotnetTaskGenerator dotnetCaps={projectInfo?.dotnet} onAddTask={onAddTask} />
       <LazarusTaskGenerator lazarusCaps={projectInfo?.lazarus} onAddTask={onAddTask} />
       <DelphiTaskGenerator delphiCaps={projectInfo?.delphi} onAddTask={onAddTask} />
       <PythonTaskGenerator pythonCaps={projectInfo?.python} onAddTask={onAddTask} />

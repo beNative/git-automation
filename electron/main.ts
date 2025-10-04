@@ -4,7 +4,7 @@ import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
-import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities } from '../types';
+import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities, GoCapabilities, RustCapabilities, MavenCapabilities, DotnetCapabilities } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 import JSZip from 'jszip';
@@ -692,6 +692,95 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
         if (isNodeProject) {
             tagsSet.add('nodejs');
             info.nodejs = nodejsCaps;
+        }
+
+        // --- Go Project Detection ---
+        const goCaps: GoCapabilities = {
+            modules: [],
+            hasGoWork: await fileExists(repoPath, 'go.work'),
+            hasGoSum: await fileExists(repoPath, 'go.sum'),
+            lintTools: [],
+            formatters: ['gofmt'],
+            hasTests: false,
+        };
+        const goModFiles = await findFilesByMatcherRecursive(repoPath, (entry) => entry.isFile() && entry.name === 'go.mod', repoPath);
+        for (const modFile of goModFiles) {
+            try {
+                const content = await fs.readFile(path.join(repoPath, modFile), 'utf-8');
+                const moduleMatch = content.match(/^\s*module\s+([^\s]+)/m);
+                goCaps.modules.push({ path: modFile, module: moduleMatch ? moduleMatch[1].trim() : null });
+            } catch (e) { mainLogger.error(`Could not parse go.mod: ${modFile}`, e); }
+        }
+        const goTestFiles = await findFilesByMatcherRecursive(repoPath, (entry) => entry.isFile() && entry.name.endsWith('_test.go'), repoPath, 0, 2);
+        goCaps.hasTests = goTestFiles.length > 0;
+        if (await fileExists(repoPath, '.golangci.yml') || await fileExists(repoPath, '.golangci.yaml')) {
+            goCaps.lintTools.push('golangci-lint');
+        }
+        if (goModFiles.length > 0 || goCaps.hasGoWork) {
+            tagsSet.add('go');
+            info.go = goCaps;
+        }
+
+        // --- Rust Project Detection ---
+        const rustCaps: RustCapabilities = {
+            manifests: [],
+            hasLockfile: await fileExists(repoPath, 'Cargo.lock'),
+            hasClippyConfig: await fileExists(repoPath, 'Clippy.toml') || await fileExists(repoPath, 'clippy.toml'),
+            hasFmtConfig: await fileExists(repoPath, 'rustfmt.toml') || await fileExists(repoPath, '.rustfmt.toml'),
+        };
+        const cargoTomlFiles = await findFilesByMatcherRecursive(repoPath, (entry) => entry.isFile() && entry.name === 'Cargo.toml', repoPath);
+        for (const manifest of cargoTomlFiles) {
+            try {
+                const content = await fs.readFile(path.join(repoPath, manifest), 'utf-8');
+                const nameMatch = content.match(/^\s*name\s*=\s*"([^"]+)"/m);
+                const editionMatch = content.match(/^\s*edition\s*=\s*"([^"]+)"/m);
+                const isWorkspace = /\[workspace\]/.test(content);
+                rustCaps.manifests.push({ path: manifest, name: nameMatch ? nameMatch[1] : null, edition: editionMatch ? editionMatch[1] : null, isWorkspaceRoot: isWorkspace });
+            } catch (e) { mainLogger.error(`Could not parse Cargo.toml: ${manifest}`, e); }
+        }
+        if (cargoTomlFiles.length > 0) {
+            tagsSet.add('rust');
+            info.rust = rustCaps;
+        }
+
+        // --- Maven Project Detection ---
+        const pomFiles = await findFilesByMatcherRecursive(repoPath, (entry) => entry.isFile() && entry.name === 'pom.xml', repoPath);
+        const mavenCaps: MavenCapabilities = {
+            modules: [],
+            usesWrapper: await fileExists(repoPath, 'mvnw') || await fileExists(repoPath, 'mvnw.cmd'),
+        };
+        for (const pom of pomFiles) {
+            try {
+                const content = await fs.readFile(path.join(repoPath, pom), 'utf-8');
+                const artifactMatch = content.match(/<artifactId>([^<]+)<\/artifactId>/);
+                const packagingMatch = content.match(/<packaging>([^<]+)<\/packaging>/);
+                mavenCaps.modules.push({ path: pom, artifactId: artifactMatch ? artifactMatch[1] : null, packaging: packagingMatch ? packagingMatch[1] : null });
+            } catch (e) { mainLogger.error(`Could not parse pom.xml: ${pom}`, e); }
+        }
+        if (pomFiles.length > 0) {
+            tagsSet.add('maven');
+            info.maven = mavenCaps;
+        }
+
+        // --- .NET Project Detection ---
+        const dotnetCaps: DotnetCapabilities = {
+            projects: [],
+            solutions: await findFilesByExtensionRecursive(repoPath, '.sln', repoPath),
+        };
+        const csprojFiles = await findFilesByExtensionRecursive(repoPath, '.csproj', repoPath);
+        for (const csproj of csprojFiles) {
+            try {
+                const content = await fs.readFile(path.join(repoPath, csproj), 'utf-8');
+                const tfmMatch = content.match(/<TargetFramework>([^<]+)<\/TargetFramework>/);
+                const tfmsMatch = content.match(/<TargetFrameworks>([^<]+)<\/TargetFrameworks>/);
+                const frameworks = tfmsMatch ? tfmsMatch[1].split(';').map(f => f.trim()).filter(Boolean) : (tfmMatch ? [tfmMatch[1].trim()] : []);
+                const isTestProject = /<IsTestProject>\s*true\s*<\/IsTestProject>/i.test(content) || /test/i.test(path.basename(csproj));
+                dotnetCaps.projects.push({ path: csproj, targetFrameworks: frameworks, isTestProject });
+            } catch (e) { mainLogger.error(`Could not parse csproj: ${csproj}`, e); }
+        }
+        if (csprojFiles.length > 0 || dotnetCaps.solutions.length > 0) {
+            tagsSet.add('dotnet');
+            info.dotnet = dotnetCaps;
         }
 
     } catch (error) {
@@ -1625,13 +1714,92 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
                         buildCommand = `${pm} run build`;
                     }
                 } catch (e) { /* ignore parse error */ }
-                
+
                 if (buildCommand) {
                     await run(buildCommand);
                 } else {
                     if (projectInfo.nodejs?.bundlers.includes('vite')) await run('npx vite build');
                     else if (projectInfo.nodejs?.bundlers.includes('tsup')) await run('npx tsup');
                     else throw new Error("No 'build' script found in package.json and no known bundler config detected.");
+                }
+                break;
+
+            // --- Go Steps ---
+            case TaskStepType.GO_MOD_DOWNLOAD:
+                await run('go mod download');
+                break;
+            case TaskStepType.GO_TEST:
+                await run('go test ./...');
+                break;
+            case TaskStepType.GO_BUILD:
+                await run('go build ./...');
+                break;
+            case TaskStepType.GO_FMT:
+                await run('go fmt ./...');
+                break;
+            case TaskStepType.GO_LINT:
+                if (projectInfo.go?.lintTools.includes('golangci-lint')) {
+                    await run('golangci-lint run');
+                } else {
+                    await run('go vet ./...');
+                }
+                break;
+
+            // --- Rust Steps ---
+            case TaskStepType.RUST_CARGO_FETCH:
+                await run('cargo fetch');
+                break;
+            case TaskStepType.RUST_CARGO_BUILD:
+                await run('cargo build --release');
+                break;
+            case TaskStepType.RUST_CARGO_TEST:
+                await run('cargo test --all');
+                break;
+            case TaskStepType.RUST_CARGO_FMT:
+                await run('cargo fmt -- --check');
+                break;
+            case TaskStepType.RUST_CARGO_CLIPPY:
+                if (projectInfo.rust?.hasClippyConfig) {
+                    await run('cargo clippy --all-targets -- -D warnings');
+                } else {
+                    await run('cargo check');
+                }
+                break;
+
+            // --- Maven Steps ---
+            case TaskStepType.MAVEN_CLEAN_INSTALL:
+            case TaskStepType.MAVEN_TEST:
+            case TaskStepType.MAVEN_PACKAGE:
+                const mavenCmd = projectInfo.maven?.usesWrapper
+                    ? (os.platform() === 'win32' ? '.\\mvnw.cmd' : './mvnw')
+                    : 'mvn';
+                if (step.type === TaskStepType.MAVEN_CLEAN_INSTALL) {
+                    await run(`${mavenCmd} clean install -B`);
+                } else if (step.type === TaskStepType.MAVEN_TEST) {
+                    await run(`${mavenCmd} test -B`);
+                } else {
+                    await run(`${mavenCmd} package -B`);
+                }
+                break;
+
+            // --- .NET Steps ---
+            case TaskStepType.DOTNET_RESTORE:
+            case TaskStepType.DOTNET_BUILD:
+            case TaskStepType.DOTNET_TEST:
+            case TaskStepType.DOTNET_PUBLISH:
+                const dotnetCaps = projectInfo.dotnet;
+                const defaultTarget = dotnetCaps?.solutions[0] || dotnetCaps?.projects[0]?.path;
+                const targetArg = defaultTarget ? ` "${defaultTarget}"` : '';
+                if (step.type === TaskStepType.DOTNET_RESTORE) {
+                    await run(`dotnet restore${targetArg}`);
+                } else if (step.type === TaskStepType.DOTNET_BUILD) {
+                    await run(`dotnet build${targetArg} --configuration Release`);
+                } else if (step.type === TaskStepType.DOTNET_TEST) {
+                    const testProject = dotnetCaps?.projects.find(p => p.isTestProject)?.path || defaultTarget;
+                    const testTargetArg = testProject ? ` "${testProject}"` : '';
+                    await run(`dotnet test${testTargetArg} --configuration Release --no-build`);
+                } else {
+                    await run(`dotnet publish${targetArg} --configuration Release --output ./publish`);
                 }
                 break;
 

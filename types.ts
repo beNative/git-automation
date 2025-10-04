@@ -102,6 +102,27 @@ export enum TaskStepType {
   NODE_RUN_TYPECHECK = 'NODE_RUN_TYPECHECK',
   NODE_RUN_TESTS = 'NODE_RUN_TESTS',
   NODE_RUN_BUILD = 'NODE_RUN_BUILD',
+  // Go
+  GO_MOD_DOWNLOAD = 'GO_MOD_DOWNLOAD',
+  GO_TEST = 'GO_TEST',
+  GO_BUILD = 'GO_BUILD',
+  GO_FMT = 'GO_FMT',
+  GO_LINT = 'GO_LINT',
+  // Rust
+  RUST_CARGO_FETCH = 'RUST_CARGO_FETCH',
+  RUST_CARGO_BUILD = 'RUST_CARGO_BUILD',
+  RUST_CARGO_TEST = 'RUST_CARGO_TEST',
+  RUST_CARGO_FMT = 'RUST_CARGO_FMT',
+  RUST_CARGO_CLIPPY = 'RUST_CARGO_CLIPPY',
+  // Maven
+  MAVEN_CLEAN_INSTALL = 'MAVEN_CLEAN_INSTALL',
+  MAVEN_TEST = 'MAVEN_TEST',
+  MAVEN_PACKAGE = 'MAVEN_PACKAGE',
+  // .NET
+  DOTNET_RESTORE = 'DOTNET_RESTORE',
+  DOTNET_BUILD = 'DOTNET_BUILD',
+  DOTNET_TEST = 'DOTNET_TEST',
+  DOTNET_PUBLISH = 'DOTNET_PUBLISH',
   // Lazarus/FPC
   LAZARUS_BUILD = 'LAZARUS_BUILD',
   LAZARUS_BUILD_PACKAGE = 'LAZARUS_BUILD_PACKAGE',
@@ -412,6 +433,56 @@ export interface NodejsCapabilities {
   monorepo: { workspaces: boolean, turbo: boolean, nx: boolean, yarnBerryPnp: boolean };
 }
 
+export interface GoModuleInfo {
+  path: string;
+  module: string | null;
+}
+
+export interface GoCapabilities {
+  modules: GoModuleInfo[];
+  hasGoWork: boolean;
+  hasGoSum: boolean;
+  lintTools: ('golangci-lint')[];
+  formatters: ('gofmt')[];
+  hasTests: boolean;
+}
+
+export interface RustManifestInfo {
+  path: string;
+  name: string | null;
+  edition: string | null;
+  isWorkspaceRoot: boolean;
+}
+
+export interface RustCapabilities {
+  manifests: RustManifestInfo[];
+  hasLockfile: boolean;
+  hasClippyConfig: boolean;
+  hasFmtConfig: boolean;
+}
+
+export interface MavenModuleInfo {
+  path: string;
+  artifactId: string | null;
+  packaging: string | null;
+}
+
+export interface MavenCapabilities {
+  modules: MavenModuleInfo[];
+  usesWrapper: boolean;
+}
+
+export interface DotnetProjectInfo {
+  path: string;
+  targetFrameworks: string[];
+  isTestProject: boolean;
+}
+
+export interface DotnetCapabilities {
+  projects: DotnetProjectInfo[];
+  solutions: string[];
+}
+
 export interface ProjectInfo {
   tags: string[];
   files: { dproj: string[] };
@@ -420,4 +491,8 @@ export interface ProjectInfo {
   nodejs?: NodejsCapabilities;
   lazarus?: LazarusCapabilities;
   docker?: DockerCapabilities;
+  go?: GoCapabilities;
+  rust?: RustCapabilities;
+  maven?: MavenCapabilities;
+  dotnet?: DotnetCapabilities;
 }
