@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { BranchInfo } from '../../types';
+import type { BranchInfo, BranchMetadata } from '../../types';
 import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';
 import { XIcon } from '../icons/XIcon';
 
@@ -16,6 +16,7 @@ type BranchEntry = {
   name: string;
   type: 'local' | 'remote';
   isCurrent: boolean;
+  metadata?: BranchMetadata;
 };
 
 const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
@@ -52,7 +53,8 @@ const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
       return [];
     }
 
-    const { local, remote, current } = branchInfo;
+    const { local, remote, current, details } = branchInfo;
+    const branchDetails: Record<string, BranchMetadata> = details ?? {};
     const remoteBranchesToOffer = remote.filter(rBranch => {
       const localEquivalent = rBranch.split('/').slice(1).join('/');
       return !local.includes(localEquivalent);
@@ -63,6 +65,7 @@ const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
       name,
       type: 'local' as const,
       isCurrent: current === name,
+      metadata: branchDetails[name],
     }));
 
     const remoteEntries = remoteBranchesToOffer.map(name => ({
@@ -70,9 +73,17 @@ const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
       name,
       type: 'remote' as const,
       isCurrent: current === name,
+      metadata: branchDetails[name],
     }));
 
-    return [...localEntries, ...remoteEntries];
+    return [...localEntries, ...remoteEntries].sort((a, b) => {
+      const dateA = a.metadata?.lastCommitDate ? new Date(a.metadata.lastCommitDate).getTime() : 0;
+      const dateB = b.metadata?.lastCommitDate ? new Date(b.metadata.lastCommitDate).getTime() : 0;
+      if (dateA !== dateB) {
+        return dateB - dateA;
+      }
+      return a.name.localeCompare(b.name);
+    });
   }, [branchInfo]);
 
   const filteredEntries = useMemo(() => {
@@ -279,6 +290,7 @@ const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
               filteredEntries.map((entry, index) => {
                 const isActive = isKeyboardNavigating && index === activeIndex;
                 const isCurrent = entry.isCurrent;
+                const metadata = entry.metadata;
                 return (
                   <button
                     key={entry.key}
@@ -288,23 +300,51 @@ const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
                     aria-selected={isActive}
                     onClick={() => handleSelect(entry.name)}
                     onKeyDown={event => handleItemKeyDown(event, index)}
-                    className={`w-full flex items-center justify-between px-4 py-3 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full flex items-start justify-between gap-4 px-4 py-3 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 border-l-4 ${
                       isActive
-                        ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-100'
-                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    } ${isCurrent ? 'border-l-4 border-blue-500' : ''}`}
+                        ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-100 border-blue-300 dark:border-blue-500'
+                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border-transparent'
+                    } ${isCurrent ? 'border-blue-500 dark:border-blue-400' : ''}`}
                   >
-                    <div className="flex flex-col">
-                      <span className="font-medium truncate">{highlightBranchName(entry.name)}</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {entry.type === 'local' ? 'Local branch' : 'Remote branch'}
-                      </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium truncate">{highlightBranchName(entry.name)}</span>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                            entry.type === 'local'
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200'
+                              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-200'
+                          }`}
+                        >
+                          {entry.type === 'local' ? 'Local' : 'Remote'}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                        {metadata?.lastCommitRelative && (
+                          <span title={metadata.lastCommitDate || undefined}>
+                            Updated {metadata.lastCommitRelative}
+                          </span>
+                        )}
+                        {metadata?.lastCommitAuthor && <span>by {metadata.lastCommitAuthor}</span>}
+                      </div>
+                      {metadata?.lastCommitMessage && (
+                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-300 break-words">
+                          {metadata.lastCommitMessage}
+                        </p>
+                      )}
                     </div>
-                    {isCurrent && (
-                      <span className="ml-4 text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-300">
-                        Current
-                      </span>
-                    )}
+                    <div className="flex flex-col items-end gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      {metadata?.lastCommitSha && (
+                        <span className="font-mono text-[11px] uppercase" title="Latest commit">
+                          {metadata.lastCommitSha}
+                        </span>
+                      )}
+                      {isCurrent && (
+                        <span className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-300">
+                          Current
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })

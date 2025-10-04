@@ -300,10 +300,21 @@ export interface DetailedStatus {
   updatesAvailable?: boolean; // SVN only
 }
 
+export interface BranchMetadata {
+  name: string;
+  type: 'local' | 'remote';
+  lastCommitDate: string | null;
+  lastCommitRelative: string | null;
+  lastCommitAuthor: string | null;
+  lastCommitMessage: string | null;
+  lastCommitSha: string | null;
+}
+
 export interface BranchInfo {
   local: string[];
   remote: string[];
   current: string | null;
+  details: Record<string, BranchMetadata>;
 }
 
 export type UpdateStatus = 'checking' | 'available' | 'downloaded' | 'error';

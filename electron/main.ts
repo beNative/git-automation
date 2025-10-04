@@ -1918,26 +1918,65 @@ ipcMain.handle('list-branches', async (event, repoPath: string): Promise<BranchI
     try {
         const settings = await readSettings();
         const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
-        const { stdout } = await execAsync(`${gitCmd} branch -a`, { cwd: repoPath });
-        const branches: BranchInfo = { local: [], remote: [], current: null };
-        stdout.split('\n').forEach(line => {
-            line = line.trim();
-            if (!line) return;
-            const isCurrent = line.startsWith('* ');
-            const branchName = isCurrent ? line.substring(2) : line;
-            if (isCurrent) branches.current = branchName;
+        let current: string | null = null;
+        try {
+            const { stdout: currentStdout } = await execAsync(`${gitCmd} rev-parse --abbrev-ref HEAD`, { cwd: repoPath });
+            const normalized = currentStdout.trim();
+            current = normalized && normalized !== 'HEAD' ? normalized : null;
+        } catch (error) {
+            current = null;
+        }
 
-            if (branchName.startsWith('remotes/')) {
-                 if (!branchName.includes('->')) {
-                    branches.remote.push(branchName.substring(8));
+        const format =
+            '%(refname)%00%(refname:short)%00%(committerdate:iso8601)%00%(committerdate:relative)%00%(authorname)%00%(objectname:short)%00%(subject)';
+        const { stdout } = await execAsync(
+            `${gitCmd} for-each-ref --sort=-committerdate --format='${format}' refs/heads refs/remotes`,
+            { cwd: repoPath },
+        );
+        const branches: BranchInfo = { local: [], remote: [], current, details: {} };
+        stdout
+            .split('\n')
+            .map(line => line.replace(/\r$/, ''))
+            .forEach(rawLine => {
+                if (!rawLine.trim()) {
+                    return;
                 }
-            } else {
-                branches.local.push(branchName);
-            }
-        });
+                const segments = rawLine.split('\u0000');
+                if (segments.length < 7) {
+                    return;
+                }
+                const [refName, shortName, isoDate, relativeDate, authorName, shortHash, subject] = segments.map(segment =>
+                    segment.trim(),
+                );
+                const isRemote = refName.startsWith('refs/remotes/');
+                const isLocal = refName.startsWith('refs/heads/');
+                if (!isRemote && !isLocal) {
+                    return;
+                }
+                if (isRemote && /\/HEAD$/.test(shortName)) {
+                    return;
+                }
+
+                const type: 'local' | 'remote' = isRemote ? 'remote' : 'local';
+                if (type === 'local') {
+                    branches.local.push(shortName);
+                } else {
+                    branches.remote.push(shortName);
+                }
+
+                branches.details[shortName] = {
+                    name: shortName,
+                    type,
+                    lastCommitDate: isoDate || null,
+                    lastCommitRelative: relativeDate || null,
+                    lastCommitAuthor: authorName || null,
+                    lastCommitMessage: subject || null,
+                    lastCommitSha: shortHash || null,
+                };
+            });
         return branches;
     } catch (e) {
-        return { local: [], remote: [], current: null };
+        return { local: [], remote: [], current: null, details: {} };
     }
 });
 
