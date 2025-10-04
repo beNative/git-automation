@@ -119,12 +119,59 @@ const STEP_CATEGORIES = [
     { name: 'Docker', types: [TaskStepType.DOCKER_BUILD_IMAGE, TaskStepType.DOCKER_COMPOSE_UP, TaskStepType.DOCKER_COMPOSE_DOWN, TaskStepType.DOCKER_COMPOSE_BUILD] },
 ];
 
+const PROTECTED_BRANCH_IDENTIFIERS = new Set(['main', 'origin', 'origin/main']);
+
 const parseRemoteBranchIdentifier = (fullBranchName: string): { remoteName: string; branchName: string } | null => {
   const [remoteName, ...rest] = fullBranchName.split('/');
   if (!remoteName || rest.length === 0) {
       return null;
   }
   return { remoteName, branchName: rest.join('/') };
+};
+
+const formatBranchSelectionLabel = (selection: { name: string; scope: 'local' | 'remote' } | string, scopeOverride?: 'local' | 'remote'): string => {
+  if (typeof selection === 'string') {
+      const scope = scopeOverride ?? 'local';
+      if (scope === 'remote') {
+          const remoteDetails = parseRemoteBranchIdentifier(selection);
+          if (remoteDetails) {
+              return `${remoteDetails.remoteName}/${remoteDetails.branchName}`;
+          }
+      }
+      return selection;
+  }
+
+  if (selection.scope === 'remote') {
+      const remoteDetails = parseRemoteBranchIdentifier(selection.name);
+      if (remoteDetails) {
+          return `${remoteDetails.remoteName}/${remoteDetails.branchName}`;
+      }
+  }
+  return selection.name;
+};
+
+const isProtectedBranch = (branchIdentifier: string, scope: 'local' | 'remote'): boolean => {
+  const normalized = branchIdentifier.trim().toLowerCase();
+  if (PROTECTED_BRANCH_IDENTIFIERS.has(normalized)) {
+      return true;
+  }
+
+  if (scope === 'remote') {
+      const remoteDetails = parseRemoteBranchIdentifier(branchIdentifier);
+      if (remoteDetails) {
+          const remoteNormalized = remoteDetails.remoteName.trim().toLowerCase();
+          const branchNormalized = remoteDetails.branchName.trim().toLowerCase();
+          const composite = `${remoteNormalized}/${branchNormalized}`;
+          if (PROTECTED_BRANCH_IDENTIFIERS.has(composite)) {
+              return true;
+          }
+          if (remoteNormalized === 'origin' && PROTECTED_BRANCH_IDENTIFIERS.has(branchNormalized)) {
+              return true;
+          }
+      }
+  }
+
+  return false;
 };
 
 // Component for a single step in the TaskStepsEditor
@@ -1793,9 +1840,17 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     if (!repository) return;
     const isRemote = scope === 'remote';
     const remoteDetails = isRemote ? parseRemoteBranchIdentifier(branchIdentifier) : null;
-    const branchLabel = isRemote && remoteDetails
-        ? `${remoteDetails.remoteName}/${remoteDetails.branchName}`
-        : branchIdentifier;
+    const branchLabel = formatBranchSelectionLabel(branchIdentifier, scope);
+
+    if (scope === 'local' && branchInfo?.current && branchIdentifier === branchInfo.current) {
+        setToast({ message: 'Cannot delete the currently checked out branch.', type: 'info' });
+        return;
+    }
+
+    if (isProtectedBranch(branchLabel, scope)) {
+        setToast({ message: `Branch '${branchLabel}' is protected and cannot be deleted.`, type: 'info' });
+        return;
+    }
 
     confirmAction({
         title: `Delete ${isRemote ? 'Remote' : 'Local'} Branch`,
@@ -1828,16 +1883,35 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
 
     const currentBranch = branchInfo?.current;
-    const deletable = selectedBranches.filter(selection => !(selection.scope === 'local' && currentBranch && selection.name === currentBranch));
-    const skippedCount = selectedBranches.length - deletable.length;
+    let skippedCurrentCount = 0;
+    let skippedProtectedCount = 0;
+
+    const deletable = selectedBranches.filter(selection => {
+        if (selection.scope === 'local' && currentBranch && selection.name === currentBranch) {
+            skippedCurrentCount += 1;
+            return false;
+        }
+        if (isProtectedBranch(selection.name, selection.scope)) {
+            skippedProtectedCount += 1;
+            return false;
+        }
+        return true;
+    });
 
     if (deletable.length === 0) {
-        setToast({ message: 'Cannot delete the currently checked out branch.', type: 'info' });
+        const messages: string[] = [];
+        if (skippedProtectedCount) {
+            messages.push(`Cannot delete protected branch${skippedProtectedCount > 1 ? 'es' : ''}.`);
+        }
+        if (skippedCurrentCount) {
+            messages.push('Cannot delete the currently checked out branch.');
+        }
+        setToast({ message: messages.join(' ') || 'No branches can be deleted.', type: 'info' });
         return;
     }
 
     const summaryLines = deletable
-        .map(selection => `• ${selection.scope === 'remote' ? 'Remote' : 'Local'}: ${selection.name}`)
+        .map(selection => `• ${selection.scope === 'remote' ? 'Remote' : 'Local'}: ${formatBranchSelectionLabel(selection)}`)
         .join('\n');
 
     confirmAction({
@@ -1879,16 +1953,27 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 const messages: string[] = [];
                 if (succeeded.length) {
                     const successBase = `Deleted ${succeeded.length} branch${succeeded.length > 1 ? 'es' : ''}.`;
-                    const skippedMessage = skippedCount ? `Skipped ${skippedCount} branch${skippedCount > 1 ? 'es' : ''} that cannot be deleted.` : '';
+                    const skippedMessages: string[] = [];
+                    if (skippedProtectedCount) {
+                        skippedMessages.push(`Skipped ${skippedProtectedCount} protected branch${skippedProtectedCount > 1 ? 'es' : ''}.`);
+                    }
+                    if (skippedCurrentCount) {
+                        skippedMessages.push('Skipped the currently checked out branch.');
+                    }
                     const failureMention = failed.length ? 'Some branches could not be deleted.' : '';
-                    messages.push([successBase, skippedMessage, failureMention].filter(Boolean).join(' '));
-                } else if (skippedCount) {
-                    messages.push(`Skipped ${skippedCount} branch${skippedCount > 1 ? 'es' : ''} that cannot be deleted.`);
+                    messages.push([successBase, skippedMessages.join(' '), failureMention].filter(Boolean).join(' '));
+                } else {
+                    if (skippedProtectedCount) {
+                        messages.push(`Skipped ${skippedProtectedCount} protected branch${skippedProtectedCount > 1 ? 'es' : ''}.`);
+                    }
+                    if (skippedCurrentCount) {
+                        messages.push('Skipped the currently checked out branch.');
+                    }
                 }
 
                 if (failed.length) {
                     const failureList = failed
-                        .map(item => `${item.selection.scope === 'remote' ? 'remote' : 'local'}:${item.selection.name}`)
+                        .map(item => `${item.selection.scope === 'remote' ? 'remote' : 'local'}:${formatBranchSelectionLabel(item.selection)}`)
                         .join(', ');
                     messages.push(`Failed to delete ${failed.length} branch${failed.length > 1 ? 'es' : ''}: ${failureList}.`);
                 }
@@ -2314,14 +2399,30 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 }
                 return `${selectedBranchCount} branches selected (${parts.join(', ')})`;
             })();
+            const hasProtectedSelection = selectedBranches.some(selection => isProtectedBranch(selection.name, selection.scope));
+            const hasCurrentBranchSelected = selectedBranches.some(selection => selection.scope === 'local' && branchInfo?.current && selection.name === branchInfo.current);
             const hasDeletableSelection = selectedBranches.some(selection => {
                 if (selection.scope === 'local' && branchInfo?.current && selection.name === branchInfo.current) {
+                    return false;
+                }
+                if (isProtectedBranch(selection.name, selection.scope)) {
                     return false;
                 }
                 return true;
             });
             const bulkDeleteDisabled = !hasDeletableSelection || isDeletingBranches || branchesLoading;
-            const bulkDeleteTitle = hasDeletableSelection ? undefined : 'Cannot delete the currently checked out branch.';
+            const bulkDeleteTitle = (() => {
+                if (hasDeletableSelection) {
+                    return undefined;
+                }
+                if (hasProtectedSelection) {
+                    return 'Cannot delete protected branches.';
+                }
+                if (hasCurrentBranchSelected) {
+                    return 'Cannot delete the currently checked out branch.';
+                }
+                return undefined;
+            })();
             return (
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">

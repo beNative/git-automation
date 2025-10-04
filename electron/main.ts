@@ -2011,6 +2011,33 @@ const simpleGitCommand = async (repoPath: string, command: string): Promise<{ su
     }
 };
 
+const PROTECTED_BRANCH_IDENTIFIERS = new Set(['main', 'origin', 'origin/main']);
+
+const isProtectedBranch = (
+    branchIdentifier: string,
+    scope: 'local' | 'remote',
+    remoteDetails?: { remoteName: string; branchName: string }
+): boolean => {
+    const normalized = branchIdentifier.trim().toLowerCase();
+    if (PROTECTED_BRANCH_IDENTIFIERS.has(normalized)) {
+        return true;
+    }
+
+    if (scope === 'remote' && remoteDetails) {
+        const remoteNormalized = remoteDetails.remoteName.trim().toLowerCase();
+        const branchNormalized = remoteDetails.branchName.trim().toLowerCase();
+        const composite = `${remoteNormalized}/${branchNormalized}`;
+        if (PROTECTED_BRANCH_IDENTIFIERS.has(composite)) {
+            return true;
+        }
+        if (remoteNormalized === 'origin' && PROTECTED_BRANCH_IDENTIFIERS.has(branchNormalized)) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
 ipcMain.handle('checkout-branch', (e, repoPath: string, branch: string) => {
     // If branch contains '/', it's from the remote list e.g. 'origin/main'
     // If it doesn't, it's from the local list e.g. 'main'
@@ -2025,11 +2052,12 @@ ipcMain.handle('checkout-branch', (e, repoPath: string, branch: string) => {
 ipcMain.handle('create-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `checkout -b ${branch}`));
 ipcMain.handle('delete-branch', (e, repoPath: string, branch: string, isRemote: boolean, remoteName?: string) => {
     if (isRemote) {
+        const originalTrimmed = branch.trim();
         let targetRemote = remoteName?.trim();
-        let branchRef = branch;
+        let branchRef = originalTrimmed;
 
-        if (!targetRemote && branch.includes('/')) {
-            const segments = branch.split('/');
+        if (!targetRemote && branchRef.includes('/')) {
+            const segments = branchRef.split('/');
             targetRemote = segments.shift() || targetRemote;
             branchRef = segments.join('/') || branchRef;
         }
@@ -2038,10 +2066,25 @@ ipcMain.handle('delete-branch', (e, repoPath: string, branch: string, isRemote: 
             targetRemote = 'origin';
         }
 
+        const remoteDetails = targetRemote ? { remoteName: targetRemote, branchName: branchRef } : undefined;
+        const remoteLabelCandidate = targetRemote ? `${targetRemote}/${branchRef}` : undefined;
+        const displayLabel = originalTrimmed.includes('/')
+            ? originalTrimmed
+            : (remoteLabelCandidate && branchRef !== targetRemote ? remoteLabelCandidate : originalTrimmed);
+
+        if (isProtectedBranch(displayLabel, 'remote', remoteDetails)) {
+            return { success: false, error: `Branch '${displayLabel}' is protected and cannot be deleted.` };
+        }
+
         return simpleGitCommand(repoPath, `push ${targetRemote} --delete ${branchRef}`);
     }
 
-    return simpleGitCommand(repoPath, `branch -d ${branch}`);
+    const branchName = branch.trim();
+    if (isProtectedBranch(branchName, 'local')) {
+        return { success: false, error: `Branch '${branchName}' is protected and cannot be deleted.` };
+    }
+
+    return simpleGitCommand(repoPath, `branch -d ${branchName}`);
 });
 ipcMain.handle('merge-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `merge ${branch}`));
 
