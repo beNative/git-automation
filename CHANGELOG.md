@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 
 - _No unreleased changes._
 
+## [0.25.0]
+
+### Changed
+- **Documentation Audit Trail:** Added explicit documentation status sections to `README.md`, `TECHNICAL_MANUAL.md`, `FUNCTIONAL_MANUAL.md`, and `docs/keyboard-shortcut-editor.md` confirming that their guidance remains accurate for version `0.25.0`, giving maintainers a recorded review ahead of publishing.
+- **Release Notes Prep:** Captured the outcomes of the latest release checklist review so the GitHub release body can reuse this entry verbatim.
+
+### Fixed
+- **Version Metadata:** Incremented the application version to `0.25.0` in `package.json` in preparation for this minor maintenance release.
+
 ## [0.24.7]
 
 ### Changed
