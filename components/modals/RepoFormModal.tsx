@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo, DockerCapabilities } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo, DockerCapabilities, GoCapabilities, RustCapabilities, MavenCapabilities, DotnetCapabilities } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -29,6 +29,7 @@ import { FolderOpenIcon } from '../icons/FolderOpenIcon';
 import { DocumentDuplicateIcon } from '../icons/DocumentDuplicateIcon';
 import { ServerIcon } from '../icons/ServerIcon';
 import { TagIcon } from '../icons/TagIcon';
+import { CubeIcon } from '../icons/CubeIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PencilIcon } from '../icons/PencilIcon';
@@ -82,6 +83,25 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.DELPHI_PACKAGE_INNO]: { label: 'Delphi: Package (Inno)', icon: ArchiveBoxIcon, description: 'Create an installer using an Inno Setup script.' },
   [TaskStepType.DELPHI_PACKAGE_NSIS]: { label: 'Delphi: Package (NSIS)', icon: ArchiveBoxIcon, description: 'Create an installer using an NSIS script.' },
   [TaskStepType.DELPHI_TEST_DUNITX]: { label: 'Delphi: Run DUnitX Tests', icon: BeakerIcon, description: 'Execute a DUnitX test application.' },
+  // Go
+  [TaskStepType.GO_MOD_TIDY]: { label: 'Go: Mod Tidy', icon: CodeBracketIcon, description: 'Run go mod tidy to sync module requirements.' },
+  [TaskStepType.GO_FMT]: { label: 'Go: Format', icon: CodeBracketIcon, description: 'Format Go sources with go fmt ./...' },
+  [TaskStepType.GO_TEST]: { label: 'Go: Test', icon: BeakerIcon, description: 'Execute go test ./... across the project.' },
+  [TaskStepType.GO_BUILD]: { label: 'Go: Build', icon: CodeBracketIcon, description: 'Compile all packages with go build ./...' },
+  // Rust
+  [TaskStepType.RUST_CARGO_FMT]: { label: 'Rust: Cargo Fmt', icon: CodeBracketIcon, description: 'Format the workspace with cargo fmt --all.' },
+  [TaskStepType.RUST_CARGO_CLIPPY]: { label: 'Rust: Cargo Clippy', icon: BeakerIcon, description: 'Run cargo clippy with --all-targets and fail on warnings.' },
+  [TaskStepType.RUST_CARGO_CHECK]: { label: 'Rust: Cargo Check', icon: CodeBracketIcon, description: 'Type-check the project with cargo check --all-targets.' },
+  [TaskStepType.RUST_CARGO_TEST]: { label: 'Rust: Cargo Test', icon: BeakerIcon, description: 'Run cargo test --all-targets --all-features.' },
+  [TaskStepType.RUST_CARGO_BUILD]: { label: 'Rust: Cargo Build', icon: CodeBracketIcon, description: 'Build the project with cargo build --release.' },
+  // Java / Maven
+  [TaskStepType.MAVEN_CLEAN]: { label: 'Maven: Clean', icon: DocumentTextIcon, description: 'Run mvn clean (or ./mvnw clean if available).' },
+  [TaskStepType.MAVEN_TEST]: { label: 'Maven: Test', icon: DocumentTextIcon, description: 'Run mvn test to execute the project test suite.' },
+  [TaskStepType.MAVEN_PACKAGE]: { label: 'Maven: Package', icon: DocumentTextIcon, description: 'Run mvn package to build distributables.' },
+  // .NET
+  [TaskStepType.DOTNET_RESTORE]: { label: '.NET: Restore', icon: CubeIcon, description: 'Restore NuGet dependencies with dotnet restore.' },
+  [TaskStepType.DOTNET_BUILD]: { label: '.NET: Build', icon: CubeIcon, description: 'Build the solution with dotnet build --configuration Release.' },
+  [TaskStepType.DOTNET_TEST]: { label: '.NET: Test', icon: CubeIcon, description: 'Run dotnet test with diagnostics-friendly output.' },
   // Python
   [TaskStepType.PYTHON_CREATE_VENV]: { label: 'Python: Create Venv', icon: PythonIcon, description: 'Create a .venv virtual environment.' },
   [TaskStepType.PYTHON_INSTALL_DEPS]: { label: 'Python: Install Deps', icon: PythonIcon, description: 'Install dependencies using the detected manager.' },
@@ -113,6 +133,10 @@ const STEP_CATEGORIES = [
     { name: 'Git', types: [TaskStepType.GitPull, TaskStepType.GitFetch, TaskStepType.GitCheckout, TaskStepType.GitStash] },
     { name: 'SVN', types: [TaskStepType.SvnUpdate] },
     { name: 'Node.js', types: [TaskStepType.NODE_INSTALL_DEPS, TaskStepType.NODE_RUN_BUILD, TaskStepType.NODE_RUN_TESTS, TaskStepType.NODE_RUN_LINT, TaskStepType.NODE_RUN_FORMAT, TaskStepType.NODE_RUN_TYPECHECK] },
+    { name: 'Go', types: [TaskStepType.GO_MOD_TIDY, TaskStepType.GO_FMT, TaskStepType.GO_TEST, TaskStepType.GO_BUILD] },
+    { name: 'Rust', types: [TaskStepType.RUST_CARGO_FMT, TaskStepType.RUST_CARGO_CLIPPY, TaskStepType.RUST_CARGO_CHECK, TaskStepType.RUST_CARGO_TEST, TaskStepType.RUST_CARGO_BUILD] },
+    { name: 'Java / Maven', types: [TaskStepType.MAVEN_CLEAN, TaskStepType.MAVEN_TEST, TaskStepType.MAVEN_PACKAGE] },
+    { name: '.NET', types: [TaskStepType.DOTNET_RESTORE, TaskStepType.DOTNET_BUILD, TaskStepType.DOTNET_TEST] },
     { name: 'Python', types: [TaskStepType.PYTHON_CREATE_VENV, TaskStepType.PYTHON_INSTALL_DEPS, TaskStepType.PYTHON_RUN_BUILD, TaskStepType.PYTHON_RUN_TESTS, TaskStepType.PYTHON_RUN_LINT, TaskStepType.PYTHON_RUN_FORMAT, TaskStepType.PYTHON_RUN_TYPECHECK] },
     { name: 'Delphi', types: [TaskStepType.DelphiBuild, TaskStepType.DELPHI_BOSS_INSTALL, TaskStepType.DELPHI_PACKAGE_INNO, TaskStepType.DELPHI_PACKAGE_NSIS, TaskStepType.DELPHI_TEST_DUNITX] },
     { name: 'Lazarus/FPC', types: [TaskStepType.LAZARUS_BUILD, TaskStepType.LAZARUS_BUILD_PACKAGE, TaskStepType.FPC_TEST_FPCUNIT] },
@@ -684,6 +708,265 @@ const NodejsTaskGenerator: React.FC<{
     );
 };
 
+const GoTaskGenerator: React.FC<{
+    goCaps: GoCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ goCaps, onAddTask }) => {
+    if (!goCaps) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+    const moduleBadges = goCaps.modules.map(m => `Module: ${m.module ?? getBasename(m.path)}`);
+    const versionBadges = Array.from(new Set(goCaps.modules.map(m => m.goVersion).filter((v): v is string => Boolean(v)))).map(v => `Go ${v}`);
+    const toolchainBadges = Array.from(new Set(goCaps.modules.map(m => m.toolchain).filter((v): v is string => Boolean(v)))).map(v => `Toolchain ${v}`);
+    const badges = [
+        ...moduleBadges,
+        ...versionBadges,
+        ...toolchainBadges,
+        ...(goCaps.hasGoWork ? ['go.work workspace'] : []),
+        ...(goCaps.hasGoSum ? ['go.sum present'] : []),
+        ...(goCaps.hasTests ? ['Tests detected'] : []),
+    ];
+
+    const createTidyTask = () => onAddTask({
+        name: 'Go Mod Tidy',
+        steps: [{ type: TaskStepType.GO_MOD_TIDY, id: '', enabled: true }],
+    });
+
+    const createCiTask = () => {
+        const steps: Omit<TaskStep, 'id'>[] = [
+            { type: TaskStepType.GO_MOD_TIDY, enabled: true },
+            { type: TaskStepType.GO_FMT, enabled: true },
+            { type: TaskStepType.GO_TEST, enabled: true },
+            { type: TaskStepType.GO_BUILD, enabled: true },
+        ];
+        onAddTask({
+            name: 'Go CI Checks',
+            steps: steps.map(step => ({ ...step, id: '' })),
+        });
+    };
+
+    return (
+        <div className="p-3 mb-4 bg-cyan-50 dark:bg-gray-900/50 rounded-lg border border-cyan-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <CodeBracketIcon className="h-5 w-5 text-cyan-500" />
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Go Project Detected</h3>
+            </div>
+            {badges.length > 0 && (
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                    {badges.map(badge => (
+                        <span key={badge} className="bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200 px-2 py-0.5 rounded-full">{badge}</span>
+                    ))}
+                </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={createTidyTask} className="text-xs font-medium text-white bg-cyan-600 hover:bg-cyan-700 px-3 py-1.5 rounded-md">Add Mod Tidy Task</button>
+                <button type="button" onClick={createCiTask} className="text-xs font-medium text-white bg-cyan-600 hover:bg-cyan-700 px-3 py-1.5 rounded-md">Add Go CI Task</button>
+            </div>
+        </div>
+    );
+};
+
+const RustTaskGenerator: React.FC<{
+    rustCaps: RustCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ rustCaps, onAddTask }) => {
+    if (!rustCaps) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+    const packageBadges = rustCaps.packages.map(pkg => `Crate: ${pkg.name ?? getBasename(pkg.path)}`);
+    const editionBadges = Array.from(new Set(rustCaps.packages.map(pkg => pkg.edition).filter((v): v is string => Boolean(v)))).map(v => `Edition ${v}`);
+    const versionBadges = Array.from(new Set(rustCaps.packages.map(pkg => pkg.rustVersion).filter((v): v is string => Boolean(v)))).map(v => `Rust ${v}`);
+    const badges = [
+        ...packageBadges,
+        ...editionBadges,
+        ...versionBadges,
+        ...(rustCaps.hasWorkspace ? ['Workspace'] : []),
+        ...(rustCaps.hasLockfile ? ['Cargo.lock'] : []),
+        ...(rustCaps.hasTests ? ['Tests detected'] : []),
+        ...(rustCaps.workspaceMembers.length > 0 ? [`Members: ${rustCaps.workspaceMembers.length}`] : []),
+    ];
+
+    const createFmtTask = () => onAddTask({
+        name: 'Cargo Fmt',
+        steps: [{ type: TaskStepType.RUST_CARGO_FMT, id: '', enabled: true }],
+    });
+
+    const createClippyTask = () => onAddTask({
+        name: 'Cargo Clippy',
+        steps: [{ type: TaskStepType.RUST_CARGO_CLIPPY, id: '', enabled: true }],
+    });
+
+    const createCiTask = () => {
+        const steps: Omit<TaskStep, 'id'>[] = [
+            { type: TaskStepType.RUST_CARGO_FMT, enabled: true },
+            { type: TaskStepType.RUST_CARGO_CLIPPY, enabled: true },
+            { type: TaskStepType.RUST_CARGO_CHECK, enabled: true },
+            { type: TaskStepType.RUST_CARGO_TEST, enabled: true },
+            { type: TaskStepType.RUST_CARGO_BUILD, enabled: true },
+        ];
+        onAddTask({
+            name: 'Cargo CI Pipeline',
+            steps: steps.map(step => ({ ...step, id: '' })),
+        });
+    };
+
+    return (
+        <div className="p-3 mb-4 bg-amber-50 dark:bg-gray-900/50 rounded-lg border border-amber-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <CodeBracketIcon className="h-5 w-5 text-amber-500" />
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Rust Project Detected</h3>
+            </div>
+            {badges.length > 0 && (
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                    {badges.map(badge => (
+                        <span key={badge} className="bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded-full">{badge}</span>
+                    ))}
+                </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={createFmtTask} className="text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded-md">Add Cargo Fmt Task</button>
+                <button type="button" onClick={createClippyTask} className="text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded-md">Add Cargo Clippy Task</button>
+                <button type="button" onClick={createCiTask} className="text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded-md">Add Cargo CI Task</button>
+            </div>
+        </div>
+    );
+};
+
+const MavenTaskGenerator: React.FC<{
+    mavenCaps: MavenCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ mavenCaps, onAddTask }) => {
+    if (!mavenCaps) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+    const coordinates = mavenCaps.projects.map(project => {
+        if (project.groupId && project.artifactId) {
+            return `${project.groupId}:${project.artifactId}`;
+        }
+        return `POM: ${getBasename(project.path)}`;
+    });
+    const packagingBadges = Array.from(new Set(mavenCaps.projects.map(project => project.packaging).filter((v): v is string => Boolean(v)))).map(v => `Packaging: ${v}`);
+    const javaBadges = Array.from(new Set(mavenCaps.projects.map(project => project.javaVersion).filter((v): v is string => Boolean(v)))).map(v => `Java ${v}`);
+    const badges = [
+        ...coordinates,
+        ...packagingBadges,
+        ...javaBadges,
+        ...(mavenCaps.hasWrapper ? ['Maven Wrapper'] : []),
+    ];
+
+    const createCleanTask = () => onAddTask({
+        name: 'Maven Clean',
+        steps: [{ type: TaskStepType.MAVEN_CLEAN, id: '', enabled: true }],
+    });
+
+    const createTestTask = () => onAddTask({
+        name: 'Maven Test',
+        steps: [{ type: TaskStepType.MAVEN_TEST, id: '', enabled: true }],
+    });
+
+    const createBuildTask = () => {
+        const steps: Omit<TaskStep, 'id'>[] = [
+            { type: TaskStepType.MAVEN_CLEAN, enabled: true },
+            { type: TaskStepType.MAVEN_TEST, enabled: true },
+            { type: TaskStepType.MAVEN_PACKAGE, enabled: true },
+        ];
+        onAddTask({
+            name: 'Maven Build Pipeline',
+            steps: steps.map(step => ({ ...step, id: '' })),
+        });
+    };
+
+    return (
+        <div className="p-3 mb-4 bg-orange-50 dark:bg-gray-900/50 rounded-lg border border-orange-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <DocumentTextIcon className="h-5 w-5 text-orange-500" />
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Maven Project Detected</h3>
+            </div>
+            {badges.length > 0 && (
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                    {badges.map(badge => (
+                        <span key={badge} className="bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 px-2 py-0.5 rounded-full">{badge}</span>
+                    ))}
+                </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={createCleanTask} className="text-xs font-medium text-white bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-md">Add Maven Clean Task</button>
+                <button type="button" onClick={createTestTask} className="text-xs font-medium text-white bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-md">Add Maven Test Task</button>
+                <button type="button" onClick={createBuildTask} className="text-xs font-medium text-white bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-md">Add Maven Build Task</button>
+            </div>
+        </div>
+    );
+};
+
+const DotnetTaskGenerator: React.FC<{
+    dotnetCaps: DotnetCapabilities | undefined;
+    onAddTask: (task: Partial<Task>) => void;
+}> = ({ dotnetCaps, onAddTask }) => {
+    if (!dotnetCaps) return null;
+
+    const getBasename = (p: string) => p.split(/[\\/]/).pop() || p;
+    const frameworkBadges = Array.from(new Set(dotnetCaps.projects.flatMap(project => project.targetFrameworks))).map(fw => `TFM: ${fw}`);
+    const sdkBadges = Array.from(new Set(dotnetCaps.projects.map(project => project.sdk).filter((v): v is string => Boolean(v)))).map(sdk => `SDK: ${sdk}`);
+    const projectBadges = dotnetCaps.projects.length > 1
+        ? dotnetCaps.projects.map(project => `Project: ${getBasename(project.path)}`)
+        : [];
+    const badges = [
+        ...frameworkBadges,
+        ...sdkBadges,
+        ...projectBadges,
+        ...(dotnetCaps.hasSolution ? ['Solution (.sln) detected'] : []),
+    ];
+
+    const createRestoreTask = () => onAddTask({
+        name: '.NET Restore',
+        steps: [{ type: TaskStepType.DOTNET_RESTORE, id: '', enabled: true }],
+    });
+
+    const createBuildTask = () => onAddTask({
+        name: '.NET Build',
+        steps: [{ type: TaskStepType.DOTNET_BUILD, id: '', enabled: true }],
+    });
+
+    const createTestTask = () => onAddTask({
+        name: '.NET Test',
+        steps: [{ type: TaskStepType.DOTNET_TEST, id: '', enabled: true }],
+    });
+
+    const createPipelineTask = () => {
+        const steps: Omit<TaskStep, 'id'>[] = [
+            { type: TaskStepType.DOTNET_RESTORE, enabled: true },
+            { type: TaskStepType.DOTNET_BUILD, enabled: true },
+            { type: TaskStepType.DOTNET_TEST, enabled: true },
+        ];
+        onAddTask({
+            name: '.NET Build Pipeline',
+            steps: steps.map(step => ({ ...step, id: '' })),
+        });
+    };
+
+    return (
+        <div className="p-3 mb-4 bg-purple-50 dark:bg-gray-900/50 rounded-lg border border-purple-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+                <CubeIcon className="h-5 w-5 text-purple-500" />
+                <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">.NET Project Detected</h3>
+            </div>
+            {badges.length > 0 && (
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 flex flex-wrap gap-2">
+                    {badges.map(badge => (
+                        <span key={badge} className="bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 px-2 py-0.5 rounded-full">{badge}</span>
+                    ))}
+                </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={createRestoreTask} className="text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-md">Add Restore Task</button>
+                <button type="button" onClick={createBuildTask} className="text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-md">Add Build Task</button>
+                <button type="button" onClick={createTestTask} className="text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-md">Add Test Task</button>
+                <button type="button" onClick={createPipelineTask} className="text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-md">Add Build Pipeline</button>
+            </div>
+        </div>
+    );
+};
+
 const PythonTaskGenerator: React.FC<{
     pythonCaps: PythonCapabilities | undefined;
     onAddTask: (task: Partial<Task>) => void;
@@ -1083,6 +1366,10 @@ const TaskStepsEditor: React.FC<{
         if (type.startsWith('DELPHI_')) return tags.includes('delphi');
         if (type.startsWith('PYTHON_')) return tags.includes('python');
         if (type.startsWith('NODE_')) return tags.includes('nodejs');
+        if (type.startsWith('GO_')) return tags.includes('go');
+        if (type.startsWith('RUST_')) return tags.includes('rust');
+        if (type.startsWith('MAVEN_')) return tags.includes('maven') || tags.includes('java');
+        if (type.startsWith('DOTNET_')) return tags.includes('dotnet');
         if (type.startsWith('LAZARUS_') || type.startsWith('FPC_')) return tags.includes('lazarus');
         if (type.startsWith('DOCKER_')) return tags.includes('docker');
         // All other steps (like RunCommand) are always available.
@@ -1124,9 +1411,13 @@ const TaskStepsEditor: React.FC<{
       
       <DockerTaskGenerator dockerCaps={projectInfo?.docker} onAddTask={onAddTask} />
       <NodejsTaskGenerator nodejsCaps={projectInfo?.nodejs} onAddTask={onAddTask} />
+      <GoTaskGenerator goCaps={projectInfo?.go} onAddTask={onAddTask} />
+      <RustTaskGenerator rustCaps={projectInfo?.rust} onAddTask={onAddTask} />
+      <MavenTaskGenerator mavenCaps={projectInfo?.maven} onAddTask={onAddTask} />
+      <DotnetTaskGenerator dotnetCaps={projectInfo?.dotnet} onAddTask={onAddTask} />
+      <PythonTaskGenerator pythonCaps={projectInfo?.python} onAddTask={onAddTask} />
       <LazarusTaskGenerator lazarusCaps={projectInfo?.lazarus} onAddTask={onAddTask} />
       <DelphiTaskGenerator delphiCaps={projectInfo?.delphi} onAddTask={onAddTask} />
-      <PythonTaskGenerator pythonCaps={projectInfo?.python} onAddTask={onAddTask} />
 
       <div className="space-y-3">
         {task.steps.map((step, index) => (
