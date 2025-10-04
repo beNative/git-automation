@@ -321,6 +321,12 @@ export interface Commit {
   message: string;
 }
 
+export interface CommitDiffFile {
+  filePath: string;
+  diff: string;
+  isBinary?: boolean;
+}
+
 export interface ProjectSuggestion {
   label: string;
   value: string;

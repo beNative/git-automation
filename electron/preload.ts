@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, Category, AppDataContextState, ReleaseInfo } from '../types';
+import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, Category, AppDataContextState, ReleaseInfo, CommitDiffFile } from '../types';
 
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkVcsStatus: (repo: Repository): Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }> => ipcRenderer.invoke('check-vcs-status', repo),
   getDetailedVcsStatus: (repo: Repository): Promise<DetailedStatus | null> => ipcRenderer.invoke('get-detailed-vcs-status', repo),
   getCommitHistory: (repo: Repository, skipCount?: number, searchQuery?: string): Promise<Commit[]> => ipcRenderer.invoke('get-commit-history', repo, skipCount, searchQuery),
+  getCommitDiff: (repo: Repository, commitHash: string): Promise<CommitDiffFile[]> => ipcRenderer.invoke('get-commit-diff', repo, commitHash),
   listBranches: (repoPath: string): Promise<BranchInfo> => ipcRenderer.invoke('list-branches', repoPath),
   checkoutBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('checkout-branch', repoPath, branch),
   createBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('create-branch', repoPath, branch),

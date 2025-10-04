@@ -1,5 +1,5 @@
 import type { IpcRendererEvent } from 'electron';
-import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, UpdateStatusMessage, Category, AppDataContextState, ReleaseInfo } from '../types';
+import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, UpdateStatusMessage, Category, AppDataContextState, ReleaseInfo, CommitDiffFile } from '../types';
 
 export type LocalPathState = AppLocalPathState;
 
@@ -29,6 +29,7 @@ export interface IElectronAPI {
   checkVcsStatus: (repo: Repository) => Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }>;
   getDetailedVcsStatus: (repo: Repository) => Promise<DetailedStatus | null>;
   getCommitHistory: (repo: Repository, skipCount?: number, searchQuery?: string) => Promise<Commit[]>;
+  getCommitDiff: (repo: Repository, commitHash: string) => Promise<CommitDiffFile[]>;
   listBranches: (repoPath: string) => Promise<BranchInfo>;
   checkoutBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
   createBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;

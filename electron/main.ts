@@ -4,7 +4,7 @@ import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
-import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities } from '../types';
+import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities, CommitDiffFile } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 import JSZip from 'jszip';
@@ -1910,6 +1910,76 @@ ipcMain.handle('get-commit-history', async (event, repo: Repository, skipCount?:
         return [];
     }
     return [];
+});
+
+ipcMain.handle('get-commit-diff', async (event, repo: Repository, commitHash: string): Promise<CommitDiffFile[]> => {
+    try {
+        if (!commitHash) {
+            return [];
+        }
+
+        const settings = await readSettings();
+
+        if (repo.vcs === VcsTypeEnum.Git) {
+            const sanitizedHash = commitHash.trim();
+            if (!/^[0-9a-fA-F^~:@._\-/]+$/.test(sanitizedHash)) {
+                throw new Error('Invalid git commit reference.');
+            }
+
+            const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
+            const { stdout } = await execAsync(`${gitCmd} show ${sanitizedHash} --patch --pretty=format:`, { cwd: repo.localPath });
+            const normalized = stdout.replace(/\r\n/g, '\n');
+            const sections = normalized.match(/(^diff --git [\s\S]*?)(?=^diff --git |\Z)/gm);
+
+            if (!sections) {
+                return [];
+            }
+
+            return sections.map(section => {
+                const lines = section.split('\n');
+                const header = lines[0] ?? '';
+                const filePathMatch = header.replace(/^diff --git /, '').split(' b/');
+                const filePath = filePathMatch[1]?.replace(/^"/, '').replace(/"$/, '') ?? header.replace(/^diff --git /, '');
+                const isBinary = /Binary files /.test(section) || /GIT binary patch/.test(section);
+                return {
+                    filePath: filePath.trim(),
+                    diff: section.trimEnd(),
+                    isBinary,
+                } satisfies CommitDiffFile;
+            });
+        }
+
+        if (repo.vcs === VcsTypeEnum.Svn) {
+            const sanitizedRevision = commitHash.trim();
+            if (!/^\d+$/.test(sanitizedRevision)) {
+                throw new Error('Invalid SVN revision.');
+            }
+
+            const svnCmd = getExecutableCommand(VcsTypeEnum.Svn, settings);
+            const { stdout } = await execAsync(`${svnCmd} diff -c ${sanitizedRevision}`, { cwd: repo.localPath });
+            const normalized = stdout.replace(/\r\n/g, '\n');
+            const sections = normalized.split(/^Index: /m).filter(section => section.trim() !== '');
+
+            return sections.map(section => {
+                const trimmedSection = section.trimEnd();
+                const lines = trimmedSection.split('\n');
+                const header = lines[0] ?? '';
+                const filePath = header.trim();
+                const diffBody = `Index: ${trimmedSection}`;
+                const isBinary = /Cannot display: file marked as a binary type/.test(diffBody) || /Binary files/.test(diffBody);
+                return {
+                    filePath,
+                    diff: diffBody,
+                    isBinary,
+                } satisfies CommitDiffFile;
+            });
+        }
+
+        return [];
+    } catch (error: any) {
+        mainLogger.error(`[Commit Diff] Failed to get diff for ${repo.name} at ${commitHash}`, { error: error?.message, stderr: error?.stderr });
+        return [];
+    }
 });
 
 
