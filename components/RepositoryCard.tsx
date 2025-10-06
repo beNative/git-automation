@@ -29,6 +29,7 @@ import { ArrowPathIcon } from './icons/ArrowPathIcon';
 import { ArrowUpIcon } from './icons/ArrowUpIcon';
 import { ArrowDownIcon } from './icons/ArrowDownIcon';
 import BranchSelectionModal from './modals/BranchSelectionModal';
+import { getDisplayBranchName, getRemoteBranchesToOffer, getMainBranchDetails, normalizeBranchForComparison } from '../utils/branchHelpers';
 
 
 interface RepositoryCardProps {
@@ -74,12 +75,13 @@ const BranchSwitcher: React.FC<{
   repoId: string;
   repoName: string;
   branchInfo: BranchInfo | null;
+  vcs: VcsType;
   onSwitchBranch: (repoId: string, branch: string) => void;
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
   onRefreshBranches: () => Promise<void> | void;
-}> = ({ repoId, repoName, branchInfo, onSwitchBranch, isOpen, onToggle, onClose, onRefreshBranches }) => {
+}> = ({ repoId, repoName, branchInfo, vcs, onSwitchBranch, isOpen, onToggle, onClose, onRefreshBranches }) => {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -87,37 +89,48 @@ const BranchSwitcher: React.FC<{
     const [isRefreshingBranches, setIsRefreshingBranches] = useState(false);
 
     const localBranches = branchInfo?.local ?? [];
-    const remoteBranches = branchInfo?.remote ?? [];
-    const currentBranch = branchInfo?.current ?? '';
+    const remoteBranchesToOffer = branchInfo ? getRemoteBranchesToOffer(branchInfo, vcs) : [];
+    const currentBranch = branchInfo?.current ?? null;
+    const normalizedCurrent = currentBranch ? normalizeBranchForComparison(currentBranch, vcs) : null;
 
-    const remoteMainBranch = remoteBranches.find(branch => branch.split('/').slice(-1)[0] === 'main');
-    const hasLocalMainBranch = localBranches.includes('main');
-    const mainBranchTarget = hasLocalMainBranch ? 'main' : remoteMainBranch;
-    const showMainBranchButton = Boolean(mainBranchTarget && currentBranch !== 'main');
+    const otherLocalBranches = branchInfo
+        ? localBranches.filter(branch => {
+            if (!normalizedCurrent) {
+                return true;
+            }
+            return normalizeBranchForComparison(branch, vcs) !== normalizedCurrent;
+        })
+        : [];
 
-    const remoteBranchesToOffer = remoteBranches.filter(rBranch => {
-        const localEquivalent = rBranch.split('/').slice(1).join('/');
-        return !localBranches.includes(localEquivalent);
-    });
-
-    const otherLocalBranches = localBranches.filter(b => b !== currentBranch);
     const hasOptions = otherLocalBranches.length > 0 || remoteBranchesToOffer.length > 0;
 
+    const currentBranchLabel = currentBranch ? getDisplayBranchName(currentBranch, vcs) : 'Unknown';
     const branchDropdownTooltip = useTooltip(
         branchInfo
-            ? (currentBranch ? `Current branch: ${currentBranch}` : 'Branch name unavailable')
+            ? (currentBranch ? `Current branch: ${currentBranchLabel}` : 'Branch name unavailable')
             : 'Branch information unavailable'
     );
     const branchSearchTooltip = useTooltip(
         isRefreshingBranches ? 'Refreshing branches…' : 'Search all branches'
     );
-    const mainBranchTooltip = useTooltip(
-        mainBranchTarget
-            ? hasLocalMainBranch
-                ? 'Switch to the main branch'
-                : 'Track and switch to the remote main branch'
-            : 'Main branch not available'
+    const mainBranchDetails = branchInfo ? getMainBranchDetails(branchInfo, vcs) : null;
+    const showMainBranchButton = Boolean(
+        mainBranchDetails && (!normalizedCurrent || normalizeBranchForComparison(mainBranchDetails.target, vcs) !== normalizedCurrent)
     );
+    const mainBranchTooltip = useTooltip(
+        mainBranchDetails
+            ? vcs === VcsType.Git
+                ? mainBranchDetails.scope === 'local'
+                    ? 'Switch to the main branch'
+                    : 'Track and switch to the remote main branch'
+                : mainBranchDetails.scope === 'local'
+                    ? 'Switch to trunk'
+                    : 'Switch working copy to trunk'
+            : vcs === VcsType.Git
+                ? 'Main branch not available'
+                : 'Trunk not available'
+    );
+    const mainBranchAriaLabel = vcs === VcsType.Git ? 'Switch to main branch' : 'Switch to trunk';
 
     useEffect(() => {
         if (isOpen && buttonRef.current) {
@@ -171,8 +184,8 @@ const BranchSwitcher: React.FC<{
     };
 
     const handleSwitchToMain = () => {
-      if (!mainBranchTarget) return;
-      onSwitchBranch(repoId, mainBranchTarget);
+      if (!mainBranchDetails) return;
+      onSwitchBranch(repoId, mainBranchDetails.target);
       onClose();
     };
 
@@ -213,7 +226,7 @@ const BranchSwitcher: React.FC<{
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                         role="menuitem"
                     >
-                        {branch}
+                        {getDisplayBranchName(branch, vcs)}
                     </button>
                 ))}
                 {remoteBranchesToOffer.length > 0 && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase border-t border-gray-200 dark:border-gray-700">Remote</div>}
@@ -225,7 +238,7 @@ const BranchSwitcher: React.FC<{
                             className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                             role="menuitem"
                         >
-                            {branch}
+                            {getDisplayBranchName(branch, vcs)}
                         </button>
                     )
                 })}
@@ -246,7 +259,7 @@ const BranchSwitcher: React.FC<{
                     aria-haspopup="true"
                     aria-expanded={isOpen}
                 >
-                    <span className="truncate max-w-[150px] sm:max-w-[200px]">{currentBranch}</span>
+                    <span className="truncate max-w-[150px] sm:max-w-[200px]">{currentBranchLabel}</span>
                     <ChevronDownIcon className={`ml-1 -mr-1 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
             </div>
@@ -270,7 +283,7 @@ const BranchSwitcher: React.FC<{
                     type="button"
                     onClick={handleSwitchToMain}
                     className="flex-shrink-0 p-1.5 rounded-md text-gray-500 hover:text-green-600 dark:text-gray-300 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/40 focus:outline-none focus:ring-2 focus:ring-green-500"
-                    aria-label="Switch to main branch"
+                    aria-label={mainBranchAriaLabel}
                 >
                     <HomeIcon className="h-4 w-4" />
                 </button>
@@ -281,6 +294,7 @@ const BranchSwitcher: React.FC<{
                 isOpen={isModalOpen}
                 repositoryName={repoName}
                 branchInfo={branchInfo}
+                vcs={vcs}
                 onSelectBranch={handleModalSelect}
                 onClose={closeModal}
             />
@@ -656,25 +670,21 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0">
               {vcs === VcsType.Git ? (
-                <>
-                  <GitBranchIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                  <BranchSwitcher
-                    isOpen={isDropdownOpen}
-                    onToggle={toggleDropdown}
-                    onClose={closeDropdown}
-                    repoId={id}
-                    repoName={name}
-                    branchInfo={branchInfo}
-                    onSwitchBranch={onSwitchBranch}
-                    onRefreshBranches={() => onRefreshRepoState(id)}
-                  />
-                </>
+                <GitBranchIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
               ) : (
-                <>
-                  <SvnIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                  <span className="truncate">SVN Repository</span>
-                </>
+                <SvnIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
               )}
+              <BranchSwitcher
+                isOpen={isDropdownOpen}
+                onToggle={toggleDropdown}
+                onClose={closeDropdown}
+                repoId={id}
+                repoName={name}
+                branchInfo={branchInfo}
+                vcs={vcs}
+                onSwitchBranch={onSwitchBranch}
+                onRefreshBranches={() => onRefreshRepoState(id)}
+              />
             </div>
             <div className="flex-shrink-0 ml-4">
               {isPathValid && detailedStatus && <StatusIndicator status={detailedStatus} />}

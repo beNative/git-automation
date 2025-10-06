@@ -30,8 +30,8 @@ export interface IElectronAPI {
   getDetailedVcsStatus: (repo: Repository) => Promise<DetailedStatus | null>;
   getCommitHistory: (repo: Repository, skipCount?: number, searchQuery?: string) => Promise<Commit[]>;
   getCommitDiff: (repo: Repository, commitHash: string) => Promise<CommitDiffFile[]>;
-  listBranches: (repoPath: string) => Promise<BranchInfo>;
-  checkoutBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
+  listBranches: (args: { repoPath: string; vcs?: 'git' | 'svn' }) => Promise<BranchInfo>;
+  checkoutBranch: (args: { repoPath: string; branch: string; vcs?: 'git' | 'svn' }) => Promise<{ success: boolean; error?: string }>;
   createBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
   deleteBranch: (repoPath: string, branch: string, isRemote: boolean, remoteName?: string) => Promise<{ success: boolean; error?: string }>;
   mergeBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
