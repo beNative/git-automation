@@ -1842,7 +1842,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     if (!repository || !isGitRepo) return;
     setBranchesLoading(true);
     try {
-        const branches = await window.electronAPI?.listBranches(repository.localPath);
+        const branches = await window.electronAPI?.listBranches({ repoPath: repository.localPath, vcs: repository.vcs });
         setBranchInfo(branches || null);
         if (branches?.current) {
             setBranchToMerge(branches.current);
@@ -2384,7 +2384,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     const checkoutTarget = primarySelectedBranch.name;
 
     try {
-        const result = await window.electronAPI?.checkoutBranch(repository.localPath, checkoutTarget);
+        const result = await window.electronAPI?.checkoutBranch({ repoPath: repository.localPath, branch: checkoutTarget, vcs: repository.vcs });
         if (result?.success) {
             setToast({ message: `Checked out '${checkoutLabel}'.`, type: 'success' });
             setBranchToMerge('');

@@ -534,8 +534,8 @@ const App: React.FC = () => {
       setDetailedStatuses(statuses.reduce((acc, s) => ({ ...acc, [s.repoId]: s.status }), {}));
       
       const branchPromises = repositories.map(async (repo) => {
-        if (localPathStates[repo.id] === 'valid' && repo.vcs === VcsType.Git) {
-          const branches = await window.electronAPI?.listBranches(repo.localPath);
+        if (localPathStates[repo.id] === 'valid') {
+          const branches = await window.electronAPI?.listBranches({ repoPath: repo.localPath, vcs: repo.vcs });
           return { repoId: repo.id, branches };
         }
         return { repoId: repo.id, branches: null };
@@ -744,9 +744,10 @@ const App: React.FC = () => {
     const status = await window.electronAPI?.getDetailedVcsStatus(repo);
     setDetailedStatuses(prev => ({ ...prev, [repoId]: status }));
 
+    const branches = await window.electronAPI?.listBranches({ repoPath: repo.localPath, vcs: repo.vcs });
+    setBranchLists(prev => ({ ...prev, [repoId]: branches }));
+
     if (repo.vcs === VcsType.Git) {
-        const branches = await window.electronAPI?.listBranches(repo.localPath);
-        setBranchLists(prev => ({ ...prev, [repoId]: branches }));
         // If the current branch in the state is different from the one on disk, update it
         if (branches?.current && repo.branch !== branches.current) {
             logger.info('Branch changed on disk, updating repository state.', { repoId, old: repo.branch, new: branches.current });
@@ -877,11 +878,11 @@ const App: React.FC = () => {
 
   const handleSwitchBranch = useCallback(async (repoId: string, branch: string) => {
     const repo = repositories.find(r => r.id === repoId);
-    if (!repo || repo.vcs !== VcsType.Git) return;
-    logger.info('Attempting to switch branch', { repoId, branch });
+    if (!repo) return;
+    logger.info('Attempting to switch branch', { repoId, branch, vcs: repo.vcs });
 
     try {
-        const result = await window.electronAPI?.checkoutBranch(repo.localPath, branch);
+        const result = await window.electronAPI?.checkoutBranch({ repoPath: repo.localPath, branch, vcs: repo.vcs });
         if (result?.success) {
             setToast({ message: `Switched to branch '${branch}'`, type: 'success' });
             await refreshRepoState(repoId);

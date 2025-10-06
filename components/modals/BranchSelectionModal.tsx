@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { BranchInfo } from '../../types';
+import { VcsType, type BranchInfo } from '../../types';
 import { MagnifyingGlassIcon } from '../icons/MagnifyingGlassIcon';
 import { XIcon } from '../icons/XIcon';
+import { getDisplayBranchName, getRemoteBranchesToOffer, normalizeBranchForComparison } from '../../utils/branchHelpers';
 
 interface BranchSelectionModalProps {
   isOpen: boolean;
   repositoryName: string;
   branchInfo: BranchInfo | null;
+  vcs: VcsType;
   onSelectBranch: (branchName: string) => void;
   onClose: () => void;
 }
@@ -16,12 +18,15 @@ type BranchEntry = {
   name: string;
   type: 'local' | 'remote';
   isCurrent: boolean;
+  displayName: string;
+  normalized: string;
 };
 
 const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
   isOpen,
   repositoryName,
   branchInfo,
+  vcs,
   onSelectBranch,
   onClose,
 }) => {
@@ -52,34 +57,39 @@ const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
       return [];
     }
 
-    const { local, remote, current } = branchInfo;
-    const remoteBranchesToOffer = remote.filter(rBranch => {
-      const localEquivalent = rBranch.split('/').slice(1).join('/');
-      return !local.includes(localEquivalent);
-    });
+    const { local, current } = branchInfo;
+    const normalizedCurrent = current ? normalizeBranchForComparison(current, vcs).toLowerCase() : null;
+    const remoteBranchesToOffer = getRemoteBranchesToOffer(branchInfo, vcs);
 
-    const localEntries = local.map(name => ({
-      key: `local-${name}`,
-      name,
-      type: 'local' as const,
-      isCurrent: current === name,
-    }));
+    const makeEntry = (name: string, type: 'local' | 'remote'): BranchEntry => {
+      const displayName = getDisplayBranchName(name, vcs);
+      const normalized = normalizeBranchForComparison(name, vcs).toLowerCase();
+      return {
+        key: `${type}-${name}`,
+        name,
+        type,
+        displayName,
+        normalized,
+        isCurrent: normalizedCurrent ? normalized === normalizedCurrent : false,
+      };
+    };
 
-    const remoteEntries = remoteBranchesToOffer.map(name => ({
-      key: `remote-${name}`,
-      name,
-      type: 'remote' as const,
-      isCurrent: current === name,
-    }));
+    const localEntries = local.map(name => makeEntry(name, 'local'));
+    const remoteEntries = remoteBranchesToOffer.map(name => makeEntry(name, 'remote'));
 
     return [...localEntries, ...remoteEntries];
-  }, [branchInfo]);
+  }, [branchInfo, vcs]);
 
   const filteredEntries = useMemo(() => {
     if (!normalizedSearchTerm) {
       return branchEntries;
     }
-    return branchEntries.filter(entry => entry.name.toLowerCase().includes(normalizedSearchTerm));
+    return branchEntries.filter(entry => {
+      if (entry.displayName.toLowerCase().includes(normalizedSearchTerm)) {
+        return true;
+      }
+      return entry.name.toLowerCase().includes(normalizedSearchTerm);
+    });
   }, [branchEntries, normalizedSearchTerm]);
 
   const highlightBranchName = useCallback(
@@ -258,9 +268,9 @@ const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
               Showing {filteredEntries.length} of {branchEntries.length} branches
             </span>
             {branchInfo.current && (
-              <span className="inline-flex items-center gap-2">
+            <span className="inline-flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-blue-500" aria-hidden="true" />
-                Current branch: <strong className="text-gray-700 dark:text-gray-200">{branchInfo.current}</strong>
+                Current branch: <strong className="text-gray-700 dark:text-gray-200">{getDisplayBranchName(branchInfo.current, vcs)}</strong>
               </span>
             )}
           </div>
@@ -295,7 +305,7 @@ const BranchSelectionModal: React.FC<BranchSelectionModalProps> = ({
                     } ${isCurrent ? 'border-l-4 border-blue-500' : ''}`}
                   >
                     <div className="flex flex-col">
-                      <span className="font-medium truncate">{highlightBranchName(entry.name)}</span>
+                      <span className="font-medium truncate">{highlightBranchName(entry.displayName)}</span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         {entry.type === 'local' ? 'Local branch' : 'Remote branch'}
                       </span>

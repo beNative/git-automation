@@ -2222,88 +2222,234 @@ ipcMain.handle('get-commit-diff', async (event, repo: Repository, commitHash: st
 });
 
 
-// --- List Branches (Git only) ---
-ipcMain.handle('list-branches', async (event, repoPath: string): Promise<BranchInfo> => {
-    const branches: BranchInfo = { local: [], remote: [], current: null };
+// --- List Branches (Git & SVN) ---
+ipcMain.handle('list-branches', async (event, args: { repoPath: string; vcs?: 'git' | 'svn' } | string): Promise<BranchInfo> => {
+    const empty: BranchInfo = { local: [], remote: [], current: null };
+
+    let repoPath: string | undefined;
+    let providedVcs: VcsTypeEnum | undefined;
+
+    if (typeof args === 'string') {
+        repoPath = args;
+    } else if (args && typeof args.repoPath === 'string') {
+        repoPath = args.repoPath;
+        if (args.vcs === 'git') providedVcs = VcsTypeEnum.Git;
+        if (args.vcs === 'svn') providedVcs = VcsTypeEnum.Svn;
+    }
+
+    if (!repoPath) {
+        return empty;
+    }
+
+    let repoVcs = providedVcs ?? null;
+    if (!repoVcs) {
+        if (await fileExists(repoPath, '.git')) {
+            repoVcs = VcsTypeEnum.Git;
+        } else if (await fileExists(repoPath, '.svn')) {
+            repoVcs = VcsTypeEnum.Svn;
+        }
+    }
+
+    if (!repoVcs) {
+        return empty;
+    }
 
     const settings = await readSettings();
-    const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
 
-    const parseForEachRef = async (ref: string) => {
-        const { stdout } = await execAsync(`${gitCmd} for-each-ref --format="%(refname:short)" --sort=-committerdate ${ref}`, { cwd: repoPath });
-        return stdout
-            .split('\n')
-            .map(line => line.trim())
-            .filter(Boolean);
-    };
+    if (repoVcs === VcsTypeEnum.Git) {
+        const branches: BranchInfo = { local: [], remote: [], current: null };
+        const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
 
-    try {
-        const currentResult = await execAsync(`${gitCmd} branch --show-current`, { cwd: repoPath });
-        const current = currentResult.stdout.trim();
-        branches.current = current ? current : null;
-    } catch (error) {
-        branches.current = null;
-    }
+        const parseForEachRef = async (ref: string) => {
+            const { stdout } = await execAsync(`${gitCmd} for-each-ref --format="%(refname:short)" --sort=-committerdate ${ref}`, { cwd: repoPath! });
+            return stdout
+                .split('\n')
+                .map(line => line.trim())
+                .filter(Boolean);
+        };
 
-    let localResolved = false;
-    try {
-        branches.local = await parseForEachRef('refs/heads');
-        localResolved = true;
-    } catch (error) {
-        mainLogger.warn(`[Branches] Failed to list local branches via for-each-ref`, { error: (error as any)?.message });
-    }
-
-    let remoteResolved = false;
-    try {
-        const remoteBranches = await parseForEachRef('refs/remotes');
-        branches.remote = remoteBranches.filter(name => !/\/HEAD$/.test(name));
-        remoteResolved = true;
-    } catch (error) {
-        mainLogger.warn(`[Branches] Failed to list remote branches via for-each-ref`, { error: (error as any)?.message });
-    }
-
-    if (!localResolved || !remoteResolved || branches.current === null) {
         try {
-            const { stdout } = await execAsync(`${gitCmd} branch -a`, { cwd: repoPath });
-            stdout.split('\n').forEach(line => {
-                let parsedLine = line.trim();
-                if (!parsedLine) {
-                    return;
-                }
+            const currentResult = await execAsync(`${gitCmd} branch --show-current`, { cwd: repoPath });
+            const current = currentResult.stdout.trim();
+            branches.current = current ? current : null;
+        } catch (error) {
+            branches.current = null;
+        }
 
-                const isCurrent = parsedLine.startsWith('* ');
-                if (isCurrent) {
-                    parsedLine = parsedLine.substring(2);
-                    if (!branches.current) {
-                        branches.current = parsedLine;
+        let localResolved = false;
+        try {
+            branches.local = await parseForEachRef('refs/heads');
+            localResolved = true;
+        } catch (error) {
+            mainLogger.warn(`[Branches] Failed to list local branches via for-each-ref`, { error: (error as any)?.message });
+        }
+
+        let remoteResolved = false;
+        try {
+            const remoteBranches = await parseForEachRef('refs/remotes');
+            branches.remote = remoteBranches.filter(name => !/\/HEAD$/.test(name));
+            remoteResolved = true;
+        } catch (error) {
+            mainLogger.warn(`[Branches] Failed to list remote branches via for-each-ref`, { error: (error as any)?.message });
+        }
+
+        if (!localResolved || !remoteResolved || branches.current === null) {
+            try {
+                const { stdout } = await execAsync(`${gitCmd} branch -a`, { cwd: repoPath });
+                stdout.split('\n').forEach(line => {
+                    let parsedLine = line.trim();
+                    if (!parsedLine) {
+                        return;
                     }
-                }
 
-                if (parsedLine.startsWith('remotes/')) {
-                    if (!parsedLine.includes('->')) {
-                        const remoteName = parsedLine.substring(8);
-                        if (!branches.remote.includes(remoteName)) {
-                            branches.remote.push(remoteName);
+                    const isCurrent = parsedLine.startsWith('* ');
+                    if (isCurrent) {
+                        parsedLine = parsedLine.substring(2);
+                        if (!branches.current) {
+                            branches.current = parsedLine;
                         }
                     }
-                } else {
-                    if (!branches.local.includes(parsedLine)) {
-                        branches.local.push(parsedLine);
-                    }
-                }
-            });
 
-            if (!localResolved) {
-                branches.local.sort((a, b) => a.localeCompare(b));
+                    if (parsedLine.startsWith('remotes/')) {
+                        if (!parsedLine.includes('->')) {
+                            const remoteName = parsedLine.substring(8);
+                            if (!branches.remote.includes(remoteName)) {
+                                branches.remote.push(remoteName);
+                            }
+                        }
+                    } else {
+                        if (!branches.local.includes(parsedLine)) {
+                            branches.local.push(parsedLine);
+                        }
+                    }
+                });
+
+                if (!localResolved) {
+                    branches.local.sort((a, b) => a.localeCompare(b));
+                }
+                if (!remoteResolved) {
+                    branches.remote = branches.remote.filter(name => !name.endsWith('/HEAD'));
+                    branches.remote.sort((a, b) => a.localeCompare(b));
+                }
+            } catch (fallbackError) {
+                mainLogger.error(`[Branches] Failed to list branches for ${repoPath}`, { error: (fallbackError as any)?.message });
+                return empty;
             }
-            if (!remoteResolved) {
-                branches.remote = branches.remote.filter(name => !name.endsWith('/HEAD'));
-                branches.remote.sort((a, b) => a.localeCompare(b));
-            }
-        } catch (fallbackError) {
-            mainLogger.error(`[Branches] Failed to list branches for ${repoPath}`, { error: (fallbackError as any)?.message });
-            return { local: [], remote: [], current: null };
         }
+
+        return branches;
+    }
+
+    // SVN branch listing
+    const svnCmd = getExecutableCommand(VcsTypeEnum.Svn, settings);
+    const branches: BranchInfo = { local: [], remote: [], current: null };
+
+    const sanitizeRelative = (value: string) => value.replace(/^\^?\/+/, '').replace(/\/$/, '');
+    const addRemoteBranch = (set: Set<string>, value: string, root?: string | null) => {
+        if (!value) return;
+        const trimmed = value.replace(/\/$/, '');
+        if (!trimmed) return;
+        if (root && trimmed.startsWith(root)) {
+            const relative = trimmed.substring(root.length).replace(/^\/+/, '');
+            if (relative) {
+                set.add(relative);
+                return;
+            }
+        }
+        set.add(trimmed);
+    };
+
+    let rootUrl: string | null = null;
+    let currentUrl: string | null = null;
+
+    try {
+        const { stdout } = await execAsync(`${svnCmd} info --show-item relative-url`, { cwd: repoPath });
+        const relative = sanitizeRelative(stdout.trim());
+        if (relative) {
+            branches.current = relative;
+            branches.local = [relative];
+        }
+    } catch (error) {
+        mainLogger.debug(`[Branches] Failed to read SVN relative URL for ${repoPath}`, { error: (error as any)?.message });
+    }
+
+    try {
+        const { stdout } = await execAsync(`${svnCmd} info --show-item repos-root-url`, { cwd: repoPath });
+        rootUrl = stdout.trim().replace(/\/$/, '') || null;
+    } catch (error) {
+        mainLogger.debug(`[Branches] Failed to determine SVN repository root for ${repoPath}`, { error: (error as any)?.message });
+    }
+
+    try {
+        const { stdout } = await execAsync(`${svnCmd} info --show-item url`, { cwd: repoPath });
+        currentUrl = stdout.trim().replace(/\/$/, '') || null;
+    } catch (error) {
+        mainLogger.debug(`[Branches] Failed to determine SVN current URL for ${repoPath}`, { error: (error as any)?.message });
+    }
+
+    if (!rootUrl && currentUrl && branches.current) {
+        const normalizedCurrent = branches.current;
+        const lowerCurrent = normalizedCurrent.toLowerCase();
+        const lowerUrl = currentUrl.toLowerCase();
+        const index = lowerUrl.lastIndexOf(lowerCurrent);
+        if (index >= 0) {
+            rootUrl = currentUrl.substring(0, index).replace(/\/$/, '');
+        }
+    }
+
+    const normalizedRoot = rootUrl ? rootUrl.replace(/\/$/, '') : null;
+    const remoteBranches = new Set<string>();
+
+    const trunkCandidates = new Set<string>();
+    if (normalizedRoot) {
+        trunkCandidates.add(`${normalizedRoot}/trunk`);
+    }
+    if (currentUrl) {
+        const lowerCurrentUrl = currentUrl.toLowerCase();
+        if (lowerCurrentUrl.includes('/branches/')) {
+            const prefix = currentUrl.substring(0, lowerCurrentUrl.indexOf('/branches/'));
+            trunkCandidates.add(`${prefix}/trunk`);
+        }
+    }
+    trunkCandidates.forEach(candidate => addRemoteBranch(remoteBranches, candidate, normalizedRoot));
+
+    const branchBases = new Set<string>();
+    if (currentUrl) {
+        const lowerCurrentUrl = currentUrl.toLowerCase();
+        const branchesIndex = lowerCurrentUrl.indexOf('/branches/');
+        if (branchesIndex >= 0) {
+            branchBases.add(`${currentUrl.substring(0, branchesIndex)}/branches`);
+        }
+        if (lowerCurrentUrl.endsWith('/trunk')) {
+            branchBases.add(`${currentUrl.substring(0, currentUrl.length - 5)}branches`);
+        }
+    }
+    if (normalizedRoot) {
+        branchBases.add(`${normalizedRoot}/branches`);
+    }
+
+    for (const base of branchBases) {
+        const normalizedBase = base.replace(/\/$/, '');
+        try {
+            const { stdout } = await execAsync(`${svnCmd} list ${JSON.stringify(normalizedBase)}`, { cwd: repoPath });
+            stdout
+                .split('\n')
+                .map(line => line.trim())
+                .filter(Boolean)
+                .forEach(entry => {
+                    const name = entry.replace(/\/$/, '');
+                    if (!name) return;
+                    addRemoteBranch(remoteBranches, `${normalizedBase}/${name}`, normalizedRoot);
+                });
+        } catch (error) {
+            mainLogger.debug(`[Branches] Failed to list SVN branches at ${normalizedBase}`, { error: (error as any)?.message });
+        }
+    }
+
+    branches.remote = Array.from(remoteBranches).sort((a, b) => a.localeCompare(b));
+
+    if (branches.local.length === 0 && branches.current) {
+        branches.local.push(branches.current);
     }
 
     return branches;
@@ -2347,16 +2493,106 @@ const isProtectedBranch = (
     return false;
 };
 
-ipcMain.handle('checkout-branch', (e, repoPath: string, branch: string) => {
-    // If branch contains '/', it's from the remote list e.g. 'origin/main'
-    // If it doesn't, it's from the local list e.g. 'main'
-    if (branch.includes('/')) {
-        // This is for checking out a new local branch tracking a remote one.
-        // `git checkout --track origin/main` creates a local branch 'main' and checks it out.
-        return simpleGitCommand(repoPath, `checkout --track ${branch}`);
+ipcMain.handle('checkout-branch', async (event, arg1: any, arg2?: any) => {
+    let repoPath: string | undefined;
+    let branch: string | undefined;
+    let providedVcs: VcsTypeEnum | undefined;
+
+    if (typeof arg1 === 'object' && arg1 !== null) {
+        repoPath = arg1.repoPath;
+        branch = arg1.branch;
+        if (arg1.vcs === 'git') providedVcs = VcsTypeEnum.Git;
+        if (arg1.vcs === 'svn') providedVcs = VcsTypeEnum.Svn;
+    } else {
+        repoPath = arg1;
+        if (typeof arg2 === 'string') {
+            branch = arg2;
+        }
     }
-    // This is for switching to an existing local branch
-    return simpleGitCommand(repoPath, `checkout ${branch}`);
+
+    if (!repoPath || !branch) {
+        return { success: false, error: 'Invalid arguments' };
+    }
+
+    let repoVcs = providedVcs ?? null;
+    if (!repoVcs) {
+        if (await fileExists(repoPath, '.git')) {
+            repoVcs = VcsTypeEnum.Git;
+        } else if (await fileExists(repoPath, '.svn')) {
+            repoVcs = VcsTypeEnum.Svn;
+        }
+    }
+
+    if (repoVcs === VcsTypeEnum.Svn) {
+        try {
+            const settings = await readSettings();
+            const svnCmd = getExecutableCommand(VcsTypeEnum.Svn, settings);
+
+            const sanitize = (value: string) => value.trim().replace(/^\^?\/+/, '').replace(/\/$/, '');
+            const original = branch.trim();
+            const isUrl = /^https?:\/\//i.test(original);
+
+            let rootUrl: string | null = null;
+            let currentUrl: string | null = null;
+            let relativeUrl: string | null = null;
+
+            try {
+                const { stdout } = await execAsync(`${svnCmd} info --show-item repos-root-url`, { cwd: repoPath });
+                rootUrl = stdout.trim().replace(/\/$/, '') || null;
+            } catch (error) {
+                mainLogger.debug(`[SVN Checkout] Failed to get root URL for ${repoPath}`, { error: (error as any)?.message });
+            }
+
+            try {
+                const { stdout } = await execAsync(`${svnCmd} info --show-item url`, { cwd: repoPath });
+                currentUrl = stdout.trim().replace(/\/$/, '') || null;
+            } catch (error) {
+                mainLogger.debug(`[SVN Checkout] Failed to get current URL for ${repoPath}`, { error: (error as any)?.message });
+            }
+
+            try {
+                const { stdout } = await execAsync(`${svnCmd} info --show-item relative-url`, { cwd: repoPath });
+                relativeUrl = stdout.trim();
+            } catch (error) {
+                mainLogger.debug(`[SVN Checkout] Failed to get relative URL for ${repoPath}`, { error: (error as any)?.message });
+            }
+
+            if (!rootUrl && currentUrl && relativeUrl) {
+                const normalizedRelative = sanitize(relativeUrl);
+                const lowerRelative = normalizedRelative.toLowerCase();
+                const lowerCurrent = currentUrl.toLowerCase();
+                const index = lowerCurrent.lastIndexOf(lowerRelative);
+                if (index >= 0) {
+                    rootUrl = currentUrl.substring(0, index).replace(/\/$/, '');
+                }
+            }
+
+            let target = original;
+            if (!isUrl) {
+                const sanitizedBranch = sanitize(original);
+                if (rootUrl) {
+                    target = `${rootUrl}/${sanitizedBranch}`;
+                } else {
+                    target = sanitizedBranch;
+                }
+            }
+
+            await execAsync(`${svnCmd} switch ${JSON.stringify(target)}`, { cwd: repoPath });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.stderr || error.message };
+        }
+    }
+
+    // Default to git checkout behaviour
+    if (!repoVcs || repoVcs === VcsTypeEnum.Git) {
+        if (branch.includes('/')) {
+            return simpleGitCommand(repoPath, `checkout --track ${branch}`);
+        }
+        return simpleGitCommand(repoPath, `checkout ${branch}`);
+    }
+
+    return { success: false, error: 'Unsupported repository type' };
 });
 ipcMain.handle('create-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `checkout -b ${branch}`));
 ipcMain.handle('delete-branch', (e, repoPath: string, branch: string, isRemote: boolean, remoteName?: string) => {
