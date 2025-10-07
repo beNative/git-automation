@@ -1705,6 +1705,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
 
   const isGitRepo = formData.vcs === VcsType.Git;
+  const isSvnRepo = formData.vcs === VcsType.Svn;
+  const supportsHistoryTab = isGitRepo || isSvnRepo;
+  const supportsBranchTab = isGitRepo || isSvnRepo;
   const isGitHubRepo = useMemo(() => isGitRepo && formData.remoteUrl?.includes('github.com'), [isGitRepo, formData.remoteUrl]);
 
   // Debounce history search
@@ -1789,7 +1792,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, [selectedBranches, branchInfo]);
 
   const fetchHistory = useCallback(async (loadMore = false) => {
-    if (!repository) return;
+    if (!repository || !supportsHistoryTab) return;
     
     if (loadMore) {
         setIsMoreHistoryLoading(true);
@@ -1836,10 +1839,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         setHistoryLoading(false);
         setIsMoreHistoryLoading(false);
     }
-  }, [repository, setToast, commits.length, debouncedHistorySearch]);
+  }, [repository, setToast, commits.length, debouncedHistorySearch, supportsHistoryTab]);
 
   const fetchBranches = useCallback(async () => {
-    if (!repository || !isGitRepo) return;
+    if (!repository || !supportsBranchTab) return;
     setBranchesLoading(true);
     try {
         const branches = await window.electronAPI?.listBranches({ repoPath: repository.localPath, vcs: repository.vcs });
@@ -1868,7 +1871,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     } finally {
         setBranchesLoading(false);
     }
-  }, [repository, isGitRepo, setToast]);
+  }, [repository, supportsBranchTab, setToast]);
 
   const fetchReleases = useCallback(async () => {
     if (!repository || !isGitHubRepo) return;
@@ -1896,7 +1899,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   // Fetch branch info on mount for the dropdown if possible
   useEffect(() => {
-    if (repository?.localPath && isGitRepo) {
+    if (repository?.localPath && supportsBranchTab) {
       if (branchInfo) return; // Don't re-fetch if we already have the info.
       const checkPathAndFetch = async () => {
         const pathState = await window.electronAPI?.checkLocalPath(repository.localPath);
@@ -1906,13 +1909,13 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       };
       checkPathAndFetch();
     }
-  }, [repository, isGitRepo, fetchBranches, branchInfo]);
+  }, [repository, supportsBranchTab, fetchBranches, branchInfo]);
   
   // Fetch data when a tab becomes active or search term changes
   useEffect(() => {
-    if (activeTab === 'history') {
+    if (activeTab === 'history' && supportsHistoryTab) {
         fetchHistory(false);
-    } else if (activeTab === 'branches') {
+    } else if (activeTab === 'branches' && supportsBranchTab) {
         if (!branchInfo) {
             fetchBranches();
         }
@@ -2116,6 +2119,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
   const handleCreateBranch = async () => {
     if (!repository || !newBranchName.trim()) return;
+    if (!isGitRepo) {
+        setToast({ message: 'Branch creation is only supported for Git repositories.', type: 'info' });
+        return;
+    }
     const result = await window.electronAPI?.createBranch(repository.localPath, newBranchName.trim());
     if (result?.success) {
         setToast({ message: `Branch '${newBranchName.trim()}' created`, type: 'success' });
@@ -2129,6 +2136,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
   const handleDeleteBranch = async (branchIdentifier: string, scope: 'local' | 'remote') => {
     if (!repository) return;
+    if (!isGitRepo) {
+        setToast({ message: 'Branch deletion is only supported for Git repositories.', type: 'info' });
+        return;
+    }
     const isRemote = scope === 'remote';
     const remoteDetails = isRemote ? parseRemoteBranchIdentifier(branchIdentifier) : null;
     const branchLabel = formatBranchSelectionLabel(branchIdentifier, scope);
@@ -2170,6 +2181,11 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   const handleBulkDeleteSelectedBranches = useCallback(() => {
     if (!repository || selectedBranches.length === 0) {
+        return;
+    }
+
+    if (!isGitRepo) {
+        setToast({ message: 'Bulk branch deletion is only supported for Git repositories.', type: 'info' });
         return;
     }
 
@@ -2290,10 +2306,14 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             }
         }
     });
-  }, [repository, selectedBranches, branchInfo?.current, confirmAction, setToast, fetchBranches, onRefreshState]);
+  }, [repository, selectedBranches, branchInfo?.current, confirmAction, setToast, fetchBranches, onRefreshState, isGitRepo]);
 
   const handleMergeBranch = async () => {
       if (!repository || !branchToMerge) return;
+      if (!isGitRepo) {
+        setToast({ message: 'Branch merging is only supported for Git repositories.', type: 'info' });
+        return;
+      }
       const currentBranch = branchInfo?.current;
       if (!currentBranch || branchToMerge === currentBranch) {
         setToast({ message: 'Cannot merge a branch into itself.', type: 'info' });
@@ -2626,6 +2646,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 </div>
             );
         case 'history':
+            if (!supportsHistoryTab) {
+                return <div className="p-4 text-center text-gray-500">History is only available for Git or SVN repositories.</div>;
+            }
             return (
                 <div className="p-4 space-y-3 flex flex-col overflow-hidden h-full">
                     <div className="relative flex-shrink-0">
@@ -2664,6 +2687,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 </div>
             );
         case 'branches': {
+            if (!supportsBranchTab) {
+                return <div className="p-4 text-center text-gray-500">Branch management is only available for Git or SVN repositories.</div>;
+            }
             const selectedBranchCount = selectedBranches.length;
             const selectedLocalCount = selectedBranches.filter(selection => selection.scope === 'local').length;
             const selectedRemoteCount = selectedBranchCount - selectedLocalCount;
@@ -2777,7 +2803,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                                 {isCurrent && <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200">Current</span>}
                                                                 {isProtectedLocal && <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200">Protected</span>}
                                                             </div>
-                                                            {!isCurrent && !isProtectedLocal && (
+                                                            {!isCurrent && !isProtectedLocal && isGitRepo && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={(event) => {
@@ -2818,7 +2844,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                                 </span>
                                                                 {isProtectedRemote && <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200">Protected</span>}
                                                             </div>
-                                                            {!isProtectedRemote && (
+                                                            {!isProtectedRemote && isGitRepo && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={(event) => {
@@ -2841,15 +2867,17 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                         <p className="text-sm text-gray-600 dark:text-gray-300">{selectionDescription}</p>
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={handleBulkDeleteSelectedBranches}
-                                                disabled={bulkDeleteDisabled}
-                                                title={bulkDeleteTitle}
-                                                className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:bg-gray-400 disabled:cursor-not-allowed ${isDeletingBranches ? 'cursor-wait' : ''}`}
-                                            >
-                                                {isDeletingBranches ? 'Deleting…' : 'Delete Selected'}
-                                            </button>
+                                            {isGitRepo && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleBulkDeleteSelectedBranches}
+                                                    disabled={bulkDeleteDisabled}
+                                                    title={bulkDeleteTitle}
+                                                    className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:bg-gray-400 disabled:cursor-not-allowed ${isDeletingBranches ? 'cursor-wait' : ''}`}
+                                                >
+                                                    {isDeletingBranches ? 'Deleting…' : 'Delete Selected'}
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={handleCheckoutBranch}
@@ -2860,27 +2888,34 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <h4 className="font-semibold mb-2">Create New Branch</h4>
-                                            <div className="flex gap-2">
-                                                <input type="text" value={newBranchName} onChange={e => setNewBranchName(e.target.value)} placeholder="new-branch-name" className={formInputStyle}/>
-                                                <button type="button" onClick={handleCreateBranch} className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create</button>
+                                    {isSvnRepo && (
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                            Branch creation, deletion, and merging are currently only available for Git repositories.
+                                        </p>
+                                    )}
+                                    {isGitRepo && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <h4 className="font-semibold mb-2">Create New Branch</h4>
+                                                <div className="flex gap-2">
+                                                    <input type="text" value={newBranchName} onChange={e => setNewBranchName(e.target.value)} placeholder="new-branch-name" className={formInputStyle}/>
+                                                    <button type="button" onClick={handleCreateBranch} className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create</button>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h4 className="font-semibold mb-2">Merge Branch into Current</h4>
+                                                <div className="flex gap-2">
+                                                    <select value={branchToMerge || ''} onChange={e => setBranchToMerge(e.target.value)} className={formInputStyle}>
+                                                        <option value="" disabled>Select a branch</option>
+                                                        {(branchInfo?.local || []).filter(b => b !== branchInfo?.current).map(b => (
+                                                            <option key={b} value={b}>{b}</option>
+                                                        ))}
+                                                    </select>
+                                                    <button type="button" onClick={handleMergeBranch} className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700">Merge</button>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div>
-                                            <h4 className="font-semibold mb-2">Merge Branch into Current</h4>
-                                            <div className="flex gap-2">
-                                                <select value={branchToMerge || ''} onChange={e => setBranchToMerge(e.target.value)} className={formInputStyle}>
-                                                    <option value="" disabled>Select a branch</option>
-                                                    {(branchInfo?.local || []).filter(b => b !== branchInfo?.current).map(b => (
-                                                        <option key={b} value={b}>{b}</option>
-                                                    ))}
-                                                </select>
-                                                <button type="button" onClick={handleMergeBranch} className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700">Merge</button>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -3214,8 +3249,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                     <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
                         <nav className="-mb-px flex space-x-4 px-4">
                             <button onClick={() => setActiveTab('tasks')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'tasks' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Tasks</button>
-                            {isGitRepo && <button onClick={() => setActiveTab('history')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'history' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>History</button>}
-                            {isGitRepo && <button onClick={() => setActiveTab('branches')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'branches' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Branches</button>}
+                            {supportsHistoryTab && <button onClick={() => setActiveTab('history')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'history' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>History</button>}
+                            {supportsBranchTab && <button onClick={() => setActiveTab('branches')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'branches' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Branches</button>}
                              {isGitRepo && <button onClick={() => setActiveTab('releases')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'releases' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Releases</button>}
                         </nav>
                     </div>
