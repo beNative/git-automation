@@ -58,7 +58,7 @@ Each card gives you an at-a-glance overview of a repository:
     -   **Delete (trash icon):** Removes the repository from the dashboard.
 -   **Remote URL & Local Path:** The repository's remote URL and local path, each with a copy-to-clipboard button.
 -   **Branch & Status Line:** A single line containing:
-    -   **Branch Selector (Git only):** A dropdown to view and switch between branches.
+    -   **Branch Selector:** A dropdown to view and switch between branches for both Git and SVN repositories. SVN users can move between the trunk and feature branches just like Git users, while destructive actions remain Git-specific.
     -   **Status Indicators:** At a glance, see if updates are available, how far ahead/behind the remote you are, and a summary of local file changes.
 -   **Metadata:**
     -   **Build Health:** The status of the last build (`Healthy`, `Failing`, `Unknown`).
@@ -69,8 +69,11 @@ Each card gives you an at-a-glance overview of a repository:
 
 Each card has a set of action buttons at the bottom:
 
+-   **Setup & Clone / Clone Repo:** When the local working copy is missing, the card automatically surfaces guided buttons. **Setup & Clone** opens a folder picker so you can select where to place the checkout, then immediately kicks off the clone/checkout. If a path is already stored but empty, a single **Clone Repo** button runs the clone directly. Progress for both flows streams into the log panel.
 -   **Task Buttons:** Any task marked with "Show on dashboard" will appear as its own button for one-click execution.
+-   **Pinned Launch Buttons:** Launch configurations flagged to "Show on dashboard" appear alongside task buttons with a lightning icon for one-click app launches.
 -   **More Tasks (Play Icon):** If there are more tasks available, this button opens a modal to select any of the repository's tasks to run.
+-   **Launch Menu (Lightning Icon):** Opens an overflow menu listing unpinned launch configurations and auto-detected executables so you can start tools without leaving the dashboard.
 -   **Open in Terminal (Terminal Icon):** Opens the repository's local folder in your system's default terminal.
 -   **View Logs (Document Icon):** Opens the resizable log panel to show previous logs for this repository.
 -   **View History (Clock Icon):** Opens a modal displaying the commit history for this repository.
@@ -96,13 +99,20 @@ Tasks (automation scripts) are configured on a per-repository basis.
 3.  Fill in the repository's details (Name, URL, Local Path, VCS type, etc.). The **Local Path** must be the absolute path to the repository on your computer for real execution to work.
 4.  Click **"Save Repository"**.
 
+#### First-Time Checkout Flow
+
+If the saved repository path does not contain a working copy yet, the dashboard highlights the repository card with dedicated **Setup & Clone** controls. Use these buttons to pick a destination folder and trigger the clone (Git) or checkout (SVN) without leaving the app. The application streams the progress into the log panel so you can watch the operation complete before running any tasks.
+
 ### Editing a Repository and Managing Its Features
 
 1.  On the desired repository card, click the **pencil icon**.
 2.  The "Edit Repository" view will appear. For Git repositories, this is a multi-tab interface.
 
 #### General Settings
-This is the main panel where you configure the name, path, URL, and launch configurations for the repository.
+This is the main panel where you configure the name, path, URL, and launch configurations for the repository. In addition to the basic metadata, this tab lets you:
+
+-   **Manage Launch Configurations:** Create launchers that either run a shell command or prompt for an executable to open. You can optionally capture command suggestions (pulled from the repo's detected project type), choose a working directory, and mark the launcher to **Show on dashboard** so it renders as a red lightning button on the repository card. Unpinned launchers remain available through the Launch menu on the card header and the card's right-click menu.
+-   **Control Dirty Repository Overrides:** The **Ignore Dirty Repository** checkbox bypasses the safety modal described later in this manual. Leave it unchecked to keep the protective prompts.
 
 #### Tasks Tab
 This is where you create powerful, custom automation scripts for the specific repository you are editing.
@@ -116,15 +126,25 @@ This is where you create powerful, custom automation scripts for the specific re
     -   **Environment Variables:** These are set as actual environment variables in the shell before commands are run. They can be used by scripts and build tools (e.g., `process.env.MY_VAR` in Node.js).
 4.  Continue adding, configuring, and re-ordering steps.
 
+#### Dirty Repository Protection
+
+Whenever you launch a task, the app checks the working tree for uncommitted changes. If it finds any, a **Dirty Repository** modal interrupts the run and lists the modified and untracked files. From this dialog you can:
+
+-   **Stash & Continue:** Save the changes to a temporary stash before running the task.
+-   **Ignore Selected & Push:** Choose specific untracked files to ignore, then continue. Behind the scenes this uses the shared `ignoreFilesAndPush` IPC handler so the same safety logic applies everywhere.
+-   **Pull Anyway:** Force the task to continue without stashing.
+-   **Cancel Task:** Abort the run and return to the dashboard.
+
+If you absolutely trust a repository's automation, enable **Ignore Dirty Repository** on the General tab to skip the modal for that repo only.
+
 #### History Tab (Git & SVN)
 Displays a detailed list of commits or revisions, including the author, date, and full message. You can search through the history and load more commits as you scroll.
 
-#### Branches Tab (Git Only)
-Provides a full interface to manage your Git branches. You can:
-- View all local and remote branches.
-- Create a new branch.
-- Delete local or remote branches.
-- Merge another branch into your current one.
+#### Branches Tab
+Provides a unified interface to inspect branches for both Git and SVN repositories. The dropdown is backed by the shared `list-branches` IPC handler, so Git and SVN cards use the same data source on the dashboard.
+
+-   **Git Repositories:** View all local and remote branches, create or delete branches, and merge another branch into your current one.
+-   **SVN Repositories:** Browse available branches (including trunk) and switch the working copy. Destructive operations such as creating or deleting branches remain Git-only.
 
 #### Releases Tab (Git Only)
 This tab provides a complete interface for managing your project's GitHub releases. It requires a GitHub Personal Access Token to be configured in the global settings. To view and manage draft releases, the token must have repository permissions for **"Contents: Read & write"**.
