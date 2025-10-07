@@ -8,16 +8,19 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Centralized Dashboard:** View the status, branch, and build health of all your repositories in one place.
 -   **Customizable Dashboard Categories:** Organize your repositories into collapsible sections with **dual-theme (light/dark) color styling**, a library of predefined themes, full drag-and-drop support (for both repositories and categories), and alternative up/down reorder buttons.
 -   **Multi-VCS Support:** Manage both Git and Subversion (SVN) repositories seamlessly.
+-   **Guided Repository Setup:** Built-in **Setup & Clone** and **Clone Repo** actions help you create or repair local working copies directly from each repository card, streaming progress into the integrated log panel.
 -   **Repository-Specific Tasks:** Create custom, multi-step automation scripts (e.g., pull/update, install, build) for each repository.
 -   **Project Intelligence:** Automatically detects project types (Node.js, Python, Go, Rust, Java/Maven, .NET, Delphi, Lazarus, Docker) and provides one-click buttons to generate common, pre-configured tasks.
 -   **Advanced Task Steps:** A rich library of specific, pre-built steps for different ecosystems—including Go, Rust, Java/Maven, and .NET—**now organized into logical categories in the UI for easy discovery**, simplifies creating complex workflows.
 -   **Task Environment Variables:** Define shell environment variables that are available to all command steps within a task.
+-   **Launch Shortcuts:** Configure reusable launchers for custom commands or executables, pin favorites to repository cards, and access the rest from a lightning-fast overflow menu or the right-click context menu.
 -   **Quick Actions:** Manually refresh repository state, copy URLs/paths with a single click, access all common actions via a right-click context menu, and reorder repositories with up/down buttons.
 -   **Powerful Command Palette:** Quickly access any action, task, or repository using the keyboard shortcut (`Ctrl/Cmd+K`) to open a powerful search-driven command modal.
 -   **Parallel Execution:** Run tasks on multiple repositories at the same time without waiting.
 -   **One-Click Update Check:** A "Check Updates" button fetches the latest information from all remotes, showing an "Updates Available" indicator on repositories that are behind.
 -   **Detailed VCS Status:** See ahead/behind status (Git) and a summary of file changes directly on the dashboard.
--   **Branch Management (Git):** Quickly switch branches from the dashboard, or view, create, delete, and merge branches in the configuration view.
+-   **Branch Management:** Quickly switch branches from the dashboard. Git repositories can view, create, delete, and merge branches from the configuration view, while SVN repositories can browse branches/trunk and switch working copies.
+-   **Dirty Working Tree Safety:** Task runs are automatically paused when uncommitted changes are detected, giving you options to stash, force, or ignore selected files before continuing.
 -   **GitHub Release Management (Git):** See the latest release on the dashboard, and view, create, edit, and manage all your project's releases directly from the configuration view.
 -   **Commit History:** View the commit history for any Git or SVN repository, with **a stable, non-flickering UI**, search, and load-on-demand.
 -   **Tabbed & Integrated Log Panel:** Monitor the output of every command in a detailed, resizable, and tabbed log panel that integrates smoothly into the main view.
@@ -39,6 +42,7 @@ This application provides a simple, powerful dashboard to manage and automate th
     -   Select the Version Control System (Git or SVN).
     -   Fill in the required details on the "General" tab.
     -   Click **"Save Repository"**.
+    -   If the local path is empty, use the **Setup & Clone** button on the new card to pick a folder and fetch the repository automatically.
 
 2.  **Create a Task:**
     -   On the dashboard, click the **pencil icon** on your repository's card to open the configuration modal.
@@ -49,7 +53,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 
 3.  **Run a Task:**
     -   Find your repository card on the dashboard.
-    -   Click a task button or use the task selection menu to run your task.
+    -   Click a task button or use the task selection menu to run your task. If the working copy is dirty, the safety modal will appear with options to stash, ignore selected files, force the pull, or cancel.
     -   The resizable log panel will automatically appear at the bottom, showing the progress of your script.
 
 ## Release Preparation Checklist
