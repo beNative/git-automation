@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 // FIX: Import DropTarget type for robust DnD.
 import type { Repository, Category, LocalPathState, DetailedStatus, BranchInfo, ToastMessage, ReleaseInfo, DropTarget } from '../types';
 import RepositoryCard from './RepositoryCard';
@@ -6,6 +6,16 @@ import CategoryHeader from './CategoryHeader';
 import { PlusIcon } from './icons/PlusIcon';
 import { useLogger } from '../hooks/useLogger';
 import { useSettings } from '../contexts/SettingsContext';
+
+type RepositoryDragPayload = {
+  type: 'repository-list';
+  sourceInstanceId?: string;
+  sourceCategoryId: string | 'uncategorized';
+  repoIds: string[];
+  repositories?: Repository[];
+};
+
+const CROSS_INSTANCE_MIME = 'application/git-automation-nodes';
 
 interface DashboardProps {
   repositories: Repository[];
@@ -48,18 +58,23 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
-  const { 
-    repositories, 
-    categories, 
+  const {
+    repositories,
+    categories,
     uncategorizedOrder,
-    onAddCategory, 
+    onAddCategory,
     onMoveRepositoryToCategory,
     onReorderCategories,
-    latestReleases
+    latestReleases,
+    setToast,
   } = props;
   
   const logger = useLogger();
-  const { settings } = useSettings();
+  const { settings, importRepositories } = useSettings();
+  const instanceIdRef = useRef<string>('');
+  if (!instanceIdRef.current) {
+    instanceIdRef.current = `instance_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  }
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [draggedRepo, setDraggedRepo] = useState<{ repoId: string; sourceCategoryId: string | 'uncategorized' } | null>(null);
@@ -76,10 +91,24 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     }
   };
 
-  const handleDragStartRepo = useCallback((e: React.DragEvent<HTMLDivElement>, repoId: string, sourceCategoryId: string | 'uncategorized') => {
-    logger.debug('[DnD] Drag Start Repo', { repoId, sourceCategoryId });
-    e.dataTransfer.setData('text/plain', JSON.stringify({ repoId, sourceCategoryId }));
-    setDraggedRepo({ repoId, sourceCategoryId });
+  const handleDragStartRepo = useCallback((e: React.DragEvent<HTMLDivElement>, repo: Repository, sourceCategoryId: string | 'uncategorized') => {
+    logger.debug('[DnD] Drag Start Repo', { repoId: repo.id, sourceCategoryId });
+    const payload: RepositoryDragPayload = {
+      type: 'repository-list',
+      sourceInstanceId: instanceIdRef.current,
+      sourceCategoryId,
+      repoIds: [repo.id],
+      repositories: [repo],
+    };
+    const serialized = JSON.stringify(payload);
+    try {
+      e.dataTransfer.setData(CROSS_INSTANCE_MIME, serialized);
+    } catch (error) {
+      logger.warn('[DnD] Failed to attach custom MIME payload', { error });
+    }
+    e.dataTransfer.setData('text/plain', serialized);
+    e.dataTransfer.effectAllowed = 'copyMove';
+    setDraggedRepo({ repoId: repo.id, sourceCategoryId });
     setDraggedCategoryId(null);
   }, [logger]);
   
@@ -91,7 +120,12 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    
+    if (e.dataTransfer.types?.includes(CROSS_INSTANCE_MIME) && !draggedRepo && !draggedCategoryId) {
+      e.dataTransfer.dropEffect = 'copy';
+    } else {
+      e.dataTransfer.dropEffect = 'move';
+    }
+
     // This logic is only for showing the drop indicator between categories
     if (draggedCategoryId) {
       const targetCategoryId = e.currentTarget.dataset.categoryId;
@@ -104,7 +138,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
           setCategoryDropIndicator(null);
       }
     }
-  }, [draggedCategoryId]);
+  }, [draggedCategoryId, draggedRepo]);
 
   const handleDragLeave = useCallback(() => {
     setCategoryDropIndicator(null);
@@ -114,38 +148,50 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     e.preventDefault();
     e.stopPropagation();
     logger.debug('[DnD] Drop event triggered');
-    
-    // --- Universal Dragged Item Identification ---
-    let currentDraggedRepo: { repoId: string; sourceCategoryId: string | 'uncategorized' } | null = null;
-    try {
-      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      if (data.repoId) {
-        currentDraggedRepo = data;
+
+    const serialized = e.dataTransfer.getData(CROSS_INSTANCE_MIME) || e.dataTransfer.getData('text/plain');
+    let payload: RepositoryDragPayload | null = null;
+
+    if (serialized) {
+      try {
+        const parsed = JSON.parse(serialized);
+        if (parsed && parsed.type === 'repository-list' && Array.isArray(parsed.repoIds)) {
+          payload = parsed as RepositoryDragPayload;
+        }
+      } catch (error) {
+        logger.error('[DnD] Failed to parse DataTransfer payload', { error });
       }
-    } catch (err) {
-      logger.error('[DnD] Failed to parse DataTransfer data. Using component state.', { error: err, state: draggedRepo });
-      currentDraggedRepo = draggedRepo;
     }
 
-    if (currentDraggedRepo) {
-      const { repoId: draggedRepoId, sourceCategoryId } = currentDraggedRepo;
+    if (!payload && draggedRepo) {
+      payload = {
+        type: 'repository-list',
+        sourceInstanceId: instanceIdRef.current,
+        sourceCategoryId: draggedRepo.sourceCategoryId,
+        repoIds: [draggedRepo.repoId],
+      };
+    }
+
+    if (payload && payload.repoIds.length > 0) {
+      const draggedRepoId = payload.repoIds[0];
+      const sourceCategoryId = payload.sourceCategoryId ?? 'uncategorized';
       let target: DropTarget | null = null;
 
-      // --- FINAL STRATEGY: Direct Target Traversal ---
       const dropElement = e.target as HTMLElement;
       let cardElement: HTMLElement | null = null;
       let categoryElement: HTMLElement | null = null;
-      
-      // Find the relevant elements by traversing up the DOM
-      let current = dropElement;
-      while(current) {
+
+      let current: HTMLElement | null = dropElement;
+      while (current) {
         if (current.dataset.repoId && !cardElement) {
           cardElement = current;
         }
         if (current.dataset.categoryId && !categoryElement) {
           categoryElement = current;
         }
-        if (cardElement && categoryElement) break; // Optimization
+        if (cardElement && categoryElement) {
+          break;
+        }
         current = current.parentElement;
       }
 
@@ -160,28 +206,47 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         target = {
           repoId: null,
           categoryId: categoryElement.dataset.categoryId as string | 'uncategorized',
-          position: 'end'
+          position: 'end',
         };
       }
 
       if (target) {
-        logger.debug('[DnD] Dispatching move action', { draggedRepoId, sourceCategoryId, target });
-        onMoveRepositoryToCategory(draggedRepoId, sourceCategoryId, target);
+        const isSameInstance = payload.sourceInstanceId === instanceIdRef.current || payload.repoIds.every(id => Boolean(reposById[id]));
+
+        if (isSameInstance) {
+          logger.debug('[DnD] Dispatching move action', { draggedRepoId, sourceCategoryId, target });
+          onMoveRepositoryToCategory(draggedRepoId, sourceCategoryId, target);
+        } else if (payload.repositories && payload.repositories.length > 0) {
+          const imported = importRepositories(payload.repositories, target);
+          if (imported.length > 0) {
+            logger.info('[DnD] Imported repositories from external instance', { count: imported.length });
+            setToast({
+              message: imported.length === 1
+                ? `Copied “${imported[0].name}” into this workspace.`
+                : `Copied ${imported.length} repositories into this workspace.`,
+              type: 'success',
+            });
+          } else {
+            logger.warn('[DnD] Import returned no repositories');
+          }
+        } else {
+          logger.warn('[DnD] Missing repository data for cross-instance drop');
+        }
       } else {
         logger.warn('[DnD] Could not determine a valid drop target.');
       }
     } else if (draggedCategoryId) {
-        const targetCategoryId = (e.currentTarget as HTMLElement).dataset.categoryId;
-        if (targetCategoryId && draggedCategoryId !== targetCategoryId && categoryDropIndicator) {
-            logger.debug('[DnD] Reordering category', { draggedCategoryId, targetCategoryId, position: categoryDropIndicator.position });
-            onReorderCategories(draggedCategoryId, targetCategoryId, categoryDropIndicator.position);
-        }
+      const targetCategoryId = (e.currentTarget as HTMLElement).dataset.categoryId;
+      if (targetCategoryId && draggedCategoryId !== targetCategoryId && categoryDropIndicator) {
+        logger.debug('[DnD] Reordering category', { draggedCategoryId, targetCategoryId, position: categoryDropIndicator.position });
+        onReorderCategories(draggedCategoryId, targetCategoryId, categoryDropIndicator.position);
+      }
     }
-  
+
     setDraggedRepo(null);
     setDraggedCategoryId(null);
     setCategoryDropIndicator(null);
-  }, [draggedRepo, draggedCategoryId, onMoveRepositoryToCategory, onReorderCategories, categoryDropIndicator, logger]);
+  }, [draggedRepo, draggedCategoryId, onMoveRepositoryToCategory, onReorderCategories, categoryDropIndicator, logger, importRepositories, setToast, reposById]);
 
   const reposById = useMemo(() => 
     repositories.reduce((acc, repo) => {
@@ -209,7 +274,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     branchInfo={props.branchLists[repo.id] || null}
                     latestRelease={latestReleases[repo.id] || null}
                     detectedExecutables={props.detectedExecutables[repo.id] || []}
-                    onDragStart={(e) => handleDragStartRepo(e, repo.id, categoryId)}
+                    onDragStart={(e) => handleDragStartRepo(e, repo, categoryId)}
                     onDragEnd={() => { setDraggedRepo(null); }}
                     isBeingDragged={isBeingDragged}
                     onDragOver={handleDragOver}
@@ -236,7 +301,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     onOpenLocalPath={props.onOpenLocalPath}
                     onOpenWeblink={props.onOpenWeblink}
                     onOpenTerminal={props.onOpenTerminal}
-                    setToast={props.setToast}
+                    setToast={setToast}
                     onRefreshRepoState={props.onRefreshRepoState}
                 />
             );

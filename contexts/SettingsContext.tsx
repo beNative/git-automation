@@ -20,6 +20,7 @@ interface AppDataContextState {
   deleteCategory: (categoryId: string) => void;
   // FIX: Update signature to use DropTarget object for atomic updates.
   moveRepositoryToCategory: (repoId: string, sourceId: string | 'uncategorized', target: DropTarget) => void;
+  importRepositories: (repos: Repository[], target: DropTarget) => Repository[];
   moveRepository: (repoId: string, direction: 'up' | 'down') => void;
   toggleCategoryCollapse: (categoryId: string) => void;
   toggleAllCategoriesCollapse: () => void;
@@ -62,6 +63,7 @@ const initialState: AppDataContextState = {
   updateCategory: () => {},
   deleteCategory: () => {},
   moveRepositoryToCategory: () => {},
+  importRepositories: () => [],
   moveRepository: () => {},
   toggleCategoryCollapse: () => {},
   toggleAllCategoriesCollapse: () => {},
@@ -126,11 +128,12 @@ type CategoryState = {
     uncategorizedOrder: string[];
 };
 
-type CategoryAction = 
+type CategoryAction =
   | { type: 'SET_ALL_DATA'; payload: { categories: Category[]; uncategorizedOrder: string[] } }
   | { type: 'MOVE_REPOSITORY_DND'; payload: { repoId: string; sourceId: string | 'uncategorized'; target: DropTarget } }
   | { type: 'MOVE_REPOSITORY_BUTTONS'; payload: { repoId: string; direction: 'up' | 'down' } }
   | { type: 'ADD_REPOSITORY'; payload: { repoId: string; categoryId?: string } }
+  | { type: 'IMPORT_REPOSITORIES'; payload: { repoIds: string[]; target: DropTarget } }
   | { type: 'DELETE_REPOSITORY'; payload: { repoId: string } }
   | { type: 'ADD_CATEGORY'; payload: { name: string } }
   | { type: 'UPDATE_CATEGORY'; payload: { category: Category } }
@@ -203,6 +206,41 @@ const categoryReducer = (state: CategoryState, action: CategoryAction): Category
             } else {
                 nextState.uncategorizedOrder.unshift(repoId);
             }
+            return nextState;
+        }
+
+        case 'IMPORT_REPOSITORIES': {
+            const { repoIds, target } = action.payload;
+            if (repoIds.length === 0) {
+                return state;
+            }
+
+            const { categoryId, repoId: targetRepoId, position } = target;
+            if (categoryId === 'uncategorized') {
+                let insertIndex = nextState.uncategorizedOrder.length;
+                if (targetRepoId && position !== 'end') {
+                    const idx = nextState.uncategorizedOrder.indexOf(targetRepoId);
+                    if (idx > -1) {
+                        insertIndex = position === 'after' ? idx + 1 : idx;
+                    }
+                }
+                nextState.uncategorizedOrder.splice(insertIndex, 0, ...repoIds);
+            } else {
+                const targetCategory = nextState.categories.find(c => c.id === categoryId);
+                if (targetCategory) {
+                    let insertIndex = targetCategory.repositoryIds.length;
+                    if (targetRepoId && position !== 'end') {
+                        const idx = targetCategory.repositoryIds.indexOf(targetRepoId);
+                        if (idx > -1) {
+                            insertIndex = position === 'after' ? idx + 1 : idx;
+                        }
+                    }
+                    targetCategory.repositoryIds.splice(insertIndex, 0, ...repoIds);
+                } else {
+                    nextState.uncategorizedOrder.push(...repoIds);
+                }
+            }
+
             return nextState;
         }
 
@@ -396,6 +434,34 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     dispatch({ type: 'DELETE_REPOSITORY', payload: { repoId } });
   }, []);
 
+  const importRepositories = useCallback((reposToImport: Repository[], target: DropTarget): Repository[] => {
+    if (!reposToImport || reposToImport.length === 0) {
+        return [];
+    }
+
+    let imported: Repository[] = [];
+    setRepositories(prev => {
+        const existingIds = new Set(prev.map(repo => repo.id));
+        const created: Repository[] = reposToImport.map(repo => {
+            const baseId = repo.id && !existingIds.has(repo.id) ? repo.id : `repo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            let nextId = baseId;
+            while (existingIds.has(nextId)) {
+                nextId = `${baseId}_${Math.random().toString(36).slice(2, 6)}`;
+            }
+            existingIds.add(nextId);
+            return { ...repo, id: nextId } as Repository;
+        });
+        imported = created;
+        return [...prev, ...created];
+    });
+
+    if (imported.length > 0) {
+        dispatch({ type: 'IMPORT_REPOSITORIES', payload: { repoIds: imported.map(repo => repo.id), target } });
+    }
+
+    return imported;
+  }, []);
+
   const addCategory = useCallback((name: string) => {
     dispatch({ type: 'ADD_CATEGORY', payload: { name } });
   }, []);
@@ -448,12 +514,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     updateCategory,
     deleteCategory,
     moveRepositoryToCategory,
+    importRepositories,
     moveRepository,
     toggleCategoryCollapse,
     toggleAllCategoriesCollapse,
     moveCategory,
     reorderCategories,
-  }), [settings, saveSettings, repositories, isLoading, categories, uncategorizedOrder, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory, moveRepository, toggleCategoryCollapse, toggleAllCategoriesCollapse, moveCategory, reorderCategories, addRepository, updateRepository, deleteRepository]);
+  }), [settings, saveSettings, repositories, isLoading, categories, uncategorizedOrder, addCategory, updateCategory, deleteCategory, moveRepositoryToCategory, importRepositories, moveRepository, toggleCategoryCollapse, toggleAllCategoriesCollapse, moveCategory, reorderCategories, addRepository, updateRepository, deleteRepository]);
 
   return (
     <SettingsContext.Provider value={value}>
