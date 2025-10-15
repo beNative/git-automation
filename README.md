@@ -73,11 +73,10 @@ Follow this checklist when preparing a new minor or patch release:
     **Release Type** selector to the intended state (Full Release for GA builds, Draft or Pre-release as needed). Paste the freshly
     written changelog entry into the release body so the GitHub notes exactly match the repository history, then publish.
 
-### Documentation Status for 0.25.3
+### Documentation Status for 0.25.4
 
 - Re-ran the documentation audit across `README.md`, `FUNCTIONAL_MANUAL.md`, `TECHNICAL_MANUAL.md`, and `docs/keyboard-shortcut-editor.md` for this release.
-  No workflow or UI updates were required; this note records that the review confirmed the guidance remains accurate for version
-  `0.25.3`.
+  No workflow or UI updates were required; this note records that the documentation remains accurate for version `0.25.4`.
 
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._
