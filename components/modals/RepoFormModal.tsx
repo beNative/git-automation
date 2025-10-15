@@ -30,6 +30,8 @@ import { DocumentDuplicateIcon } from '../icons/DocumentDuplicateIcon';
 import { ServerIcon } from '../icons/ServerIcon';
 import { TagIcon } from '../icons/TagIcon';
 import { CubeIcon } from '../icons/CubeIcon';
+import { ChevronsUpIcon } from '../icons/ChevronsUpIcon';
+import { ChevronsDownIcon } from '../icons/ChevronsDownIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PencilIcon } from '../icons/PencilIcon';
@@ -204,7 +206,7 @@ const TaskStepItem: React.FC<{
   index: number;
   totalSteps: number;
   onStepChange: (id: string, updates: Partial<TaskStep>) => void;
-  onMoveStep: (index: number, direction: 'up' | 'down') => void;
+  onMoveStep: (index: number, direction: 'up' | 'down' | 'top' | 'bottom') => void;
   onRemoveStep: (id: string) => void;
   onDuplicateStep: (index: number) => void;
   suggestions: ProjectSuggestion[];
@@ -218,6 +220,8 @@ const TaskStepItem: React.FC<{
   // --- HOOKS MOVED TO TOP ---
   const toggleTooltip = useTooltip(isEnabled ? 'Disable Step' : 'Enable Step');
   const duplicateTooltip = useTooltip('Duplicate Step');
+  const moveToTopTooltip = useTooltip('Move Step to Top');
+  const moveToBottomTooltip = useTooltip('Move Step to Bottom');
   
   const selectedDelphiProject = useMemo(() => {
     return projectInfo?.delphi?.projects.find(p => p.path === step.delphiProjectFile);
@@ -311,8 +315,28 @@ const TaskStepItem: React.FC<{
             <input type="checkbox" checked={isEnabled} onChange={(e) => onStepChange(step.id, {enabled: e.target.checked})} className="sr-only peer" />
             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
           </label>
+          <button
+            {...moveToTopTooltip}
+            type="button"
+            onClick={() => onMoveStep(index, 'top')}
+            disabled={index === 0}
+            aria-label="Move step to top"
+            className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
+          >
+            <ChevronsUpIcon className="h-4 w-4" />
+          </button>
           <button type="button" onClick={() => onMoveStep(index, 'up')} disabled={index === 0} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowUpIcon className="h-4 w-4" /></button>
           <button type="button" onClick={() => onMoveStep(index, 'down')} disabled={index === totalSteps - 1} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowDownIcon className="h-4 w-4" /></button>
+          <button
+            {...moveToBottomTooltip}
+            type="button"
+            onClick={() => onMoveStep(index, 'bottom')}
+            disabled={index === totalSteps - 1}
+            aria-label="Move step to bottom"
+            className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
+          >
+            <ChevronsDownIcon className="h-4 w-4" />
+          </button>
           <button {...duplicateTooltip} type="button" onClick={() => onDuplicateStep(index)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><DocumentDuplicateIcon className="h-4 w-4" /></button>
           <button type="button" onClick={() => onRemoveStep(step.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
         </div>
@@ -1323,11 +1347,21 @@ const TaskStepsEditor: React.FC<{
     setTask({ ...task, steps: task.steps.map(s => s.id === id ? { ...s, ...updates } : s) });
   };
   
-  const handleMoveStep = (index: number, direction: 'up' | 'down') => {
+  const handleMoveStep = (index: number, direction: 'up' | 'down' | 'top' | 'bottom') => {
     const newSteps = [...task.steps];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= newSteps.length) return;
-    [newSteps[index], newSteps[targetIndex]] = [newSteps[targetIndex], newSteps[index]];
+    if (direction === 'top') {
+      if (index === 0) return;
+      const [stepToMove] = newSteps.splice(index, 1);
+      newSteps.unshift(stepToMove);
+    } else if (direction === 'bottom') {
+      if (index === newSteps.length - 1) return;
+      const [stepToMove] = newSteps.splice(index, 1);
+      newSteps.push(stepToMove);
+    } else {
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= newSteps.length) return;
+      [newSteps[index], newSteps[targetIndex]] = [newSteps[targetIndex], newSteps[index]];
+    }
     setTask({ ...task, steps: newSteps });
   };
   
