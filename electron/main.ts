@@ -2782,18 +2782,34 @@ ipcMain.handle('select-task-log-path', async () => {
 // Helper to parse owner/repo from various git URLs
 const parseGitHubUrl = (url: string): { owner: string; repo: string } | null => {
     if (!url) return null;
-    // HTTPS: https://github.com/owner/repo.git
-    let match = url.match(/github\.com[/:]([^/]+)\/([^/.]+)/);
-    if (match) {
-      return { owner: match[1], repo: match[2] };
+
+    const sanitize = (value: string) => value.replace(/\.git$/, '').replace(/\/+/g, '/');
+
+    try {
+        if (url.startsWith('git@')) {
+            // SSH URLs: git@github.com:owner/repo.git
+            const sshMatch = url.match(/^git@github\.com:(.+)$/i);
+            if (!sshMatch) return null;
+            const parts = sanitize(sshMatch[1]).split('/');
+            if (parts.length < 2) return null;
+            const owner = parts[0];
+            const repo = parts.slice(1).join('/');
+            return owner && repo ? { owner, repo } : null;
+        }
+
+        const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+        const parsed = new URL(normalizedUrl);
+        if (parsed.hostname.toLowerCase() !== 'github.com') return null;
+        const pathParts = sanitize(parsed.pathname.replace(/^\//, '')).split('/');
+        if (pathParts.length < 2) return null;
+        const owner = pathParts[0];
+        const repo = pathParts.slice(1).join('/');
+        return owner && repo ? { owner, repo } : null;
+    } catch (error) {
+        mainLogger.warn(`[GitHub] Failed to parse GitHub URL "${url}":`, error);
+        return null;
     }
-    // SSH: git@github.com:owner/repo.git
-    match = url.match(/git@github\.com:([^/]+)\/([^/.]+)/);
-    if (match) {
-      return { owner: match[1], repo: match[2] };
-    }
-    return null;
-  };
+};
   
 
 ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<ReleaseInfo | null> => {
