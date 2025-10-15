@@ -132,6 +132,30 @@ async function readSettings(): Promise<GlobalSettings> {
     return defaults;
 }
 
+const GITHUB_USER_AGENT = 'git-automation-dashboard';
+
+const applyAutoUpdaterAuthHeaders = (token: string | undefined | null) => {
+  if (!app.isPackaged) {
+    return;
+  }
+
+  const headers: Record<string, string> = { ...(autoUpdater.requestHeaders ?? {}) };
+  headers['User-Agent'] = GITHUB_USER_AGENT;
+
+  const trimmedToken = token?.trim();
+  if (trimmedToken) {
+    headers['Authorization'] = `token ${trimmedToken}`;
+    mainLogger.debug('[AutoUpdater] Configured GitHub authorization header for release downloads.');
+  } else if ('Authorization' in headers) {
+    delete headers['Authorization'];
+    mainLogger.debug('[AutoUpdater] Cleared GitHub authorization header for release downloads.');
+  } else {
+    mainLogger.debug('[AutoUpdater] GitHub release downloads will use unauthenticated requests.');
+  }
+
+  autoUpdater.requestHeaders = headers;
+};
+
 const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
@@ -184,6 +208,7 @@ app.on('ready', async () => {
   // --- Auto-updater logic ---
   if (app.isPackaged) {
     mainLogger.info(`Configuring auto-updater. allowPrerelease: ${settings.allowPrerelease}`);
+    applyAutoUpdaterAuthHeaders(settings.githubPat);
     autoUpdater.allowPrerelease = settings.allowPrerelease ?? true;
 
     autoUpdater.on('checking-for-update', () => {
@@ -303,6 +328,7 @@ ipcMain.on('save-all-data', async (event, data: AppDataContextState) => {
         await fs.mkdir(userDataPath, { recursive: true });
         await fs.writeFile(settingsPath, JSON.stringify(data, null, 2));
         globalSettingsCache = data.globalSettings; // Invalidate cache
+        applyAutoUpdaterAuthHeaders(data.globalSettings?.githubPat ?? '');
     } catch (error) {
         mainLogger.error("Failed to save settings file:", error);
     }
@@ -2865,7 +2891,7 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
                 'Authorization': `token ${settings.githubPat}`,
                 'Accept': 'application/vnd.github.v3+json',
                 'X-GitHub-Api-Version': '2022-11-28',
-                'User-Agent': 'git-automation-dashboard'
+                'User-Agent': GITHUB_USER_AGENT
             }
         });
 
@@ -2937,7 +2963,7 @@ ipcMain.handle('get-all-releases', async (event, repo: Repository): Promise<Rele
                 'Authorization': `token ${settings.githubPat}`,
                 'Accept': 'application/vnd.github.v3+json',
                 'X-GitHub-Api-Version': '2022-11-28',
-                'User-Agent': 'git-automation-dashboard'
+                'User-Agent': GITHUB_USER_AGENT
             }
         });
 
@@ -2982,7 +3008,7 @@ ipcMain.handle('update-release', async (event, { repo, releaseId, options }: { r
                 'Authorization': `token ${settings.githubPat}`,
                 'Accept': 'application/vnd.github.v3+json',
                 'X-GitHub-Api-Version': '2022-11-28',
-                'User-Agent': 'git-automation-dashboard'
+                'User-Agent': GITHUB_USER_AGENT
             },
             body: JSON.stringify(options),
         });
@@ -3015,7 +3041,7 @@ ipcMain.handle('create-release', async (event, { repo, options }: { repo: Reposi
                 'Authorization': `token ${settings.githubPat}`,
                 'Accept': 'application/vnd.github.v3+json',
                 'X-GitHub-Api-Version': '2022-11-28',
-                'User-Agent': 'git-automation-dashboard'
+                'User-Agent': GITHUB_USER_AGENT
             },
             body: JSON.stringify(options),
         });
@@ -3053,7 +3079,7 @@ ipcMain.handle('delete-release', async (event, { repo, releaseId }: { repo: Repo
                 'Authorization': `token ${settings.githubPat}`,
                 'Accept': 'application/vnd.github.v3+json',
                 'X-GitHub-Api-Version': '2022-11-28',
-                'User-Agent': 'git-automation-dashboard'
+                'User-Agent': GITHUB_USER_AGENT
             },
         });
 
