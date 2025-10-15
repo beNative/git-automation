@@ -2805,6 +2805,18 @@ const parseGitHubUrl = (url: string): { owner: string; repo: string } | null => 
             return owner && repo ? { owner, repo } : null;
         }
 
+        const sshProtocolMatch = trimmed.match(/^ssh:\/\/(.+)$/i);
+        if (sshProtocolMatch) {
+            const target = sshProtocolMatch[1];
+            const scopedMatch = target.match(/^(?:git@)?github\.com(?::\d+)?[:/](.+)$/i);
+            if (!scopedMatch) return null;
+            const parts = sanitizePath(scopedMatch[1]).split('/').filter(Boolean);
+            if (parts.length < 2) return null;
+            const owner = parts[0];
+            const repo = parts.slice(1).join('/');
+            return owner && repo ? { owner, repo } : null;
+        }
+
         const normalizedUrl = (() => {
             const withoutGitPrefix = trimmed.replace(/^git\+/i, '');
             if (/^(https?|ssh|git):\/\//i.test(withoutGitPrefix)) {
