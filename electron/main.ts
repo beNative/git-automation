@@ -2783,24 +2783,40 @@ ipcMain.handle('select-task-log-path', async () => {
 const parseGitHubUrl = (url: string): { owner: string; repo: string } | null => {
     if (!url) return null;
 
-    const sanitize = (value: string) => value.replace(/\.git$/, '').replace(/\/+/g, '/');
+    const sanitizePath = (value: string) =>
+        value
+            .trim()
+            .replace(/\.git$/i, '')
+            .replace(/^[:/]+/, '')
+            .replace(/\/+/g, '/')
+            .replace(/\/+$/g, '');
 
     try {
-        if (url.startsWith('git@')) {
+        const trimmed = url.trim();
+
+        if (trimmed.startsWith('git@')) {
             // SSH URLs: git@github.com:owner/repo.git
-            const sshMatch = url.match(/^git@github\.com:(.+)$/i);
+            const sshMatch = trimmed.match(/^git@github\.com:(.+)$/i);
             if (!sshMatch) return null;
-            const parts = sanitize(sshMatch[1]).split('/');
+            const parts = sanitizePath(sshMatch[1]).split('/').filter(Boolean);
             if (parts.length < 2) return null;
             const owner = parts[0];
             const repo = parts.slice(1).join('/');
             return owner && repo ? { owner, repo } : null;
         }
 
-        const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+        const normalizedUrl = (() => {
+            const withoutGitPrefix = trimmed.replace(/^git\+/i, '');
+            if (/^(https?|ssh|git):\/\//i.test(withoutGitPrefix)) {
+                return withoutGitPrefix;
+            }
+            return `https://${withoutGitPrefix}`;
+        })();
+
         const parsed = new URL(normalizedUrl);
-        if (parsed.hostname.toLowerCase() !== 'github.com') return null;
-        const pathParts = sanitize(parsed.pathname.replace(/^\//, '')).split('/');
+        const hostname = parsed.hostname.toLowerCase();
+        if (hostname !== 'github.com' && hostname !== 'www.github.com') return null;
+        const pathParts = sanitizePath(parsed.pathname).split('/').filter(Boolean);
         if (pathParts.length < 2) return null;
         const owner = pathParts[0];
         const repo = pathParts.slice(1).join('/');
@@ -2836,7 +2852,8 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
             headers: {
                 'Authorization': `token ${settings.githubPat}`,
                 'Accept': 'application/vnd.github.v3+json',
-                'X-GitHub-Api-Version': '2022-11-28'
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'git-automation-dashboard'
             }
         });
 
@@ -2907,7 +2924,8 @@ ipcMain.handle('get-all-releases', async (event, repo: Repository): Promise<Rele
             headers: {
                 'Authorization': `token ${settings.githubPat}`,
                 'Accept': 'application/vnd.github.v3+json',
-                'X-GitHub-Api-Version': '2022-11-28'
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'git-automation-dashboard'
             }
         });
 
@@ -2951,7 +2969,8 @@ ipcMain.handle('update-release', async (event, { repo, releaseId, options }: { r
             headers: {
                 'Authorization': `token ${settings.githubPat}`,
                 'Accept': 'application/vnd.github.v3+json',
-                'X-GitHub-Api-Version': '2022-11-28'
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'git-automation-dashboard'
             },
             body: JSON.stringify(options),
         });
@@ -2983,7 +3002,8 @@ ipcMain.handle('create-release', async (event, { repo, options }: { repo: Reposi
             headers: {
                 'Authorization': `token ${settings.githubPat}`,
                 'Accept': 'application/vnd.github.v3+json',
-                'X-GitHub-Api-Version': '2022-11-28'
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'git-automation-dashboard'
             },
             body: JSON.stringify(options),
         });
@@ -3020,7 +3040,8 @@ ipcMain.handle('delete-release', async (event, { repo, releaseId }: { repo: Repo
             headers: {
                 'Authorization': `token ${settings.githubPat}`,
                 'Accept': 'application/vnd.github.v3+json',
-                'X-GitHub-Api-Version': '2022-11-28'
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'git-automation-dashboard'
             },
         });
 
