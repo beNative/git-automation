@@ -8,12 +8,40 @@ on:
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }}
+    name: Build on ${{ matrix.display_name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: macos-latest
+            display_name: macOS x64
+            build_command: npx electron-builder --publish never --mac
+            artifact_name: macOS-artifacts
+          - os: windows-latest
+            display_name: Windows x64
+            build_command: npx electron-builder --publish never --win --x64
+            artifact_name: windows-x64-artifacts
+          - os: windows-latest
+            display_name: Windows ia32
+            build_command: npx electron-builder --publish never --win --ia32
+            artifact_name: windows-ia32-artifacts
+          - os: ubuntu-latest
+            display_name: Linux x64
+            build_command: npx electron-builder --publish never --linux --x64
+            artifact_name: linux-x64-artifacts
+          - os: ubuntu-latest
+            display_name: Linux ia32
+            build_command: npx electron-builder --publish never --linux --ia32
+            artifact_name: linux-ia32-artifacts
+          - os: ubuntu-latest
+            display_name: Linux armv7l
+            build_command: npx electron-builder --publish never --linux --armv7l
+            artifact_name: linux-armv7l-artifacts
+          - os: ubuntu-latest
+            display_name: Linux arm64
+            build_command: npx electron-builder --publish never --linux --arm64
+            artifact_name: linux-arm64-artifacts
 
     steps:
       - name: Checkout repository
@@ -33,12 +61,12 @@ jobs:
         run: npm run build
 
       - name: Package Electron application
-        run: npx electron-builder --publish never
+        run: ${{ matrix.build_command }}
 
       - name: Upload build artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ runner.os }}-artifacts
+          name: ${{ matrix.artifact_name }}
           path: release/**
           if-no-files-found: error
