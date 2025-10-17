@@ -3,7 +3,7 @@
   "version": "0.25.4",
   "description": "A dashboard to manage and automate the workflow for a set of Git repositories.",
   "main": "dist/main.js",
-  "author": "AI Assistant",
+  "author": "AI Assistant <support@example.com>",
   "license": "MIT",
   "scripts": {
     "start": "concurrently \"npm:watch\" \"npm:electron\"",
@@ -62,7 +62,8 @@
       "target": [
         "AppImage",
         "deb"
-      ]
+      ],
+      "maintainer": "AI Assistant <support@example.com>"
     },
     "nsis": {
       "oneClick": false,
