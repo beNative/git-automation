@@ -82,13 +82,15 @@
             "x64",
             "armv7l",
             "arm64"
-          ]
+          ],
+          "scripts": {
+            "after-install": "electron/scripts/linux-after-install.sh",
+            "after-remove": "electron/scripts/linux-after-remove.sh"
+          }
         }
       ],
       "category": "Utility",
-      "maintainer": "AI Assistant <support@example.com>",
-      "afterInstall": "electron/scripts/linux-after-install.sh",
-      "afterRemove": "electron/scripts/linux-after-remove.sh"
+      "maintainer": "AI Assistant <support@example.com>"
     },
     "nsis": {
       "oneClick": false,
