@@ -52,7 +52,15 @@
       }
     ],
     "win": {
-      "target": "nsis",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ],
       "icon": "dist/assets/icon.ico"
     },
     "mac": {
@@ -60,10 +68,29 @@
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb"
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "armv7l",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "armv7l",
+            "arm64"
+          ]
+        }
       ],
+      "category": "Utility",
       "maintainer": "AI Assistant <support@example.com>"
+    },
+    "deb": {
+      "afterInstall": "electron/scripts/linux-after-install.sh",
+      "afterRemove": "electron/scripts/linux-after-remove.sh"
     },
     "nsis": {
       "oneClick": false,
