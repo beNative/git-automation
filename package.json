@@ -3,7 +3,7 @@
   "version": "0.25.4",
   "description": "A dashboard to manage and automate the workflow for a set of Git repositories.",
   "main": "dist/main.js",
-  "author": "AI Assistant <support@example.com>",
+  "author": "Tim Sinaeve <tim.sinaeve@gmail.com>",
   "license": "MIT",
   "scripts": {
     "start": "concurrently \"npm:watch\" \"npm:electron\"",
