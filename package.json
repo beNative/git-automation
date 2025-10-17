@@ -72,7 +72,6 @@
           "target": "AppImage",
           "arch": [
             "x64",
-            "ia32",
             "armv7l",
             "arm64"
           ]
@@ -81,13 +80,15 @@
           "target": "deb",
           "arch": [
             "x64",
-            "ia32",
             "armv7l",
             "arm64"
           ]
         }
       ],
-      "maintainer": "AI Assistant <support@example.com>"
+      "category": "Utility",
+      "maintainer": "AI Assistant <support@example.com>",
+      "afterInstall": "electron/scripts/linux-after-install.sh",
+      "afterRemove": "electron/scripts/linux-after-remove.sh"
     },
     "nsis": {
       "oneClick": false,

@@ -31,10 +31,6 @@ jobs:
             build_command: npx electron-builder --publish never --linux --x64
             artifact_name: linux-x64-artifacts
           - os: ubuntu-latest
-            display_name: Linux ia32
-            build_command: npx electron-builder --publish never --linux --ia32
-            artifact_name: linux-ia32-artifacts
-          - os: ubuntu-latest
             display_name: Linux armv7l
             build_command: npx electron-builder --publish never --linux --armv7l
             artifact_name: linux-armv7l-artifacts
