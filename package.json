@@ -10,7 +10,7 @@
     "watch": "node esbuild.config.js --watch",
     "electron": "wait-on dist/main.js dist/renderer.js dist/preload.js && electron .",
     "build": "cross-env NODE_ENV=production node esbuild.config.js",
-    "pack": "npm run build && electron-builder",
+    "pack": "npm run build && electron-builder --publish never",
     "publish": "npm run build && electron-builder --publish always",
     "test": "echo \"See README.md for testing instructions.\" && exit 0"
   },

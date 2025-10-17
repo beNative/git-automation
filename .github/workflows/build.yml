@@ -24,17 +24,21 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Build Electron packages
-        run: npm run pack
+      - name: Build application bundles
+        run: npm run build
+
+      - name: Package Electron application
+        run: npx electron-builder --publish never
 
       - name: Upload build artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }}-artifacts
-          path: release
+          path: release/**
           if-no-files-found: error
