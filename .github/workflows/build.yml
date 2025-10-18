@@ -23,9 +23,9 @@ jobs:
             build_command: npx electron-builder --publish never --win --x64
             artifact_name: windows-x64-artifacts
           - os: windows-latest
-            display_name: Windows ia32
+            display_name: Windows win32
             build_command: npx electron-builder --publish never --win --ia32
-            artifact_name: windows-ia32-artifacts
+            artifact_name: windows-win32-artifacts
           - os: ubuntu-latest
             display_name: Linux x64
             build_command: npx electron-builder --publish never --linux --x64
