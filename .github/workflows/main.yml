@@ -97,11 +97,71 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: "*-artifacts"
-          path: dist
-          merge-multiple: true
+          path: artifacts
+          merge-multiple: false
+
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          mkdir -p release_upload
+
+          # --- Windows (x64) ---
+          if [[ -d artifacts/windows-x64-artifacts ]]; then
+            for file in artifacts/windows-x64-artifacts/*.exe; do
+              cp "$file" release_upload/
+            done
+            for file in artifacts/windows-x64-artifacts/*.exe.blockmap; do
+              cp "$file" release_upload/
+            done
+            if [[ -f artifacts/windows-x64-artifacts/latest.yml ]]; then
+              cp artifacts/windows-x64-artifacts/latest.yml release_upload/latest.yml
+            fi
+          fi
+
+          # --- Windows (ia32) ---
+          if [[ -d artifacts/windows-ia32-artifacts ]]; then
+            for file in artifacts/windows-ia32-artifacts/*.exe; do
+              base="$(basename "$file")"
+              ext="${base##*.}"
+              stem="${base%.$ext}"
+              cp "$file" "release_upload/${stem}-ia32.${ext}"
+            done
+            for file in artifacts/windows-ia32-artifacts/*.exe.blockmap; do
+              base="$(basename "$file")"
+              cp "$file" "release_upload/${base/.exe/-ia32.exe}"
+            done
+            if [[ -f artifacts/windows-ia32-artifacts/latest.yml ]]; then
+              cp artifacts/windows-ia32-artifacts/latest.yml release_upload/latest-ia32.yml
+            fi
+          fi
+
+          # --- macOS ---
+          if [[ -d artifacts/macos-artifacts ]]; then
+            for pattern in "*.dmg" "*.dmg.blockmap" "latest-mac*.yml"; do
+              for file in artifacts/macos-artifacts/$pattern; do
+                cp "$file" release_upload/
+              done
+            done
+          fi
+
+          # --- Linux variants ---
+          for dir in linux-x64-artifacts linux-arm64-artifacts linux-armv7l-artifacts; do
+            if [[ -d artifacts/$dir ]]; then
+              for pattern in "*.AppImage" "*.deb" "latest-linux*.yml"; do
+                for file in artifacts/$dir/$pattern; do
+                  cp "$file" release_upload/
+                done
+              done
+            fi
+          done
+
+          shopt -u nullglob
 
       - name: List files to upload (debug)
-        run: ls -alR dist
+        run: ls -alR release_upload
 
       - name: Create/Update GitHub Release
         uses: softprops/action-gh-release@v2
@@ -112,13 +172,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            dist/*.exe
-            dist/*.exe.blockmap
-            dist/*.dmg
-            dist/*.dmg.blockmap
-            dist/*.AppImage
-            dist/*.deb
-            dist/latest*.yml
+            release_upload/**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
