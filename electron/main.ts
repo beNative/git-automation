@@ -164,6 +164,113 @@ type FileValidationFailure = {
 
 type FileValidationResult = FileValidationSuccess | FileValidationFailure;
 
+type UpdaterArch = 'x64' | 'ia32' | 'arm64' | 'armv7l';
+
+const mapProcessArchToUpdaterArch = (): UpdaterArch | null => {
+  switch (process.arch) {
+    case 'x64':
+    case 'arm64':
+    case 'ia32':
+      return process.arch;
+    case 'arm':
+      return 'armv7l';
+    default:
+      return null;
+  }
+};
+
+const detectArchFromFileName = (name: string | null | undefined): UpdaterArch | null => {
+  if (!name) {
+    return null;
+  }
+  const normalized = name.toLowerCase();
+  const tokens = normalized.split(/[^a-z0-9]+/).filter(Boolean);
+  const hasToken = (token: string) => tokens.includes(token);
+
+  if (hasToken('arm64') || hasToken('aarch64')) {
+    return 'arm64';
+  }
+  if (hasToken('armv7l') || hasToken('armhf')) {
+    return 'armv7l';
+  }
+  if (hasToken('ia32') || hasToken('x86') || hasToken('win32')) {
+    return 'ia32';
+  }
+  if (hasToken('x64') || hasToken('amd64') || hasToken('win64')) {
+    return 'x64';
+  }
+
+  const endsWith32 = /(^|[^0-9])32($|[^0-9])/.test(normalized);
+  const endsWith64 = /(^|[^0-9])64($|[^0-9])/.test(normalized);
+  if (endsWith32 && !endsWith64) {
+    return 'ia32';
+  }
+  if (endsWith64 && !endsWith32) {
+    return 'x64';
+  }
+  return null;
+};
+
+const normalizeNameForComparison = (name: string): string => {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+};
+
+const determineDownloadedUpdateArch = (info: UpdateDownloadedEvent, downloadedName: string) => {
+  type ArchCandidate = { priority: number; sources: string[] };
+  const candidates = new Map<UpdaterArch, ArchCandidate>();
+  const register = (arch: UpdaterArch | null, priority: number, source: string) => {
+    if (!arch) {
+      return;
+    }
+    const existing = candidates.get(arch);
+    if (!existing || priority > existing.priority) {
+      candidates.set(arch, { priority, sources: [source] });
+      return;
+    }
+    if (priority === existing.priority) {
+      existing.sources.push(source);
+      return;
+    }
+    existing.sources.push(source);
+  };
+
+  register(mapProcessArchToUpdaterArch(), 10, `process.arch:${process.arch}`);
+  register(detectArchFromFileName(downloadedName), 40, `downloadedName:${downloadedName}`);
+
+  if (typeof (info as any).path === 'string') {
+    const legacyName = path.basename((info as any).path);
+    register(detectArchFromFileName(legacyName), 50, `info.path:${legacyName}`);
+  }
+
+  if (Array.isArray(info.files)) {
+    for (const file of info.files) {
+      if (typeof file?.url !== 'string') {
+        continue;
+      }
+      const urlName = getFileNameFromUrlLike(file.url);
+      const arch = detectArchFromFileName(urlName);
+      const matchesDownloaded = urlName && normalizeNameForComparison(urlName) === normalizeNameForComparison(downloadedName);
+      register(arch, matchesDownloaded ? 100 : 80, urlName ? `info.files:${urlName}` : 'info.files');
+    }
+  }
+
+  let selected: { arch: UpdaterArch | null; sources: string[] } = { arch: null, sources: [] };
+  for (const [arch, candidate] of candidates.entries()) {
+    if (!selected.arch || candidate.priority > (candidates.get(selected.arch)?.priority ?? -Infinity)) {
+      selected = { arch, sources: [...candidate.sources] };
+    }
+  }
+  return selected;
+};
+
+const filterNamesByArch = (names: string[], arch: UpdaterArch | null): string[] => {
+  if (!arch) {
+    return names;
+  }
+  const filtered = names.filter(name => detectArchFromFileName(name) === arch);
+  return filtered.length > 0 ? filtered : names;
+};
+
 const buildGitHubApiHeaders = async (): Promise<Record<string, string>> => {
   const headers: Record<string, string> = {
     'Accept': 'application/vnd.github+json',
@@ -401,23 +508,49 @@ const ensureDownloadedFileMatchesOfficialRelease = async (info: UpdateDownloaded
     return { success: false, error: 'No official release filenames available for comparison.', downloadedName, officialNames: [] };
   }
 
-  if (officialNames.includes(downloadedName)) {
+  const { arch: inferredArch, sources: archSources } = determineDownloadedUpdateArch(info, downloadedName);
+  const candidateNames = filterNamesByArch(officialNames, inferredArch);
+  if (inferredArch) {
+    mainLogger.info('[AutoUpdate] Inferred update architecture.', {
+      version: info.version,
+      inferredArch,
+      evidence: archSources,
+      candidateCount: candidateNames.length,
+    });
+  } else {
+    mainLogger.info('[AutoUpdate] Unable to infer update architecture from metadata.', {
+      version: info.version,
+      availableCandidates: officialNames.length,
+    });
+  }
+
+  if (candidateNames.includes(downloadedName)) {
     mainLogger.info('[AutoUpdate] Downloaded filename already matches official release asset.', {
       downloadedName,
     });
-    return { success: true, filePath: downloadedPath, expectedName: downloadedName, officialNames };
+    return { success: true, filePath: downloadedPath, expectedName: downloadedName, officialNames: candidateNames };
   }
 
-  const caseInsensitiveMatch = officialNames.find(name => name.toLowerCase() === downloadedName.toLowerCase());
+  const caseInsensitiveMatch = candidateNames.find(name => name.toLowerCase() === downloadedName.toLowerCase());
   if (caseInsensitiveMatch) {
     mainLogger.info('[AutoUpdate] Downloaded filename matches an official asset ignoring case.', {
       downloadedName,
       expectedName: caseInsensitiveMatch,
     });
-    return { success: true, filePath: downloadedPath, expectedName: caseInsensitiveMatch, officialNames };
+    return { success: true, filePath: downloadedPath, expectedName: caseInsensitiveMatch, officialNames: candidateNames };
   }
 
-  const expectedName = officialNames[0];
+  const normalizedDownloaded = normalizeNameForComparison(downloadedName);
+  const normalizedMatch = candidateNames.find(name => normalizeNameForComparison(name) === normalizedDownloaded);
+  if (normalizedMatch) {
+    mainLogger.info('[AutoUpdate] Downloaded filename matches official asset after normalization.', {
+      downloadedName,
+      expectedName: normalizedMatch,
+    });
+    return { success: true, filePath: downloadedPath, expectedName: normalizedMatch, officialNames: candidateNames };
+  }
+
+  const expectedName = candidateNames[0];
   const expectedPath = path.join(path.dirname(downloadedPath), expectedName);
   try {
     await safeRenameDownloadedUpdate(downloadedPath, expectedPath);
@@ -433,8 +566,9 @@ const ensureDownloadedFileMatchesOfficialRelease = async (info: UpdateDownloaded
       previousName: downloadedName,
       expectedName,
       helperAdjusted: Boolean(helper),
+      normalizedAttempted: Boolean(normalizedMatch),
     });
-    return { success: true, filePath: expectedPath, expectedName, renamed: true, officialNames };
+    return { success: true, filePath: expectedPath, expectedName, renamed: true, officialNames: candidateNames };
   } catch (error: any) {
     mainLogger.error('[AutoUpdate] Failed to align downloaded filename with official asset.', {
       version: info.version,
@@ -442,7 +576,7 @@ const ensureDownloadedFileMatchesOfficialRelease = async (info: UpdateDownloaded
       expectedName,
       error: error instanceof Error ? { message: error.message, stack: error.stack } : { message: String(error) },
     });
-    return { success: false, error: error?.message || String(error), downloadedName, officialNames };
+    return { success: false, error: error?.message || String(error), downloadedName, officialNames: candidateNames };
   }
 };
 
@@ -497,16 +631,19 @@ app.on('ready', async () => {
 
   // --- Auto-updater logic ---
   if (app.isPackaged) {
-    mainLogger.info(`Configuring auto-updater. allowPrerelease: ${settings.allowPrerelease}`);
-    autoUpdater.allowPrerelease = settings.allowPrerelease ?? true;
+    const allowPrerelease = settings.allowPrerelease ?? true;
+    mainLogger.info('[AutoUpdate] Configuring auto-updater.', {
+      allowPrerelease,
+    });
+    autoUpdater.allowPrerelease = allowPrerelease;
 
     autoUpdater.on('checking-for-update', () => {
-        mainLogger.info('Checking for update...');
+        mainLogger.info('[AutoUpdate] Checking for update.');
         mainWindow?.webContents.send('update-status-change', { status: 'checking', message: 'Checking for updates...' });
     });
     autoUpdater.on('update-available', (info) => {
         lastDownloadedUpdateValidation = null;
-        mainLogger.info('Update available.', {
+        mainLogger.info('[AutoUpdate] Update available.', {
             version: info.version,
             files: Array.isArray(info.files) ? info.files.map(file => ({
                 url: typeof file?.url === 'string' ? getFileNameFromUrlLike(file.url) : undefined,
@@ -517,14 +654,14 @@ app.on('ready', async () => {
         mainWindow?.webContents.send('update-status-change', { status: 'available', message: `Update v${info.version} available. Downloading...` });
     });
     autoUpdater.on('update-not-available', (info) => {
-        mainLogger.info('Update not available.', {
+        mainLogger.info('[AutoUpdate] No update available.', {
             version: info?.version,
             downloadedFile: info?.downloadedFile,
         });
     });
     autoUpdater.on('error', (err) => {
         lastDownloadedUpdateValidation = null;
-        mainLogger.error('Error in auto-updater.', {
+        mainLogger.error('[AutoUpdate] Error from auto-updater.', {
             message: err?.message,
             stack: err?.stack,
             name: err?.name,
@@ -534,11 +671,15 @@ app.on('ready', async () => {
         mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Error in auto-updater: ${err.message}` });
     });
     autoUpdater.on('download-progress', (progressObj) => {
-        const log_message = `Downloaded ${progressObj.percent.toFixed(2)}%`;
-        mainLogger.debug(log_message);
+        mainLogger.debug('[AutoUpdate] Download progress update.', {
+          percent: Number.isFinite(progressObj.percent) ? Number(progressObj.percent.toFixed(2)) : progressObj.percent,
+          transferred: (progressObj as any)?.transferred,
+          total: (progressObj as any)?.total,
+          bytesPerSecond: (progressObj as any)?.bytesPerSecond,
+        });
     });
     autoUpdater.on('update-downloaded', (info) => {
-        mainLogger.info('Update downloaded event received. Validating filename.', {
+        mainLogger.info('[AutoUpdate] Update downloaded event received. Validating filename.', {
             version: info.version,
             downloadedFile: info.downloadedFile,
             files: Array.isArray(info.files) ? info.files.map(file => ({
@@ -573,7 +714,7 @@ app.on('ready', async () => {
                     validated: true,
                 };
 
-                mainLogger.info('Update downloaded.', {
+                mainLogger.info('[AutoUpdate] Update validated and ready to install.', {
                     version: info.version,
                     filePath: validationResult.filePath,
                     alignedWithOfficialName: validationResult.renamed === true,
@@ -594,14 +735,14 @@ app.on('ready', async () => {
     });
 
     // Check for updates
-    mainLogger.info('Triggering auto-updater checkForUpdatesAndNotify call.');
+    mainLogger.info('[AutoUpdate] Triggering checkForUpdatesAndNotify.');
     autoUpdater.checkForUpdatesAndNotify()
       .then(result => {
         if (!result) {
-          mainLogger.info('Auto-updater checkForUpdatesAndNotify resolved without update info.');
+          mainLogger.info('[AutoUpdate] checkForUpdatesAndNotify completed without update info.');
           return;
         }
-        mainLogger.info('Auto-updater checkForUpdatesAndNotify resolved.', {
+        mainLogger.info('[AutoUpdate] checkForUpdatesAndNotify resolved.', {
           updateInfo: result.updateInfo ? {
             version: result.updateInfo.version,
             files: Array.isArray(result.updateInfo.files) ? result.updateInfo.files.map(file => ({
@@ -614,7 +755,7 @@ app.on('ready', async () => {
         });
       })
       .catch(error => {
-        mainLogger.error('checkForUpdatesAndNotify rejected.', {
+        mainLogger.error('[AutoUpdate] checkForUpdatesAndNotify rejected.', {
           message: error?.message,
           stack: error?.stack,
           name: error?.name,
@@ -622,7 +763,7 @@ app.on('ready', async () => {
         mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Failed to check for updates: ${error?.message || error}` });
       });
   } else {
-    mainLogger.info('App is not packaged, skipping auto-updater.');
+    mainLogger.info('[AutoUpdate] App is not packaged; skipping auto-updater.');
   }
 });
 

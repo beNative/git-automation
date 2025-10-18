@@ -40,7 +40,6 @@
   "build": {
     "appId": "com.example.gitautomationdashboard",
     "productName": "Git Automation Dashboard",
-    "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
     "directories": {
       "app": "dist",
       "buildResources": "assets",
@@ -53,12 +52,18 @@
       }
     ],
     "win": {
+      "artifactName": "${name}-${version}-windows-${arch}-setup.${ext}",
       "target": [
         {
           "target": "nsis",
           "arch": [
-            "x64",
             "ia32"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
           ]
         }
       ],
