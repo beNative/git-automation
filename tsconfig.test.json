@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "build-tests",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES2022",
+    "noEmit": false,
+    "declaration": false,
+    "sourceMap": false,
+    "incremental": false
+  },
+  "include": [
+    "electron/**/*.ts",
+    "tests/**/*.ts"
+  ]
+}
