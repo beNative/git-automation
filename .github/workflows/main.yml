@@ -29,9 +29,9 @@ jobs:
             build_command: npx electron-builder --publish never --win --x64
             artifact_name: windows-x64-artifacts
           - os: windows-latest
-            display_name: Windows ia32
+            display_name: Windows win32
             build_command: npx electron-builder --publish never --win --ia32
-            artifact_name: windows-ia32-artifacts
+            artifact_name: windows-win32-artifacts
           - os: ubuntu-latest
             display_name: Linux x64
             build_command: npx electron-builder --publish never --linux --x64
@@ -121,26 +121,30 @@ jobs:
             fi
           fi
 
-          # --- Windows (ia32) ---
-          if [[ -d artifacts/windows-ia32-artifacts ]]; then
-            for file in artifacts/windows-ia32-artifacts/*.exe; do
+          # --- Windows (win32) ---
+          if [[ -d artifacts/windows-win32-artifacts ]]; then
+            for file in artifacts/windows-win32-artifacts/*.exe; do
               base="$(basename "$file")"
               target="$base"
-              if [[ "$base" != *-ia32.exe ]]; then
-                target="${base%.exe}-ia32.exe"
+              if [[ "$base" == *-ia32* ]]; then
+                target="${base//-ia32/-win32}"
+              elif [[ "$base" != *-win32.exe ]]; then
+                target="${base%.exe}-win32.exe"
               fi
               cp "$file" "release_upload/$target"
             done
-            for file in artifacts/windows-ia32-artifacts/*.exe.blockmap; do
+            for file in artifacts/windows-win32-artifacts/*.exe.blockmap; do
               base="$(basename "$file")"
               target="$base"
-              if [[ "$base" != *-ia32.exe.blockmap ]]; then
-                target="${base/.exe/-ia32.exe}"
+              if [[ "$base" == *-ia32* ]]; then
+                target="${base//-ia32/-win32}"
+              elif [[ "$base" != *-win32.exe.blockmap ]]; then
+                target="${base/.exe/-win32.exe}"
               fi
               cp "$file" "release_upload/$target"
             done
-            if [[ -f artifacts/windows-ia32-artifacts/latest.yml ]]; then
-              cp artifacts/windows-ia32-artifacts/latest.yml release_upload/latest-ia32.yml
+            if [[ -f artifacts/windows-win32-artifacts/latest.yml ]]; then
+              cp artifacts/windows-win32-artifacts/latest.yml release_upload/latest-win32.yml
             fi
           fi
 

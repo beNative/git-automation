@@ -13,7 +13,7 @@ import {
 
 test('detectArchFromFileName recognises common Windows architectures', () => {
   assert.equal(detectArchFromFileName('app-setup-x64.exe'), 'x64');
-  assert.equal(detectArchFromFileName('app-setup-ia32.exe'), 'ia32');
+  assert.equal(detectArchFromFileName('app-setup-win32.exe'), 'ia32');
   assert.equal(detectArchFromFileName('APP-X86.msi'), 'ia32');
   assert.equal(detectArchFromFileName('build-aarch64.zip'), 'arm64');
   assert.equal(detectArchFromFileName('installer-armhf.tar.gz'), 'armv7l');
@@ -50,7 +50,7 @@ const createUpdateInfo = (overrides: Partial<UpdateDownloadedEvent>): UpdateDown
 test('extractCandidateNamesFromUpdateInfo aggregates filenames from multiple sources', () => {
   const info = createUpdateInfo({
     files: [
-      { url: 'https://example.com/app-ia32.exe' } as any,
+      { url: 'https://example.com/app-win32.exe' } as any,
       { url: 'https://example.com/app-x64.exe?raw=1' } as any,
     ],
     path: '/tmp/legacy/App-x64.exe',
@@ -59,11 +59,11 @@ test('extractCandidateNamesFromUpdateInfo aggregates filenames from multiple sou
 
   const candidates = extractCandidateNamesFromUpdateInfo(info, '.exe');
   const sorted = [...candidates].sort();
-  assert.deepEqual(sorted, ['App-x64.exe', 'app-ia32.exe', 'app-x64.exe']);
+  assert.deepEqual(sorted, ['App-x64.exe', 'app-win32.exe', 'app-x64.exe']);
 });
 
 test('filterNamesByArch prefers matches but falls back when none exist', () => {
-  const names = ['app-ia32.exe', 'app-x64.exe'];
+  const names = ['app-win32.exe', 'app-x64.exe'];
   assert.deepEqual(filterNamesByArch(names, 'x64'), ['app-x64.exe']);
   assert.deepEqual(filterNamesByArch(names, 'arm64'), names);
   assert.deepEqual(filterNamesByArch(names, null), names);
@@ -72,7 +72,7 @@ test('filterNamesByArch prefers matches but falls back when none exist', () => {
 test('determineDownloadedUpdateArch prioritises metadata that matches the downloaded file', () => {
   const info = createUpdateInfo({
     files: [
-      { url: 'https://example.com/app-1.2.3-windows-ia32-setup.exe' } as any,
+      { url: 'https://example.com/app-1.2.3-windows-win32-setup.exe' } as any,
       { url: 'https://example.com/app-1.2.3-windows-x64-setup.exe' } as any,
     ],
     downloadedFile: '/tmp/app-1.2.3-windows-x64-setup.exe',
