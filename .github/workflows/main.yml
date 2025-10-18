@@ -125,13 +125,19 @@ jobs:
           if [[ -d artifacts/windows-ia32-artifacts ]]; then
             for file in artifacts/windows-ia32-artifacts/*.exe; do
               base="$(basename "$file")"
-              ext="${base##*.}"
-              stem="${base%.$ext}"
-              cp "$file" "release_upload/${stem}-ia32.${ext}"
+              target="$base"
+              if [[ "$base" != *-ia32.exe ]]; then
+                target="${base%.exe}-ia32.exe"
+              fi
+              cp "$file" "release_upload/$target"
             done
             for file in artifacts/windows-ia32-artifacts/*.exe.blockmap; do
               base="$(basename "$file")"
-              cp "$file" "release_upload/${base/.exe/-ia32.exe}"
+              target="$base"
+              if [[ "$base" != *-ia32.exe.blockmap ]]; then
+                target="${base/.exe/-ia32.exe}"
+              fi
+              cp "$file" "release_upload/$target"
             done
             if [[ -f artifacts/windows-ia32-artifacts/latest.yml ]]; then
               cp artifacts/windows-ia32-artifacts/latest.yml release_upload/latest-ia32.yml
