@@ -1,21 +1,79 @@
-name: Create Release
+name: Release on Tag
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    tags: [ "v*.*.*" ]   # e.g. v1.2.3
+  workflow_dispatch:
+
+permissions:
+  contents: write        # needed to create releases & upload assets
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    needs: [ ]  # set to ["build"] if you keep both jobs in one workflow file
+  build:
+    name: Build on ${{ matrix.display_name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            display_name: macOS x64
+            build_command: npx electron-builder --publish never --mac
+            artifact_name: macOS-artifacts
+          - os: windows-latest
+            display_name: Windows x64
+            build_command: npx electron-builder --publish never --win --x64
+            artifact_name: windows-x64-artifacts
+          - os: windows-latest
+            display_name: Windows ia32
+            build_command: npx electron-builder --publish never --win --ia32
+            artifact_name: windows-ia32-artifacts
+          - os: ubuntu-latest
+            display_name: Linux x64
+            build_command: npx electron-builder --publish never --linux --x64
+            artifact_name: linux-x64-artifacts
+          - os: ubuntu-latest
+            display_name: Linux armv7l
+            build_command: npx electron-builder --publish never --linux --armv7l
+            artifact_name: linux-armv7l-artifacts
+          - os: ubuntu-latest
+            display_name: Linux arm64
+            build_command: npx electron-builder --publish never --linux --arm64
+            artifact_name: linux-arm64-artifacts
+
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }     # helps release notes/changelogs
 
-      # (Optional) Generate changelog via Conventional Commits
-      # - uses: googleapis/release-please-action@v4
-      #   with: ...
-      # If you prefer a quick native notes:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+      - run: ${{ matrix.build_command }}
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: release/**
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
       - name: Generate release notes
         id: notes
         uses: actions/github-script@v7
@@ -29,7 +87,9 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: "*-artifacts"
           path: dist
+          merge-multiple: true   # puts all files under dist/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
