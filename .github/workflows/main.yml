@@ -123,18 +123,36 @@ jobs:
 
           # --- Windows (ia32) ---
           if [[ -d artifacts/windows-ia32-artifacts ]]; then
+            ia32_original_exe=""
+            ia32_renamed_exe=""
+            ia32_original_exe_url=""
+            ia32_renamed_exe_url=""
+
             for file in artifacts/windows-ia32-artifacts/*.exe; do
               base="$(basename "$file")"
               ext="${base##*.}"
               stem="${base%.$ext}"
-              cp "$file" "release_upload/${stem}-ia32.${ext}"
+              new_name="${stem}-ia32.${ext}"
+              cp "$file" "release_upload/${new_name}"
+
+              ia32_original_exe="$base"
+              ia32_renamed_exe="$new_name"
+              ia32_original_exe_url="${base// /%20}"
+              ia32_renamed_exe_url="${new_name// /%20}"
             done
+
             for file in artifacts/windows-ia32-artifacts/*.exe.blockmap; do
               base="$(basename "$file")"
               cp "$file" "release_upload/${base/.exe/-ia32.exe}"
             done
+
             if [[ -f artifacts/windows-ia32-artifacts/latest.yml ]]; then
               cp artifacts/windows-ia32-artifacts/latest.yml release_upload/latest-ia32.yml
+
+              if [[ -n "$ia32_original_exe" && -n "$ia32_renamed_exe" ]]; then
+                sed -i "s|$ia32_original_exe|$ia32_renamed_exe|g" release_upload/latest-ia32.yml
+                sed -i "s|$ia32_original_exe_url|$ia32_renamed_exe_url|g" release_upload/latest-ia32.yml
+              fi
             fi
           fi
 
