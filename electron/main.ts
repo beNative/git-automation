@@ -216,8 +216,18 @@ const fetchOfficialReleaseAssetNames = async (version: string, extension: string
   const cacheKey = `${version}|${extension}`;
   const cached = releaseAssetNameCache.get(cacheKey);
   if (cached) {
+    mainLogger.debug('[AutoUpdate] Using cached official release asset names.', {
+      version,
+      extension,
+      names: cached,
+    });
     return cached;
   }
+
+  mainLogger.debug('[AutoUpdate] Fetching official release asset names from GitHub.', {
+    version,
+    extension,
+  });
 
   const headers = await buildGitHubApiHeaders();
   const candidateTags = new Set<string>();
@@ -228,6 +238,11 @@ const fetchOfficialReleaseAssetNames = async (version: string, extension: string
     const release = await fetchReleaseByTag(tag, headers);
     if (release?.assets) {
       const names = filterAssetNamesByExtension(release.assets, extension);
+      mainLogger.debug('[AutoUpdate] Found release assets for tag.', {
+        tag,
+        extension,
+        names,
+      });
       releaseAssetNameCache.set(cacheKey, names);
       if (names.length > 0) {
         return names;
@@ -240,12 +255,21 @@ const fetchOfficialReleaseAssetNames = async (version: string, extension: string
     for (const release of releasesList) {
       if (typeof release?.tag_name === 'string' && candidateTags.has(release.tag_name)) {
         const names = filterAssetNamesByExtension(release.assets, extension);
+        mainLogger.debug('[AutoUpdate] Matched release from recent releases listing.', {
+          tag: release.tag_name,
+          extension,
+          names,
+        });
         releaseAssetNameCache.set(cacheKey, names);
         return names;
       }
     }
   }
 
+  mainLogger.warn('[AutoUpdate] Unable to determine official release asset names from GitHub listing.', {
+    version,
+    extension,
+  });
   releaseAssetNameCache.set(cacheKey, []);
   return [];
 };
@@ -294,7 +318,12 @@ const extractCandidateNamesFromUpdateInfo = (info: UpdateDownloadedEvent, extens
     considerName(path.basename(info.downloadedFile));
   }
 
-  return Array.from(names);
+  const collected = Array.from(names);
+  mainLogger.debug('[AutoUpdate] Candidate filenames extracted from update metadata.', {
+    extension,
+    candidates: collected,
+  });
+  return collected;
 };
 
 const safeRenameDownloadedUpdate = async (currentPath: string, desiredPath: string): Promise<void> => {
@@ -309,6 +338,11 @@ const safeRenameDownloadedUpdate = async (currentPath: string, desiredPath: stri
     }
   }
   await fs.rename(currentPath, desiredPath);
+  mainLogger.info('[AutoUpdate] Renamed downloaded update to align with official filename.', {
+    from: path.basename(currentPath),
+    to: path.basename(desiredPath),
+    directory: path.dirname(desiredPath),
+  });
 };
 
 const updateCachedDownloadedUpdateMetadata = async (expectedFileName: string, directory: string): Promise<void> => {
@@ -319,6 +353,10 @@ const updateCachedDownloadedUpdateMetadata = async (expectedFileName: string, di
     if (parsed && typeof parsed === 'object') {
       parsed.fileName = expectedFileName;
       await fs.writeFile(updateInfoPath, JSON.stringify(parsed, null, 2));
+      mainLogger.debug('[AutoUpdate] Updated cached update metadata with expected filename.', {
+        updateInfoPath,
+        expectedFileName,
+      });
     }
   } catch (error: any) {
     if (error?.code !== 'ENOENT') {
@@ -336,6 +374,13 @@ const ensureDownloadedFileMatchesOfficialRelease = async (info: UpdateDownloaded
   const downloadedName = path.basename(downloadedPath);
   const downloadedExt = path.extname(downloadedName).toLowerCase();
 
+  mainLogger.info('[AutoUpdate] Validating downloaded update filename.', {
+    version: info.version,
+    downloadedPath,
+    downloadedName,
+    downloadedExt,
+  });
+
   let officialNames: string[] = [];
   try {
     officialNames = await fetchOfficialReleaseAssetNames(info.version, downloadedExt);
@@ -348,15 +393,27 @@ const ensureDownloadedFileMatchesOfficialRelease = async (info: UpdateDownloaded
   }
 
   if (officialNames.length === 0) {
+    mainLogger.error('[AutoUpdate] No official filenames available for validation.', {
+      version: info.version,
+      downloadedName,
+      extension: downloadedExt,
+    });
     return { success: false, error: 'No official release filenames available for comparison.', downloadedName, officialNames: [] };
   }
 
   if (officialNames.includes(downloadedName)) {
+    mainLogger.info('[AutoUpdate] Downloaded filename already matches official release asset.', {
+      downloadedName,
+    });
     return { success: true, filePath: downloadedPath, expectedName: downloadedName, officialNames };
   }
 
   const caseInsensitiveMatch = officialNames.find(name => name.toLowerCase() === downloadedName.toLowerCase());
   if (caseInsensitiveMatch) {
+    mainLogger.info('[AutoUpdate] Downloaded filename matches an official asset ignoring case.', {
+      downloadedName,
+      expectedName: caseInsensitiveMatch,
+    });
     return { success: true, filePath: downloadedPath, expectedName: caseInsensitiveMatch, officialNames };
   }
 
@@ -372,8 +429,19 @@ const ensureDownloadedFileMatchesOfficialRelease = async (info: UpdateDownloaded
         helper._downloadedFileInfo.fileName = expectedName;
       }
     }
+    mainLogger.info('[AutoUpdate] Downloaded update renamed to expected filename.', {
+      previousName: downloadedName,
+      expectedName,
+      helperAdjusted: Boolean(helper),
+    });
     return { success: true, filePath: expectedPath, expectedName, renamed: true, officialNames };
   } catch (error: any) {
+    mainLogger.error('[AutoUpdate] Failed to align downloaded filename with official asset.', {
+      version: info.version,
+      downloadedName,
+      expectedName,
+      error: error instanceof Error ? { message: error.message, stack: error.stack } : { message: String(error) },
+    });
     return { success: false, error: error?.message || String(error), downloadedName, officialNames };
   }
 };
@@ -438,15 +506,31 @@ app.on('ready', async () => {
     });
     autoUpdater.on('update-available', (info) => {
         lastDownloadedUpdateValidation = null;
-        mainLogger.info('Update available.', info);
+        mainLogger.info('Update available.', {
+            version: info.version,
+            files: Array.isArray(info.files) ? info.files.map(file => ({
+                url: typeof file?.url === 'string' ? getFileNameFromUrlLike(file.url) : undefined,
+                sha512: (file as any)?.sha512,
+                size: (file as any)?.size,
+              })) : undefined,
+        });
         mainWindow?.webContents.send('update-status-change', { status: 'available', message: `Update v${info.version} available. Downloading...` });
     });
     autoUpdater.on('update-not-available', (info) => {
-        mainLogger.info('Update not available.', info);
+        mainLogger.info('Update not available.', {
+            version: info?.version,
+            downloadedFile: info?.downloadedFile,
+        });
     });
     autoUpdater.on('error', (err) => {
         lastDownloadedUpdateValidation = null;
-        mainLogger.error('Error in auto-updater.', err);
+        mainLogger.error('Error in auto-updater.', {
+            message: err?.message,
+            stack: err?.stack,
+            name: err?.name,
+            code: (err as any)?.code,
+            details: (err as any)?.body || (err as any)?.data,
+        });
         mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Error in auto-updater: ${err.message}` });
     });
     autoUpdater.on('download-progress', (progressObj) => {
@@ -454,6 +538,15 @@ app.on('ready', async () => {
         mainLogger.debug(log_message);
     });
     autoUpdater.on('update-downloaded', (info) => {
+        mainLogger.info('Update downloaded event received. Validating filename.', {
+            version: info.version,
+            downloadedFile: info.downloadedFile,
+            files: Array.isArray(info.files) ? info.files.map(file => ({
+              url: typeof file?.url === 'string' ? getFileNameFromUrlLike(file.url) : undefined,
+              sha512: (file as any)?.sha512,
+              size: (file as any)?.size,
+            })) : undefined,
+        });
         void (async () => {
             try {
                 const validationResult = await ensureDownloadedFileMatchesOfficialRelease(info);
@@ -501,7 +594,33 @@ app.on('ready', async () => {
     });
 
     // Check for updates
-    autoUpdater.checkForUpdatesAndNotify();
+    mainLogger.info('Triggering auto-updater checkForUpdatesAndNotify call.');
+    autoUpdater.checkForUpdatesAndNotify()
+      .then(result => {
+        if (!result) {
+          mainLogger.info('Auto-updater checkForUpdatesAndNotify resolved without update info.');
+          return;
+        }
+        mainLogger.info('Auto-updater checkForUpdatesAndNotify resolved.', {
+          updateInfo: result.updateInfo ? {
+            version: result.updateInfo.version,
+            files: Array.isArray(result.updateInfo.files) ? result.updateInfo.files.map(file => ({
+              url: typeof file?.url === 'string' ? getFileNameFromUrlLike(file.url) : undefined,
+              sha512: (file as any)?.sha512,
+              size: (file as any)?.size,
+            })) : undefined,
+          } : undefined,
+          downloadPromise: Boolean(result.downloadPromise),
+        });
+      })
+      .catch(error => {
+        mainLogger.error('checkForUpdatesAndNotify rejected.', {
+          message: error?.message,
+          stack: error?.stack,
+          name: error?.name,
+        });
+        mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Failed to check for updates: ${error?.message || error}` });
+      });
   } else {
     mainLogger.info('App is not packaged, skipping auto-updater.');
   }
