@@ -64,12 +64,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: release/**
           if-no-files-found: error
-
+          path: |
+            release/*.exe
+            release/*.exe.blockmap
+            release/*.dmg
+            release/*.dmg.blockmap
+            release/*.AppImage
+            release/*.deb
+            release/latest*.yml
   release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -89,9 +98,12 @@ jobs:
         with:
           pattern: "*-artifacts"
           path: dist
-          merge-multiple: true   # puts all files under dist/
+          merge-multiple: true
 
-      - name: Create GitHub Release
+      - name: List files to upload (debug)
+        run: ls -alR dist
+
+      - name: Create/Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -100,6 +112,13 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            dist/**/*
+            dist/*.exe
+            dist/*.exe.blockmap
+            dist/*.dmg
+            dist/*.dmg.blockmap
+            dist/*.AppImage
+            dist/*.deb
+            dist/latest*.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
