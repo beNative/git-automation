@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import { autoUpdater, type UpdateDownloadedEvent } from 'electron-updater';
 import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
@@ -60,6 +60,16 @@ const migrateSettingsIfNeeded = async () => {
 let mainWindow: BrowserWindow | null = null;
 let logStream: fsSync.WriteStream | null = null;
 const taskLogStreams = new Map<string, fsSync.WriteStream>();
+
+type DownloadedUpdateValidation = {
+  version: string;
+  filePath: string | null;
+  expectedFileName?: string;
+  validated: boolean;
+  error?: string;
+};
+
+let lastDownloadedUpdateValidation: DownloadedUpdateValidation | null = null;
 
 // --- Main Process Logger ---
 type LogLevelString = 'debug' | 'info' | 'warn' | 'error';
@@ -132,6 +142,242 @@ async function readSettings(): Promise<GlobalSettings> {
     return defaults;
 }
 
+const UPDATE_REPO_OWNER = 'beNative';
+const UPDATE_REPO_NAME = 'git-automation';
+const GITHUB_API_BASE = `https://api.github.com/repos/${UPDATE_REPO_OWNER}/${UPDATE_REPO_NAME}`;
+const releaseAssetNameCache = new Map<string, string[]>();
+
+type FileValidationSuccess = {
+  success: true;
+  filePath: string;
+  expectedName: string;
+  renamed?: boolean;
+  officialNames: string[];
+};
+
+type FileValidationFailure = {
+  success: false;
+  error: string;
+  downloadedName: string;
+  officialNames: string[];
+};
+
+type FileValidationResult = FileValidationSuccess | FileValidationFailure;
+
+const buildGitHubApiHeaders = async (): Promise<Record<string, string>> => {
+  const headers: Record<string, string> = {
+    'Accept': 'application/vnd.github+json',
+    'User-Agent': 'GitAutomationDashboard-Updater',
+  };
+  try {
+    const settings = await readSettings();
+    if (settings.githubPat) {
+      headers['Authorization'] = `token ${settings.githubPat}`;
+    }
+  } catch (error) {
+    mainLogger.warn('[AutoUpdate] Unable to read settings while preparing GitHub headers.', error);
+  }
+  return headers;
+};
+
+const fetchJsonFromGitHub = async (url: string, headers: Record<string, string>): Promise<any | null> => {
+  try {
+    const response = await fetch(url, { headers });
+    if (response.status === 404) {
+      return null;
+    }
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`GitHub API error ${response.status}: ${body}`);
+    }
+    return await response.json();
+  } catch (error: any) {
+    mainLogger.warn(`[AutoUpdate] Failed to fetch GitHub data from ${url}.`, error instanceof Error ? error : { message: String(error) });
+    return null;
+  }
+};
+
+const fetchReleaseByTag = async (tag: string, headers: Record<string, string>) => {
+  const url = `${GITHUB_API_BASE}/releases/tags/${encodeURIComponent(tag)}`;
+  return await fetchJsonFromGitHub(url, headers);
+};
+
+const filterAssetNamesByExtension = (assets: any[], extension: string): string[] => {
+  if (!Array.isArray(assets)) {
+    return [];
+  }
+  const normalizedExt = extension.toLowerCase();
+  return assets
+    .map(asset => typeof asset?.name === 'string' ? asset.name.trim() : '')
+    .filter((name): name is string => Boolean(name) && (normalizedExt ? path.extname(name).toLowerCase() === normalizedExt : true));
+};
+
+const fetchOfficialReleaseAssetNames = async (version: string, extension: string): Promise<string[]> => {
+  const cacheKey = `${version}|${extension}`;
+  const cached = releaseAssetNameCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const headers = await buildGitHubApiHeaders();
+  const candidateTags = new Set<string>();
+  candidateTags.add(version);
+  candidateTags.add(version.startsWith('v') ? version.replace(/^v/, '') : `v${version}`);
+
+  for (const tag of candidateTags) {
+    const release = await fetchReleaseByTag(tag, headers);
+    if (release?.assets) {
+      const names = filterAssetNamesByExtension(release.assets, extension);
+      releaseAssetNameCache.set(cacheKey, names);
+      if (names.length > 0) {
+        return names;
+      }
+    }
+  }
+
+  const releasesList = await fetchJsonFromGitHub(`${GITHUB_API_BASE}/releases?per_page=30`, headers);
+  if (Array.isArray(releasesList)) {
+    for (const release of releasesList) {
+      if (typeof release?.tag_name === 'string' && candidateTags.has(release.tag_name)) {
+        const names = filterAssetNamesByExtension(release.assets, extension);
+        releaseAssetNameCache.set(cacheKey, names);
+        return names;
+      }
+    }
+  }
+
+  releaseAssetNameCache.set(cacheKey, []);
+  return [];
+};
+
+const getFileNameFromUrlLike = (input: string): string | null => {
+  if (!input) {
+    return null;
+  }
+  try {
+    const parsed = new URL(input);
+    return path.basename(parsed.pathname);
+  } catch (error) {
+    const sanitized = input.split('?')[0].split('#')[0];
+    if (!sanitized) {
+      return null;
+    }
+    return path.basename(sanitized);
+  }
+};
+
+const extractCandidateNamesFromUpdateInfo = (info: UpdateDownloadedEvent, extension: string): string[] => {
+  const names = new Set<string>();
+  const normalizedExt = extension.toLowerCase();
+  const considerName = (name: string | null | undefined) => {
+    if (!name) {
+      return;
+    }
+    if (!normalizedExt || path.extname(name).toLowerCase() === normalizedExt) {
+      names.add(name);
+    }
+  };
+
+  if (Array.isArray(info.files)) {
+    for (const file of info.files) {
+      if (typeof file?.url === 'string') {
+        considerName(getFileNameFromUrlLike(file.url));
+      }
+    }
+  }
+
+  if (typeof (info as any).path === 'string') {
+    considerName(path.basename((info as any).path));
+  }
+
+  if (typeof info.downloadedFile === 'string') {
+    considerName(path.basename(info.downloadedFile));
+  }
+
+  return Array.from(names);
+};
+
+const safeRenameDownloadedUpdate = async (currentPath: string, desiredPath: string): Promise<void> => {
+  if (currentPath === desiredPath) {
+    return;
+  }
+  try {
+    await fs.unlink(desiredPath);
+  } catch (error: any) {
+    if (error?.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+  await fs.rename(currentPath, desiredPath);
+};
+
+const updateCachedDownloadedUpdateMetadata = async (expectedFileName: string, directory: string): Promise<void> => {
+  const updateInfoPath = path.join(directory, 'update-info.json');
+  try {
+    const raw = await fs.readFile(updateInfoPath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      parsed.fileName = expectedFileName;
+      await fs.writeFile(updateInfoPath, JSON.stringify(parsed, null, 2));
+    }
+  } catch (error: any) {
+    if (error?.code !== 'ENOENT') {
+      mainLogger.warn('[AutoUpdate] Unable to update cached update metadata with corrected filename.', error instanceof Error ? error : { message: String(error) });
+    }
+  }
+};
+
+const ensureDownloadedFileMatchesOfficialRelease = async (info: UpdateDownloadedEvent): Promise<FileValidationResult> => {
+  if (!info.downloadedFile) {
+    return { success: false, error: 'Auto-updater did not provide a downloaded file path.', downloadedName: '', officialNames: [] };
+  }
+
+  const downloadedPath = info.downloadedFile;
+  const downloadedName = path.basename(downloadedPath);
+  const downloadedExt = path.extname(downloadedName).toLowerCase();
+
+  let officialNames: string[] = [];
+  try {
+    officialNames = await fetchOfficialReleaseAssetNames(info.version, downloadedExt);
+  } catch (error: any) {
+    mainLogger.warn('[AutoUpdate] Failed to retrieve official release filenames from GitHub.', error instanceof Error ? error : { message: String(error) });
+  }
+
+  if (officialNames.length === 0) {
+    officialNames = extractCandidateNamesFromUpdateInfo(info, downloadedExt);
+  }
+
+  if (officialNames.length === 0) {
+    return { success: false, error: 'No official release filenames available for comparison.', downloadedName, officialNames: [] };
+  }
+
+  if (officialNames.includes(downloadedName)) {
+    return { success: true, filePath: downloadedPath, expectedName: downloadedName, officialNames };
+  }
+
+  const caseInsensitiveMatch = officialNames.find(name => name.toLowerCase() === downloadedName.toLowerCase());
+  if (caseInsensitiveMatch) {
+    return { success: true, filePath: downloadedPath, expectedName: caseInsensitiveMatch, officialNames };
+  }
+
+  const expectedName = officialNames[0];
+  const expectedPath = path.join(path.dirname(downloadedPath), expectedName);
+  try {
+    await safeRenameDownloadedUpdate(downloadedPath, expectedPath);
+    await updateCachedDownloadedUpdateMetadata(expectedName, path.dirname(expectedPath));
+    const helper = (autoUpdater as any)?.downloadedUpdateHelper;
+    if (helper && typeof helper === 'object') {
+      helper._file = expectedPath;
+      if (helper._downloadedFileInfo) {
+        helper._downloadedFileInfo.fileName = expectedName;
+      }
+    }
+    return { success: true, filePath: expectedPath, expectedName, renamed: true, officialNames };
+  } catch (error: any) {
+    return { success: false, error: error?.message || String(error), downloadedName, officialNames };
+  }
+};
+
 const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
@@ -191,6 +437,7 @@ app.on('ready', async () => {
         mainWindow?.webContents.send('update-status-change', { status: 'checking', message: 'Checking for updates...' });
     });
     autoUpdater.on('update-available', (info) => {
+        lastDownloadedUpdateValidation = null;
         mainLogger.info('Update available.', info);
         mainWindow?.webContents.send('update-status-change', { status: 'available', message: `Update v${info.version} available. Downloading...` });
     });
@@ -198,6 +445,7 @@ app.on('ready', async () => {
         mainLogger.info('Update not available.', info);
     });
     autoUpdater.on('error', (err) => {
+        lastDownloadedUpdateValidation = null;
         mainLogger.error('Error in auto-updater.', err);
         mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Error in auto-updater: ${err.message}` });
     });
@@ -206,8 +454,50 @@ app.on('ready', async () => {
         mainLogger.debug(log_message);
     });
     autoUpdater.on('update-downloaded', (info) => {
-        mainLogger.info('Update downloaded.', info);
-        mainWindow?.webContents.send('update-status-change', { status: 'downloaded', message: `Update v${info.version} downloaded. Restart to install.` });
+        void (async () => {
+            try {
+                const validationResult = await ensureDownloadedFileMatchesOfficialRelease(info);
+                if (!validationResult.success) {
+                    lastDownloadedUpdateValidation = { version: info.version, filePath: info.downloadedFile ?? null, validated: false, error: validationResult.error };
+                    mainLogger.error('Downloaded update failed filename validation.', {
+                        version: info.version,
+                        downloadedName: validationResult.downloadedName,
+                        officialNames: validationResult.officialNames,
+                        error: validationResult.error,
+                    });
+                    mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Downloaded update failed validation: ${validationResult.error}` });
+                    return;
+                }
+
+                if (validationResult.filePath !== info.downloadedFile) {
+                    info.downloadedFile = validationResult.filePath;
+                }
+
+                lastDownloadedUpdateValidation = {
+                    version: info.version,
+                    filePath: validationResult.filePath,
+                    expectedFileName: validationResult.expectedName,
+                    validated: true,
+                };
+
+                mainLogger.info('Update downloaded.', {
+                    version: info.version,
+                    filePath: validationResult.filePath,
+                    alignedWithOfficialName: validationResult.renamed === true,
+                });
+
+                const messageSuffix = validationResult.renamed ? ' and aligned with official filename' : '';
+                mainWindow?.webContents.send('update-status-change', {
+                    status: 'downloaded',
+                    message: `Update v${info.version} downloaded${messageSuffix}. Restart to install.`,
+                });
+            } catch (error: any) {
+                const message = error?.message || String(error);
+                lastDownloadedUpdateValidation = { version: info.version, filePath: info.downloadedFile ?? null, validated: false, error: message };
+                mainLogger.error('Error while validating downloaded update file.', error);
+                mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Failed to validate downloaded update: ${message}` });
+            }
+        })();
     });
 
     // Check for updates
@@ -262,6 +552,21 @@ ipcMain.handle('get-app-version', () => {
 
 // --- IPC handler to trigger restart & update ---
 ipcMain.on('restart-and-install-update', () => {
+  if (!lastDownloadedUpdateValidation?.validated) {
+    const errorMessage = lastDownloadedUpdateValidation?.error || 'Update filename validation has not completed successfully.';
+    mainLogger.error('Preventing installation because the downloaded update failed filename validation.', {
+      version: lastDownloadedUpdateValidation?.version,
+      error: errorMessage,
+    });
+    mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Cannot install update: ${errorMessage}` });
+    return;
+  }
+
+  mainLogger.info('Proceeding with quitAndInstall after successful filename validation.', {
+    version: lastDownloadedUpdateValidation.version,
+    filePath: lastDownloadedUpdateValidation.filePath,
+    expectedFileName: lastDownloadedUpdateValidation.expectedFileName,
+  });
   autoUpdater.quitAndInstall();
 });
 
