@@ -12,7 +12,7 @@
     "build": "cross-env NODE_ENV=production node esbuild.config.js",
     "pack": "npm run build && electron-builder --publish never",
     "publish": "npm run build && electron-builder --publish always",
-    "test": "echo \"See README.md for testing instructions.\" && exit 0"
+    "test": "rm -rf build-tests && tsc -p tsconfig.test.json && node --test build-tests/tests"
   },
   "dependencies": {
     "@google/genai": "^1.16.0",
@@ -57,12 +57,7 @@
         {
           "target": "nsis",
           "arch": [
-            "ia32"
-          ]
-        },
-        {
-          "target": "nsis",
-          "arch": [
+            "ia32",
             "x64"
           ]
         }
@@ -100,7 +95,8 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "differentialPackage": false
     },
     "publish": [
       {
