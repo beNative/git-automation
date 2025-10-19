@@ -4,6 +4,7 @@ import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities, CommitDiffFile, GoCapabilities, RustCapabilities, MavenCapabilities, DotnetCapabilities } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
@@ -70,6 +71,8 @@ const migrateSettingsIfNeeded = async () => {
 let mainWindow: BrowserWindow | null = null;
 let logStream: fsSync.WriteStream | null = null;
 const taskLogStreams = new Map<string, fsSync.WriteStream>();
+const runningProcesses = new Map<string, ChildProcess>();
+const cancelledExecutions = new Set<string>();
 
 type DownloadedUpdateValidation = {
   version: string;
@@ -1856,6 +1859,70 @@ const sanitizeFilename = (name: string): string => {
     return name.replace(/[^a-z0-9_.-]/gi, '_').substring(0, 100);
 };
 
+const registerChildProcess = (executionId: string, child: ChildProcess) => {
+    runningProcesses.set(executionId, child);
+    const cleanup = () => {
+        if (runningProcesses.get(executionId) === child) {
+            runningProcesses.delete(executionId);
+        }
+    };
+    child.once('close', cleanup);
+    child.once('exit', cleanup);
+    child.once('error', cleanup);
+};
+
+ipcMain.on('cancel-task-execution', (event, { executionId }: { executionId: string }) => {
+    const sender = mainWindow?.webContents.send.bind(mainWindow.webContents);
+    if (!sender) return;
+
+    const child = runningProcesses.get(executionId);
+    if (!child) {
+        sender('task-log', { executionId, message: 'No running process found for cancellation request.', level: LogLevel.Warn });
+        sender('task-step-end', { executionId, exitCode: 0, cancelled: true });
+        return;
+    }
+
+    cancelledExecutions.add(executionId);
+    sender('task-log', { executionId, message: 'Cancellation requested. Attempting to terminate running process...', level: LogLevel.Warn });
+
+    const terminationSent = child.kill('SIGTERM');
+    if (terminationSent) {
+        sender('task-log', { executionId, message: 'Termination signal sent to process.', level: LogLevel.Info });
+        return;
+    }
+
+    const pid = child.pid;
+    if (!pid) {
+        cancelledExecutions.delete(executionId);
+        sender('task-log', { executionId, message: 'Unable to terminate process: missing PID.', level: LogLevel.Error });
+        return;
+    }
+
+    if (os.platform() === 'win32') {
+        exec(`taskkill /PID ${pid} /T /F`, (error) => {
+            if (error) {
+                cancelledExecutions.delete(executionId);
+                mainLogger.error('Failed to force terminate process', { executionId, error: error.message });
+                sender('task-log', { executionId, message: `Failed to terminate process: ${error.message}`, level: LogLevel.Error });
+            } else {
+                sender('task-log', { executionId, message: 'Force termination command sent to process tree.', level: LogLevel.Info });
+            }
+        });
+    } else {
+        try {
+            const hardKillSent = child.kill('SIGKILL');
+            if (!hardKillSent) {
+                throw new Error('Unable to deliver SIGKILL to process.');
+            }
+            sender('task-log', { executionId, message: 'Force termination signal sent to process.', level: LogLevel.Info });
+        } catch (killError: any) {
+            cancelledExecutions.delete(executionId);
+            mainLogger.error('Failed to force terminate process', { executionId, error: killError.message });
+            sender('task-log', { executionId, message: `Failed to terminate process: ${killError.message}`, level: LogLevel.Error });
+        }
+    }
+});
+
 
 // --- IPC handler for cloning a repo ---
 ipcMain.on('clone-repository', async (event, { repo, executionId }: { repo: Repository, executionId: string }) => {
@@ -1888,8 +1955,8 @@ ipcMain.on('clone-repository', async (event, { repo, executionId }: { repo: Repo
     const sendLog = (message: string, level: LogLevel) => {
         sender('task-log', { executionId, message, level });
     };
-    const sendEnd = (exitCode: number) => {
-        sender('task-step-end', { executionId, exitCode });
+    const sendEnd = (exitCode: number, options: { cancelled?: boolean } = {}) => {
+        sender('task-step-end', { executionId, exitCode, ...options });
     };
 
     let command: string;
@@ -1919,6 +1986,7 @@ ipcMain.on('clone-repository', async (event, { repo, executionId }: { repo: Repo
             cwd: parentDir,
             shell: os.platform() === 'win32',
         });
+        registerChildProcess(executionId, child);
 
         const stdoutLogger = createLineLogger(executionId, LogLevel.Info, sender);
         const stderrLogger = createLineLogger(executionId, LogLevel.Info, sender);
@@ -1929,6 +1997,12 @@ ipcMain.on('clone-repository', async (event, { repo, executionId }: { repo: Repo
         child.on('close', (code) => {
             stdoutLogger.flush();
             stderrLogger.flush();
+            if (cancelledExecutions.has(executionId)) {
+                cancelledExecutions.delete(executionId);
+                sendLog(`${verb || 'Clone'} command was cancelled by user.`, LogLevel.Warn);
+                sendEnd(0, { cancelled: true });
+                return;
+            }
             if (code !== 0) {
                 sendLog(`${verb} command exited with code ${code}`, LogLevel.Error);
             } else {
@@ -2006,8 +2080,9 @@ const substituteVariables = (command: string, variables: TaskVariable[] = []): s
 function executeCommand(cwd: string, fullCommand: string, sender: (channel: string, ...args: any[]) => void, executionId: string, env: { [key: string]: string | undefined }): Promise<number> {
     return new Promise((resolve, reject) => {
         sender('task-log', { executionId, message: `$ ${fullCommand}`, level: LogLevel.Command });
-        
+
         const child = spawn(fullCommand, [], { cwd, shell: true, env });
+        registerChildProcess(executionId, child);
 
         const stdoutLogger = createLineLogger(executionId, LogLevel.Info, sender);
         const stderrLogger = createLineLogger(executionId, LogLevel.Info, sender);
@@ -2015,10 +2090,15 @@ function executeCommand(cwd: string, fullCommand: string, sender: (channel: stri
         child.stdout.on('data', stdoutLogger.process);
         child.stderr.on('data', stderrLogger.process);
         child.on('error', (err) => sender('task-log', { executionId, message: `Spawn error: ${err.message}`, level: LogLevel.Error }));
-        
+
         child.on('close', (code) => {
             stdoutLogger.flush();
             stderrLogger.flush();
+            if (cancelledExecutions.has(executionId)) {
+                cancelledExecutions.delete(executionId);
+                reject(new Error('cancelled'));
+                return;
+            }
             if (code !== 0) {
                 sender('task-log', { executionId, message: `Command exited with code ${code}`, level: LogLevel.Error });
                 reject(code ?? 1);
@@ -2061,8 +2141,8 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
     const sendLog = (message: string, level: LogLevel) => {
         sender('task-log', { executionId, message, level });
     };
-    const sendEnd = (exitCode: number) => {
-        sender('task-step-end', { executionId, exitCode });
+    const sendEnd = (exitCode: number, options: { cancelled?: boolean } = {}) => {
+        sender('task-step-end', { executionId, exitCode, ...options });
     };
 
     try {
@@ -2345,8 +2425,13 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
 
         sendEnd(0);
     } catch (error: any) {
-        sendLog(`Error during step '${step.type}': ${error.message}`, LogLevel.Error);
-        sendEnd(typeof error === 'number' ? error : 1);
+        if (error?.message === 'cancelled') {
+            sendLog(`Step '${step.type}' was cancelled by user.`, LogLevel.Warn);
+            sendEnd(0, { cancelled: true });
+        } else {
+            sendLog(`Error during step '${step.type}': ${error.message}`, LogLevel.Error);
+            sendEnd(typeof error === 'number' ? error : 1);
+        }
     }
 });
 

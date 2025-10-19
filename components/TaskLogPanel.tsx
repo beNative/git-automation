@@ -18,6 +18,7 @@ interface TaskLogPanelProps {
   height: number;
   setHeight: (height: number) => void;
   isProcessing: Set<string>;
+  onCancelTask: (repoId: string) => void;
 }
 
 const LOG_LEVEL_STYLES: Record<LogLevel, string> = {
@@ -54,7 +55,7 @@ const HighlightedText: React.FC<{ text: string; highlight: string }> = ({ text, 
 
 const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
   onClosePanel, onCloseTab, onSelectTab, logs, allRepositories,
-  activeRepoIds, selectedRepoId, height, setHeight, isProcessing,
+  activeRepoIds, selectedRepoId, height, setHeight, isProcessing, onCancelTask,
 }) => {
   const logContainerRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
@@ -62,6 +63,7 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
 
   const selectedRepo = allRepositories.find(r => r.id === selectedRepoId);
+  const canCancelSelectedRepo = selectedRepoId ? isProcessing.has(selectedRepoId) : false;
 
   const filteredLogs = useMemo(() => {
     const selectedLogs = selectedRepoId ? logs[selectedRepoId] || [] : [];
@@ -227,6 +229,17 @@ const TaskLogPanel: React.FC<TaskLogPanelProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2 pr-2">
+            {canCancelSelectedRepo && selectedRepoId && (
+              <button
+                onClick={() => onCancelTask(selectedRepoId)}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+                title="Cancel running task"
+                aria-label="Cancel running task"
+              >
+                <XCircleIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Cancel Task</span>
+              </button>
+            )}
             <div className="relative flex-1 max-w-xs">
                 <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
