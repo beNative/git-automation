@@ -55,6 +55,7 @@ This application provides a simple, powerful dashboard to manage and automate th
     -   Find your repository card on the dashboard.
     -   Click a task button or use the task selection menu to run your task. If the working copy is dirty, the safety modal will appear with options to stash, ignore selected files, force the pull, or cancel.
     -   The resizable log panel will automatically appear at the bottom, showing the progress of your script.
+    -   If a step hangs or needs to stop, use the **Cancel Task** button in the log panel (or on the repository card) to terminate the running process safely.
 
 ## Release Preparation Checklist
 
@@ -73,10 +74,9 @@ Follow this checklist when preparing a new minor or patch release:
     **Release Type** selector to the intended state (Full Release for GA builds, Draft or Pre-release as needed). Paste the freshly
     written changelog entry into the release body so the GitHub notes exactly match the repository history, then publish.
 
-### Documentation Status for 0.25.5
+### Documentation Status for 0.25.6
 
-- Re-ran the documentation audit across `README.md`, `FUNCTIONAL_MANUAL.md`, `TECHNICAL_MANUAL.md`, and `docs/keyboard-shortcut-editor.md` for this release.
-  No workflow or UI updates were required; this note records that the documentation remains accurate for version `0.25.5`.
+- Updated the task execution guidance to document the new cancellation controls and revalidated the rest of this README, the manuals, and the keyboard shortcut reference for version `0.25.6`.
 
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._

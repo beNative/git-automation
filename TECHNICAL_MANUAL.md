@@ -33,7 +33,7 @@ The application uses a custom frameless window to achieve a modern, VSCode-like 
     -   Handles native OS interactions (dialogs, file system access).
     -   Listens for and responds to IPC (Inter-Process Communication) events. This includes:
         -   **Project Intelligence:** Handles `get-project-info` and `get-project-suggestions` by analyzing the file system of a repository to detect technologies like Node.js, Python, Go, Rust, Java/Maven, .NET, Delphi, and Lazarus.
-        -   **Task Execution:** Executes shell commands for task steps. The `run-task-step` handler now contains logic to interpret and execute the new, ecosystem-specific step types (e.g., `PYTHON_INSTALL_DEPS`). It also handles setting environment variables for tasks.
+        -   **Task Execution:** Executes shell commands for task steps. The `run-task-step` handler now contains logic to interpret and execute the new, ecosystem-specific step types (e.g., `PYTHON_INSTALL_DEPS`). It also handles setting environment variables for tasks and tracks each spawned child process in the `runningProcesses` map so the `cancel-task` IPC requests from the renderer can terminate long-running work safely.
         -   **Task Log Archiving:** Upon starting a task, it creates a timestamped log file in the user-configured directory. It then streams all `stdout` and `stderr` from the task's execution to this file, in addition to the live view in the UI.
         -   **VCS Commands:** Executes real Git/SVN commands for advanced features like checking status, fetching commit history (now for SVN as well), and managing branches.
         -   **Executable Path Management:** Handles IPC calls for file pickers, auto-detection, and testing of user-configured executable paths.
@@ -96,23 +96,24 @@ Use this process when shipping a new minor update or bugfix:
 5.  **Build Installers:** Run `npm run pack`. The command produces platform installers in the `release/` directory. Perform a quick smoke test of the generated artifacts before distribution.
 6.  **Publish on GitHub:** Draft a new release on GitHub, attach the installers from the `release/` folder, verify the tag/version details, and explicitly set the **Release Type** selector to match your intent (Full Release for GA builds or Draft/Pre-release when staging). Paste the current changelog entry into the notes so the GitHub release matches the repository history, then publish.
 
-### Documentation Status for 0.25.5
+### Documentation Status for 0.25.6
 
-- Reconfirmed that all technical guidance in this manual, the Functional Manual, the README, and the keyboard shortcut specification still aligns with the current codebase and UI for version `0.25.5`; no content corrections were necessary beyond this recorded audit.
+- Captured the task cancellation lifecycle in the main process responsibilities, refreshed the auto-update notes, and revalidated the remaining technical guidance, along with the Functional Manual, README, and keyboard shortcut reference, for version `0.25.6`.
 ## 7. Automatic Updates
 
 The application is configured to automatically check for updates on startup using the `electron-updater` library.
 
 -   **Update Source:** It checks for new releases published on the project's GitHub Releases page. The behavior is controlled by the "Check for Pre-Releases" setting.
 -   **Process:**
-    1.  On startup, the Main Process (`electron/main.ts`) reads the user's settings to determine whether to allow pre-releases.
-    2.  The `autoUpdater` is configured accordingly and checks for updates.
-    3.  It sends IPC messages (`update-status-change`) to the Renderer Process to display toast notifications for events like 'checking' and 'downloading'.
-    4.  When the `update-downloaded` event is received, the Renderer Process (`App.tsx`) sets a state variable to display the `UpdateBanner` component.
-    5.  When the user clicks the "Restart & Install" button on the banner, the Renderer calls `window.electronAPI.restartAndInstallUpdate()`.
-    6.  This triggers an IPC event (`restart-and-install-update`) which causes the Main Process to call `autoUpdater.quitAndInstall()`, which handles the update process reliably.
+    1.  On startup, the Main Process (`electron/main.ts`) reads the user's settings to determine whether to allow pre-releases and prepares authenticated GitHub API headers when a PAT is available.
+    2.  The `autoUpdater` is configured accordingly and checks for updates while also caching the list of assets published for each version.
+    3.  As downloads complete, the main process validates the installer filename against the GitHub release assets (including platform-specific suffixes like `ia32` vs. `x64`). Failed validations are logged with structured context and prevent installation.
+    4.  Throughout the lifecycle it emits `update-status-change` IPC messages so the renderer can surface toast notifications and the condensed update icon in the header.
+    5.  When the `update-downloaded` event is received, the Renderer Process (`App.tsx`) sets a state variable to display the `UpdateBanner` component.
+    6.  When the user clicks the "Restart & Install" button on the banner, the Renderer calls `window.electronAPI.restartAndInstallUpdate()`.
+    7.  This triggers an IPC event (`restart-and-install-update`) which causes the Main Process to call `autoUpdater.quitAndInstall()`, which handles the update process reliably.
 -   **Publishing a New Version:** To publish a new release, a developer with repository access must:
     1.  Ensure the `version` in `package.json` is incremented.
     2.  Create a `GH_TOKEN` (GitHub Personal Access Token) with `repo` scopes and make it available as an environment variable.
-    3.  Run the command `npm run publish`. This will build the application, create installers, and upload them to a new draft release on GitHub.
-    4.  Navigate to the GitHub release, add release notes, and publish it.
+    3.  Run the command `npm run publish`. This will build the application, create installers (limited to the `ia32` and `x64` Windows `.exe` files, plus the existing macOS/Linux targets), and upload them to a new draft release on GitHub alongside the bundled documentation directory expected by the auto-updater.
+    4.  Navigate to the GitHub release, add release notes, confirm the asset list matches the validated filenames, and publish it.
