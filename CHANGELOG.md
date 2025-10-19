@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 
 - _No unreleased changes._
 
+## [0.25.6]
+
+### Added
+- **Task Cancellation Controls:** Introduced cancel buttons on running task cards and inside the task log panel, wiring the renderer, preload bridge, and Electron main process together so operators can gracefully abort automation that is hanging.
+
+### Changed
+- **Update Indicator UX:** Simplified the header's update indicator to an icon-only badge with an explanatory tooltip so the availability signal stays visible without crowding the navigation area.
+
+### Fixed
+- **Auto-Update Reliability:** Validated downloaded installers against the filenames published on GitHub, tightened the Windows artifact naming conventions (including the IA32 build), restricted releases to the expected setup executables, and expanded structured logging to make diagnosing updater issues easier.
+- **Release Packaging Workflow:** Reworked the release GitHub Action to bundle the documentation directory required by the updater and to keep Windows asset filenames aligned with the publishing rules introduced in this release.
+
 ## [0.25.5]
 
 ### Changed
