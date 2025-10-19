@@ -28,6 +28,7 @@ import { ClipboardIcon } from './icons/ClipboardIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
 import { ArrowUpIcon } from './icons/ArrowUpIcon';
 import { ArrowDownIcon } from './icons/ArrowDownIcon';
+import { XCircleIcon } from './icons/XCircleIcon';
 import BranchSelectionModal from './modals/BranchSelectionModal';
 import { getDisplayBranchName, getRemoteBranchesToOffer, getMainBranchDetails, normalizeBranchForComparison } from '../utils/branchHelpers';
 
