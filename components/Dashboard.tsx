@@ -25,6 +25,7 @@ interface DashboardProps {
   onOpenRepoForm: (repoId: string | 'new', categoryId?: string) => void;
   onOpenTaskSelection: (repoId: string) => void;
   onRunTask: (repoId: string, taskId: string) => void;
+  onCancelTask: (repoId: string) => void;
   onViewLogs: (repoId: string) => void;
   onViewHistory: (repoId: string) => void;
   onDeleteRepo: (repoId: string) => void;
@@ -225,6 +226,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     onEditRepo={(repoId) => props.onOpenRepoForm(repoId)}
                     onOpenTaskSelection={props.onOpenTaskSelection}
                     onRunTask={props.onRunTask}
+                    onCancelTask={props.onCancelTask}
                     onViewLogs={props.onViewLogs}
                     onViewHistory={props.onViewHistory}
                     onDeleteRepo={props.onDeleteRepo}

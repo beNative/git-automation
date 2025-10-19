@@ -75,6 +75,7 @@ export interface IElectronAPI {
     executionId: string;
     task: Task;
   }) => void;
+  cancelTaskExecution: (args: { executionId: string }) => void;
 
   onTaskLog: (
     callback: (event: IpcRendererEvent, data: { executionId: string; message: string; level: LogLevel }) => void
@@ -84,10 +85,10 @@ export interface IElectronAPI {
   ) => void;
   
   onTaskStepEnd: (
-    callback: (event: IpcRendererEvent, data: { executionId: string; exitCode: number }) => void
+    callback: (event: IpcRendererEvent, data: { executionId: string; exitCode: number; cancelled?: boolean }) => void
   ) => void;
   removeTaskStepEndListener: (
-    callback: (event: IpcRendererEvent, data: { executionId: string; exitCode: number }) => void
+    callback: (event: IpcRendererEvent, data: { executionId: string; exitCode: number; cancelled?: boolean }) => void
   ) => void;
 
   // Debug Logging (Main -> Renderer)

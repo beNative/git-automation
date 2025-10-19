@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { Repository, LogEntry, Task, GlobalSettings, TaskStep, GitRepository } from '../types';
 import { RepoStatus, BuildHealth, LogLevel, TaskStepType, VcsType } from '../types';
 
@@ -36,6 +36,7 @@ const substituteVariables = (command: string, variables: Task['variables'] = [])
 export const useRepositoryManager = ({ repositories, updateRepository }: { repositories: Repository[], updateRepository: (repo: Repository) => void }) => {
   const [logs, setLogs] = useState<Record<string, LogEntry[]>>({});
   const [isProcessing, setIsProcessing] = useState<Set<string>>(new Set());
+  const activeExecutionsRef = useRef<Map<string, { stepExecutionId: string | null }>>(new Map());
   
   const addLogEntry = useCallback((repoId: string, message: string, level: LogLevel) => {
     const newEntry: LogEntry = {
@@ -70,7 +71,17 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
     const taskExecutionId = `exec_${repo.id}_${task.id}_${Date.now()}`;
     const { id: repoId } = repo;
     setIsProcessing(prev => new Set(prev).add(repoId));
-    
+    activeExecutionsRef.current.set(repoId, { stepExecutionId: null });
+
+    const runTrackedStep = async (stepToRun: TaskStep, executionId: string) => {
+      activeExecutionsRef.current.set(repoId, { stepExecutionId: executionId });
+      try {
+        await runRealStep(repo, stepToRun, settings, addLogEntry, executionId, task);
+      } finally {
+        activeExecutionsRef.current.set(repoId, { stepExecutionId: null });
+      }
+    };
+
     try {
       updateRepoStatus(repoId, RepoStatus.Syncing);
       addLogEntry(repoId, `Starting task: '${task.name}'...`, LogLevel.Info);
@@ -118,26 +129,31 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
                 } else if (choice === 'stash') {
                   addLogEntry(repoId, 'Stashing changes...', LogLevel.Info);
                   const stashExecutionId = `${stepExecutionId}_stash`;
-                  await runRealStep(repo, {id: 'stash_step', type: TaskStepType.GitStash, enabled: true}, settings, addLogEntry, stashExecutionId, task);
+                  await runTrackedStep({id: 'stash_step', type: TaskStepType.GitStash, enabled: true}, stashExecutionId);
                 }
                 // if 'force' or 'ignored_and_continue', proceed as normal
               }
             }
           }
-          await runRealStep(repo, stepToRun, settings, addLogEntry, stepExecutionId, task);
+          await runTrackedStep(stepToRun, stepExecutionId);
         }
       }
 
       addLogEntry(repoId, `Task '${task.name}' completed successfully.`, LogLevel.Success);
       updateRepoStatus(repoId, RepoStatus.Success, BuildHealth.Healthy);
     } catch (error: any) {
-      if (error.message === 'cancelled') throw error;
+      if (error.message === 'cancelled') {
+        addLogEntry(repoId, `Task '${task.name}' was cancelled by user.`, LogLevel.Warn);
+        updateRepoStatus(repoId, RepoStatus.Idle);
+        throw error;
+      }
       const errorMessage = error.message || 'An unknown error occurred.';
       addLogEntry(repoId, `Error during task '${task.name}': ${errorMessage}`, LogLevel.Error);
       addLogEntry(repoId, 'Task failed.', LogLevel.Error);
       updateRepoStatus(repoId, RepoStatus.Failed, BuildHealth.Failing);
       throw error;
     } finally {
+      activeExecutionsRef.current.delete(repoId);
       setIsProcessing(prev => {
         const newSet = new Set(prev);
         newSet.delete(repoId);
@@ -150,7 +166,7 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
     const executionId = `clone_${repo.id}_${Date.now()}`;
     const { id: repoId } = repo;
     setIsProcessing(prev => new Set(prev).add(repoId));
-    
+
     try {
       updateRepoStatus(repoId, RepoStatus.Syncing);
       addLogEntry(repoId, `Cloning repository from '${repo.remoteUrl}'...`, LogLevel.Info);
@@ -213,14 +229,32 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
       setLogs(prev => ({...prev, [repoId]: []}));
   };
 
-  return { 
-    runTask, 
+  const cancelTask = useCallback((repoId: string): 'requested' | 'no-step' | 'unsupported' => {
+    const execution = activeExecutionsRef.current.get(repoId);
+    if (!execution || !execution.stepExecutionId) {
+      addLogEntry(repoId, 'No running step to cancel for this repository.', LogLevel.Warn);
+      return 'no-step';
+    }
+
+    if (!window.electronAPI?.cancelTaskExecution) {
+      addLogEntry(repoId, 'Cancellation is not supported in this environment.', LogLevel.Error);
+      return 'unsupported';
+    }
+
+    window.electronAPI.cancelTaskExecution({ executionId: execution.stepExecutionId });
+    addLogEntry(repoId, 'Cancellation requested. Attempting to terminate running process...', LogLevel.Warn);
+    return 'requested';
+  }, [addLogEntry]);
+
+  return {
+    runTask,
     cloneRepository,
     launchApplication,
     launchExecutable,
     logs,
     clearLogs,
-    isProcessing
+    isProcessing,
+    cancelTask
   };
 };
 
@@ -299,12 +333,14 @@ const runRealStep = (
         }
     };
     
-    const handleEnd = (_event: any, endData: { executionId: string, exitCode: number }) => {
+    const handleEnd = (_event: any, endData: { executionId: string, exitCode: number, cancelled?: boolean }) => {
         if (endData.executionId === executionId) {
             window.electronAPI.removeTaskLogListener(handleLog);
             window.electronAPI.removeTaskStepEndListener(handleEnd);
 
-            if (endData.exitCode === 0) {
+            if (endData.cancelled) {
+                reject(new Error('cancelled'));
+            } else if (endData.exitCode === 0) {
                 resolve();
             } else {
                 reject(new Error(`Step failed with exit code ${endData.exitCode}. See logs for details.`));
@@ -338,11 +374,13 @@ const runClone = (
         }
     };
     
-    const handleEnd = (_event: any, endData: { executionId: string, exitCode: number }) => {
+    const handleEnd = (_event: any, endData: { executionId: string, exitCode: number, cancelled?: boolean }) => {
         if (endData.executionId === executionId) {
             window.electronAPI.removeTaskLogListener(handleLog);
             window.electronAPI.removeTaskStepEndListener(handleEnd);
-            if (endData.exitCode === 0) {
+            if (endData.cancelled) {
+                reject(new Error('cancelled'));
+            } else if (endData.exitCode === 0) {
                 resolve();
             } else {
                 reject(new Error(`Clone failed with exit code ${endData.exitCode}. See logs for details.`));

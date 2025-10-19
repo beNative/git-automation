@@ -81,6 +81,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   runTaskStep: (args: { repo: Repository; step: TaskStep; settings: GlobalSettings; executionId: string; task: Task; }) => {
     ipcRenderer.send('run-task-step', args);
   },
+  cancelTaskExecution: (args: { executionId: string }) => {
+    ipcRenderer.send('cancel-task-execution', args);
+  },
 
   onTaskLog: (callback: (event: IpcRendererEvent, data: { executionId: string, message: string, level: LogLevel}) => void) => {
     ipcRenderer.on(taskLogChannel, callback);
@@ -89,10 +92,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeListener(taskLogChannel, callback);
   },
 
-  onTaskStepEnd: (callback: (event: IpcRendererEvent, data: { executionId: string, exitCode: number }) => void) => {
+  onTaskStepEnd: (callback: (event: IpcRendererEvent, data: { executionId: string, exitCode: number, cancelled?: boolean }) => void) => {
     ipcRenderer.on(taskStepEndChannel, callback);
   },
-  removeTaskStepEndListener: (callback: (event: IpcRendererEvent, data: { executionId: string, exitCode: number }) => void) => {
+  removeTaskStepEndListener: (callback: (event: IpcRendererEvent, data: { executionId: string, exitCode: number, cancelled?: boolean }) => void) => {
     ipcRenderer.removeListener(taskStepEndChannel, callback);
   },
 

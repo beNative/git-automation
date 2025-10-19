@@ -28,6 +28,7 @@ import { ClipboardIcon } from './icons/ClipboardIcon';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
 import { ArrowUpIcon } from './icons/ArrowUpIcon';
 import { ArrowDownIcon } from './icons/ArrowDownIcon';
+import { XCircleIcon } from './icons/XCircleIcon';
 import BranchSelectionModal from './modals/BranchSelectionModal';
 import { getDisplayBranchName, getRemoteBranchesToOffer, getMainBranchDetails, normalizeBranchForComparison } from '../utils/branchHelpers';
 
@@ -37,6 +38,7 @@ interface RepositoryCardProps {
   categoryId: string | 'uncategorized';
   onOpenTaskSelection: (repoId: string) => void;
   onRunTask: (repoId: string, taskId: string) => void;
+  onCancelTask: (repoId: string) => void;
   onViewLogs: (repoId: string) => void;
   onViewHistory: (repoId: string) => void;
   onEditRepo: (repoId: string) => void;
@@ -500,6 +502,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   categoryId,
   onOpenTaskSelection,
   onRunTask,
+  onCancelTask,
   onViewLogs,
   onViewHistory,
   onEditRepo,
@@ -562,6 +565,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const logsTooltip = useTooltip('View Logs');
   const configureTooltip = useTooltip('Configure Repository');
   const deleteTooltip = useTooltip('Delete Repository');
+  const cancelTooltip = useTooltip('Cancel running task');
   const refreshTooltip = useTooltip('Refresh Status');
   const moveUpTooltip = useTooltip('Move Up');
   const moveDownTooltip = useTooltip('Move Down');
@@ -759,6 +763,18 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
             </div>
 
             <div className="flex items-center space-x-0.5">
+                {isProcessing && (
+                  <button
+                    {...cancelTooltip}
+                    onClick={() => {
+                      hideTooltip();
+                      onCancelTask(id);
+                    }}
+                    className="p-1.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors"
+                  >
+                    <XCircleIcon className="h-5 w-5" />
+                  </button>
+                )}
                 {isPathValid && hasMoreTasks && (
                   <button
                     {...moreTasksTooltip}

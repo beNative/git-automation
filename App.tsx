@@ -162,6 +162,7 @@ const App: React.FC = () => {
     logs,
     clearLogs,
     isProcessing,
+    cancelTask,
   } = useRepositoryManager({ repositories, updateRepository });
   
   const [repoFormState, setRepoFormState] = useState<{
@@ -968,6 +969,25 @@ const App: React.FC = () => {
     });
   }, [clearLogs]);
 
+  const handleCancelTask = useCallback((repoId: string) => {
+    const repo = repositories.find(r => r.id === repoId);
+    if (!repo) {
+      setToast({ message: 'Repository not found.', type: 'error' });
+      return;
+    }
+
+    const cancelResult = cancelTask(repoId);
+    if (cancelResult === 'requested') {
+      logger.warn('Cancellation requested for running task', { repoId, name: repo.name });
+      instrumentation?.trace('task:run-cancel-requested', { repoId, repoName: repo.name });
+      setToast({ message: 'Cancellation requested. Attempting to stop task...', type: 'info' });
+    } else if (cancelResult === 'no-step') {
+      setToast({ message: 'No running task to cancel.', type: 'info' });
+    } else {
+      setToast({ message: 'Task cancellation is not supported in this environment.', type: 'error' });
+    }
+  }, [repositories, cancelTask, logger, instrumentation]);
+
   const handleRunTask = useCallback(async (repoId: string, taskId: string) => {
     const repo = repositories.find(r => r.id === repoId);
     const task = repo?.tasks.find(t => t.id === taskId);
@@ -1433,8 +1453,9 @@ const App: React.FC = () => {
                       onToggleCategoryCollapse={toggleCategoryCollapse}
                       onMoveCategory={moveCategory}
                       onReorderCategories={reorderCategories}
-                      onOpenTaskSelection={handleOpenTaskSelection} 
+                      onOpenTaskSelection={handleOpenTaskSelection}
                       onRunTask={handleRunTask}
+                      onCancelTask={handleCancelTask}
                       onViewLogs={handleViewLogs}
                       onViewHistory={handleViewHistory}
                       onOpenRepoForm={handleOpenRepoForm}
@@ -1477,6 +1498,7 @@ const App: React.FC = () => {
                 height={taskLogState.height}
                 setHeight={(h) => setTaskLogState(p => ({ ...p, height: h }))}
                 isProcessing={isProcessing}
+                onCancelTask={handleCancelTask}
               />
             )}
           </div>
