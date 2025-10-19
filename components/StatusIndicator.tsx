@@ -42,18 +42,19 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status }) => {
   const aheadTooltip = useTooltip(`${branchInfo?.ahead} commits ahead`);
   const behindTooltip = useTooltip(`${branchInfo?.behind} commits behind`);
   const trackingTooltip = useTooltip(`Tracking: ${branchInfo?.tracking}`);
-  const updatesTooltip = useTooltip('Updates available to pull/update');
+  const updatesTooltip = useTooltip(
+    'Remote has new commits for this repository. Fetch or pull to sync your local branch.'
+  );
 
   return (
     <div className="flex items-center justify-end flex-wrap gap-x-3 gap-y-1 text-xs">
-       {hasUpdates && (
+      {hasUpdates && (
         <span
           // @ts-ignore
           {...updatesTooltip}
           className="flex items-center text-cyan-600 dark:text-cyan-400 font-semibold"
         >
-          <CloudArrowDownIcon className="h-4 w-4 mr-1" />
-          <span>Updates Available</span>
+          <CloudArrowDownIcon className="h-4 w-4" />
         </span>
       )}
       {branchInfo && (branchInfo.ahead > 0 || branchInfo.behind > 0) && (
