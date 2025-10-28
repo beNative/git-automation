@@ -228,12 +228,26 @@ const TaskStepItem: React.FC<{
   suggestions: ProjectSuggestion[];
   projectInfo: ProjectInfo | null;
   delphiVersions: { name: string; version: string }[];
-}> = ({ step, index, totalSteps, onStepChange, onMoveStep, onRemoveStep, onDuplicateStep, suggestions, projectInfo, delphiVersions }) => {
+  collapsed: boolean;
+  onCollapsedChange: (id: string, collapsed: boolean) => void;
+}> = ({
+  step,
+  index,
+  totalSteps,
+  onStepChange,
+  onMoveStep,
+  onRemoveStep,
+  onDuplicateStep,
+  suggestions,
+  projectInfo,
+  delphiVersions,
+  collapsed,
+  onCollapsedChange,
+}) => {
   const logger = useLogger();
   const stepDef = STEP_DEFINITIONS[step.type];
   const isEnabled = step.enabled ?? true;
   const hasDetails = STEPS_WITH_DETAILS.has(step.type);
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const detailsId = useMemo(() => `task-step-${step.id}-details`, [step.id]);
 
   // --- HOOKS MOVED TO TOP ---
@@ -242,11 +256,14 @@ const TaskStepItem: React.FC<{
   const moveToTopTooltip = useTooltip('Move Step to Top');
   const moveToBottomTooltip = useTooltip('Move Step to Bottom');
 
+  const canCollapse = hasDetails;
+  const isCollapsed = canCollapse ? collapsed : false;
+
   useEffect(() => {
-    if (!hasDetails) {
-      setIsCollapsed(false);
+    if (!canCollapse && collapsed) {
+      onCollapsedChange(step.id, false);
     }
-  }, [hasDetails]);
+  }, [canCollapse, collapsed, onCollapsedChange, step.id]);
   
   const selectedDelphiProject = useMemo(() => {
     return projectInfo?.delphi?.projects.find(p => p.path === step.delphiProjectFile);
@@ -546,7 +563,7 @@ const TaskStepItem: React.FC<{
             {hasDetails ? (
               <button
                 type="button"
-                onClick={() => setIsCollapsed(prev => !prev)}
+                onClick={() => onCollapsedChange(step.id, !isCollapsed)}
                 aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} step details`}
                 aria-expanded={!isCollapsed}
                 aria-controls={detailsId}
@@ -1360,10 +1377,19 @@ const TaskStepsEditor: React.FC<{
 }> = ({ task, setTask, repository, onAddTask }) => {
   const logger = useLogger();
   const [isAddingStep, setIsAddingStep] = useState(false);
+  const [activeDetailTab, setActiveDetailTab] = useState<'variables' | 'steps'>('steps');
   const [suggestions, setSuggestions] = useState<ProjectSuggestion[]>([]);
   const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
   const [delphiVersions, setDelphiVersions] = useState<{ name: string; version: string }[]>([]);
+  const [stepCollapseState, setStepCollapseState] = useState<Record<string, boolean>>({});
+  const lastTaskIdRef = useRef<string | null>(null);
   const showOnDashboardTooltip = useTooltip('Show this task as a button on the repository card');
+
+  useEffect(() => {
+    if (activeDetailTab !== 'steps' && isAddingStep) {
+      setIsAddingStep(false);
+    }
+  }, [activeDetailTab, isAddingStep]);
   
   useEffect(() => {
     if (repository?.localPath) {
@@ -1394,7 +1420,91 @@ const TaskStepsEditor: React.FC<{
             .catch(e => logger.error('Failed to get Delphi versions', e));
     }
   }, [projectInfo, logger]);
-  
+
+  useEffect(() => {
+    const currentTaskId = task.id ?? '__no_id__';
+    if (currentTaskId !== lastTaskIdRef.current) {
+      const initialState: Record<string, boolean> = {};
+      task.steps.forEach(step => {
+        initialState[step.id] = STEPS_WITH_DETAILS.has(step.type);
+      });
+      setStepCollapseState(initialState);
+      lastTaskIdRef.current = currentTaskId;
+    }
+  }, [task.id, task.steps]);
+
+  useEffect(() => {
+    setStepCollapseState(prev => {
+      const nextState: Record<string, boolean> = {};
+      let changed = false;
+      task.steps.forEach(step => {
+        const supportsCollapse = STEPS_WITH_DETAILS.has(step.type);
+        const previousValue = prev[step.id];
+        const desiredValue = supportsCollapse ? (previousValue ?? false) : false;
+        nextState[step.id] = desiredValue;
+        if (previousValue !== desiredValue) {
+          changed = true;
+        }
+      });
+
+      const sameSize = Object.keys(prev).length === Object.keys(nextState).length;
+      const sameEntries = sameSize && Object.keys(nextState).every(key => prev[key] === nextState[key]);
+      if (!changed && sameEntries) {
+        return prev;
+      }
+
+      return nextState;
+    });
+  }, [task.steps]);
+
+  const collapsibleStepCount = useMemo(
+    () => task.steps.filter(step => STEPS_WITH_DETAILS.has(step.type)).length,
+    [task.steps]
+  );
+
+  const handleCollapsedChange = useCallback((stepId: string, collapsed: boolean) => {
+    setStepCollapseState(prev => {
+      if (prev[stepId] === collapsed) {
+        return prev;
+      }
+      return { ...prev, [stepId]: collapsed };
+    });
+  }, []);
+
+  const handleCollapseAllSteps = useCallback(() => {
+    setStepCollapseState(prev => {
+      const nextState: Record<string, boolean> = {};
+      task.steps.forEach(step => {
+        nextState[step.id] = STEPS_WITH_DETAILS.has(step.type);
+      });
+
+      const sameSize = Object.keys(prev).length === Object.keys(nextState).length;
+      const sameEntries = sameSize && Object.keys(nextState).every(key => prev[key] === nextState[key]);
+      if (sameEntries) {
+        return prev;
+      }
+
+      return nextState;
+    });
+  }, [task.steps]);
+
+  const handleExpandAllSteps = useCallback(() => {
+    setStepCollapseState(prev => {
+      const nextState: Record<string, boolean> = {};
+      task.steps.forEach(step => {
+        nextState[step.id] = false;
+      });
+
+      const sameSize = Object.keys(prev).length === Object.keys(nextState).length;
+      const sameEntries = sameSize && Object.keys(nextState).every(key => prev[key] === nextState[key]);
+      if (sameEntries) {
+        return prev;
+      }
+
+      return nextState;
+    });
+  }, [task.steps]);
+
   const handleAddStep = (type: TaskStepType) => {
     const newStep: TaskStep = { id: `step_${Date.now()}`, type, enabled: true };
     if (type === TaskStepType.RunCommand) newStep.command = suggestions.length > 0 ? suggestions[0].value : 'npm run build';
@@ -1472,12 +1582,19 @@ const TaskStepsEditor: React.FC<{
     });
   }, [repository?.vcs, projectInfo]);
 
+  const tabButtonClass = (tab: 'variables' | 'steps') =>
+    `whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+      activeDetailTab === tab
+        ? 'border-blue-500 text-blue-600'
+        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+    }`;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-4">
-        <input 
-          type="text" 
-          value={task.name} 
+        <input
+          type="text"
+          value={task.name}
           onChange={e => setTask({ ...task, name: e.target.value })}
           placeholder="Task Name"
           className="flex-grow text-lg font-bold bg-transparent border-b-2 border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-0 pb-0.5"
@@ -1490,80 +1607,129 @@ const TaskStepsEditor: React.FC<{
           </label>
         </div>
       </div>
-      
-      <div className="space-y-2.5">
-        <TaskVariablesEditor variables={task.variables} onVariablesChange={handleVariablesChange} />
-        <TaskEnvironmentVariablesEditor variables={task.environmentVariables} onVariablesChange={handleEnvironmentVariablesChange} />
-      </div>
-      
-      {task.steps.length === 0 && (
-          <div className="text-center py-5 px-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
-              <CubeTransparentIcon className="mx-auto h-10 w-10 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-800 dark:text-gray-200">This task has no steps.</h3>
-              <p className="mt-1 text-xs text-gray-500">Add steps manually to begin.</p>
-          </div>
-      )}
-      
-      <DockerTaskGenerator dockerCaps={projectInfo?.docker} onAddTask={onAddTask} />
-      <NodejsTaskGenerator nodejsCaps={projectInfo?.nodejs} onAddTask={onAddTask} />
-      <GoTaskGenerator goCaps={projectInfo?.go} onAddTask={onAddTask} />
-      <RustTaskGenerator rustCaps={projectInfo?.rust} onAddTask={onAddTask} />
-      <MavenTaskGenerator mavenCaps={projectInfo?.maven} onAddTask={onAddTask} />
-      <DotnetTaskGenerator dotnetCaps={projectInfo?.dotnet} onAddTask={onAddTask} />
-      <PythonTaskGenerator pythonCaps={projectInfo?.python} onAddTask={onAddTask} />
-      <LazarusTaskGenerator lazarusCaps={projectInfo?.lazarus} onAddTask={onAddTask} />
-      <DelphiTaskGenerator delphiCaps={projectInfo?.delphi} onAddTask={onAddTask} />
 
-      <div className="space-y-2">
-        {task.steps.map((step, index) => (
-          <TaskStepItem 
-            key={step.id} 
-            step={step} 
-            index={index} 
-            totalSteps={task.steps.length} 
-            onStepChange={handleStepChange}
-            onMoveStep={handleMoveStep}
-            onRemoveStep={handleRemoveStep}
-            onDuplicateStep={handleDuplicateStep}
-            suggestions={suggestions}
-            projectInfo={projectInfo}
-            delphiVersions={delphiVersions}
-          />
-        ))}
-      </div>
+      <div>
+        <nav className="-mb-px flex space-x-4 border-b border-gray-200 dark:border-gray-700">
+          <button type="button" onClick={() => setActiveDetailTab('steps')} className={tabButtonClass('steps')}>
+            Steps
+          </button>
+          <button type="button" onClick={() => setActiveDetailTab('variables')} className={tabButtonClass('variables')}>
+            Variables
+          </button>
+        </nav>
 
-      {isAddingStep && (
-        <div className="space-y-3">
-            {STEP_CATEGORIES.map(category => {
-                const relevantSteps = category.types.filter(type => availableSteps.includes(type));
-                if (relevantSteps.length === 0) return null;
+        <div className="mt-4 space-y-4">
+          {activeDetailTab === 'variables' ? (
+            <div className="space-y-2.5">
+              <TaskVariablesEditor variables={task.variables} onVariablesChange={handleVariablesChange} />
+              <TaskEnvironmentVariablesEditor variables={task.environmentVariables} onVariablesChange={handleEnvironmentVariablesChange} />
+            </div>
+          ) : (
+            <>
+              {task.steps.length === 0 && (
+                <div className="text-center py-5 px-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
+                  <CubeTransparentIcon className="mx-auto h-10 w-10 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-800 dark:text-gray-200">This task has no steps.</h3>
+                  <p className="mt-1 text-xs text-gray-500">Add steps manually to begin.</p>
+                </div>
+              )}
 
-                return (
-                    <div key={category.name}>
+              {task.steps.length > 0 && (
+                <div className="flex items-center justify-end gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={handleCollapseAllSteps}
+                    disabled={collapsibleStepCount === 0}
+                    className="font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  >
+                    Collapse all
+                  </button>
+                  <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">|</span>
+                  <button
+                    type="button"
+                    onClick={handleExpandAllSteps}
+                    className="font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600"
+                  >
+                    Expand all
+                  </button>
+                </div>
+              )}
+
+              <DockerTaskGenerator dockerCaps={projectInfo?.docker} onAddTask={onAddTask} />
+              <NodejsTaskGenerator nodejsCaps={projectInfo?.nodejs} onAddTask={onAddTask} />
+              <GoTaskGenerator goCaps={projectInfo?.go} onAddTask={onAddTask} />
+              <RustTaskGenerator rustCaps={projectInfo?.rust} onAddTask={onAddTask} />
+              <MavenTaskGenerator mavenCaps={projectInfo?.maven} onAddTask={onAddTask} />
+              <DotnetTaskGenerator dotnetCaps={projectInfo?.dotnet} onAddTask={onAddTask} />
+              <PythonTaskGenerator pythonCaps={projectInfo?.python} onAddTask={onAddTask} />
+              <LazarusTaskGenerator lazarusCaps={projectInfo?.lazarus} onAddTask={onAddTask} />
+              <DelphiTaskGenerator delphiCaps={projectInfo?.delphi} onAddTask={onAddTask} />
+
+              <div className="space-y-2">
+                {task.steps.map((step, index) => (
+                  <TaskStepItem
+                    key={step.id}
+                    step={step}
+                    index={index}
+                    totalSteps={task.steps.length}
+                    onStepChange={handleStepChange}
+                    onMoveStep={handleMoveStep}
+                    onRemoveStep={handleRemoveStep}
+                    onDuplicateStep={handleDuplicateStep}
+                    suggestions={suggestions}
+                    projectInfo={projectInfo}
+                    delphiVersions={delphiVersions}
+                    collapsed={!!stepCollapseState[step.id]}
+                    onCollapsedChange={handleCollapsedChange}
+                  />
+                ))}
+              </div>
+
+              {isAddingStep && (
+                <div className="space-y-3">
+                  {STEP_CATEGORIES.map(category => {
+                    const relevantSteps = category.types.filter(type => availableSteps.includes(type));
+                    if (relevantSteps.length === 0) return null;
+
+                    return (
+                      <div key={category.name}>
                         <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">{category.name}</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                            {relevantSteps.map(type => {
-                                const { label, icon: Icon, description } = STEP_DEFINITIONS[type];
-                                return (
-                                    <button key={type} type="button" onClick={() => handleAddStep(type)} className="text-left p-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg hover:bg-blue-500/10 hover:ring-2 ring-blue-500 transition-all">
-                                        <div className="flex items-center gap-3">
-                                        <Icon className="h-6 w-6 text-blue-500" />
-                                        <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
-                                        </div>
-                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{description}</p>
-                                    </button>
-                                );
-                            })}
+                          {relevantSteps.map(type => {
+                            const { label, icon: Icon, description } = STEP_DEFINITIONS[type];
+                            return (
+                              <button
+                                key={type}
+                                type="button"
+                                onClick={() => handleAddStep(type)}
+                                className="text-left p-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg hover:bg-blue-500/10 hover:ring-2 ring-blue-500 transition-all"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <Icon className="h-6 w-6 text-blue-500" />
+                                  <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{description}</p>
+                              </button>
+                            );
+                          })}
                         </div>
-                    </div>
-                );
-            })}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsAddingStep(p => !p)}
+                className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                <PlusIcon className="h-4 w-4 mr-1" /> {isAddingStep ? 'Cancel' : 'Add Step'}
+              </button>
+            </>
+          )}
         </div>
-      )}
-      
-      <button type="button" onClick={() => setIsAddingStep(p => !p)} className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
-        <PlusIcon className="h-4 w-4 mr-1"/> {isAddingStep ? 'Cancel' : 'Add Step'}
-      </button>
+      </div>
     </div>
   );
 };
