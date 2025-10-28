@@ -112,8 +112,11 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
           // Generate a unique ID for each step to prevent listener leaks from causing log duplication.
           const stepExecutionId = `${taskExecutionId}_step_${index}`;
 
-          // Check for dirty repo before git pull (Git only)
-          if (step.type === TaskStepType.GitPull && repo.vcs === VcsType.Git) {
+          const shouldCheckDirtyState =
+            (step.type === TaskStepType.GitPull && repo.vcs === VcsType.Git) ||
+            (step.type === TaskStepType.SvnUpdate && repo.vcs === VcsType.Svn);
+
+          if (shouldCheckDirtyState) {
             if (repo.ignoreDirty) {
               addLogEntry(repoId, `Skipping dirty repository check due to repository setting.`, LogLevel.Warn);
             } else {
@@ -123,13 +126,13 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
                 const choice = await onDirty(statusResult);
 
                 if (choice === 'cancel') {
-                   addLogEntry(repoId, 'Task cancelled by user.', LogLevel.Info);
-                   updateRepoStatus(repoId, RepoStatus.Idle);
-                   throw new Error('cancelled'); // Special error to suppress toast
-                } else if (choice === 'stash') {
+                  addLogEntry(repoId, 'Task cancelled by user.', LogLevel.Info);
+                  updateRepoStatus(repoId, RepoStatus.Idle);
+                  throw new Error('cancelled'); // Special error to suppress toast
+                } else if (choice === 'stash' && repo.vcs === VcsType.Git) {
                   addLogEntry(repoId, 'Stashing changes...', LogLevel.Info);
                   const stashExecutionId = `${stepExecutionId}_stash`;
-                  await runTrackedStep({id: 'stash_step', type: TaskStepType.GitStash, enabled: true}, stashExecutionId);
+                  await runTrackedStep({ id: 'stash_step', type: TaskStepType.GitStash, enabled: true }, stashExecutionId);
                 }
                 // if 'force' or 'ignored_and_continue', proceed as normal
               }

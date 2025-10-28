@@ -1028,8 +1028,21 @@ const App: React.FC = () => {
   const handleDirtyRepoChoice = async (choice: 'stash' | 'force' | 'cancel' | 'ignore', filesToIgnore?: string[]) => {
     const { resolve, repo } = dirtyRepoModal;
 
-    if (choice === 'ignore' && filesToIgnore && repo) {
-      if (filesToIgnore.length === 0) {
+    if (!repo) {
+      if (choice === 'cancel' && resolve) {
+        resolve('cancel');
+      }
+      setDirtyRepoModal({ isOpen: false, repo: null, task: null, status: null, resolve: null, isIgnoring: false });
+      return;
+    }
+
+    const isGitRepo = repo.vcs === VcsType.Git;
+
+    if (choice === 'ignore') {
+      if (!isGitRepo) {
+        return;
+      }
+      if (!filesToIgnore || filesToIgnore.length === 0) {
         setToast({ message: 'No files selected to ignore.', type: 'info' });
         return;
       }
@@ -1047,8 +1060,24 @@ const App: React.FC = () => {
         setToast({ message: `Failed to update .gitignore: ${e.message}`, type: 'error' });
         setDirtyRepoModal(prev => ({ ...prev, isIgnoring: false }));
       }
-    } else if (choice === 'stash' || choice === 'force' || choice === 'cancel') {
-      if (resolve) resolve(choice);
+      return;
+    }
+
+    if (choice === 'stash') {
+      if (!isGitRepo) {
+        return;
+      }
+      if (resolve) {
+        resolve('stash');
+      }
+      setDirtyRepoModal({ isOpen: false, repo: null, task: null, status: null, resolve: null, isIgnoring: false });
+      return;
+    }
+
+    if (choice === 'force' || choice === 'cancel') {
+      if (resolve) {
+        resolve(choice);
+      }
       setDirtyRepoModal({ isOpen: false, repo: null, task: null, status: null, resolve: null, isIgnoring: false });
     }
   };
@@ -1547,6 +1576,7 @@ const App: React.FC = () => {
             status={dirtyRepoModal.status}
             onChoose={handleDirtyRepoChoice}
             isIgnoring={dirtyRepoModal.isIgnoring}
+            vcsType={dirtyRepoModal.repo?.vcs ?? null}
           />
 
           <TaskSelectionModal
