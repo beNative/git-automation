@@ -80,6 +80,7 @@ export enum TaskStepType {
   GitCheckout = 'GIT_CHECKOUT',
   GitStash = 'GIT_STASH',
   SvnUpdate = 'SVN_UPDATE',
+  SvnSwitch = 'SVN_SWITCH',
   RunCommand = 'RUN_COMMAND',
   // Delphi
   DelphiBuild = 'DELPHI_BUILD',
@@ -195,7 +196,7 @@ export interface TaskStep {
   id: string;
   type: TaskStepType;
   enabled: boolean;
-  branch?: string; // for GitCheckout
+  branch?: string; // for GitCheckout / SvnSwitch target
   command?: string; // for RunCommand
   // Delphi
   delphiProjectFile?: string;
