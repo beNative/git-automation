@@ -1438,8 +1438,32 @@ ipcMain.handle('check-vcs-status', async (event, repo: Repository): Promise<{ is
                   return;
               }
               const output = stdout.trim();
-              const isDirty = output.length > 0;
-              resolve({ isDirty, output, untrackedFiles: [], changedFiles: isDirty ? [output] : [] });
+              const untrackedFiles: string[] = [];
+              const changedFiles: string[] = [];
+
+              if (output.length > 0) {
+                  stdout.split(/\r?\n/).forEach(line => {
+                      const trimmedLine = line.trim();
+                      if (!trimmedLine) {
+                          return;
+                      }
+                      const statusCode = trimmedLine[0];
+                      const filePath = trimmedLine.slice(1).trim();
+
+                      if (!filePath) {
+                          return;
+                      }
+
+                      if (statusCode === '?') {
+                          untrackedFiles.push(filePath);
+                      } else {
+                          changedFiles.push(filePath);
+                      }
+                  });
+              }
+
+              const isDirty = untrackedFiles.length > 0 || changedFiles.length > 0;
+              resolve({ isDirty, output, untrackedFiles, changedFiles });
           });
       });
     }
