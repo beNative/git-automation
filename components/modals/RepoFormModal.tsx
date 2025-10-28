@@ -1611,14 +1611,37 @@ const TaskStepsEditor: React.FC<{
       </div>
 
       <div>
-        <nav className="-mb-px flex space-x-4 border-b border-gray-200 dark:border-gray-700">
-          <button type="button" onClick={() => setActiveDetailTab('steps')} className={tabButtonClass('steps')}>
-            Steps
-          </button>
-          <button type="button" onClick={() => setActiveDetailTab('variables')} className={tabButtonClass('variables')}>
-            Variables
-          </button>
-        </nav>
+        <div className="flex items-end justify-between border-b border-gray-200 dark:border-gray-700">
+          <nav className="-mb-px flex space-x-4">
+            <button type="button" onClick={() => setActiveDetailTab('steps')} className={tabButtonClass('steps')}>
+              Steps
+            </button>
+            <button type="button" onClick={() => setActiveDetailTab('variables')} className={tabButtonClass('variables')}>
+              Variables
+            </button>
+          </nav>
+
+          {activeDetailTab === 'steps' && task.steps.length > 0 && (
+            <div className="flex items-center gap-2 text-xs pb-2">
+              <button
+                type="button"
+                onClick={handleCollapseAllSteps}
+                disabled={collapsibleStepCount === 0}
+                className="font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 disabled:text-gray-400 disabled:cursor-not-allowed"
+              >
+                Collapse all
+              </button>
+              <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">|</span>
+              <button
+                type="button"
+                onClick={handleExpandAllSteps}
+                className="font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600"
+              >
+                Expand all
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="mt-4 space-y-4">
           {activeDetailTab === 'variables' ? (
@@ -1633,27 +1656,6 @@ const TaskStepsEditor: React.FC<{
                   <CubeTransparentIcon className="mx-auto h-10 w-10 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-800 dark:text-gray-200">This task has no steps.</h3>
                   <p className="mt-1 text-xs text-gray-500">Add steps manually to begin.</p>
-                </div>
-              )}
-
-              {task.steps.length > 0 && (
-                <div className="flex items-center justify-end gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={handleCollapseAllSteps}
-                    disabled={collapsibleStepCount === 0}
-                    className="font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 disabled:text-gray-400 disabled:cursor-not-allowed"
-                  >
-                    Collapse all
-                  </button>
-                  <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">|</span>
-                  <button
-                    type="button"
-                    onClick={handleExpandAllSteps}
-                    className="font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600"
-                  >
-                    Expand all
-                  </button>
                 </div>
               )}
 
