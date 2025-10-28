@@ -57,13 +57,17 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
             </div>
             
             {/* Center Section */}
-            <div
+            <div className="flex items-center flex-1 justify-center">
+                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+                <div
  {...latestLogTooltip} className="flex-1 text-center truncate px-4">
-                {latestLog && (
-                    <span className={LOG_LEVEL_COLOR_CLASSES[latestLog.level] || 'text-gray-400'}>
-                        [{new Date(latestLog.timestamp).toLocaleTimeString()}] {latestLog.message}
-                    </span>
-                )}
+                    {latestLog && (
+                        <span className={LOG_LEVEL_COLOR_CLASSES[latestLog.level] || 'text-gray-400'}>
+                            [{new Date(latestLog.timestamp).toLocaleTimeString()}] {latestLog.message}
+                        </span>
+                    )}
+                </div>
+                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
             </div>
 
             {/* Right Section */}
