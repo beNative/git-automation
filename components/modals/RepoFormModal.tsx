@@ -32,6 +32,8 @@ import { TagIcon } from '../icons/TagIcon';
 import { CubeIcon } from '../icons/CubeIcon';
 import { ChevronsUpIcon } from '../icons/ChevronsUpIcon';
 import { ChevronsDownIcon } from '../icons/ChevronsDownIcon';
+import { ChevronDownIcon } from '../icons/ChevronDownIcon';
+import { ChevronRightIcon } from '../icons/ChevronRightIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PencilIcon } from '../icons/PencilIcon';
@@ -131,6 +133,19 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.DOCKER_COMPOSE_BUILD]: { label: 'Docker: Compose Build', icon: DockerIcon, description: 'Build or rebuild services with Docker Compose.' },
 };
 
+const STEPS_WITH_DETAILS = new Set<TaskStepType>([
+  TaskStepType.GitCheckout,
+  TaskStepType.SvnSwitch,
+  TaskStepType.DelphiBuild,
+  TaskStepType.LAZARUS_BUILD,
+  TaskStepType.LAZARUS_BUILD_PACKAGE,
+  TaskStepType.FPC_TEST_FPCUNIT,
+  TaskStepType.DELPHI_PACKAGE_INNO,
+  TaskStepType.DELPHI_PACKAGE_NSIS,
+  TaskStepType.DELPHI_TEST_DUNITX,
+  TaskStepType.RunCommand,
+]);
+
 const STEP_CATEGORIES = [
     { name: 'General', types: [TaskStepType.RunCommand] },
     { name: 'Git', types: [TaskStepType.GitPull, TaskStepType.GitFetch, TaskStepType.GitCheckout, TaskStepType.GitStash] },
@@ -217,12 +232,21 @@ const TaskStepItem: React.FC<{
   const logger = useLogger();
   const stepDef = STEP_DEFINITIONS[step.type];
   const isEnabled = step.enabled ?? true;
+  const hasDetails = STEPS_WITH_DETAILS.has(step.type);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const detailsId = useMemo(() => `task-step-${step.id}-details`, [step.id]);
 
   // --- HOOKS MOVED TO TOP ---
   const toggleTooltip = useTooltip(isEnabled ? 'Disable Step' : 'Enable Step');
   const duplicateTooltip = useTooltip('Duplicate Step');
   const moveToTopTooltip = useTooltip('Move Step to Top');
   const moveToBottomTooltip = useTooltip('Move Step to Bottom');
+
+  useEffect(() => {
+    if (!hasDetails) {
+      setIsCollapsed(false);
+    }
+  }, [hasDetails]);
   
   const selectedDelphiProject = useMemo(() => {
     return projectInfo?.delphi?.projects.find(p => p.path === step.delphiProjectFile);
@@ -301,47 +325,8 @@ const TaskStepItem: React.FC<{
     </div>
   );
 
-  return (
-    <div className={`bg-white dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Icon className="h-6 w-6 text-blue-500" />
-          <div>
-            <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
-            <p className="text-xs text-gray-500">Step {index + 1}</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <label {...toggleTooltip} className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" checked={isEnabled} onChange={(e) => onStepChange(step.id, {enabled: e.target.checked})} className="sr-only peer" />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-          </label>
-          <button
-            {...moveToTopTooltip}
-            type="button"
-            onClick={() => onMoveStep(index, 'top')}
-            disabled={index === 0}
-            aria-label="Move step to top"
-            className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
-          >
-            <ChevronsUpIcon className="h-4 w-4" />
-          </button>
-          <button type="button" onClick={() => onMoveStep(index, 'up')} disabled={index === 0} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowUpIcon className="h-4 w-4" /></button>
-          <button type="button" onClick={() => onMoveStep(index, 'down')} disabled={index === totalSteps - 1} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowDownIcon className="h-4 w-4" /></button>
-          <button
-            {...moveToBottomTooltip}
-            type="button"
-            onClick={() => onMoveStep(index, 'bottom')}
-            disabled={index === totalSteps - 1}
-            aria-label="Move step to bottom"
-            className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
-          >
-            <ChevronsDownIcon className="h-4 w-4" />
-          </button>
-          <button {...duplicateTooltip} type="button" onClick={() => onDuplicateStep(index)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><DocumentDuplicateIcon className="h-4 w-4" /></button>
-          <button type="button" onClick={() => onRemoveStep(step.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
-        </div>
-      </div>
+  const detailFields = (
+    <>
       {(step.type === TaskStepType.GitCheckout || step.type === TaskStepType.SvnSwitch) && (
         <div>
           <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -517,7 +502,7 @@ const TaskStepItem: React.FC<{
             (acc[suggestion.group] = acc[suggestion.group] || []).push(suggestion);
             return acc;
         }, {} as Record<string, ProjectSuggestion[]>);
-        
+
         const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
           const newValue = e.target.value;
           // When a predefined command is selected, update the step.
@@ -538,7 +523,7 @@ const TaskStepItem: React.FC<{
               ))}
               <option value={CUSTOM_COMMAND_VALUE}>Custom Command...</option>
             </select>
-            
+
             <textarea
                 placeholder={`e.g., npm run build -- --env=production\nUse \${VAR_NAME} for variables.`}
                 value={step.command || ''}
@@ -550,6 +535,71 @@ const TaskStepItem: React.FC<{
           </div>
         );
       })()}
+    </>
+  );
+
+  return (
+    <div className={`bg-white dark:bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 space-y-1.5 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-1.5">
+          <div className="flex h-6 w-6 items-center justify-center">
+            {hasDetails ? (
+              <button
+                type="button"
+                onClick={() => setIsCollapsed(prev => !prev)}
+                aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} step details`}
+                aria-expanded={!isCollapsed}
+                aria-controls={detailsId}
+                className="p-0.5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
+              >
+                {isCollapsed ? <ChevronRightIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
+              </button>
+            ) : null}
+          </div>
+          <Icon className="h-6 w-6 text-blue-500" />
+          <div>
+            <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
+            <p className="text-xs text-gray-500">Step {index + 1}</p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-1.5">
+          <label {...toggleTooltip} className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" checked={isEnabled} onChange={(e) => onStepChange(step.id, {enabled: e.target.checked})} className="sr-only peer" />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+          </label>
+          <button
+            {...moveToTopTooltip}
+            type="button"
+            onClick={() => onMoveStep(index, 'top')}
+            disabled={index === 0}
+            aria-label="Move step to top"
+            className="p-1 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
+          >
+            <ChevronsUpIcon className="h-4 w-4" />
+          </button>
+          <button type="button" onClick={() => onMoveStep(index, 'up')} disabled={index === 0} className="p-1 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowUpIcon className="h-4 w-4" /></button>
+          <button type="button" onClick={() => onMoveStep(index, 'down')} disabled={index === totalSteps - 1} className="p-1 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowDownIcon className="h-4 w-4" /></button>
+          <button
+            {...moveToBottomTooltip}
+            type="button"
+            onClick={() => onMoveStep(index, 'bottom')}
+            disabled={index === totalSteps - 1}
+            aria-label="Move step to bottom"
+            className="p-1 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
+          >
+            <ChevronsDownIcon className="h-4 w-4" />
+          </button>
+          <button {...duplicateTooltip} type="button" onClick={() => onDuplicateStep(index)} className="p-1 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><DocumentDuplicateIcon className="h-4 w-4" /></button>
+          <button type="button" onClick={() => onRemoveStep(step.id)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
+        </div>
+      </div>
+      {hasDetails ? (
+        <div id={detailsId} className={`mt-1.5 space-y-1.5 ${isCollapsed ? 'hidden' : ''}`}>
+          {detailFields}
+        </div>
+      ) : (
+        detailFields
+      )}
     </div>
   );
 };
@@ -724,7 +774,7 @@ const NodejsTaskGenerator: React.FC<{
 
 
     return (
-        <div className="p-3 mb-4 bg-green-50 dark:bg-gray-900/50 rounded-lg border border-green-200 dark:border-gray-700">
+        <div className="p-3 mb-3 bg-green-50 dark:bg-gray-900/50 rounded-lg border border-green-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-2">
                 <NodeIcon className="h-5 w-5 text-green-500"/>
                 <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Node.js Project Detected</h3>
@@ -780,7 +830,7 @@ const GoTaskGenerator: React.FC<{
     };
 
     return (
-        <div className="p-3 mb-4 bg-cyan-50 dark:bg-gray-900/50 rounded-lg border border-cyan-200 dark:border-gray-700">
+        <div className="p-3 mb-3 bg-cyan-50 dark:bg-gray-900/50 rounded-lg border border-cyan-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-2">
                 <CodeBracketIcon className="h-5 w-5 text-cyan-500" />
                 <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Go Project Detected</h3>
@@ -845,7 +895,7 @@ const RustTaskGenerator: React.FC<{
     };
 
     return (
-        <div className="p-3 mb-4 bg-amber-50 dark:bg-gray-900/50 rounded-lg border border-amber-200 dark:border-gray-700">
+        <div className="p-3 mb-3 bg-amber-50 dark:bg-gray-900/50 rounded-lg border border-amber-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-2">
                 <CodeBracketIcon className="h-5 w-5 text-amber-500" />
                 <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Rust Project Detected</h3>
@@ -911,7 +961,7 @@ const MavenTaskGenerator: React.FC<{
     };
 
     return (
-        <div className="p-3 mb-4 bg-orange-50 dark:bg-gray-900/50 rounded-lg border border-orange-200 dark:border-gray-700">
+        <div className="p-3 mb-3 bg-orange-50 dark:bg-gray-900/50 rounded-lg border border-orange-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-2">
                 <DocumentTextIcon className="h-5 w-5 text-orange-500" />
                 <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Maven Project Detected</h3>
@@ -979,7 +1029,7 @@ const DotnetTaskGenerator: React.FC<{
     };
 
     return (
-        <div className="p-3 mb-4 bg-purple-50 dark:bg-gray-900/50 rounded-lg border border-purple-200 dark:border-gray-700">
+        <div className="p-3 mb-3 bg-purple-50 dark:bg-gray-900/50 rounded-lg border border-purple-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-2">
                 <CubeIcon className="h-5 w-5 text-purple-500" />
                 <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">.NET Project Detected</h3>
@@ -1047,7 +1097,7 @@ const PythonTaskGenerator: React.FC<{
 
 
     return (
-        <div className="p-3 mb-4 bg-blue-50 dark:bg-gray-900/50 rounded-lg border border-blue-200 dark:border-gray-700">
+        <div className="p-3 mb-3 bg-blue-50 dark:bg-gray-900/50 rounded-lg border border-blue-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-2">
                 <PythonIcon className="h-5 w-5 text-blue-500"/>
                 <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Python Project Detected</h3>
@@ -1120,7 +1170,7 @@ const DockerTaskGenerator: React.FC<{
     ];
 
     return (
-        <div className="p-3 mb-4 bg-sky-50 dark:bg-gray-900/50 rounded-lg border border-sky-200 dark:border-gray-700">
+        <div className="p-3 mb-3 bg-sky-50 dark:bg-gray-900/50 rounded-lg border border-sky-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-2">
                 <DockerIcon className="h-5 w-5 text-sky-500" />
                 <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Docker Artifacts Detected</h3>
@@ -1218,7 +1268,7 @@ const DelphiTaskGenerator: React.FC<{
     };
 
     return (
-        <div className="p-3 mb-4 bg-indigo-50 dark:bg-gray-900/50 rounded-lg border border-indigo-200 dark:border-gray-700">
+        <div className="p-3 mb-3 bg-indigo-50 dark:bg-gray-900/50 rounded-lg border border-indigo-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-2">
                 <BeakerIcon className="h-5 w-5 text-indigo-500"/>
                 <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Delphi Project Detected</h3>
@@ -1279,7 +1329,7 @@ const LazarusTaskGenerator: React.FC<{
     };
 
     return (
-        <div className="p-3 mb-4 bg-teal-50 dark:bg-gray-900/50 rounded-lg border border-teal-200 dark:border-gray-700">
+        <div className="p-3 mb-3 bg-teal-50 dark:bg-gray-900/50 rounded-lg border border-teal-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-2">
                 <BeakerIcon className="h-5 w-5 text-teal-500"/>
                 <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200">Lazarus/FPC Project Detected</h3>
@@ -1423,7 +1473,7 @@ const TaskStepsEditor: React.FC<{
   }, [repository?.vcs, projectInfo]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between gap-4">
         <input 
           type="text" 
@@ -1441,13 +1491,13 @@ const TaskStepsEditor: React.FC<{
         </div>
       </div>
       
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         <TaskVariablesEditor variables={task.variables} onVariablesChange={handleVariablesChange} />
         <TaskEnvironmentVariablesEditor variables={task.environmentVariables} onVariablesChange={handleEnvironmentVariablesChange} />
       </div>
       
       {task.steps.length === 0 && (
-          <div className="text-center py-6 px-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
+          <div className="text-center py-5 px-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
               <CubeTransparentIcon className="mx-auto h-10 w-10 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-800 dark:text-gray-200">This task has no steps.</h3>
               <p className="mt-1 text-xs text-gray-500">Add steps manually to begin.</p>
@@ -1464,7 +1514,7 @@ const TaskStepsEditor: React.FC<{
       <LazarusTaskGenerator lazarusCaps={projectInfo?.lazarus} onAddTask={onAddTask} />
       <DelphiTaskGenerator delphiCaps={projectInfo?.delphi} onAddTask={onAddTask} />
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {task.steps.map((step, index) => (
           <TaskStepItem 
             key={step.id} 
@@ -1483,7 +1533,7 @@ const TaskStepsEditor: React.FC<{
       </div>
 
       {isAddingStep && (
-        <div className="space-y-4">
+        <div className="space-y-3">
             {STEP_CATEGORIES.map(category => {
                 const relevantSteps = category.types.filter(type => availableSteps.includes(type));
                 if (relevantSteps.length === 0) return null;
@@ -1491,7 +1541,7 @@ const TaskStepsEditor: React.FC<{
                 return (
                     <div key={category.name}>
                         <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">{category.name}</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
                             {relevantSteps.map(type => {
                                 const { label, icon: Icon, description } = STEP_DEFINITIONS[type];
                                 return (
