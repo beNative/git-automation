@@ -57,40 +57,46 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
             </div>
             
             {/* Center Section */}
-            <div className="flex items-center flex-1 justify-center">
-                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+            <div className="flex items-center flex-1 justify-center px-3">
+                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-3" />
                 <div
- {...latestLogTooltip} className="flex-1 text-center truncate px-4">
+                    {...latestLogTooltip}
+                    className="flex-1 text-center truncate"
+                >
                     {latestLog && (
                         <span className={LOG_LEVEL_COLOR_CLASSES[latestLog.level] || 'text-gray-400'}>
                             [{new Date(latestLog.timestamp).toLocaleTimeString()}] {latestLog.message}
                         </span>
                     )}
                 </div>
-                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-3" />
             </div>
 
             {/* Right Section */}
             <div className="flex items-center space-x-3">
                 {isSimulationMode && (
                     <div
- {...simModeTooltip} className="flex items-center text-yellow-600 dark:text-yellow-500">
+                        {...simModeTooltip}
+                        className="flex items-center text-yellow-600 dark:text-yellow-500"
+                    >
                         <BeakerIcon className="h-4 w-4 mr-1.5" />
                         <span>Sim Mode</span>
                     </div>
                 )}
-                 <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                 <button
+                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+                <button
                     {...debugPanelTooltip}
                     onClick={onToggleDebugPanel}
                     className="flex items-center"
-                 >
+                >
                     <BugAntIcon className="h-4 w-4 mr-1.5" />
                     <span>Debug</span>
-                 </button>
-                 <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                 <div
- {...commandPaletteTooltip} className="flex items-center">
+                </button>
+                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+                <div
+                    {...commandPaletteTooltip}
+                    className="flex items-center"
+                >
                     <KeyboardIcon className="h-4 w-4 mr-1.5" />
                     <span>{commandPaletteShortcut || 'Ctrl+K'}</span>
                 </div>
@@ -98,7 +104,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
                 {appVersion && (
                     <>
                         <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-                        <button {...aboutTooltip} onClick={onOpenAboutModal} className="hover:text-blue-500 transition-colors">
+                        <button
+                            {...aboutTooltip}
+                            onClick={onOpenAboutModal}
+                            className="hover:text-blue-500 transition-colors"
+                        >
                             v{appVersion}
                         </button>
                     </>
