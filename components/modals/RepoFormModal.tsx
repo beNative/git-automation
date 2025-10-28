@@ -1424,6 +1424,8 @@ const TaskStepsEditor: React.FC<{
   useEffect(() => {
     const currentTaskId = task.id ?? '__no_id__';
     if (currentTaskId !== lastTaskIdRef.current) {
+      setActiveDetailTab('steps');
+
       const initialState: Record<string, boolean> = {};
       task.steps.forEach(step => {
         initialState[step.id] = STEPS_WITH_DETAILS.has(step.type);
