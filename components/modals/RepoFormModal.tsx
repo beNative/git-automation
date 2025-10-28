@@ -32,6 +32,8 @@ import { TagIcon } from '../icons/TagIcon';
 import { CubeIcon } from '../icons/CubeIcon';
 import { ChevronsUpIcon } from '../icons/ChevronsUpIcon';
 import { ChevronsDownIcon } from '../icons/ChevronsDownIcon';
+import { ChevronDownIcon } from '../icons/ChevronDownIcon';
+import { ChevronRightIcon } from '../icons/ChevronRightIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PencilIcon } from '../icons/PencilIcon';
@@ -131,6 +133,19 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.DOCKER_COMPOSE_BUILD]: { label: 'Docker: Compose Build', icon: DockerIcon, description: 'Build or rebuild services with Docker Compose.' },
 };
 
+const STEPS_WITH_DETAILS = new Set<TaskStepType>([
+  TaskStepType.GitCheckout,
+  TaskStepType.SvnSwitch,
+  TaskStepType.DelphiBuild,
+  TaskStepType.LAZARUS_BUILD,
+  TaskStepType.LAZARUS_BUILD_PACKAGE,
+  TaskStepType.FPC_TEST_FPCUNIT,
+  TaskStepType.DELPHI_PACKAGE_INNO,
+  TaskStepType.DELPHI_PACKAGE_NSIS,
+  TaskStepType.DELPHI_TEST_DUNITX,
+  TaskStepType.RunCommand,
+]);
+
 const STEP_CATEGORIES = [
     { name: 'General', types: [TaskStepType.RunCommand] },
     { name: 'Git', types: [TaskStepType.GitPull, TaskStepType.GitFetch, TaskStepType.GitCheckout, TaskStepType.GitStash] },
@@ -217,12 +232,21 @@ const TaskStepItem: React.FC<{
   const logger = useLogger();
   const stepDef = STEP_DEFINITIONS[step.type];
   const isEnabled = step.enabled ?? true;
+  const hasDetails = STEPS_WITH_DETAILS.has(step.type);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const detailsId = useMemo(() => `task-step-${step.id}-details`, [step.id]);
 
   // --- HOOKS MOVED TO TOP ---
   const toggleTooltip = useTooltip(isEnabled ? 'Disable Step' : 'Enable Step');
   const duplicateTooltip = useTooltip('Duplicate Step');
   const moveToTopTooltip = useTooltip('Move Step to Top');
   const moveToBottomTooltip = useTooltip('Move Step to Bottom');
+
+  useEffect(() => {
+    if (!hasDetails) {
+      setIsCollapsed(false);
+    }
+  }, [hasDetails]);
   
   const selectedDelphiProject = useMemo(() => {
     return projectInfo?.delphi?.projects.find(p => p.path === step.delphiProjectFile);
@@ -301,47 +325,8 @@ const TaskStepItem: React.FC<{
     </div>
   );
 
-  return (
-    <div className={`bg-white dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Icon className="h-6 w-6 text-blue-500" />
-          <div>
-            <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
-            <p className="text-xs text-gray-500">Step {index + 1}</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <label {...toggleTooltip} className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" checked={isEnabled} onChange={(e) => onStepChange(step.id, {enabled: e.target.checked})} className="sr-only peer" />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-          </label>
-          <button
-            {...moveToTopTooltip}
-            type="button"
-            onClick={() => onMoveStep(index, 'top')}
-            disabled={index === 0}
-            aria-label="Move step to top"
-            className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
-          >
-            <ChevronsUpIcon className="h-4 w-4" />
-          </button>
-          <button type="button" onClick={() => onMoveStep(index, 'up')} disabled={index === 0} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowUpIcon className="h-4 w-4" /></button>
-          <button type="button" onClick={() => onMoveStep(index, 'down')} disabled={index === totalSteps - 1} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowDownIcon className="h-4 w-4" /></button>
-          <button
-            {...moveToBottomTooltip}
-            type="button"
-            onClick={() => onMoveStep(index, 'bottom')}
-            disabled={index === totalSteps - 1}
-            aria-label="Move step to bottom"
-            className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
-          >
-            <ChevronsDownIcon className="h-4 w-4" />
-          </button>
-          <button {...duplicateTooltip} type="button" onClick={() => onDuplicateStep(index)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><DocumentDuplicateIcon className="h-4 w-4" /></button>
-          <button type="button" onClick={() => onRemoveStep(step.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
-        </div>
-      </div>
+  const detailFields = (
+    <>
       {(step.type === TaskStepType.GitCheckout || step.type === TaskStepType.SvnSwitch) && (
         <div>
           <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -517,7 +502,7 @@ const TaskStepItem: React.FC<{
             (acc[suggestion.group] = acc[suggestion.group] || []).push(suggestion);
             return acc;
         }, {} as Record<string, ProjectSuggestion[]>);
-        
+
         const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
           const newValue = e.target.value;
           // When a predefined command is selected, update the step.
@@ -538,7 +523,7 @@ const TaskStepItem: React.FC<{
               ))}
               <option value={CUSTOM_COMMAND_VALUE}>Custom Command...</option>
             </select>
-            
+
             <textarea
                 placeholder={`e.g., npm run build -- --env=production\nUse \${VAR_NAME} for variables.`}
                 value={step.command || ''}
@@ -550,6 +535,69 @@ const TaskStepItem: React.FC<{
           </div>
         );
       })()}
+    </>
+  );
+
+  return (
+    <div className={`bg-white dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2 transition-opacity ${!isEnabled ? 'opacity-50' : ''}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {hasDetails && (
+            <button
+              type="button"
+              onClick={() => setIsCollapsed(prev => !prev)}
+              aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} step details`}
+              aria-expanded={!isCollapsed}
+              aria-controls={detailsId}
+              className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
+            >
+              {isCollapsed ? <ChevronRightIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
+            </button>
+          )}
+          <Icon className="h-6 w-6 text-blue-500" />
+          <div>
+            <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
+            <p className="text-xs text-gray-500">Step {index + 1}</p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <label {...toggleTooltip} className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" checked={isEnabled} onChange={(e) => onStepChange(step.id, {enabled: e.target.checked})} className="sr-only peer" />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+          </label>
+          <button
+            {...moveToTopTooltip}
+            type="button"
+            onClick={() => onMoveStep(index, 'top')}
+            disabled={index === 0}
+            aria-label="Move step to top"
+            className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
+          >
+            <ChevronsUpIcon className="h-4 w-4" />
+          </button>
+          <button type="button" onClick={() => onMoveStep(index, 'up')} disabled={index === 0} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowUpIcon className="h-4 w-4" /></button>
+          <button type="button" onClick={() => onMoveStep(index, 'down')} disabled={index === totalSteps - 1} className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><ArrowDownIcon className="h-4 w-4" /></button>
+          <button
+            {...moveToBottomTooltip}
+            type="button"
+            onClick={() => onMoveStep(index, 'bottom')}
+            disabled={index === totalSteps - 1}
+            aria-label="Move step to bottom"
+            className="p-1.5 disabled:opacity-30 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
+          >
+            <ChevronsDownIcon className="h-4 w-4" />
+          </button>
+          <button {...duplicateTooltip} type="button" onClick={() => onDuplicateStep(index)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"><DocumentDuplicateIcon className="h-4 w-4" /></button>
+          <button type="button" onClick={() => onRemoveStep(step.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
+        </div>
+      </div>
+      {hasDetails ? (
+        <div id={detailsId} className={`mt-3 space-y-3 ${isCollapsed ? 'hidden' : ''}`}>
+          {detailFields}
+        </div>
+      ) : (
+        detailFields
+      )}
     </div>
   );
 };
