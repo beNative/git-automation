@@ -399,7 +399,7 @@ const CloneToPathButton: React.FC<{
         onClone();
       }}
       disabled={isProcessing}
-      className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+      className="flex items-center justify-center px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
     >
       <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
       {cloneVerb} Repo
@@ -422,7 +422,7 @@ const ChooseLocationButton: React.FC<{
         onChooseLocation();
       }}
       disabled={isProcessing}
-      className="flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+      className="flex items-center justify-center px-2.5 py-1 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
     >
       <FolderPlusIcon className="h-4 w-4 mr-1.5" />
       Setup & {cloneVerb}
