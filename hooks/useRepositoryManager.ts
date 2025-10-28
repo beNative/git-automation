@@ -280,6 +280,16 @@ const runSimulationStep = async (
             randomFail(0.1, 'Simulated SVN conflict.');
             addLogEntry(repoId, 'Successfully updated working copy.', LogLevel.Success);
             break;
+        case TaskStepType.SvnSwitch:
+            if (!step.branch) {
+                addLogEntry(repoId, 'Skipping SVN switch: no target specified.', LogLevel.Warn);
+                break;
+            }
+            addLogEntry(repoId, `svn switch ${step.branch}`, LogLevel.Command);
+            await simulateDelay(1200);
+            randomFail(0.1, 'Simulated SVN switch failure.');
+            addLogEntry(repoId, `Switched working copy to '${step.branch}'.`, LogLevel.Success);
+            break;
         case TaskStepType.GitFetch:
             addLogEntry(repoId, `git fetch`, LogLevel.Command);
             await simulateDelay(1000);

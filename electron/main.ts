@@ -2197,6 +2197,9 @@ ipcMain.on('run-task-step', async (event, { repo, step, settings, executionId, t
             case TaskStepType.GitStash: await run(`${gitCmd} stash`); break;
             // SVN Steps
             case TaskStepType.SvnUpdate: await run(`${svnCmd} update`); break;
+            case TaskStepType.SvnSwitch:
+                if (!step.branch) { sendLog('Skipping SVN switch: no target specified.', LogLevel.Warn); sendEnd(0); return; }
+                await run(`${svnCmd} switch ${step.branch}`); break;
             // Common Steps
             case TaskStepType.RunCommand:
                 if (!step.command) { sendLog('Skipping empty command.', LogLevel.Warn); sendEnd(0); return; }

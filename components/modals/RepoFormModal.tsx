@@ -78,6 +78,7 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
   [TaskStepType.GitCheckout]: { label: 'Git Checkout', icon: ArrowRightOnRectangleIcon, description: 'Switch to a specific branch.' },
   [TaskStepType.GitStash]: { label: 'Git Stash', icon: ArchiveBoxIcon, description: 'Stash uncommitted local changes.' },
   [TaskStepType.SvnUpdate]: { label: 'SVN Update', icon: ArrowDownTrayIcon, description: 'Update working copy to latest revision.' },
+  [TaskStepType.SvnSwitch]: { label: 'SVN Switch', icon: ArrowRightOnRectangleIcon, description: 'Switch working copy to a different branch or URL.' },
   [TaskStepType.RunCommand]: { label: 'Run Command', icon: CodeBracketIcon, description: 'Execute a custom shell command.' },
   // Delphi
   [TaskStepType.DelphiBuild]: { label: 'Delphi Build', icon: BeakerIcon, description: 'Build, rebuild, or clean a Delphi project.' },
@@ -133,7 +134,7 @@ const STEP_DEFINITIONS: Record<TaskStepType, { label: string; icon: React.Compon
 const STEP_CATEGORIES = [
     { name: 'General', types: [TaskStepType.RunCommand] },
     { name: 'Git', types: [TaskStepType.GitPull, TaskStepType.GitFetch, TaskStepType.GitCheckout, TaskStepType.GitStash] },
-    { name: 'SVN', types: [TaskStepType.SvnUpdate] },
+    { name: 'SVN', types: [TaskStepType.SvnUpdate, TaskStepType.SvnSwitch] },
     { name: 'Node.js', types: [TaskStepType.NODE_INSTALL_DEPS, TaskStepType.NODE_RUN_BUILD, TaskStepType.NODE_RUN_TESTS, TaskStepType.NODE_RUN_LINT, TaskStepType.NODE_RUN_FORMAT, TaskStepType.NODE_RUN_TYPECHECK] },
     { name: 'Go', types: [TaskStepType.GO_MOD_TIDY, TaskStepType.GO_FMT, TaskStepType.GO_TEST, TaskStepType.GO_BUILD] },
     { name: 'Rust', types: [TaskStepType.RUST_CARGO_FMT, TaskStepType.RUST_CARGO_CLIPPY, TaskStepType.RUST_CARGO_CHECK, TaskStepType.RUST_CARGO_TEST, TaskStepType.RUST_CARGO_BUILD] },
@@ -341,10 +342,19 @@ const TaskStepItem: React.FC<{
           <button type="button" onClick={() => onRemoveStep(step.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4" /></button>
         </div>
       </div>
-      {step.type === TaskStepType.GitCheckout && (
+      {(step.type === TaskStepType.GitCheckout || step.type === TaskStepType.SvnSwitch) && (
         <div>
-          <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Branch Name</label>
-          <input type="text" placeholder="e.g., main" value={step.branch || ''} onChange={(e) => onStepChange(step.id, { branch: e.target.value })} required className={formInputStyle} />
+          <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            {step.type === TaskStepType.GitCheckout ? 'Branch Name' : 'Switch Target'}
+          </label>
+          <input
+            type="text"
+            placeholder={step.type === TaskStepType.GitCheckout ? 'e.g., main' : 'e.g., ^/branches/release/1.2'}
+            value={step.branch || ''}
+            onChange={(e) => onStepChange(step.id, { branch: e.target.value })}
+            required
+            className={formInputStyle}
+          />
         </div>
       )}
       {step.type === TaskStepType.DelphiBuild && (
@@ -1339,6 +1349,7 @@ const TaskStepsEditor: React.FC<{
     const newStep: TaskStep = { id: `step_${Date.now()}`, type, enabled: true };
     if (type === TaskStepType.RunCommand) newStep.command = suggestions.length > 0 ? suggestions[0].value : 'npm run build';
     if (type === TaskStepType.GitCheckout) newStep.branch = 'main';
+    if (type === TaskStepType.SvnSwitch) newStep.branch = 'trunk';
     setTask({ ...task, steps: [...task.steps, newStep] });
     setIsAddingStep(false);
   };
