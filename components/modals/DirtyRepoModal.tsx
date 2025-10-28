@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ExclamationTriangleIcon } from '../icons/ExclamationTriangleIcon';
 import { GitCommitIcon } from '../icons/GitCommitIcon';
 import { ArrowPathIcon } from '../icons/ArrowPathIcon';
+import { VcsType } from '../../types';
 
 interface DirtyRepoModalProps {
   isOpen: boolean;
@@ -12,16 +13,30 @@ interface DirtyRepoModalProps {
   } | null;
   onChoose: (choice: 'stash' | 'force' | 'cancel' | 'ignore', files?: string[]) => void;
   isIgnoring: boolean;
+  vcsType: VcsType | null;
 }
 
-const DirtyRepoModal: React.FC<DirtyRepoModalProps> = ({ isOpen, status, onChoose, isIgnoring }) => {
+const DirtyRepoModal: React.FC<DirtyRepoModalProps> = ({ isOpen, status, onChoose, isIgnoring, vcsType }) => {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedFiles(new Set());
+    }
+  }, [isOpen, status?.output]);
 
   if (!isOpen || !status) {
     return null;
   }
 
+  const isGit = vcsType === VcsType.Git;
+  const allowIgnore = isGit;
+  const forceLabel = isGit ? 'Pull Anyway' : 'Force Update';
+
   const handleCheckboxChange = (file: string, checked: boolean) => {
+    if (!allowIgnore) {
+      return;
+    }
     setSelectedFiles(prev => {
       const newSet = new Set(prev);
       if (checked) {
@@ -46,7 +61,7 @@ const DirtyRepoModal: React.FC<DirtyRepoModalProps> = ({ isOpen, status, onChoos
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"
-      onMouseDown={() => onChoose('cancel')} // clicking backdrop cancels
+      onMouseDown={() => !isIgnoring && onChoose('cancel')} // clicking backdrop cancels
       data-automation-id="dirty-repo-modal"
     >
       <div 
@@ -73,30 +88,44 @@ const DirtyRepoModal: React.FC<DirtyRepoModalProps> = ({ isOpen, status, onChoos
           <div className="mt-4 space-y-4">
             {hasUntracked && (
               <div>
-                <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">Untracked Files (can be ignored)</h4>
+                <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  {allowIgnore ? 'Untracked Files (can be ignored)' : 'Untracked Files'}
+                </h4>
                 <div className="mt-2 bg-gray-100 dark:bg-gray-900/50 rounded-md p-3 max-h-32 overflow-y-auto space-y-2">
-                    {status.untrackedFiles.map(file => (
-                        <label key={file} className="flex items-center space-x-3 text-xs font-mono text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 p-1 rounded-md cursor-pointer">
-                            <input
-                                type="checkbox"
-                                className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 bg-gray-200 dark:bg-gray-900"
-                                checked={selectedFiles.has(file)}
-                                onChange={(e) => handleCheckboxChange(file, e.target.checked)}
-                                disabled={isIgnoring}
-                            />
-                            <span>{file}</span>
-                        </label>
-                    ))}
+                  {status.untrackedFiles.map(file => (
+                    allowIgnore ? (
+                      <label
+                        key={file}
+                        className="flex items-center space-x-3 text-xs font-mono text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 p-1 rounded-md cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 bg-gray-200 dark:bg-gray-900"
+                          checked={selectedFiles.has(file)}
+                          onChange={(e) => handleCheckboxChange(file, e.target.checked)}
+                          disabled={isIgnoring}
+                        />
+                        <span>{file}</span>
+                      </label>
+                    ) : (
+                      <div
+                        key={file}
+                        className="text-xs font-mono text-gray-700 dark:text-gray-300 bg-gray-200/60 dark:bg-gray-700/50 p-1 rounded"
+                      >
+                        {file}
+                      </div>
+                    )
+                  ))}
                 </div>
               </div>
             )}
-             {hasChanged && (
+            {hasChanged && (
               <div>
                 <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">Modified/Staged Files</h4>
                 <div className="mt-2 bg-gray-100 dark:bg-gray-900/50 rounded-md p-3 max-h-32 overflow-y-auto">
-                    <pre className="text-xs text-gray-700 dark:text-gray-300 font-mono whitespace-pre-wrap">
-                        <code>{status.changedFiles.join('\n')}</code>
-                    </pre>
+                  <pre className="text-xs text-gray-700 dark:text-gray-300 font-mono whitespace-pre-wrap">
+                    <code>{status.changedFiles.join('\n')}</code>
+                  </pre>
                 </div>
               </div>
             )}
@@ -105,25 +134,29 @@ const DirtyRepoModal: React.FC<DirtyRepoModalProps> = ({ isOpen, status, onChoos
         </div>
         
         <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg gap-3">
-          <button
-            type="button"
-            className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 sm:w-auto sm:text-sm transition-colors"
-            onClick={() => onChoose('stash')}
-            disabled={isIgnoring}
-            data-automation-id="dirty-modal-stash"
-          >
-            Stash & Continue
-          </button>
-          <button
-            type="button"
-            onClick={handleIgnoreClick}
-            disabled={selectedFiles.size === 0 || isIgnoring}
-            className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-green-500 sm:w-auto sm:text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            data-automation-id="dirty-modal-ignore"
-          >
-            {isIgnoring ? <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin"/> : <GitCommitIcon className="h-5 w-5 mr-2"/>}
-            {isIgnoring ? 'Processing...' : 'Ignore Selected & Push'}
-          </button>
+          {isGit && (
+            <button
+              type="button"
+              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 sm:w-auto sm:text-sm transition-colors"
+              onClick={() => onChoose('stash')}
+              disabled={isIgnoring}
+              data-automation-id="dirty-modal-stash"
+            >
+              Stash & Continue
+            </button>
+          )}
+          {allowIgnore && (
+            <button
+              type="button"
+              onClick={handleIgnoreClick}
+              disabled={selectedFiles.size === 0 || isIgnoring}
+              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-green-500 sm:w-auto sm:text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              data-automation-id="dirty-modal-ignore"
+            >
+              {isIgnoring ? <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin"/> : <GitCommitIcon className="h-5 w-5 mr-2"/>}
+              {isIgnoring ? 'Processing...' : 'Ignore Selected & Push'}
+            </button>
+          )}
           <button
             type="button"
             className="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 sm:w-auto sm:text-sm transition-colors"
@@ -131,7 +164,7 @@ const DirtyRepoModal: React.FC<DirtyRepoModalProps> = ({ isOpen, status, onChoos
             disabled={isIgnoring}
             data-automation-id="dirty-modal-force"
           >
-            Pull Anyway
+            {forceLabel}
           </button>
           <button
             type="button"

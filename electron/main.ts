@@ -1422,50 +1422,73 @@ const getExecutableCommand = (vcsType: VcsType, settings: GlobalSettings, quoted
 };
 
 
+const parseSvnStatusOutput = (stdout: string): { untrackedFiles: string[]; changedFiles: string[] } => {
+    const untrackedFiles: string[] = [];
+    const changedFiles: string[] = [];
+    const statusLineRegex = /^[ACDIMRX?!~LKO\*><!PSTB\+ ]{1,7}/;
+
+    stdout.split(/\r?\n/).forEach(rawLine => {
+        if (!rawLine.trim()) {
+            return;
+        }
+
+        if (/^(Performing status on external item|Status against revision)/i.test(rawLine)) {
+            return;
+        }
+
+        const statusPrefix = rawLine.slice(0, 7);
+        if (!statusLineRegex.test(statusPrefix)) {
+            return;
+        }
+
+        const filePath = rawLine.slice(7).trim();
+        if (!filePath) {
+            return;
+        }
+
+        const compactStatus = statusPrefix.replace(/\s+/g, '');
+        const primaryStatus = compactStatus[0] ?? ' ';
+        const propertyStatusDirty = statusPrefix[1] && statusPrefix[1] !== ' ';
+
+        if (primaryStatus === '?') {
+            untrackedFiles.push(filePath);
+            return;
+        }
+
+        if (primaryStatus && primaryStatus !== 'X') {
+            changedFiles.push(filePath);
+            return;
+        }
+
+        if (propertyStatusDirty) {
+            changedFiles.push(filePath);
+        }
+    });
+
+    return { untrackedFiles, changedFiles };
+};
+
 // --- IPC handler for checking git/svn status ---
 ipcMain.handle('check-vcs-status', async (event, repo: Repository): Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }> => {
     const settings = await readSettings();
-    const command = repo.vcs === VcsTypeEnum.Git 
-      ? `${getExecutableCommand(repo.vcs, settings)} status --porcelain` 
+    const command = repo.vcs === VcsTypeEnum.Git
+      ? `${getExecutableCommand(repo.vcs, settings)} status --porcelain`
       : `${getExecutableCommand(repo.vcs, settings)} status`;
-    
-    // This feature is Git-specific. For SVN, return a simplified structure.
-    if (repo.vcs !== VcsTypeEnum.Git) {
-      return new Promise((resolve) => {
-          exec(command, { cwd: repo.localPath }, (error, stdout, stderr) => {
-              if (error) {
-                  resolve({ isDirty: false, output: stderr, untrackedFiles: [], changedFiles: [] });
-                  return;
-              }
-              const output = stdout.trim();
-              const untrackedFiles: string[] = [];
-              const changedFiles: string[] = [];
 
-              if (output.length > 0) {
-                  stdout.split(/\r?\n/).forEach(line => {
-                      const trimmedLine = line.trim();
-                      if (!trimmedLine) {
-                          return;
-                      }
-                      const statusCode = trimmedLine[0];
-                      const filePath = trimmedLine.slice(1).trim();
+    if (repo.vcs === VcsTypeEnum.Svn) {
+        return new Promise((resolve) => {
+            exec(command, { cwd: repo.localPath }, (error, stdout, stderr) => {
+                if (error) {
+                    resolve({ isDirty: false, output: stderr, untrackedFiles: [], changedFiles: [] });
+                    return;
+                }
 
-                      if (!filePath) {
-                          return;
-                      }
-
-                      if (statusCode === '?') {
-                          untrackedFiles.push(filePath);
-                      } else {
-                          changedFiles.push(filePath);
-                      }
-                  });
-              }
-
-              const isDirty = untrackedFiles.length > 0 || changedFiles.length > 0;
-              resolve({ isDirty, output, untrackedFiles, changedFiles });
-          });
-      });
+                const output = stdout.trim();
+                const { untrackedFiles, changedFiles } = parseSvnStatusOutput(stdout);
+                const isDirty = untrackedFiles.length > 0 || changedFiles.length > 0;
+                resolve({ isDirty, output, untrackedFiles, changedFiles });
+            });
+        });
     }
 
     // Git-specific logic
@@ -1484,7 +1507,7 @@ ipcMain.handle('check-vcs-status', async (event, repo: Repository): Promise<{ is
                     const trimmedLine = line.trim();
                     if (trimmedLine.startsWith('?? ')) {
                         untrackedFiles.push(trimmedLine.substring(3));
-                    } else {
+                    } else if (trimmedLine) {
                         changedFiles.push(trimmedLine);
                     }
                 });
