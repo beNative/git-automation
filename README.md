@@ -74,9 +74,9 @@ Follow this checklist when preparing a new minor or patch release:
     **Release Type** selector to the intended state (Full Release for GA builds, Draft or Pre-release as needed). Paste the freshly
     written changelog entry into the release body so the GitHub notes exactly match the repository history, then publish.
 
-### Documentation Status for 0.25.6
+### Documentation Status for 0.25.7
 
-- Updated the task execution guidance to document the new cancellation controls and revalidated the rest of this README, the manuals, and the keyboard shortcut reference for version `0.25.6`.
+- Re-validated the task execution guidance and confirmed the remainder of this README, the manuals, and the keyboard shortcut reference still reflect the current experience for version `0.25.7`.
 
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._

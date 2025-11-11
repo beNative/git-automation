@@ -204,6 +204,6 @@ For advanced users, the settings view includes a **"JSON Config"** tab. This sec
 -   **Export Settings:** Click the "Export Settings" button to save your current configuration into a compressed `.zip` archive. This is useful for creating backups or sharing your setup.
 -   **Import Settings:** Click the "Import Settings" button. You can select a `.zip` archive (created via the export feature) or a raw `.json` file to restore a configuration. This will overwrite your current settings and restart the application.
 
-### Documentation Status for 0.25.6
+### Documentation Status for 0.25.7
 
-- Documented the new task cancellation control in the log panel and verified the remaining functional guidance, along with the README, Technical Manual, and keyboard shortcut specification, for version `0.25.6`.
+- Re-reviewed the functional guidance and confirmed it, together with the README, Technical Manual, and keyboard shortcut specification, remains accurate for version `0.25.7`.
