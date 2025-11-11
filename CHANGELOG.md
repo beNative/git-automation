@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 - _No unreleased changes._
 
+## [0.25.7]
+
+### Changed
+- **Documentation Audit Trail:** Reconfirmed that `README.md`, `TECHNICAL_MANUAL.md`, `FUNCTIONAL_MANUAL.md`, and `docs/keyboard-shortcut-editor.md` remain accurate for version `0.25.7`, recording the review outcome for this release.
+
+### Fixed
+- **Version Metadata:** Incremented the application version to `0.25.7` in `package.json` and `package-lock.json` to prepare this patch release.
+
 ## [0.25.6]
 
 ### Added
