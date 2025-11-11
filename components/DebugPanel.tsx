@@ -75,6 +75,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
       preserveLineBreaks: true,
   });
   const textSelectionCandidateRef = useRef<number | null>(null);
+  const suppressClickSelectionRef = useRef(false);
   const clearBrowserTextSelection = useCallback(() => {
       if (typeof window === 'undefined') {
           return;
@@ -249,6 +250,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
 
       if (hasModifier) {
           clearBrowserTextSelection();
+          suppressClickSelectionRef.current = true;
           handleSelection(event, index);
           event.currentTarget.focus();
           setIsDraggingSelection(false);
@@ -268,7 +270,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
       event.currentTarget.focus();
       setIsDraggingSelection(true);
       setDragAnchorIndex(index);
-  }, [clearBrowserTextSelection, handleSelection, textSelectionCandidateRef]);
+  }, [clearBrowserTextSelection, handleSelection, suppressClickSelectionRef, textSelectionCandidateRef]);
 
   const handleLogMouseEnter = useCallback((index: number) => {
       if (!isDraggingSelection || dragAnchorIndex === null) {
@@ -334,9 +336,14 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
           return;
       }
 
+      if (suppressClickSelectionRef.current) {
+          suppressClickSelectionRef.current = false;
+          return;
+      }
+
       handleSelection(event, index, { preventDefault: false });
       event.currentTarget.focus();
-  }, [handleSelection, textSelectionCandidateRef]);
+  }, [handleSelection, suppressClickSelectionRef, textSelectionCandidateRef]);
 
   const handleLogContainerKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
       if ((event.key === 'a' || event.key === 'A') && (event.metaKey || event.ctrlKey)) {
