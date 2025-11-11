@@ -215,3 +215,27 @@ test('rethrows original error when API fallback cannot recover', async () => {
     return true;
   });
 });
+
+test('treats 404 legacy failures as missing metadata and surfaces diagnostics', async () => {
+  const legacyError = () => {
+    const error: any = new Error('HttpError: 404 latest.yml missing');
+    error.statusCode = 404;
+    error.code = 'ERR_UPDATER_LATEST_VERSION_NOT_FOUND';
+    throw error;
+  };
+
+  await withPatchedProvider({
+    fetchResponses: [JSON.stringify({}), JSON.stringify({})],
+    legacyImpl: legacyError,
+  }, async (ctx) => {
+    await assert.rejects((ctx.provider as any).getLatestTagName(new CancellationToken()), (error: any) => {
+      assert.equal(error?.statusCode, 404);
+      return true;
+    });
+    const warningLog = ctx.logs.find(entry => entry.level === 'warn' && entry.message.includes('returned 404; release metadata may be missing latest*.yml'));
+    assert.ok(warningLog, 'expected a warning about missing latest*.yml metadata');
+    assert.equal(warningLog?.data?.fallbackSignal?.reason, 'not-found');
+    assert.equal(ctx.legacyCalls, 1);
+    assert.equal(ctx.fetchRequests.length, 4);
+  });
+});

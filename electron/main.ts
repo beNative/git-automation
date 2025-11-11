@@ -1,13 +1,13 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { autoUpdater, type UpdateDownloadedEvent } from 'electron-updater';
 import { installGitHubLatestTagFallback } from './githubApiFallbackProvider';
-import { formatUpdateErrorToast } from './updateErrorToast';
+import { extractHttpStatusCode, formatUpdateErrorToast } from './updateErrorToast';
 import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
 import type { ChildProcess } from 'child_process';
-import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities, CommitDiffFile, GoCapabilities, RustCapabilities, MavenCapabilities, DotnetCapabilities } from '../types';
+import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities, CommitDiffFile, GoCapabilities, RustCapabilities, MavenCapabilities, DotnetCapabilities, UpdateFailureDetails } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 import JSZip from 'jszip';
@@ -126,16 +126,44 @@ const sanitizeUpdateError = (error: unknown): Record<string, any> => {
   return sanitized;
 };
 
+const deriveUpdateFailureDetails = (error: unknown): UpdateFailureDetails => {
+  const details: UpdateFailureDetails = {};
+  const statusCode = extractHttpStatusCode(error) ?? (typeof (error as any)?.statusCode === 'number' ? (error as any).statusCode : undefined);
+  if (typeof statusCode === 'number') {
+    details.statusCode = statusCode;
+  }
+  const rawMessage = typeof (error as any)?.message === 'string'
+    ? (error as any).message
+    : typeof error === 'string'
+      ? error
+      : undefined;
+  if (rawMessage) {
+    details.rawMessage = rawMessage;
+  }
+  if ((typeof details.statusCode === 'number' && details.statusCode === 404) || (rawMessage && /latest[^\s]*\.yml/i.test(rawMessage))) {
+    details.missingManifest = true;
+  }
+  return details;
+};
+
 const logAndEmitUpdateError = (
   logMessage: string,
   baseToast: string,
   error: unknown,
   options?: { retryHint?: string; logExtras?: Record<string, any> },
 ) => {
-  const payload = { ...sanitizeUpdateError(error), ...(options?.logExtras ?? {}) };
+  const diagnostics = deriveUpdateFailureDetails(error);
+  const payload: Record<string, any> = { ...sanitizeUpdateError(error), ...(options?.logExtras ?? {}) };
+  if (Object.keys(diagnostics).length > 0) {
+    payload.diagnostics = diagnostics;
+  }
   mainLogger.error(logMessage, payload);
-  const toastMessage = formatUpdateErrorToast(baseToast, error, { retryHint: options?.retryHint });
-  mainWindow?.webContents.send('update-status-change', { status: 'error', message: toastMessage });
+  const toastMessage = formatUpdateErrorToast(baseToast, error, { retryHint: options?.retryHint, diagnostics });
+  const statusPayload: any = { status: 'error', message: toastMessage };
+  if (Object.keys(diagnostics).length > 0) {
+    statusPayload.details = diagnostics;
+  }
+  mainWindow?.webContents.send('update-status-change', statusPayload);
 };
 
 installGitHubLatestTagFallback(mainLogger);

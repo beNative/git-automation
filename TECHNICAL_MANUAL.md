@@ -95,7 +95,8 @@ Use this process when shipping a new minor update or bugfix:
 3.  **Update Release Notes:** Add a new entry to `CHANGELOG.md` summarizing the changes, calling out documentation adjustments alongside any fixes or features. Plan to reuse this text verbatim in the GitHub release body.
 4.  **Run Automated Checks:** Execute `npm test` (or the broader QA suite defined for the project) and confirm a passing result before packaging binaries.
 5.  **Build Installers:** Run `npm run pack`. The command produces platform installers in the `release/` directory. Perform a quick smoke test of the generated artifacts before distribution.
-6.  **Publish on GitHub:** Draft a new release on GitHub, attach the installers from the `release/` folder, verify the tag/version details, and explicitly set the **Release Type** selector to match your intent (Full Release for GA builds or Draft/Pre-release when staging). Paste the current changelog entry into the notes so the GitHub release matches the repository history, then publish.
+6.  **Validate Update Metadata:** From the project root, execute `node electron/scripts/normalize-win32-artifacts.mjs` and confirm the `release/` directory contains `latest.yml` (x64), `latest-win32.yml` (ia32), and matching installer names. This verification prevents shipping a release without the updater manifests that GitHub users rely on.
+7.  **Publish on GitHub:** Draft a new release on GitHub, attach the installers from the `release/` folder, verify the tag/version details, and explicitly set the **Release Type** selector to match your intent (Full Release for GA builds or Draft/Pre-release when staging). Paste the current changelog entry into the notes so the GitHub release matches the repository history, then publish.
 
 ### Documentation Status for 0.25.8
 

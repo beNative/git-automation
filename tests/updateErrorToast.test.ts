@@ -14,3 +14,15 @@ test('formatUpdateErrorToast coalesces large error payloads into a short hint', 
   const toast = formatUpdateErrorToast('Failed to check for updates', { message: hugeMessage }, undefined);
   assert.equal(toast, 'Failed to check for updates. See logs for additional details.');
 });
+
+test('formatUpdateErrorToast highlights missing manifests when diagnostics are provided', () => {
+  const toast = formatUpdateErrorToast(
+    'Failed to check for updates',
+    { statusCode: 404, message: 'HttpError: 404 latest.yml missing' },
+    { diagnostics: { statusCode: 404, missingManifest: true } },
+  );
+  assert.equal(
+    toast,
+    'Failed to check for updates. GitHub responded with HTTP 404 (Not Found). Update metadata (latest*.yml) is missing from the release. Publish the manifests and retry.',
+  );
+});
