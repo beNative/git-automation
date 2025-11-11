@@ -178,7 +178,17 @@ const BranchSwitcher: React.FC<{
         }
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [isOpen, onClose]);
-    if (!branchInfo) return null;
+    if (!branchInfo) {
+        return (
+            <div className="flex items-center gap-1 w-full" aria-live="polite">
+                <span className="sr-only">Loading branch information</span>
+                <div className="min-w-0 flex-1">
+                    <div className="h-8 rounded-md bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                </div>
+                <div className="flex-shrink-0 w-8 h-8 rounded-md bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            </div>
+        );
+    }
 
     const handleBranchClick = (branch: string) => {
       onSwitchBranch(repoId, branch);
@@ -690,8 +700,17 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 onRefreshBranches={() => onRefreshRepoState(id)}
               />
             </div>
-            <div className="flex-shrink-0 ml-4">
-              {isPathValid && detailedStatus && <StatusIndicator status={detailedStatus} />}
+            <div className="flex-shrink-0 ml-4 min-w-[5.5rem] flex justify-end">
+              {isPathValid && (
+                detailedStatus ? (
+                  <StatusIndicator status={detailedStatus} />
+                ) : (
+                  <div
+                    className="h-5 w-24 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"
+                    aria-hidden="true"
+                  />
+                )
+              )}
             </div>
           </div>
         </div>
