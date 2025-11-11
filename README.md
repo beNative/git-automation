@@ -8,7 +8,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Centralized Dashboard:** View the status, branch, and build health of all your repositories in one place.
 -   **Customizable Dashboard Categories:** Organize your repositories into collapsible sections with **dual-theme (light/dark) color styling**, a library of predefined themes, full drag-and-drop support (for both repositories and categories), and alternative up/down reorder buttons.
 -   **Multi-VCS Support:** Manage both Git and Subversion (SVN) repositories seamlessly.
--   **Guided Repository Setup:** Built-in **Setup & Clone** and **Clone Repo** actions help you create or repair local working copies directly from each repository card, streaming progress into the integrated log panel.
+-   **Guided Repository Setup:** Built-in **Setup & Clone** and **Clone Repo** actions help you create or repair local working copies directly from each repository card, streaming progress into the integrated log panel. On Windows the clone flow now launches Git/SVN executables directly (instead of through a shell), so paths containing spaces no longer break the automation.
 -   **Repository-Specific Tasks:** Create custom, multi-step automation scripts (e.g., pull/update, install, build) for each repository.
 -   **Project Intelligence:** Automatically detects project types (Node.js, Python, Go, Rust, Java/Maven, .NET, Delphi, Lazarus, Docker) and provides one-click buttons to generate common, pre-configured tasks.
 -   **Advanced Task Steps:** A rich library of specific, pre-built steps for different ecosystems—including Go, Rust, Java/Maven, and .NET—**now organized into logical categories in the UI for easy discovery**, simplifies creating complex workflows.
@@ -25,8 +25,8 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Commit History:** View the commit history for any Git or SVN repository, with **a stable, non-flickering UI**, search, and load-on-demand.
 -   **Tabbed & Integrated Log Panel:** Monitor the output of every command in a detailed, resizable, and tabbed log panel that integrates smoothly into the main view.
 -   **Automatic Task Log Archiving:** The full console output for every task run is automatically saved to a timestamped log file in a configurable directory for historical reference.
--   **Advanced Debugging:** A powerful debug console with log filtering and a save-to-file feature (now including logs from the main process) for in-depth troubleshooting.
--   **Reliable Auto-Updates:** Get notified with a clear banner when a new version is ready and install it with a single click.
+-   **Advanced Debugging:** A powerful debug console with log filtering, multi-select & copy tooling, and a save-to-file feature (now including logs from the main process) for in-depth troubleshooting.
+-   **Reliable Auto-Updates:** Get notified with a clear banner when a new version is ready and install it with a single click. When GitHub's HTML release feed returns HTTP 406 responses, the updater automatically retries against the REST API using your configured PAT so checks keep working.
 -   **Easy Configuration:** Add new repositories and configure them through a simple, unified form.
 -   **Persistent UI State:** The application remembers your dashboard layout, including the collapsed state of categories, between sessions.
 -   **Persistent & Safe Configuration:** All your settings and repository configurations are stored safely in a persistent location, ensuring they are never lost during application updates.
@@ -74,9 +74,9 @@ Follow this checklist when preparing a new minor or patch release:
     **Release Type** selector to the intended state (Full Release for GA builds, Draft or Pre-release as needed). Paste the freshly
     written changelog entry into the release body so the GitHub notes exactly match the repository history, then publish.
 
-### Documentation Status for 0.25.7
+### Documentation Status for 0.25.8
 
-- Re-validated the task execution guidance and confirmed the remainder of this README, the manuals, and the keyboard shortcut reference still reflect the current experience for version `0.25.7`.
+- Documented the debug log selection workflow, repository card layout stabilization, auto-update REST fallback, and Windows Setup & Clone reliability improvements delivered in version `0.25.8`.
 
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._

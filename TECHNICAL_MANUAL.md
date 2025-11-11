@@ -38,8 +38,9 @@ The application uses a custom frameless window to achieve a modern, VSCode-like 
         -   **VCS Commands:** Executes real Git/SVN commands for advanced features like checking status, fetching commit history (now for SVN as well), and managing branches.
         -   **Executable Path Management:** Handles IPC calls for file pickers, auto-detection, and testing of user-configured executable paths.
         -   **External Links:** Handles requests from the renderer to open web links in the user-specified browser.
-        -   **GitHub API:** Fetches release information for a repository using a user-provided Personal Access Token.
-        -   **Settings I/O:** Manages the import and export of settings files using the `jszip` library.
+    -   **GitHub API:** Fetches release information for a repository using a user-provided Personal Access Token.
+    -   **Auto-Update Fallbacks:** Installs a GitHub provider patch that retries via the REST API with authenticated headers when the legacy HTML endpoint returns HTTP 406 responses, and emits structured diagnostics for release engineering.
+    -   **Settings I/O:** Manages the import and export of settings files using the `jszip` library.
 
 ### Renderer Process
 
@@ -96,9 +97,9 @@ Use this process when shipping a new minor update or bugfix:
 5.  **Build Installers:** Run `npm run pack`. The command produces platform installers in the `release/` directory. Perform a quick smoke test of the generated artifacts before distribution.
 6.  **Publish on GitHub:** Draft a new release on GitHub, attach the installers from the `release/` folder, verify the tag/version details, and explicitly set the **Release Type** selector to match your intent (Full Release for GA builds or Draft/Pre-release when staging). Paste the current changelog entry into the notes so the GitHub release matches the repository history, then publish.
 
-### Documentation Status for 0.25.7
+### Documentation Status for 0.25.8
 
-- Reconfirmed the main process responsibilities, auto-update notes, and cross-referenced manuals remain technically accurate for version `0.25.7`.
+- Recorded the GitHub updater REST fallback patch, debug log tooling upgrades, and related documentation cross-links required for version `0.25.8`.
 ## 7. Automatic Updates
 
 The application is configured to automatically check for updates on startup using the `electron-updater` library.
@@ -106,12 +107,13 @@ The application is configured to automatically check for updates on startup usin
 -   **Update Source:** It checks for new releases published on the project's GitHub Releases page. The behavior is controlled by the "Check for Pre-Releases" setting.
 -   **Process:**
     1.  On startup, the Main Process (`electron/main.ts`) reads the user's settings to determine whether to allow pre-releases and prepares authenticated GitHub API headers when a PAT is available.
-    2.  The `autoUpdater` is configured accordingly and checks for updates while also caching the list of assets published for each version.
-    3.  As downloads complete, the main process validates the installer filename against the GitHub release assets (including platform-specific suffixes like `ia32` vs. `x64`). Failed validations are logged with structured context and prevent installation.
-    4.  Throughout the lifecycle it emits `update-status-change` IPC messages so the renderer can surface toast notifications and the condensed update icon in the header.
-    5.  When the `update-downloaded` event is received, the Renderer Process (`App.tsx`) sets a state variable to display the `UpdateBanner` component.
-    6.  When the user clicks the "Restart & Install" button on the banner, the Renderer calls `window.electronAPI.restartAndInstallUpdate()`.
-    7.  This triggers an IPC event (`restart-and-install-update`) which causes the Main Process to call `autoUpdater.quitAndInstall()`, which handles the update process reliably.
+    2.  The application now patches `electron-updater`'s GitHub provider so the initial lookup runs against the REST API. If that request fails to return a tag, the legacy HTML scraping path is attempted, and any 406 responses automatically trigger a REST retry with structured telemetry.
+    3.  The `autoUpdater` is configured accordingly and checks for updates while also caching the list of assets published for each version.
+    4.  As downloads complete, the main process validates the installer filename against the GitHub release assets (including platform-specific suffixes like `ia32` vs. `x64`). Failed validations are logged with structured context and prevent installation.
+    5.  Throughout the lifecycle it emits `update-status-change` IPC messages so the renderer can surface toast notifications and the condensed update icon in the header. Error toasts now summarize long GitHub responses and nudge engineers toward the debug log for full context.
+    6.  When the `update-downloaded` event is received, the Renderer Process (`App.tsx`) sets a state variable to display the `UpdateBanner` component.
+    7.  When the user clicks the "Restart & Install" button on the banner, the Renderer calls `window.electronAPI.restartAndInstallUpdate()`.
+    8.  This triggers an IPC event (`restart-and-install-update`) which causes the Main Process to call `autoUpdater.quitAndInstall()`, which handles the update process reliably.
 -   **Publishing a New Version:** To publish a new release, a developer with repository access must:
     1.  Ensure the `version` in `package.json` is incremented.
     2.  Create a `GH_TOKEN` (GitHub Personal Access Token) with `repo` scopes and make it available as an environment variable.

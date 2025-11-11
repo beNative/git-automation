@@ -64,12 +64,14 @@ Each card gives you an at-a-glance overview of a repository:
     -   **Build Health:** The status of the last build (`Healthy`, `Failing`, `Unknown`).
     -   **Last Updated:** The timestamp of the last automation, neatly aligned on the right.
     -   **Latest Release (Git only):** If a GitHub PAT is configured in settings, this shows the version tag of the latest GitHub release and its status (e.g., `Published`, `Draft`, `Pre-release`).
+-   **Stable Layout:** Repository cards keep a steady height while they refresh, so buttons no longer jump or resize as new status data streams in.
 
 ### Card Actions
 
 Each card has a set of action buttons at the bottom:
 
 -   **Setup & Clone / Clone Repo:** When the local working copy is missing, the card automatically surfaces guided buttons. **Setup & Clone** opens a folder picker so you can select where to place the checkout, then immediately kicks off the clone/checkout. If a path is already stored but empty, a single **Clone Repo** button runs the clone directly. Progress for both flows streams into the log panel.
+-   On Windows, Setup & Clone now launches Git or SVN directly (instead of routing through `cmd.exe`), so executable paths containing spaces run without failing mid-clone.
 -   **Task Buttons:** Any task marked with "Show on dashboard" will appear as its own button for one-click execution.
 -   **Pinned Launch Buttons:** Launch configurations flagged to "Show on dashboard" appear alongside task buttons with a lightning icon for one-click app launches.
 -   **More Tasks (Play Icon):** If there are more tasks available, this button opens a modal to select any of the repository's tasks to run.
@@ -169,6 +171,15 @@ When you run a task or choose to view logs, a panel will appear at the bottom of
 -   **Cancel Running Tasks:** Each active task tab exposes a **Cancel Task** button that signals the Electron main process to terminate the underlying child process, allowing you to stop a runaway script without closing the application.
 -   **Closing:** You can close the entire panel at once by clicking the 'X' icon in the top-right of the panel.
 
+### Debug Log Panel
+
+The status bar includes a **bug icon** that opens the Debug Log Panel. This view captures structured logs from both the renderer and the Electron main process, making triage far easier during incidents.
+
+-   **Selection & Copying:** Click entries to select them, use `Shift` for ranges, or `Ctrl/Cmd` to multi-select individual lines. A new copy button exports the selection with optional timestamp/level/data fields, preserving on-screen ordering.
+-   **Search & Filter:** Continue filtering by log level or keyword—highlighted matches respect the new selection flow, so you can refine the list before copying.
+-   **Accessibility:** Keyboard navigation mirrors the mouse interactions, and the panel respects native text selection so you can drag to copy snippets directly.
+-   **Export:** The existing "Download Logs" action still emits a structured file, complementing the richer clipboard workflow.
+
 ## 5. Global Settings View
 
 Click the **cog icon** in the menu bar to access global settings.
@@ -178,7 +189,8 @@ Click the **cog icon** in the menu bar to access global settings.
     -   **Icon Set:** Select from the available icon sets to customize the application's iconography. Feather is the default for a clean and consistent look.
     -   **GUI Scale:** Adjust the overall size of the application from 50% to 200% for better readability.
 -   **Behavior:**
-    -   **GitHub Personal Access Token:** A secure field to store your GitHub Personal Access Token (PAT). This token is required for features that interact with the GitHub API, such as fetching release information. A copy button is provided for convenience. A link is provided to help you create a token with the necessary permissions. For full functionality, including managing draft releases, create a fine-grained token with "Read & write" access to repository "Contents".
+-   **GitHub Personal Access Token:** A secure field to store your GitHub Personal Access Token (PAT). This token is required for features that interact with the GitHub API, such as fetching release information. A copy button is provided for convenience. A link is provided to help you create a token with the necessary permissions. For full functionality, including managing draft releases, create a fine-grained token with "Read & write" access to repository "Contents".
+    -   The auto-updater now reuses this PAT for REST API fallback requests when GitHub's HTML release feed returns HTTP 406, so providing the token keeps update checks flowing.
     -   **Open Web Links In:** Choose whether to open web links in your system's default browser, or force them to open in Chrome or Firefox.
     -   **Enable Notifications:** Toggle on/off the toast notifications.
     -   **Enable Simulation Mode:** This is a critical safety feature.
@@ -204,6 +216,6 @@ For advanced users, the settings view includes a **"JSON Config"** tab. This sec
 -   **Export Settings:** Click the "Export Settings" button to save your current configuration into a compressed `.zip` archive. This is useful for creating backups or sharing your setup.
 -   **Import Settings:** Click the "Import Settings" button. You can select a `.zip` archive (created via the export feature) or a raw `.json` file to restore a configuration. This will overwrite your current settings and restart the application.
 
-### Documentation Status for 0.25.7
+### Documentation Status for 0.25.8
 
-- Re-reviewed the functional guidance and confirmed it, together with the README, Technical Manual, and keyboard shortcut specification, remains accurate for version `0.25.7`.
+- Captured the debug log selection workflow, repository card layout stabilization, Windows Setup & Clone reliability, and GitHub updater fallback behavior introduced in version `0.25.8`.
