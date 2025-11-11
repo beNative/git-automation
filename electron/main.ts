@@ -2106,14 +2106,14 @@ ipcMain.on('clone-repository', async (event, { repo, executionId }: { repo: Repo
         return;
     }
     
-    sendLog(`$ ${command} ${args.join(' ')}`, LogLevel.Command);
+    const displayCommand = /\s/.test(command) ? `"${command}"` : command;
+    sendLog(`$ ${displayCommand} ${args.join(' ')}`, LogLevel.Command);
     
     const parentDir = dirname(repo.localPath);
 
     fs.mkdir(parentDir, { recursive: true }).then(() => {
         const child = spawn(command, args, {
             cwd: parentDir,
-            shell: os.platform() === 'win32',
         });
         registerChildProcess(executionId, child);
 
