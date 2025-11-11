@@ -172,6 +172,8 @@ export interface ToastMessage {
   type: ToastType;
 }
 
+export type AutoInstallMode = 'auto' | 'manual';
+
 export interface GlobalSettings {
   defaultBuildCommand: string;
   notifications: boolean;
@@ -180,8 +182,10 @@ export interface GlobalSettings {
   iconSet: IconSet;
   debugLogging: boolean;
   allowPrerelease: boolean;
+  autoUpdateChecksEnabled: boolean;
   autoCheckForUpdates: boolean;
   autoCheckIntervalSeconds: number;
+  autoInstallUpdates: AutoInstallMode;
   openLinksIn: 'default' | 'chrome' | 'firefox';
   githubPat: string;
   gitExecutablePath: string;
@@ -331,6 +335,7 @@ export type UpdateStatus = 'checking' | 'available' | 'downloaded' | 'error';
 export interface UpdateStatusMessage {
   status: UpdateStatus;
   message: string;
+  version?: string;
 }
 
 export interface Commit {
