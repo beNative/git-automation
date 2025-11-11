@@ -545,6 +545,8 @@ app.on('ready', async () => {
     });
     const requestHeaders: Record<string, string> = {
       'User-Agent': 'GitAutomationDashboard-Updater',
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
     };
     if (settings.githubPat) {
       requestHeaders['Authorization'] = `token ${settings.githubPat}`;

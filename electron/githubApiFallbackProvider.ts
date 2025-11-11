@@ -164,7 +164,73 @@ const requestGithubApiJson = async (
   }
   const headers = buildApiHeaders(instance);
   const apiUrl = newUrlFromBase(apiPath, instance.baseApiUrl as URL);
-  let lastError: unknown = null;
+
+  const performFetch = async (): Promise<any> => {
+    if (typeof fetch !== 'function') {
+      throw new Error('Global fetch is not available for GitHub API request.');
+    }
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const cancelHandler = () => {
+      try {
+        controller?.abort();
+      } catch (_error) {
+        // ignore abort errors
+      }
+    };
+    let removeCancelListener: (() => void) | null = null;
+    const maybeOnCancel = cancellationToken && typeof (cancellationToken as any).onCancel === 'function'
+      ? (cancellationToken as any).onCancel.bind(cancellationToken)
+      : null;
+    if (controller && maybeOnCancel) {
+      maybeOnCancel(cancelHandler);
+      removeCancelListener = () => {
+        try {
+          (cancellationToken as any)?.removeListener?.('cancel', cancelHandler);
+        } catch (_error) {
+          // ignore listener removal issues
+        }
+      };
+    }
+
+    try {
+      const response = await fetch(apiUrl.toString(), {
+        headers,
+        signal: controller?.signal,
+      });
+      if (response.status === 404) {
+        return null;
+      }
+      if (!response.ok) {
+        const body = await response.text();
+        const error: any = new Error(`GitHub API responded with ${response.status}`);
+        error.statusCode = response.status;
+        error.url = apiUrl.toString();
+        error.body = body;
+        throw error;
+      }
+      const text = await response.text();
+      if (!text || !text.trim()) {
+        return null;
+      }
+      return JSON.parse(text);
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.message === 'cancelled') {
+        const abortError: any = new Error('GitHub API request was aborted.');
+        abortError.name = 'AbortError';
+        throw abortError;
+      }
+      throw error;
+    } finally {
+      removeCancelListener?.();
+    }
+  };
+
+  let fetchError: unknown = null;
+  try {
+    return await performFetch();
+  } catch (error) {
+    fetchError = error;
+  }
 
   if (typeof instance.httpRequest === 'function') {
     try {
@@ -172,34 +238,14 @@ const requestGithubApiJson = async (
       if (rawData && rawData.trim().length > 0) {
         return JSON.parse(rawData);
       }
-      if (typeof fetch !== 'function') {
-        return null;
-      }
-      lastError = new Error('GitHub API returned an empty response via httpRequest.');
+      return null;
     } catch (error) {
-      lastError = error;
-      if (typeof fetch !== 'function') {
-        throw error;
-      }
+      fetchError = error;
     }
   }
 
-  if (typeof fetch === 'function') {
-    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const response = await fetch(apiUrl.toString(), {
-      headers,
-      signal: controller?.signal,
-    });
-    if (!response.ok) {
-      const error: any = new Error(`GitHub API responded with ${response.status}`);
-      error.statusCode = response.status;
-      throw error;
-    }
-    return await response.json();
-  }
-
-  if (lastError) {
-    throw lastError;
+  if (fetchError) {
+    throw fetchError;
   }
 
   return null;
