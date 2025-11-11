@@ -633,31 +633,109 @@ const App: React.FC = () => {
   // New effect to fetch detailed VCS statuses and branch lists
   useEffect(() => {
     if (isDataLoading) return;
+
+    let isCancelled = false;
+
     const fetchStatuses = async () => {
       logger.debug('Fetching detailed VCS statuses and branch lists.');
+
       const statusPromises = repositories.map(async (repo) => {
-        if (localPathStates[repo.id] === 'valid') {
-          const status = await window.electronAPI?.getDetailedVcsStatus(repo);
-          return { repoId: repo.id, status };
+        const pathState = localPathStates[repo.id];
+
+        if (pathState === 'valid') {
+          try {
+            const status = await window.electronAPI?.getDetailedVcsStatus(repo);
+            return { repoId: repo.id, status: status ?? null };
+          } catch (error: any) {
+            logger.error(`Failed to fetch detailed status for ${repo.name}:`, { error: error.message });
+            return { repoId: repo.id, status: null };
+          }
         }
-        return { repoId: repo.id, status: null };
+
+        if (pathState === 'missing' || pathState === 'not_a_repo') {
+          return { repoId: repo.id, status: null };
+        }
+
+        // When the path is still being validated ("checking" or undefined), retain the prior status.
+        return { repoId: repo.id, status: undefined };
       });
+
       const statuses = await Promise.all(statusPromises);
-      setDetailedStatuses(statuses.reduce((acc, s) => ({ ...acc, [s.repoId]: s.status }), {}));
-      
+
+      if (!isCancelled) {
+        setDetailedStatuses(prev => {
+          const next = { ...prev } as Record<string, DetailedStatus | null>;
+          const seen = new Set<string>();
+
+          statuses.forEach(({ repoId, status }) => {
+            seen.add(repoId);
+            if (status !== undefined) {
+              next[repoId] = status;
+            }
+          });
+
+          Object.keys(next).forEach(repoId => {
+            if (!seen.has(repoId)) {
+              delete next[repoId];
+            }
+          });
+
+          return next;
+        });
+      }
+
       const branchPromises = repositories.map(async (repo) => {
-        if (localPathStates[repo.id] === 'valid') {
-          const branches = await window.electronAPI?.listBranches({ repoPath: repo.localPath, vcs: repo.vcs });
-          return { repoId: repo.id, branches };
+        const pathState = localPathStates[repo.id];
+
+        if (pathState === 'valid') {
+          try {
+            const branches = await window.electronAPI?.listBranches({ repoPath: repo.localPath, vcs: repo.vcs });
+            return { repoId: repo.id, branches: branches ?? null };
+          } catch (error: any) {
+            logger.error(`Failed to fetch branches for ${repo.name}:`, { error: error.message });
+            return { repoId: repo.id, branches: null };
+          }
         }
-        return { repoId: repo.id, branches: null };
+
+        if (pathState === 'missing' || pathState === 'not_a_repo') {
+          return { repoId: repo.id, branches: null };
+        }
+
+        return { repoId: repo.id, branches: undefined };
       });
+
       const branches = await Promise.all(branchPromises);
-      setBranchLists(branches.reduce((acc, b) => ({ ...acc, [b.repoId]: b.branches }), {}));
+
+      if (!isCancelled) {
+        setBranchLists(prev => {
+          const next = { ...prev } as Record<string, BranchInfo | null>;
+          const seen = new Set<string>();
+
+          branches.forEach(({ repoId, branches: branchInfo }) => {
+            seen.add(repoId);
+            if (branchInfo !== undefined) {
+              next[repoId] = branchInfo;
+            }
+          });
+
+          Object.keys(next).forEach(repoId => {
+            if (!seen.has(repoId)) {
+              delete next[repoId];
+            }
+          });
+
+          return next;
+        });
+      }
+
       logger.info('VCS status and branch fetch complete.');
     };
 
     fetchStatuses();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [repositories, localPathStates, isDataLoading, logger]);
 
   // FIX: Add effect to fetch latest releases for repositories.
