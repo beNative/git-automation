@@ -612,8 +612,12 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
     };
   }, [isRefreshing]);
 
-  const cardStyle = isRefreshing && lockedHeight !== null
-    ? { minHeight: `${lockedHeight}px`, maxHeight: `${lockedHeight}px` }
+  const resolvedLockedHeight = isRefreshing
+    ? lockedHeight ?? stableHeightRef.current ?? null
+    : null;
+
+  const cardStyle = resolvedLockedHeight !== null
+    ? { minHeight: `${resolvedLockedHeight}px`, maxHeight: `${resolvedLockedHeight}px` }
     : undefined;
 
   const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, tasks, launchConfigs, localPath, webLinks } = repository;
