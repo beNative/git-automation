@@ -300,6 +300,12 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
   }, [applySelectionWithModifiers, filteredLogs.length, handleSelection]);
 
   const handleLogClick = useCallback((event: React.MouseEvent<HTMLDivElement>, index: number) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey) {
+          event.preventDefault();
+          event.currentTarget.focus();
+          return;
+      }
+
       const target = event.target as HTMLElement | null;
       const isTextSelectionTarget = Boolean(target?.closest('[data-text-content="true"]'));
       const candidateIndex = textSelectionCandidateRef.current;
