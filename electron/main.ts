@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { autoUpdater, type UpdateDownloadedEvent } from 'electron-updater';
+import { installGitHubLatestTagFallback } from './githubApiFallbackProvider';
 import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
@@ -104,6 +105,8 @@ const mainLogger = {
   error: (message: string, data?: any) => { mainLogger.log('error', message, data) },
 };
 
+installGitHubLatestTagFallback(mainLogger);
+
 const getLogFilePath = () => {
   const now = new Date();
   const timestamp = now.toISOString().replace(/:/g, '-').replace(/\..+/, '');
@@ -166,6 +169,7 @@ const buildGitHubApiHeaders = async (): Promise<Record<string, string>> => {
   const headers: Record<string, string> = {
     'Accept': 'application/vnd.github+json',
     'User-Agent': 'GitAutomationDashboard-Updater',
+    'X-GitHub-Api-Version': '2022-11-28',
   };
   try {
     const settings = await readSettings();
@@ -506,6 +510,17 @@ app.on('ready', async () => {
     mainLogger.info('[AutoUpdate] Configuring auto-updater.', {
       allowPrerelease,
     });
+    const requestHeaders: Record<string, string> = {
+      'User-Agent': 'GitAutomationDashboard-Updater',
+    };
+    if (settings.githubPat) {
+      requestHeaders['Authorization'] = `token ${settings.githubPat}`;
+    }
+    autoUpdater.requestHeaders = requestHeaders;
+    mainLogger.info('[AutoUpdate] Prepared GitHub request headers for auto-updater.', {
+      hasAuthToken: Boolean(settings.githubPat),
+    });
+    mainLogger.info('[AutoUpdate] GitHub API fallback patch installed.');
     autoUpdater.allowPrerelease = allowPrerelease;
     autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.autoDownload = true;
