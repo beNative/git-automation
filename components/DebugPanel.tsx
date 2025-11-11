@@ -75,6 +75,15 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
       preserveLineBreaks: true,
   });
   const textSelectionCandidateRef = useRef<number | null>(null);
+  const clearBrowserTextSelection = useCallback(() => {
+      if (typeof window === 'undefined') {
+          return;
+      }
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+          selection.removeAllRanges();
+      }
+  }, []);
 
   const filteredLogs = useMemo(() => {
       const levelFiltered = logs.filter(log => filters[log.level]);
@@ -239,6 +248,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
       const isTextSelectionTarget = Boolean(target?.closest('[data-text-content="true"]'));
 
       if (hasModifier) {
+          clearBrowserTextSelection();
           handleSelection(event, index);
           event.currentTarget.focus();
           setIsDraggingSelection(false);
@@ -253,11 +263,12 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
           return;
       }
 
+      clearBrowserTextSelection();
       handleSelection(event, index);
       event.currentTarget.focus();
       setIsDraggingSelection(true);
       setDragAnchorIndex(index);
-  }, [handleSelection, textSelectionCandidateRef]);
+  }, [clearBrowserTextSelection, handleSelection, textSelectionCandidateRef]);
 
   const handleLogMouseEnter = useCallback((index: number) => {
       if (!isDraggingSelection || dragAnchorIndex === null) {
