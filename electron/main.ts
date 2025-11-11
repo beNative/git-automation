@@ -1,5 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { autoUpdater, type UpdateDownloadedEvent } from 'electron-updater';
+import { installGitHubLatestTagFallback } from './githubApiFallbackProvider';
+import { formatUpdateErrorToast } from './updateErrorToast';
 import path, { dirname } from 'path';
 import fs from 'fs/promises';
 import os, { platform } from 'os';
@@ -104,6 +106,40 @@ const mainLogger = {
   error: (message: string, data?: any) => { mainLogger.log('error', message, data) },
 };
 
+const sanitizeUpdateError = (error: unknown): Record<string, any> => {
+  if (!error) {
+    return {};
+  }
+  if (typeof error === 'string') {
+    return { message: error };
+  }
+  if (typeof error !== 'object') {
+    return { message: String(error) };
+  }
+  const err = error as Record<string, any>;
+  const sanitized: Record<string, any> = {};
+  if (typeof err.message === 'string') sanitized.message = err.message;
+  if (typeof err.stack === 'string') sanitized.stack = err.stack;
+  if (typeof err.statusCode === 'number') sanitized.statusCode = err.statusCode;
+  if (typeof err.code === 'string') sanitized.code = err.code;
+  if (typeof err.name === 'string') sanitized.name = err.name;
+  return sanitized;
+};
+
+const logAndEmitUpdateError = (
+  logMessage: string,
+  baseToast: string,
+  error: unknown,
+  options?: { retryHint?: string; logExtras?: Record<string, any> },
+) => {
+  const payload = { ...sanitizeUpdateError(error), ...(options?.logExtras ?? {}) };
+  mainLogger.error(logMessage, payload);
+  const toastMessage = formatUpdateErrorToast(baseToast, error, { retryHint: options?.retryHint });
+  mainWindow?.webContents.send('update-status-change', { status: 'error', message: toastMessage });
+};
+
+installGitHubLatestTagFallback(mainLogger);
+
 const getLogFilePath = () => {
   const now = new Date();
   const timestamp = now.toISOString().replace(/:/g, '-').replace(/\..+/, '');
@@ -166,6 +202,7 @@ const buildGitHubApiHeaders = async (): Promise<Record<string, string>> => {
   const headers: Record<string, string> = {
     'Accept': 'application/vnd.github+json',
     'User-Agent': 'GitAutomationDashboard-Updater',
+    'X-GitHub-Api-Version': '2022-11-28',
   };
   try {
     const settings = await readSettings();
@@ -506,6 +543,19 @@ app.on('ready', async () => {
     mainLogger.info('[AutoUpdate] Configuring auto-updater.', {
       allowPrerelease,
     });
+    const requestHeaders: Record<string, string> = {
+      'User-Agent': 'GitAutomationDashboard-Updater',
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    };
+    if (settings.githubPat) {
+      requestHeaders['Authorization'] = `token ${settings.githubPat}`;
+    }
+    autoUpdater.requestHeaders = requestHeaders;
+    mainLogger.info('[AutoUpdate] Prepared GitHub request headers for auto-updater.', {
+      hasAuthToken: Boolean(settings.githubPat),
+    });
+    mainLogger.info('[AutoUpdate] GitHub API fallback patch installed.');
     autoUpdater.allowPrerelease = allowPrerelease;
     autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.autoDownload = true;
@@ -546,14 +596,10 @@ app.on('ready', async () => {
     });
     autoUpdater.on('error', (err) => {
         lastDownloadedUpdateValidation = null;
-        mainLogger.error('[AutoUpdate] Error from auto-updater.', {
-            message: err?.message,
-            stack: err?.stack,
-            name: err?.name,
-            code: (err as any)?.code,
-            details: (err as any)?.body || (err as any)?.data,
+        logAndEmitUpdateError('[AutoUpdate] Error from auto-updater.', 'Auto-update error', err, {
+            retryHint: 'The app will retry automatically.',
+            logExtras: { details: (err as any)?.body || (err as any)?.data },
         });
-        mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Error in auto-updater: ${err.message}` });
     });
     autoUpdater.on('download-progress', (progressObj) => {
         mainLogger.debug('[AutoUpdate] Download progress update.', {
@@ -584,7 +630,10 @@ app.on('ready', async () => {
                         officialNames: validationResult.officialNames,
                         error: validationResult.error,
                     });
-                    mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Downloaded update failed validation: ${validationResult.error}` });
+                    const toastMessage = formatUpdateErrorToast('Downloaded update failed validation', validationResult.error, {
+                        retryHint: 'Please try checking for updates again later.',
+                    });
+                    mainWindow?.webContents.send('update-status-change', { status: 'error', message: toastMessage });
                     return;
                 }
 
@@ -614,8 +663,12 @@ app.on('ready', async () => {
             } catch (error: any) {
                 const message = error?.message || String(error);
                 lastDownloadedUpdateValidation = { version: info.version, filePath: info.downloadedFile ?? null, validated: false, error: message };
-                mainLogger.error('Error while validating downloaded update file.', error);
-                mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Failed to validate downloaded update: ${message}` });
+                logAndEmitUpdateError('Error while validating downloaded update file.', 'Failed to validate downloaded update', error, {
+                    logExtras: {
+                        version: info.version,
+                        downloadedFile: info.downloadedFile,
+                    },
+                });
             }
         })();
     });
@@ -644,12 +697,12 @@ app.on('ready', async () => {
           });
         })
         .catch(error => {
-          mainLogger.error('[AutoUpdate] checkForUpdatesAndNotify rejected.', {
-            message: error?.message,
-            stack: error?.stack,
-            name: error?.name,
-          });
-          mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Failed to check for updates: ${error?.message || error}` });
+          logAndEmitUpdateError(
+            '[AutoUpdate] checkForUpdatesAndNotify rejected.',
+            'Failed to check for updates',
+            error,
+            { retryHint: 'The app will retry automatically.' },
+          );
         });
     }
   } else {
@@ -708,7 +761,8 @@ ipcMain.on('restart-and-install-update', () => {
       version: lastDownloadedUpdateValidation?.version,
       error: errorMessage,
     });
-    mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Cannot install update: ${errorMessage}` });
+    const toastMessage = formatUpdateErrorToast('Cannot install update', errorMessage);
+    mainWindow?.webContents.send('update-status-change', { status: 'error', message: toastMessage });
     return;
   }
 
@@ -771,8 +825,13 @@ ipcMain.on('save-all-data', async (event, data: AppDataContextState) => {
               message: error?.message,
               stack: error?.stack,
             });
-            mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Failed to check for updates: ${error?.message || error}` });
-          });
+            logAndEmitUpdateError(
+              '[AutoUpdate] Manual check for updates failed.',
+              'Failed to check for updates',
+              error,
+              { retryHint: 'Please try again in a few moments.' },
+            );
+        });
         }
     } catch (error) {
         mainLogger.error("Failed to save settings file:", error);
