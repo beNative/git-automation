@@ -70,13 +70,14 @@ Follow this checklist when preparing a new minor or patch release:
     any documentation adjustments or reminders for maintainers. Plan to reuse this text verbatim in the GitHub release body.
 4.  **Run Automated Checks:** Execute `npm test` (or the appropriate suite documented in the Technical Manual) and confirm it completes successfully before packaging.
 5.  **Build Installers:** Run `npm run pack` to generate platform installers and smoke-test the output locally.
-6.  **Publish on GitHub:** Draft a new GitHub release, attach the generated artifacts, verify the tag/version details, and set the
+6.  **Normalize Windows Manifests:** Run `node electron/scripts/normalize-win32-artifacts.mjs` to rewrite any `-ia32-` installer filenames and ensure both `latest.yml` (x64) and `latest-win32.yml` (ia32) manifests are present in the `release/` directory before publishing.
+7.  **Publish on GitHub:** Draft a new GitHub release, attach the generated artifacts, verify the tag/version details, and set the
     **Release Type** selector to the intended state (Full Release for GA builds, Draft or Pre-release as needed). Paste the freshly
     written changelog entry into the release body so the GitHub notes exactly match the repository history, then publish.
 
-### Documentation Status for 0.25.8
+### Documentation Status for 0.25.9
 
-- Documented the debug log selection workflow, repository card layout stabilization, auto-update REST fallback, and Windows Setup & Clone reliability improvements delivered in version `0.25.8`.
+- Documented the release manifest normalization script, CI manifest verification, and auto-update diagnostics refinements delivered in version `0.25.9`.
 
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._

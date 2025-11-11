@@ -216,6 +216,6 @@ For advanced users, the settings view includes a **"JSON Config"** tab. This sec
 -   **Export Settings:** Click the "Export Settings" button to save your current configuration into a compressed `.zip` archive. This is useful for creating backups or sharing your setup.
 -   **Import Settings:** Click the "Import Settings" button. You can select a `.zip` archive (created via the export feature) or a raw `.json` file to restore a configuration. This will overwrite your current settings and restart the application.
 
-### Documentation Status for 0.25.8
+### Documentation Status for 0.25.9
 
-- Captured the debug log selection workflow, repository card layout stabilization, Windows Setup & Clone reliability, and GitHub updater fallback behavior introduced in version `0.25.8`.
+- Captured the normalized Windows installer workflow, the GitHub updater diagnostics improvements, and the release manifest verification tooling introduced in version `0.25.9`.

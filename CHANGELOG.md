@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 
 - _No unreleased changes._
 
+## [0.25.9]
+
+### Added
+- **Windows Release Normalization:** Added `electron/scripts/normalize-win32-artifacts.mjs` to rewrite 32-bit installer filenames and emit a dedicated `latest-win32.yml` manifest so GitHub update channels always expose architecture-specific metadata.
+
+### Changed
+- **CI Release Verification:** Updated the release packaging workflow to run the normalization script and fail fast when `latest*.yml` manifests are missing, preventing half-published builds from leaving CI.
+- **Auto-Update Diagnostics:** Expanded the GitHub updater fallback to log sanitized API responses and surface concise HTTP failure summaries (including manifest gaps) inside the toast shown to operators.
+
+### Documentation
+- Recorded the manifest normalization workflow, CI verification guardrails, and enhanced updater telemetry required for the 0.25.9 release in the README, manuals, and shortcut editor reference.
+
 ## [0.25.8]
 
 ### Changed
