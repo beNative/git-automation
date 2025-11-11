@@ -11,7 +11,7 @@ type LoggerLike = {
 };
 
 type ProviderInstance = {
-  options?: { owner?: string; repo?: string };
+  options?: { owner?: string; repo?: string; host?: string };
   baseApiUrl?: URL;
   httpRequest?: (url: URL, headers: Record<string, string>, token: CancellationToken) => Promise<string>;
   computeGithubBasePath?: (path: string) => string;
@@ -30,6 +30,8 @@ const DEFAULT_FALLBACK_HEADERS: Record<string, string> = {
   'User-Agent': 'GitAutomationDashboard-Updater',
   'X-GitHub-Api-Version': '2022-11-28',
 };
+
+const GITHUB_HOSTS = new Set(['github.com', 'api.github.com']);
 
 const patchSymbol = Symbol.for('git-automation.githubProviderPatched');
 
@@ -74,7 +76,7 @@ const shouldUseApiFallback = (error: unknown): boolean => {
   return false;
 };
 
-const buildApiFallbackHeaders = (instance: ProviderInstance): Record<string, string> => {
+const buildApiHeaders = (instance: ProviderInstance): Record<string, string> => {
   const existing = instance.requestHeaders && typeof instance.requestHeaders === 'object'
     ? instance.requestHeaders
     : undefined;
@@ -88,19 +90,85 @@ const fetchLatestTagFromApi = async (
   if (!instance.options?.owner || !instance.options?.repo) {
     return null;
   }
-  if (!instance.computeGithubBasePath || !instance.baseApiUrl || !instance.httpRequest) {
+  if (!instance.computeGithubBasePath || !instance.baseApiUrl) {
     return null;
   }
   const apiPath = instance.computeGithubBasePath(`/repos/${instance.options.owner}/${instance.options.repo}/releases/latest`);
   const apiUrl = newUrlFromBase(apiPath, instance.baseApiUrl as URL);
-  const headers = buildApiFallbackHeaders(instance);
-  const rawData = await instance.httpRequest(apiUrl, headers, cancellationToken);
-  if (!rawData) {
+  const headers = buildApiHeaders(instance);
+
+  if (typeof instance.httpRequest === 'function') {
+    try {
+      const rawData = await instance.httpRequest(apiUrl, headers, cancellationToken);
+      if (!rawData) {
+        return null;
+      }
+      const parsed = JSON.parse(rawData);
+      const tag = parsed?.tag_name;
+      return typeof tag === 'string' ? tag : null;
+    } catch (error) {
+      if (typeof fetch !== 'function') {
+        throw error;
+      }
+      // Fall through to fetch below when the provider executor fails.
+    }
+  }
+
+  if (typeof fetch === 'function') {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const response = await fetch(apiUrl.toString(), {
+      headers,
+      signal: controller?.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`GitHub API responded with ${response.status}`);
+    }
+    const parsed = await response.json();
+    const tag = parsed?.tag_name;
+    return typeof tag === 'string' ? tag : null;
+  }
+
+  return null;
+};
+
+const shouldAttemptRestApi = (instance: ProviderInstance): boolean => {
+  const host = instance.options?.host?.toLowerCase();
+  return !host || GITHUB_HOSTS.has(host);
+};
+
+type ApiAttemptContext = 'initial' | 'fallback';
+
+const attemptResolveViaApi = async (
+  instance: ProviderInstance,
+  cancellationToken: CancellationToken,
+  logger: LoggerLike | undefined,
+  context: ApiAttemptContext,
+): Promise<string | null> => {
+  try {
+    const tag = await fetchLatestTagFromApi(instance, cancellationToken);
+    if (tag) {
+      const message = context === 'initial'
+        ? '[AutoUpdate] Resolved latest GitHub release via REST API.'
+        : '[AutoUpdate] Resolved latest GitHub release via API fallback.';
+      tryLog(logger, 'info', message, { tag });
+      return tag;
+    }
+    const emptyMessage = context === 'initial'
+      ? '[AutoUpdate] GitHub REST API did not return a tag name; falling back to legacy lookup.'
+      : '[AutoUpdate] GitHub API fallback did not return a tag name.';
+    tryLog(logger, 'warn', emptyMessage);
+    return null;
+  } catch (error) {
+    const errorMessage = context === 'initial'
+      ? '[AutoUpdate] GitHub REST API lookup failed; falling back to legacy lookup.'
+      : '[AutoUpdate] GitHub API fallback failed.';
+    const level: keyof LoggerLike = context === 'initial' ? 'warn' : 'error';
+    tryLog(logger, level, errorMessage, sanitizeError(error));
+    if (context === 'fallback') {
+      throw error;
+    }
     return null;
   }
-  const parsed = JSON.parse(rawData);
-  const tag = parsed?.tag_name;
-  return typeof tag === 'string' ? tag : null;
 };
 
 export const installGitHubLatestTagFallback = (logger?: LoggerLike): void => {
@@ -115,6 +183,13 @@ export const installGitHubLatestTagFallback = (logger?: LoggerLike): void => {
   }
   proto[patchSymbol] = true;
   proto.getLatestTagName = async function patchedGetLatestTagName(this: ProviderInstance, cancellationToken: CancellationToken) {
+    if (shouldAttemptRestApi(this)) {
+      const apiTag = await attemptResolveViaApi(this, cancellationToken, logger, 'initial');
+      if (apiTag) {
+        return apiTag;
+      }
+    }
+
     try {
       return await original.call(this, cancellationToken);
     } catch (error) {
@@ -122,16 +197,16 @@ export const installGitHubLatestTagFallback = (logger?: LoggerLike): void => {
         throw error;
       }
       tryLog(logger, 'warn', '[AutoUpdate] Primary GitHub release lookup failed; attempting API fallback.', sanitizeError(error));
+      if (!shouldAttemptRestApi(this)) {
+        throw error;
+      }
       try {
-        const tag = await fetchLatestTagFromApi(this, cancellationToken);
+        const tag = await attemptResolveViaApi(this, cancellationToken, logger, 'fallback');
         if (tag) {
-          tryLog(logger, 'info', '[AutoUpdate] Resolved latest GitHub release via API fallback.', { tag });
           return tag;
         }
-        tryLog(logger, 'warn', '[AutoUpdate] GitHub API fallback did not return a tag name.');
-      } catch (apiError) {
-        tryLog(logger, 'error', '[AutoUpdate] GitHub API fallback failed.', sanitizeError(apiError));
-        throw error;
+      } catch (_apiError) {
+        // attemptResolveViaApi already logged the failure; preserve the original error.
       }
       throw error;
     }
