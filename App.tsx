@@ -181,6 +181,10 @@ const App: React.FC = () => {
   const autoCheckIntervalRef = useRef<number | null>(null);
   const isAutoCheckingRef = useRef(false);
   const [updateReady, setUpdateReady] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatusMessage | null>(null);
+  const [isUpdateBannerVisible, setIsUpdateBannerVisible] = useState(false);
+  const [autoInstallScheduled, setAutoInstallScheduled] = useState(false);
+  const autoInstallTimeoutRef = useRef<number | null>(null);
 
   // New states for deeper VCS integration
   const [detailedStatuses, setDetailedStatuses] = useState<Record<string, DetailedStatus | null>>({});
@@ -253,6 +257,70 @@ const App: React.FC = () => {
     onConfirm: () => {},
     onCancel: () => {},
   });
+
+  const cancelAutoInstall = useCallback(() => {
+    if (autoInstallTimeoutRef.current) {
+      window.clearTimeout(autoInstallTimeoutRef.current);
+      autoInstallTimeoutRef.current = null;
+    }
+    setAutoInstallScheduled(false);
+  }, []);
+
+  const handleRestartAndUpdate = useCallback(() => {
+    cancelAutoInstall();
+    if (window.electronAPI?.restartAndInstallUpdate) {
+      setToast({ message: 'Restarting to install the latest update…', type: 'info' });
+      window.electronAPI.restartAndInstallUpdate();
+    } else {
+      setToast({ message: 'Could not restart. Please restart the app manually.', type: 'error' });
+    }
+  }, [cancelAutoInstall, setToast]);
+
+  const scheduleAutoInstall = useCallback(() => {
+    cancelAutoInstall();
+    autoInstallTimeoutRef.current = window.setTimeout(() => {
+      setAutoInstallScheduled(false);
+      handleRestartAndUpdate();
+    }, 8000);
+    setAutoInstallScheduled(true);
+  }, [cancelAutoInstall, handleRestartAndUpdate]);
+
+  const handleAutoInstallPreferenceChange = useCallback((mode: GlobalSettings['autoInstallUpdates']) => {
+    if (mode === settings.autoInstallUpdates) {
+      return;
+    }
+    saveSettings({ ...settings, autoInstallUpdates: mode });
+    if (mode === 'manual') {
+      cancelAutoInstall();
+      setToast({
+        message: 'Automatic installation disabled. Use the Update Ready controls when you want to apply the update.',
+        type: 'info',
+      });
+    } else {
+      setToast({
+        message: 'Updates will now install automatically as soon as they finish downloading.',
+        type: 'success',
+      });
+    }
+  }, [cancelAutoInstall, saveSettings, settings, setToast]);
+
+  const handleDeferUpdate = useCallback(() => {
+    if (settings.autoInstallUpdates === 'auto') {
+      handleAutoInstallPreferenceChange('manual');
+    }
+    cancelAutoInstall();
+    setIsUpdateBannerVisible(false);
+    setToast({
+      message: 'Update postponed. Use the “Update Ready” control in the title bar to install whenever you are ready.',
+      type: 'info',
+    });
+  }, [cancelAutoInstall, handleAutoInstallPreferenceChange, settings.autoInstallUpdates, setToast]);
+
+  const handleShowUpdateDetails = useCallback(() => {
+    if (updateReady) {
+      setIsUpdateBannerVisible(true);
+    }
+  }, [updateReady]);
 
   useEffect(() => {
     if (!instrumentation) {
@@ -467,31 +535,74 @@ const App: React.FC = () => {
   // Effect for auto-updater
   useEffect(() => {
     const handleUpdateStatus = (_event: any, data: UpdateStatusMessage) => {
-        logger.info(`Update status change received: ${data.status}`, data);
-        switch (data.status) {
-            case 'available':
-                setToast({ message: data.message, type: 'info' });
-                break;
-            case 'downloaded':
-                setToast({ message: data.message, type: 'success' });
-                setUpdateReady(true);
-                break;
-            case 'error':
-                setToast({ message: data.message, type: 'error' });
-                break;
-        }
+      logger.info(`Update status change received: ${data.status}`, data);
+      setUpdateStatus(data);
+
+      switch (data.status) {
+        case 'checking':
+          cancelAutoInstall();
+          setUpdateReady(false);
+          setIsUpdateBannerVisible(false);
+          break;
+        case 'available':
+          setToast({ message: data.message, type: 'info' });
+          break;
+        case 'downloaded':
+          setUpdateReady(true);
+          setIsUpdateBannerVisible(true);
+          if (settings.autoInstallUpdates === 'auto') {
+            setToast({ message: 'Update downloaded. Restarting automatically in a few seconds…', type: 'info' });
+            scheduleAutoInstall();
+          } else {
+            cancelAutoInstall();
+            setToast({ message: data.message, type: 'success' });
+          }
+          break;
+        case 'error':
+          cancelAutoInstall();
+          setUpdateReady(false);
+          setIsUpdateBannerVisible(false);
+          setToast({ message: data.message, type: 'error' });
+          break;
+        default:
+          break;
+      }
     };
 
     if (window.electronAPI?.onUpdateStatusChange) {
-        window.electronAPI.onUpdateStatusChange(handleUpdateStatus);
+      window.electronAPI.onUpdateStatusChange(handleUpdateStatus);
     }
 
     return () => {
-        if (window.electronAPI?.removeUpdateStatusChangeListener) {
-            window.electronAPI.removeUpdateStatusChangeListener(handleUpdateStatus);
-        }
+      if (window.electronAPI?.removeUpdateStatusChangeListener) {
+        window.electronAPI.removeUpdateStatusChangeListener(handleUpdateStatus);
+      }
     };
-  }, [logger]);
+  }, [logger, cancelAutoInstall, scheduleAutoInstall, settings.autoInstallUpdates, setToast]);
+
+  useEffect(() => {
+    if (!updateReady) {
+      return;
+    }
+
+    if (settings.autoInstallUpdates === 'auto') {
+      if (!autoInstallScheduled) {
+        scheduleAutoInstall();
+      }
+    } else if (autoInstallScheduled) {
+      cancelAutoInstall();
+    }
+  }, [
+    updateReady,
+    settings.autoInstallUpdates,
+    autoInstallScheduled,
+    scheduleAutoInstall,
+    cancelAutoInstall,
+  ]);
+
+  useEffect(() => () => {
+    cancelAutoInstall();
+  }, [cancelAutoInstall]);
   
   // Effect to check local paths
   useEffect(() => {
@@ -1319,15 +1430,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleRestartAndUpdate = useCallback(() => {
-    if (window.electronAPI?.restartAndInstallUpdate) {
-        window.electronAPI.restartAndInstallUpdate();
-    } else {
-        setToast({ message: 'Could not restart. Please restart the app manually.', type: 'error' });
-    }
-  }, []);
-
-
   const latestLog = useMemo(() => {
     const allLogs = Object.values(logs).flat();
     if (allLogs.length === 0) return null;
@@ -1428,9 +1530,22 @@ const App: React.FC = () => {
             isCheckingAll={isCheckingAll}
             onToggleAllCategories={toggleAllCategoriesCollapse}
             canCollapseAll={canCollapseAll}
+            updateReady={updateReady}
+            onInstallUpdate={handleRestartAndUpdate}
+            onShowUpdateDetails={handleShowUpdateDetails}
           />
           <div className="flex-1 flex flex-col min-h-0">
-            {updateReady && <UpdateBanner onInstall={handleRestartAndUpdate} />}
+            {updateReady && isUpdateBannerVisible && updateStatus?.status === 'downloaded' && (
+              <UpdateBanner
+                version={updateStatus.version}
+                message={updateStatus.message}
+                autoInstallMode={settings.autoInstallUpdates}
+                autoInstallScheduled={autoInstallScheduled}
+                onChangeMode={handleAutoInstallPreferenceChange}
+                onInstallNow={handleRestartAndUpdate}
+                onInstallLater={handleDeferUpdate}
+              />
+            )}
             <main
               className={mainContentClass}
               data-automation-id="main-content"

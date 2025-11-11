@@ -122,8 +122,10 @@ const DEFAULTS: GlobalSettings = {
     iconSet: 'heroicons',
     debugLogging: true,
     allowPrerelease: true,
+    autoUpdateChecksEnabled: true,
     autoCheckForUpdates: false,
     autoCheckIntervalSeconds: 300,
+    autoInstallUpdates: 'manual',
     openLinksIn: 'default',
     githubPat: '',
     gitExecutablePath: '',
@@ -534,7 +536,7 @@ app.on('ready', async () => {
                 size: (file as any)?.size,
               })) : undefined,
         });
-        mainWindow?.webContents.send('update-status-change', { status: 'available', message: `Update v${info.version} available. Downloading...` });
+        mainWindow?.webContents.send('update-status-change', { status: 'available', message: `Update v${info.version} available. Downloading...`, version: info.version });
     });
     autoUpdater.on('update-not-available', (info) => {
         mainLogger.info('[AutoUpdate] No update available.', {
@@ -607,6 +609,7 @@ app.on('ready', async () => {
                 mainWindow?.webContents.send('update-status-change', {
                     status: 'downloaded',
                     message: `Update v${info.version} downloaded${messageSuffix}. Restart to install.`,
+                    version: info.version,
                 });
             } catch (error: any) {
                 const message = error?.message || String(error);
@@ -618,33 +621,37 @@ app.on('ready', async () => {
     });
 
     // Check for updates
-    mainLogger.info('[AutoUpdate] Triggering checkForUpdatesAndNotify.');
-    autoUpdater.checkForUpdatesAndNotify()
-      .then(result => {
-        if (!result) {
-          mainLogger.info('[AutoUpdate] checkForUpdatesAndNotify completed without update info.');
-          return;
-        }
-        mainLogger.info('[AutoUpdate] checkForUpdatesAndNotify resolved.', {
-          updateInfo: result.updateInfo ? {
-            version: result.updateInfo.version,
-            files: Array.isArray(result.updateInfo.files) ? result.updateInfo.files.map(file => ({
-              url: typeof file?.url === 'string' ? getFileNameFromUrlLike(file.url) : undefined,
-              sha512: (file as any)?.sha512,
-              size: (file as any)?.size,
-            })) : undefined,
-          } : undefined,
-          downloadPromise: Boolean(result.downloadPromise),
+    if (!settings.autoUpdateChecksEnabled) {
+      mainLogger.info('[AutoUpdate] Automatic update checks are disabled. Skipping initial check.');
+    } else {
+      mainLogger.info('[AutoUpdate] Triggering checkForUpdatesAndNotify.');
+      autoUpdater.checkForUpdatesAndNotify()
+        .then(result => {
+          if (!result) {
+            mainLogger.info('[AutoUpdate] checkForUpdatesAndNotify completed without update info.');
+            return;
+          }
+          mainLogger.info('[AutoUpdate] checkForUpdatesAndNotify resolved.', {
+            updateInfo: result.updateInfo ? {
+              version: result.updateInfo.version,
+              files: Array.isArray(result.updateInfo.files) ? result.updateInfo.files.map(file => ({
+                url: typeof file?.url === 'string' ? getFileNameFromUrlLike(file.url) : undefined,
+                sha512: (file as any)?.sha512,
+                size: (file as any)?.size,
+              })) : undefined,
+            } : undefined,
+            downloadPromise: Boolean(result.downloadPromise),
+          });
+        })
+        .catch(error => {
+          mainLogger.error('[AutoUpdate] checkForUpdatesAndNotify rejected.', {
+            message: error?.message,
+            stack: error?.stack,
+            name: error?.name,
+          });
+          mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Failed to check for updates: ${error?.message || error}` });
         });
-      })
-      .catch(error => {
-        mainLogger.error('[AutoUpdate] checkForUpdatesAndNotify rejected.', {
-          message: error?.message,
-          stack: error?.stack,
-          name: error?.name,
-        });
-        mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Failed to check for updates: ${error?.message || error}` });
-      });
+    }
   } else {
     mainLogger.info('[AutoUpdate] App is not packaged; skipping auto-updater.');
   }
@@ -750,7 +757,23 @@ ipcMain.on('save-all-data', async (event, data: AppDataContextState) => {
     try {
         await fs.mkdir(userDataPath, { recursive: true });
         await fs.writeFile(settingsPath, JSON.stringify(data, null, 2));
+        const previousSettings = globalSettingsCache;
         globalSettingsCache = data.globalSettings; // Invalidate cache
+
+        if (
+          app.isPackaged &&
+          data.globalSettings?.autoUpdateChecksEnabled &&
+          !(previousSettings?.autoUpdateChecksEnabled)
+        ) {
+          mainLogger.info('[AutoUpdate] Automatic update checks were re-enabled from settings. Triggering immediate check.');
+          autoUpdater.checkForUpdatesAndNotify().catch(error => {
+            mainLogger.error('[AutoUpdate] Failed to trigger update check after re-enabling setting.', {
+              message: error?.message,
+              stack: error?.stack,
+            });
+            mainWindow?.webContents.send('update-status-change', { status: 'error', message: `Failed to check for updates: ${error?.message || error}` });
+          });
+        }
     } catch (error) {
         mainLogger.error("Failed to save settings file:", error);
     }

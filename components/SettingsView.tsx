@@ -284,6 +284,63 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onSave, currentSettings, se
              </div>
 
              <div className="space-y-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-400">Application Updates</span>
+                  <h4 className="text-lg font-semibold">Keep Git Automation Dashboard current</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Control how the app checks for new releases and whether updates install themselves once downloaded.</p>
+                </div>
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white/60 p-4 shadow-sm transition dark:border-gray-700 dark:bg-gray-900/50">
+                    <input
+                      type="checkbox"
+                      name="autoUpdateChecksEnabled"
+                      checked={settings.autoUpdateChecksEnabled}
+                      onChange={handleChange}
+                      className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded"
+                      data-automation-id="settings-auto-update-checks"
+                    />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">Enable automatic update checks</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">When enabled, Git Automation Dashboard looks for the latest release whenever it starts.</p>
+                    </div>
+                  </label>
+                  <div className="rounded-lg border border-gray-200 bg-white/60 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/50">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-300" data-automation-id="settings-install-label">Installation preference</p>
+                    <fieldset className="mt-3 space-y-3" data-automation-id="settings-auto-install-options">
+                      <label className="flex items-start gap-3">
+                        <input
+                          type="radio"
+                          name="autoInstallUpdates"
+                          value="auto"
+                          checked={settings.autoInstallUpdates === 'auto'}
+                          onChange={handleChange}
+                          className="mt-1 focus:ring-purple-500 h-4 w-4 text-purple-600 border-gray-300 dark:border-gray-600"
+                        />
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-gray-100">Install automatically after download</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">The app restarts itself to finish installing as soon as an update is ready.</p>
+                        </div>
+                      </label>
+                      <label className="flex items-start gap-3">
+                        <input
+                          type="radio"
+                          name="autoInstallUpdates"
+                          value="manual"
+                          checked={settings.autoInstallUpdates === 'manual'}
+                          onChange={handleChange}
+                          className="mt-1 focus:ring-purple-500 h-4 w-4 text-purple-600 border-gray-300 dark:border-gray-600"
+                        />
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-gray-100">I'll install updates manually</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Keep working and choose when to restart. You'll still see reminders when an update is ready.</p>
+                        </div>
+                      </label>
+                    </fieldset>
+                  </div>
+                </div>
+             </div>
+
+             <div className="space-y-4 pt-6 border-t border-gray-200 dark:border-gray-700">
                 <h4 className="text-lg font-semibold">Automatic Update Checks</h4>
                 <label className="flex items-start gap-3">
                     <input

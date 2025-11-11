@@ -13,6 +13,7 @@ import { ArrowsPointingOutIcon } from './icons/ArrowsPointingOutIcon';
 import { useSettings } from '../contexts/SettingsContext';
 import type { AppView } from '../types';
 import { useTooltip } from '../hooks/useTooltip';
+import { RocketLaunchIcon } from './icons/RocketLaunchIcon';
 
 interface TitleBarProps {
   activeView: AppView;
@@ -22,6 +23,9 @@ interface TitleBarProps {
   isCheckingAll: boolean;
   onToggleAllCategories: () => void;
   canCollapseAll: boolean;
+  updateReady: boolean;
+  onInstallUpdate: () => void;
+  onShowUpdateDetails: () => void;
 }
 
 const TitleBar: React.FC<TitleBarProps> = ({
@@ -32,6 +36,9 @@ const TitleBar: React.FC<TitleBarProps> = ({
   isCheckingAll,
   onToggleAllCategories,
   canCollapseAll,
+  updateReady,
+  onInstallUpdate,
+  onShowUpdateDetails,
 }) => {
   const { settings, saveSettings } = useSettings();
   const isEditing = activeView === 'edit-repository';
@@ -55,6 +62,8 @@ const TitleBar: React.FC<TitleBarProps> = ({
   const newRepoTooltip = useTooltip('Add New Repository');
   const checkUpdatesTooltip = useTooltip('Check all repositories for updates');
   const expandCollapseTooltip = useTooltip(canCollapseAll ? 'Collapse all categories' : 'Expand all categories');
+  const installUpdateTooltip = useTooltip('Restart to apply the update now');
+  const updateDetailsTooltip = useTooltip('Show update installation options');
 
   const noDragStyle = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
 
@@ -109,6 +118,36 @@ const TitleBar: React.FC<TitleBarProps> = ({
         )}
       </div>
       <div className="flex items-center">
+        {updateReady && (
+          <div
+            className="flex items-center gap-2 pr-2 mr-2 rounded-md border border-green-400/40 bg-green-500/20 px-2 py-1 text-xs font-semibold uppercase tracking-widest text-green-100 shadow-sm"
+            style={noDragStyle}
+            data-automation-id="titlebar-update-ready"
+          >
+            <RocketLaunchIcon className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Update Ready</span>
+            <div className="flex items-center gap-1">
+              <button
+                {...installUpdateTooltip}
+                onClick={onInstallUpdate}
+                className="rounded bg-white/80 px-2 py-0.5 text-xs font-bold text-green-700 transition hover:bg-white"
+                style={noDragStyle}
+                data-automation-id="titlebar-update-install"
+              >
+                Install
+              </button>
+              <button
+                {...updateDetailsTooltip}
+                onClick={onShowUpdateDetails}
+                className="rounded border border-white/60 px-2 py-0.5 text-xs font-bold text-white/90 transition hover:bg-white/20"
+                style={noDragStyle}
+                data-automation-id="titlebar-update-details"
+              >
+                Details
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-1 pr-1 border-r border-gray-300/60 dark:border-gray-700/60 mr-1" style={noDragStyle}>
           <button
             {...dashboardTooltip}
