@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useContext } from 'react';
+import React, { useState, useRef, useEffect, useContext, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig, WebLinkConfig, ToastMessage, ReleaseInfo } from '../types';
 import { VcsType } from '../types';
@@ -550,6 +550,70 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   isRefreshing,
   isLocalPathRefreshing,
 }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const stableHeightRef = useRef<number | null>(null);
+  const [lockedHeight, setLockedHeight] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const node = cardRef.current;
+    if (!node) {
+      return;
+    }
+
+    if (isRefreshing) {
+      setLockedHeight(prev => {
+        if (prev !== null) {
+          return prev;
+        }
+        const measured = stableHeightRef.current ?? node.getBoundingClientRect().height;
+        return Number.isFinite(measured) ? measured : prev;
+      });
+    } else {
+      setLockedHeight(null);
+    }
+  }, [isRefreshing]);
+
+  useLayoutEffect(() => {
+    if (isRefreshing) {
+      return;
+    }
+
+    const node = cardRef.current;
+    if (!node) {
+      return;
+    }
+
+    const updateHeight = () => {
+      const measured = node.getBoundingClientRect().height;
+      if (Number.isFinite(measured) && measured > 0) {
+        stableHeightRef.current = measured;
+      }
+    };
+
+    updateHeight();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const { height } = entry.contentRect;
+          if (Number.isFinite(height) && height > 0) {
+            stableHeightRef.current = height;
+          }
+        }
+      });
+
+      observer.observe(node);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener('resize', updateHeight);
+    return () => {
+      window.removeEventListener('resize', updateHeight);
+    };
+  }, [isRefreshing]);
+
+  const cardStyle = lockedHeight !== null ? { minHeight: `${lockedHeight}px` } : undefined;
+
   const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, tasks, launchConfigs, localPath, webLinks } = repository;
   
   const isDropdownOpen = activeDropdown === id;
@@ -595,6 +659,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
 
   return (
     <div
+      ref={cardRef}
       draggable="true"
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -607,6 +672,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
       data-category-id={categoryId}
       data-automation-id={`repo-card-${id}`}
       data-refreshing={isRefreshing ? 'true' : 'false'}
+      style={cardStyle}
     >
       <div className="p-4 flex-grow">
         <div className="flex items-start justify-between">
