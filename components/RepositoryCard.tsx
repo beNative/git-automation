@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useContext } from 'react';
+import React, { useState, useRef, useEffect, useContext, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { Repository, GitRepository, LocalPathState, DetailedStatus, BranchInfo, Task, LaunchConfig, WebLinkConfig, ToastMessage, ReleaseInfo } from '../types';
 import { VcsType } from '../types';
@@ -47,7 +47,9 @@ interface RepositoryCardProps {
   isFirstInList: boolean;
   isLastInList: boolean;
   isProcessing: boolean;
+  isRefreshing: boolean;
   localPathState: LocalPathState;
+  isLocalPathRefreshing: boolean;
   detailedStatus: DetailedStatus | null;
   branchInfo: BranchInfo | null;
   latestRelease: ReleaseInfo | null;
@@ -178,7 +180,17 @@ const BranchSwitcher: React.FC<{
         }
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [isOpen, onClose]);
-    if (!branchInfo) return null;
+    if (!branchInfo) {
+        return (
+            <div className="flex items-center gap-1 w-full" aria-live="polite">
+                <span className="sr-only">Loading branch information</span>
+                <div className="min-w-0 flex-1">
+                    <div className="h-8 rounded-md bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                </div>
+                <div className="flex-shrink-0 w-8 h-8 rounded-md bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            </div>
+        );
+    }
 
     const handleBranchClick = (branch: string) => {
       onSwitchBranch(repoId, branch);
@@ -535,7 +547,79 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onRefreshRepoState,
   activeDropdown,
   setActiveDropdown,
+  isRefreshing,
+  isLocalPathRefreshing,
 }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const stableHeightRef = useRef<number | null>(null);
+  const [lockedHeight, setLockedHeight] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const node = cardRef.current;
+    if (!node) {
+      return;
+    }
+
+    if (isRefreshing) {
+      setLockedHeight(prev => {
+        if (prev !== null) {
+          return prev;
+        }
+        const measured = stableHeightRef.current ?? node.getBoundingClientRect().height;
+        return Number.isFinite(measured) ? measured : prev;
+      });
+    } else {
+      setLockedHeight(null);
+    }
+  }, [isRefreshing]);
+
+  useLayoutEffect(() => {
+    if (isRefreshing) {
+      return;
+    }
+
+    const node = cardRef.current;
+    if (!node) {
+      return;
+    }
+
+    const updateHeight = () => {
+      const measured = node.getBoundingClientRect().height;
+      if (Number.isFinite(measured) && measured > 0) {
+        stableHeightRef.current = measured;
+      }
+    };
+
+    updateHeight();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const { height } = entry.contentRect;
+          if (Number.isFinite(height) && height > 0) {
+            stableHeightRef.current = height;
+          }
+        }
+      });
+
+      observer.observe(node);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener('resize', updateHeight);
+    return () => {
+      window.removeEventListener('resize', updateHeight);
+    };
+  }, [isRefreshing]);
+
+  const resolvedLockedHeight = isRefreshing
+    ? lockedHeight ?? stableHeightRef.current ?? null
+    : null;
+
+  const cardStyle = resolvedLockedHeight !== null
+    ? { minHeight: `${resolvedLockedHeight}px`, maxHeight: `${resolvedLockedHeight}px` }
+    : undefined;
+
   const { id, name, remoteUrl, status, lastUpdated, buildHealth, vcs, tasks, launchConfigs, localPath, webLinks } = repository;
   
   const isDropdownOpen = activeDropdown === id;
@@ -566,7 +650,7 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const configureTooltip = useTooltip('Configure Repository');
   const deleteTooltip = useTooltip('Delete Repository');
   const cancelTooltip = useTooltip('Cancel running task');
-  const refreshTooltip = useTooltip('Refresh Status');
+  const refreshTooltip = useTooltip(isRefreshing ? 'Refreshing repository data…' : 'Refresh Status');
   const moveUpTooltip = useTooltip('Move Up');
   const moveDownTooltip = useTooltip('Move Down');
 
@@ -575,11 +659,13 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
     'bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col',
     'transition-all duration-300 hover:shadow-blue-500/20',
     isBeingDragged ? 'opacity-40 scale-95' : 'opacity-100',
+    isRefreshing ? 'ring-2 ring-inset ring-blue-400/60 dark:ring-blue-500/50' : 'ring-1 ring-inset ring-transparent',
   ].join(' ');
   
 
   return (
     <div
+      ref={cardRef}
       draggable="true"
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -591,6 +677,8 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
       data-repo-id={id}
       data-category-id={categoryId}
       data-automation-id={`repo-card-${id}`}
+      data-refreshing={isRefreshing ? 'true' : 'false'}
+      style={cardStyle}
     >
       <div className="p-4 flex-grow">
         <div className="flex items-start justify-between">
@@ -611,10 +699,11 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                   hideTooltip();
                   onRefreshRepoState(id);
                 }}
-                disabled={isProcessing}
+                disabled={isProcessing || isRefreshing}
                 className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900/50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ArrowPathIcon className={`h-4 w-4 ${isProcessing ? 'animate-spin' : ''}`} />
+                <span className="sr-only">Refresh repository state</span>
+                <ArrowPathIcon className={`h-4 w-4 ${isProcessing || isRefreshing ? 'animate-spin text-blue-500 dark:text-blue-400' : ''}`} />
             </button>
             <button
                 {...configureTooltip}
@@ -669,9 +758,15 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                     {localPath}
                 </button>
                 <CopyButton textToCopy={localPath} tooltipText="Copy Path" setToast={setToast} />
+                {isLocalPathRefreshing && (
+                    <span className="flex items-center text-blue-500 dark:text-blue-400" aria-live="polite">
+                        <ArrowPathIcon className="ml-2 h-4 w-4 animate-spin" />
+                        <span className="sr-only">Refreshing local path status</span>
+                    </span>
+                )}
             </div>
           )}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between min-h-[2.25rem]">
             <div className="flex items-center min-w-0">
               {vcs === VcsType.Git ? (
                 <GitBranchIcon className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
@@ -690,8 +785,17 @@ const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 onRefreshBranches={() => onRefreshRepoState(id)}
               />
             </div>
-            <div className="flex-shrink-0 ml-4">
-              {isPathValid && detailedStatus && <StatusIndicator status={detailedStatus} />}
+            <div className="flex-shrink-0 ml-4 min-w-[5.5rem] flex justify-end">
+              {isPathValid && (
+                detailedStatus ? (
+                  <StatusIndicator status={detailedStatus} />
+                ) : (
+                  <div
+                    className="h-5 w-24 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"
+                    aria-hidden="true"
+                  />
+                )
+              )}
             </div>
           </div>
         </div>

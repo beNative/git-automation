@@ -18,6 +18,225 @@
         --status-bar-height: 1.75rem; /* Equivalent to h-7 in Tailwind */
       }
     </style>
+    <script>
+      (function bootstrapBrowserMocks() {
+        if (window.electronAPI) {
+          return;
+        }
+
+        const storageKeys = {
+          settings: 'ga-browser-globalSettings',
+          repositories: 'ga-browser-repositories',
+          categories: 'ga-browser-categories',
+          uncategorized: 'ga-browser-uncategorizedOrder',
+        };
+
+        const readFromStorage = (key, fallback) => {
+          try {
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : fallback;
+          } catch (error) {
+            console.warn('Failed to read demo data from localStorage', error);
+            return fallback;
+          }
+        };
+
+        const writeToStorage = (key, value) => {
+          try {
+            localStorage.setItem(key, JSON.stringify(value));
+          } catch (error) {
+            console.warn('Failed to persist demo data to localStorage', error);
+          }
+        };
+
+        const sampleRepositories = [
+          {
+            id: 'repo-ui-stability',
+            name: 'UI Stability Dashboard',
+            remoteUrl: 'https://example.com/engineering/ui-stability.git',
+            localPath: '/Users/dev/projects/ui-stability',
+            status: 'Idle',
+            lastUpdated: new Date(Date.now() - 1000 * 60 * 42).toISOString(),
+            buildHealth: 'Healthy',
+            tasks: [
+              { id: 'task-run-tests', name: 'Run Tests', steps: [], variables: [], environmentVariables: [], showOnDashboard: true },
+              { id: 'task-build-app', name: 'Build App', steps: [], variables: [], environmentVariables: [], showOnDashboard: true },
+            ],
+            webLinks: [
+              { id: 'docs', name: 'Design System', url: 'https://example.com/design-system' },
+            ],
+            launchConfigs: [
+              { id: 'launch-dev', name: 'Start Dev Server', type: 'command', command: 'npm run dev', showOnDashboard: true },
+              { id: 'launch-storybook', name: 'Storybook', type: 'command', command: 'npm run storybook', showOnDashboard: false },
+            ],
+            vcs: 'git',
+            branch: 'main',
+          },
+          {
+            id: 'repo-automation-service',
+            name: 'Automation Service',
+            remoteUrl: 'https://example.com/platform/automation.git',
+            localPath: '/Users/dev/projects/automation-service',
+            status: 'Success',
+            lastUpdated: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+            buildHealth: 'Healthy',
+            tasks: [
+              { id: 'task-deploy', name: 'Deploy', steps: [], variables: [], environmentVariables: [], showOnDashboard: true },
+            ],
+            webLinks: [
+              { id: 'status', name: 'Status Page', url: 'https://status.example.com' },
+            ],
+            launchConfigs: [
+              { id: 'launch-api', name: 'Run API', type: 'command', command: 'npm run start', showOnDashboard: true },
+            ],
+            vcs: 'git',
+            branch: 'develop',
+          },
+        ];
+
+        const sampleCategories = [
+          {
+            id: 'category-frontend',
+            name: 'Frontend',
+            repositoryIds: ['repo-ui-stability'],
+            backgroundColor: 'rgba(59, 130, 246, 0.08)',
+            darkBackgroundColor: 'rgba(59, 130, 246, 0.18)',
+          },
+        ];
+
+        const defaultData = {
+          globalSettings: null,
+          repositories: sampleRepositories,
+          categories: sampleCategories,
+          uncategorizedOrder: ['repo-automation-service'],
+        };
+
+        const ensureSeedData = () => {
+          const repositories = readFromStorage(storageKeys.repositories, null);
+          if (!repositories) {
+            writeToStorage(storageKeys.repositories, defaultData.repositories);
+            writeToStorage(storageKeys.categories, defaultData.categories);
+            writeToStorage(storageKeys.uncategorized, defaultData.uncategorizedOrder);
+          }
+          if (!readFromStorage(storageKeys.settings, null)) {
+            writeToStorage(storageKeys.settings, defaultData.globalSettings);
+          }
+        };
+
+        ensureSeedData();
+
+        const repoIdByPath = new Map(sampleRepositories.map(repo => [repo.localPath, repo.id]));
+        const refreshIndexByRepo = new Map(sampleRepositories.map(repo => [repo.id, 0]));
+
+        const detailedStatusSamples = [
+          {
+            files: { added: 0, modified: 3, deleted: 0, conflicted: 0, untracked: 1, renamed: 0 },
+            isDirty: true,
+            branchInfo: { ahead: 0, behind: 2, tracking: 'origin/main' },
+            updatesAvailable: false,
+          },
+          {
+            files: { added: 1, modified: 1, deleted: 0, conflicted: 0, untracked: 0, renamed: 0 },
+            isDirty: true,
+            branchInfo: { ahead: 1, behind: 0, tracking: 'origin/main' },
+            updatesAvailable: false,
+          },
+        ];
+
+        const branchSamples = [
+          {
+            current: 'main',
+            local: ['main', 'feature/stable-refresh', 'release/1.2.0'],
+            remote: ['origin/main', 'origin/feature/stable-refresh', 'origin/release/1.2.0'],
+          },
+          {
+            current: 'feature/stable-refresh',
+            local: ['main', 'feature/stable-refresh', 'release/1.2.0'],
+            remote: ['origin/main', 'origin/feature/stable-refresh', 'origin/release/1.2.0'],
+          },
+        ];
+
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        window.electronAPI = {
+          async getAllData() {
+            return {
+              globalSettings: readFromStorage(storageKeys.settings, defaultData.globalSettings),
+              repositories: readFromStorage(storageKeys.repositories, defaultData.repositories),
+              categories: readFromStorage(storageKeys.categories, defaultData.categories),
+              uncategorizedOrder: readFromStorage(storageKeys.uncategorized, defaultData.uncategorizedOrder),
+            };
+          },
+          async saveAllData(payload) {
+            writeToStorage(storageKeys.settings, payload.globalSettings);
+            writeToStorage(storageKeys.repositories, payload.repositories);
+            writeToStorage(storageKeys.categories, payload.categories);
+            writeToStorage(storageKeys.uncategorized, payload.uncategorizedOrder);
+          },
+          async checkLocalPath() {
+            await delay(150);
+            return 'valid';
+          },
+          async getDetailedVcsStatus(repo) {
+            await delay(350);
+            const nextIndex = refreshIndexByRepo.get(repo.id) === 1 ? 0 : 1;
+            refreshIndexByRepo.set(repo.id, nextIndex);
+            return detailedStatusSamples[nextIndex];
+          },
+          async listBranches({ repoPath }) {
+            await delay(250);
+            const repoId = repoIdByPath.get(repoPath);
+            const index = repoId ? refreshIndexByRepo.get(repoId) ?? 0 : 0;
+            return branchSamples[index];
+          },
+          async getLatestRelease() {
+            await delay(200);
+            return {
+              id: 1,
+              tagName: 'v1.2.0',
+              name: 'Stable Refresh',
+              body: null,
+              isDraft: false,
+              isPrerelease: false,
+              url: 'https://example.com/releases/v1.2.0',
+              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+            };
+          },
+          async openWeblink(url) {
+            window.open(url, '_blank', 'noopener');
+          },
+          async openLocalPath(path) {
+            console.info('Requested to open local path:', path);
+          },
+          async openTerminal(path) {
+            console.info('Requested to open terminal at:', path);
+          },
+          async runTaskStep() {
+            console.info('Simulated task step execution');
+          },
+          onWindowMaximizedStatus() {},
+          removeWindowMaximizedStatusListener() {},
+          windowMinimize() {},
+          windowMaximize() {},
+          windowClose() {},
+          onTaskLog() {},
+          removeTaskLogListener() {},
+          onTaskStepEnd() {},
+          removeTaskStepEndListener() {},
+          cancelTaskExecution() {},
+          cloneRepository() {},
+          launchApplication() {},
+          launchExecutable() {},
+          checkVcsStatus: async () => ({ status: 'clean' }),
+          detectExecutables: async () => ['npm', 'pnpm'],
+          onUpdateStatusChange() {},
+          removeUpdateStatusChangeListener() {},
+          getAppVersion: async () => 'browser-demo',
+          onLogFromMain() {},
+          removeLogFromMainListener() {},
+        };
+      })();
+    </script>
   <script type="importmap">
 {
   "imports": {

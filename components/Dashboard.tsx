@@ -35,6 +35,8 @@ interface DashboardProps {
   detailedStatuses: Record<string, DetailedStatus | null>;
   branchLists: Record<string, BranchInfo | null>;
   latestReleases: Record<string, ReleaseInfo | null>;
+  localPathRefreshing: Record<string, boolean>;
+  refreshingRepoStates: Record<string, boolean>;
   onSwitchBranch: (repoId: string, branch: string) => void;
   onCloneRepo: (repoId: string) => void;
   onChooseLocationAndClone: (repoId: string) => void;
@@ -56,7 +58,9 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     onAddCategory, 
     onMoveRepositoryToCategory,
     onReorderCategories,
-    latestReleases
+    latestReleases,
+    localPathRefreshing,
+    refreshingRepoStates
   } = props;
   
   const logger = useLogger();
@@ -206,9 +210,11 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     categoryId={categoryId}
                     isProcessing={props.isProcessing.has(repo.id)}
                     localPathState={props.localPathStates[repo.id] || 'checking'}
+                    isLocalPathRefreshing={!!localPathRefreshing[repo.id]}
                     detailedStatus={props.detailedStatuses[repo.id] || null}
                     branchInfo={props.branchLists[repo.id] || null}
                     latestRelease={latestReleases[repo.id] || null}
+                    isRefreshing={!!refreshingRepoStates[repo.id]}
                     detectedExecutables={props.detectedExecutables[repo.id] || []}
                     onDragStart={(e) => handleDragStartRepo(e, repo.id, categoryId)}
                     onDragEnd={() => { setDraggedRepo(null); }}

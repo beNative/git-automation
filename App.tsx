@@ -175,6 +175,7 @@ const App: React.FC = () => {
   const [isDebugPanelOpen, setIsDebugPanelOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [localPathStates, setLocalPathStates] = useState<Record<string, LocalPathState>>({});
+  const [localPathRefreshing, setLocalPathRefreshing] = useState<Record<string, boolean>>({});
   const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
   const [appVersion, setAppVersion] = useState<string>('');
   const [isCheckingAll, setIsCheckingAll] = useState(false);
@@ -191,6 +192,7 @@ const App: React.FC = () => {
   const [branchLists, setBranchLists] = useState<Record<string, BranchInfo | null>>({});
   // FIX: Add state for latestReleases to satisfy DashboardProps.
   const [latestReleases, setLatestReleases] = useState<Record<string, ReleaseInfo | null>>({});
+  const [refreshingRepoStates, setRefreshingRepoStates] = useState<Record<string, boolean>>({});
   
   const [taskLogState, setTaskLogState] = useState({
     isOpen: false,
@@ -607,57 +609,210 @@ const App: React.FC = () => {
   // Effect to check local paths
   useEffect(() => {
     if (isDataLoading) return;
+
+    let isCancelled = false;
+
     const checkPaths = async () => {
         if (repositories.length === 0) {
-            setLocalPathStates({});
+            if (!isCancelled) {
+                setLocalPathStates({});
+                setLocalPathRefreshing({});
+            }
             return;
         }
+
         logger.debug('Checking local paths for repositories.', { count: repositories.length });
-        
-        const checkingStates: Record<string, LocalPathState> = {};
-        for (const repo of repositories) {
-            checkingStates[repo.id] = 'checking';
-        }
-        setLocalPathStates(checkingStates);
+
+        const repoIds = repositories.map(repo => repo.id);
+
+        setLocalPathStates(prev => {
+            const next = { ...prev } as Record<string, LocalPathState>;
+            repoIds.forEach(repoId => {
+                if (!(repoId in next)) {
+                    next[repoId] = 'checking';
+                }
+            });
+            Object.keys(next).forEach(repoId => {
+                if (!repoIds.includes(repoId)) {
+                    delete next[repoId];
+                }
+            });
+            return next;
+        });
+
+        setLocalPathRefreshing(prev => {
+            const next = { ...prev } as Record<string, boolean>;
+            repoIds.forEach(repoId => {
+                next[repoId] = true;
+            });
+            Object.keys(next).forEach(repoId => {
+                if (!repoIds.includes(repoId)) {
+                    delete next[repoId];
+                }
+            });
+            return next;
+        });
 
         const finalStates: Record<string, LocalPathState> = {};
         for (const repo of repositories) {
             finalStates[repo.id] = await window.electronAPI?.checkLocalPath(repo.localPath) ?? 'missing';
         }
-        setLocalPathStates(finalStates);
+
+        if (isCancelled) {
+            return;
+        }
+
+        setLocalPathStates(prev => {
+            const next = { ...prev } as Record<string, LocalPathState>;
+            repoIds.forEach(repoId => {
+                next[repoId] = finalStates[repoId];
+            });
+            Object.keys(next).forEach(repoId => {
+                if (!repoIds.includes(repoId)) {
+                    delete next[repoId];
+                }
+            });
+            return next;
+        });
+
+        setLocalPathRefreshing(prev => {
+            const next = { ...prev } as Record<string, boolean>;
+            repoIds.forEach(repoId => {
+                next[repoId] = false;
+            });
+            Object.keys(next).forEach(repoId => {
+                if (!repoIds.includes(repoId)) {
+                    delete next[repoId];
+                }
+            });
+            return next;
+        });
+
         logger.info('Local path check complete.', finalStates);
     };
+
     checkPaths();
+
+    return () => {
+        isCancelled = true;
+    };
   }, [repositories, isDataLoading, logger]);
   
   // New effect to fetch detailed VCS statuses and branch lists
   useEffect(() => {
     if (isDataLoading) return;
+
+    let isCancelled = false;
+
     const fetchStatuses = async () => {
       logger.debug('Fetching detailed VCS statuses and branch lists.');
+
       const statusPromises = repositories.map(async (repo) => {
-        if (localPathStates[repo.id] === 'valid') {
-          const status = await window.electronAPI?.getDetailedVcsStatus(repo);
-          return { repoId: repo.id, status };
+        const pathState = localPathStates[repo.id];
+
+        if (pathState === 'valid') {
+          try {
+            const status = await window.electronAPI?.getDetailedVcsStatus(repo);
+            return { repoId: repo.id, status: status ?? null, pathState };
+          } catch (error: any) {
+            logger.error(`Failed to fetch detailed status for ${repo.name}:`, { error: error.message });
+            return { repoId: repo.id, status: null, pathState };
+          }
         }
-        return { repoId: repo.id, status: null };
+
+        if (pathState === 'missing' || pathState === 'not_a_repo') {
+          return { repoId: repo.id, status: null, pathState };
+        }
+
+        // When the path is still being validated ("checking" or undefined), retain the prior status.
+        return { repoId: repo.id, status: undefined, pathState };
       });
+
       const statuses = await Promise.all(statusPromises);
-      setDetailedStatuses(statuses.reduce((acc, s) => ({ ...acc, [s.repoId]: s.status }), {}));
-      
+
+      if (!isCancelled) {
+        setDetailedStatuses(prev => {
+          const next = { ...prev } as Record<string, DetailedStatus | null>;
+          const seen = new Set<string>();
+
+          statuses.forEach(({ repoId, status, pathState }) => {
+            seen.add(repoId);
+            if (status !== undefined) {
+              if (status === null && pathState === 'valid' && prev[repoId]) {
+                // Preserve the previous detailed status if the refresh failed to prevent UI flicker.
+                next[repoId] = prev[repoId];
+              } else {
+                next[repoId] = status;
+              }
+            }
+          });
+
+          Object.keys(next).forEach(repoId => {
+            if (!seen.has(repoId)) {
+              delete next[repoId];
+            }
+          });
+
+          return next;
+        });
+      }
+
       const branchPromises = repositories.map(async (repo) => {
-        if (localPathStates[repo.id] === 'valid') {
-          const branches = await window.electronAPI?.listBranches({ repoPath: repo.localPath, vcs: repo.vcs });
-          return { repoId: repo.id, branches };
+        const pathState = localPathStates[repo.id];
+
+        if (pathState === 'valid') {
+          try {
+            const branches = await window.electronAPI?.listBranches({ repoPath: repo.localPath, vcs: repo.vcs });
+            return { repoId: repo.id, branches: branches ?? null, pathState };
+          } catch (error: any) {
+            logger.error(`Failed to fetch branches for ${repo.name}:`, { error: error.message });
+            return { repoId: repo.id, branches: null, pathState };
+          }
         }
-        return { repoId: repo.id, branches: null };
+
+        if (pathState === 'missing' || pathState === 'not_a_repo') {
+          return { repoId: repo.id, branches: null, pathState };
+        }
+
+        return { repoId: repo.id, branches: undefined, pathState };
       });
+
       const branches = await Promise.all(branchPromises);
-      setBranchLists(branches.reduce((acc, b) => ({ ...acc, [b.repoId]: b.branches }), {}));
+
+      if (!isCancelled) {
+        setBranchLists(prev => {
+          const next = { ...prev } as Record<string, BranchInfo | null>;
+          const seen = new Set<string>();
+
+          branches.forEach(({ repoId, branches: branchInfo, pathState }) => {
+            seen.add(repoId);
+            if (branchInfo !== undefined) {
+              if (branchInfo === null && pathState === 'valid' && prev[repoId]) {
+                next[repoId] = prev[repoId];
+              } else {
+                next[repoId] = branchInfo;
+              }
+            }
+          });
+
+          Object.keys(next).forEach(repoId => {
+            if (!seen.has(repoId)) {
+              delete next[repoId];
+            }
+          });
+
+          return next;
+        });
+      }
+
       logger.info('VCS status and branch fetch complete.');
     };
 
     fetchStatuses();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [repositories, localPathStates, isDataLoading, logger]);
 
   // FIX: Add effect to fetch latest releases for repositories.
@@ -853,23 +1008,41 @@ const App: React.FC = () => {
     if (!repo || localPathStates[repo.id] !== 'valid') return;
     logger.info('Refreshing repository state', { repoId, name: repo.name });
 
-    const status = await window.electronAPI?.getDetailedVcsStatus(repo);
-    setDetailedStatuses(prev => ({ ...prev, [repoId]: status }));
+    setRefreshingRepoStates(prev => ({ ...prev, [repoId]: true }));
 
-    const branches = await window.electronAPI?.listBranches({ repoPath: repo.localPath, vcs: repo.vcs });
-    setBranchLists(prev => ({ ...prev, [repoId]: branches }));
+    try {
+        const status = await window.electronAPI?.getDetailedVcsStatus(repo);
+        setDetailedStatuses(prev => {
+            const previous = prev[repoId] ?? null;
+            return { ...prev, [repoId]: status ?? previous };
+        });
 
-    if (repo.vcs === VcsType.Git) {
-        // If the current branch in the state is different from the one on disk, update it
-        if (branches?.current && repo.branch !== branches.current) {
-            logger.info('Branch changed on disk, updating repository state.', { repoId, old: repo.branch, new: branches.current });
-            updateRepository({ ...repo, branch: branches.current });
+        const branches = await window.electronAPI?.listBranches({ repoPath: repo.localPath, vcs: repo.vcs });
+        setBranchLists(prev => {
+            const previous = prev[repoId] ?? null;
+            return { ...prev, [repoId]: branches ?? previous };
+        });
+
+        if (repo.vcs === VcsType.Git) {
+            // If the current branch in the state is different from the one on disk, update it
+            if (branches?.current && repo.branch !== branches.current) {
+                logger.info('Branch changed on disk, updating repository state.', { repoId, old: repo.branch, new: branches.current });
+                updateRepository({ ...repo, branch: branches.current });
+            }
+            // Also refresh release info
+            if (settings.githubPat) {
+                const releaseInfo = await window.electronAPI?.getLatestRelease(repo);
+                setLatestReleases(prev => ({ ...prev, [repoId]: releaseInfo ?? prev[repoId] ?? null }));
+            }
         }
-        // Also refresh release info
-        if (settings.githubPat) {
-            const releaseInfo = await window.electronAPI?.getLatestRelease(repo);
-            setLatestReleases(prev => ({ ...prev, [repoId]: releaseInfo }));
-        }
+    } catch (error: any) {
+        logger.error('Failed to refresh repository state', { repoId, error: error?.message ?? error });
+    } finally {
+        setRefreshingRepoStates(prev => {
+            const next = { ...prev } as Record<string, boolean>;
+            delete next[repoId];
+            return next;
+        });
     }
   }, [repositories, localPathStates, updateRepository, logger, settings.githubPat]);
 
@@ -1606,11 +1779,13 @@ const App: React.FC = () => {
                       onDeleteRepo={handleDeleteRepo}
                       isProcessing={isProcessing}
                       localPathStates={localPathStates}
+                      localPathRefreshing={localPathRefreshing}
                       detectedExecutables={detectedExecutables}
                       detailedStatuses={detailedStatuses}
                       branchLists={branchLists}
                       // FIX: Pass latestReleases prop to Dashboard.
                       latestReleases={latestReleases}
+                      refreshingRepoStates={refreshingRepoStates}
                       onSwitchBranch={handleSwitchBranch}
                       onCloneRepo={(repoId) => {
                         const repo = repositories.find(r => r.id === repoId);
