@@ -146,10 +146,10 @@ test('falls back to legacy lookup when REST API fails before legacy succeeds', a
     }, async (ctx) => {
       const tag = await (ctx.provider as any).getLatestTagName(new CancellationToken());
       assert.equal(tag, 'legacy-tag');
-      assert.equal(ctx.recordedRequests.length, 1);
-      assert.equal(fetchCalled, 1);
+      assert.equal(ctx.recordedRequests.length, 2);
+      assert.equal(fetchCalled, 2);
       assert.equal(ctx.legacyCalls, 1);
-      assert.ok(ctx.logs.some(entry => entry.level === 'warn' && entry.message.includes('REST API lookup failed')));
+      assert.ok(ctx.logs.some(entry => entry.level === 'warn' && entry.message.includes('REST API did not return a tag name')));
     });
   } finally {
     global.fetch = originalFetch;
@@ -158,11 +158,11 @@ test('falls back to legacy lookup when REST API fails before legacy succeeds', a
 
 test('retries REST API after a 406 legacy failure', async () => {
   await withPatchedProvider({
-    responses: [JSON.stringify({}), JSON.stringify({ tag_name: 'v8.8.8' })],
+    responses: [JSON.stringify({}), JSON.stringify({}), JSON.stringify({ tag_name: 'v8.8.8' })],
   }, async (ctx) => {
     const tag = await (ctx.provider as any).getLatestTagName(new CancellationToken());
     assert.equal(tag, 'v8.8.8');
-    assert.equal(ctx.recordedRequests.length, 2);
+    assert.equal(ctx.recordedRequests.length, 3);
     assert.equal(ctx.legacyCalls, 1);
     assert.ok(ctx.logs.some(entry => entry.level === 'warn' && entry.message.includes('Primary GitHub release lookup failed')));
     assert.ok(ctx.logs.some(entry => entry.level === 'info' && entry.message.includes('API fallback')));
