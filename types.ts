@@ -332,10 +332,17 @@ export interface BranchInfo {
 
 export type UpdateStatus = 'checking' | 'available' | 'downloaded' | 'error';
 
+export interface UpdateFailureDetails {
+  statusCode?: number;
+  missingManifest?: boolean;
+  rawMessage?: string;
+}
+
 export interface UpdateStatusMessage {
   status: UpdateStatus;
   message: string;
   version?: string;
+  details?: UpdateFailureDetails;
 }
 
 export interface Commit {

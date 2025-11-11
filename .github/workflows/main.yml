@@ -58,6 +58,25 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: ${{ matrix.build_command }}
+      - name: Normalize Windows win32 artifact naming
+        if: matrix.display_name == 'Windows win32'
+        shell: bash
+        run: node electron/scripts/normalize-win32-artifacts.mjs
+      - name: Verify update manifests were produced
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          manifests=(release/latest*.yml)
+          if [ ${#manifests[@]} -eq 0 ]; then
+            echo "::error::No latest*.yml manifests found in release/ directory for ${{ matrix.display_name }}."
+            ls -al release || true
+            exit 1
+          fi
+          printf 'Detected update manifests for %s:\n' "${{ matrix.display_name }}"
+          for manifest in "${manifests[@]}"; do
+            printf '  - %s\n' "$manifest"
+          done
 
       - name: Upload build artifacts
         if: always()
@@ -124,27 +143,19 @@ jobs:
           # --- Windows (win32) ---
           if [[ -d artifacts/windows-win32-artifacts ]]; then
             for file in artifacts/windows-win32-artifacts/*.exe; do
-              base="$(basename "$file")"
-              target="$base"
-              if [[ "$base" == *-ia32* ]]; then
-                target="${base//-ia32/-win32}"
-              elif [[ "$base" != *-win32.exe ]]; then
-                target="${base%.exe}-win32.exe"
-              fi
-              cp "$file" "release_upload/$target"
+              cp "$file" release_upload/
             done
             for file in artifacts/windows-win32-artifacts/*.exe.blockmap; do
-              base="$(basename "$file")"
-              target="$base"
-              if [[ "$base" == *-ia32* ]]; then
-                target="${base//-ia32/-win32}"
-              elif [[ "$base" != *-win32.exe.blockmap ]]; then
-                target="${base/.exe/-win32.exe}"
-              fi
-              cp "$file" "release_upload/$target"
+              cp "$file" release_upload/
             done
-            if [[ -f artifacts/windows-win32-artifacts/latest.yml ]]; then
+            if [[ -f artifacts/windows-win32-artifacts/latest-win32.yml ]]; then
+              cp artifacts/windows-win32-artifacts/latest-win32.yml release_upload/latest-win32.yml
+            elif [[ -f artifacts/windows-win32-artifacts/latest.yml ]]; then
+              echo "::warning::latest-win32.yml was not generated; falling back to latest.yml naming."
               cp artifacts/windows-win32-artifacts/latest.yml release_upload/latest-win32.yml
+            else
+              echo "::error::Missing win32 update manifest in artifacts/windows-win32-artifacts."
+              exit 1
             fi
           fi
 

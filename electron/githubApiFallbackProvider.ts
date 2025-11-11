@@ -25,6 +25,14 @@ type SanitizedError = {
   code?: string;
 };
 
+type FallbackSignal = {
+  shouldFallback: boolean;
+  reason?: 'not-acceptable' | 'not-found';
+  statusCode?: number;
+  code?: string;
+  message?: string;
+};
+
 const DEFAULT_FALLBACK_HEADERS: Record<string, string> = {
   'Accept': 'application/vnd.github+json',
   'User-Agent': 'GitAutomationDashboard-Updater',
@@ -60,20 +68,23 @@ const sanitizeError = (error: unknown): SanitizedError => {
   return sanitized;
 };
 
-const shouldUseApiFallback = (error: unknown): boolean => {
-  if (!error) {
-    return false;
+const classifyFallbackSignal = (error: unknown): FallbackSignal => {
+  if (!error || typeof error !== 'object') {
+    return { shouldFallback: false };
   }
   const statusCode = typeof (error as any)?.statusCode === 'number' ? (error as any).statusCode : undefined;
   const message = typeof (error as any)?.message === 'string' ? (error as any).message : '';
   const code = typeof (error as any)?.code === 'string' ? (error as any).code : undefined;
-  if (statusCode === 406) {
-    return true;
+
+  if (statusCode === 406 || (code === 'ERR_UPDATER_LATEST_VERSION_NOT_FOUND' && message.includes('406'))) {
+    return { shouldFallback: true, reason: 'not-acceptable', statusCode, code, message };
   }
-  if (code === 'ERR_UPDATER_LATEST_VERSION_NOT_FOUND' && message.includes('406')) {
-    return true;
+
+  if (statusCode === 404 || /404/.test(message)) {
+    return { shouldFallback: true, reason: 'not-found', statusCode, code, message };
   }
-  return false;
+
+  return { shouldFallback: false, statusCode, code, message };
 };
 
 const buildApiHeaders = (instance: ProviderInstance): Record<string, string> => {
@@ -350,10 +361,15 @@ export const installGitHubLatestTagFallback = (logger?: LoggerLike): void => {
     try {
       return await original.call(this, cancellationToken);
     } catch (error) {
-      if (!shouldUseApiFallback(error)) {
+      const fallbackSignal = classifyFallbackSignal(error);
+      if (!fallbackSignal.shouldFallback) {
         throw error;
       }
-      tryLog(logger, 'warn', '[AutoUpdate] Primary GitHub release lookup failed; attempting API fallback.', sanitizeError(error));
+      const sanitized = sanitizeError(error);
+      const logMessage = fallbackSignal.reason === 'not-found'
+        ? '[AutoUpdate] Primary GitHub release lookup returned 404; release metadata may be missing latest*.yml. Attempting API fallback.'
+        : '[AutoUpdate] Primary GitHub release lookup failed; attempting API fallback.';
+      tryLog(logger, 'warn', logMessage, { ...sanitized, fallbackSignal });
       if (!shouldAttemptRestApi(this)) {
         throw error;
       }

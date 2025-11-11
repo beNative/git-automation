@@ -44,17 +44,35 @@ const summarizeUpdateErrorMessage = (error: unknown): string => {
   return shortenMessage(summary);
 };
 
-const formatUpdateErrorToast = (base: string, error: unknown, options?: { retryHint?: string }): string => {
+type UpdateFailureDiagnostics = {
+  statusCode?: number;
+  missingManifest?: boolean;
+  rawMessage?: string;
+};
+
+const formatUpdateErrorToast = (base: string, error: unknown, options?: { retryHint?: string; diagnostics?: UpdateFailureDiagnostics }): string => {
   let message = base.trim();
   if (!/[.!?]$/.test(message)) {
     message += '.';
   }
 
   const detail = (() => {
-    const statusCode = extractHttpStatusCode(error);
+    const statusCode = extractHttpStatusCode(error) ?? options?.diagnostics?.statusCode ?? null;
     if (statusCode) {
-      const suffix = statusCode === 406 ? ' (Not Acceptable)' : '';
-      return `GitHub responded with HTTP ${statusCode}${suffix}.`;
+      let suffix = '';
+      if (statusCode === 406) {
+        suffix = ' (Not Acceptable)';
+      } else if (statusCode === 404) {
+        suffix = ' (Not Found)';
+      }
+      const parts = [`GitHub responded with HTTP ${statusCode}${suffix}.`];
+      if (options?.diagnostics?.missingManifest) {
+        parts.push('Update metadata (latest*.yml) is missing from the release. Publish the manifests and retry.');
+      }
+      return parts.join(' ');
+    }
+    if (options?.diagnostics?.missingManifest) {
+      return 'Update metadata (latest*.yml) is missing from the release. Publish the manifests and retry.';
     }
     const summary = summarizeUpdateErrorMessage(error);
     if (summary) {
