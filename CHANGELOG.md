@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 - _No unreleased changes._
 
+## [0.25.8]
+
+### Changed
+- **Repository Card Stability:** Smoothed out repository refreshes so cards keep a consistent height while statuses update, eliminating layout jumps when new data arrives.
+- **Debug Log Ergonomics:** Rebuilt the debug log panel with proper text selection, Shift/Ctrl multi-select, and copy-formatting controls so incident responders can capture exactly the log lines they need.
+- **Auto-Update Messaging:** Trimmed the "update failed" toast copy to a concise summary that links to the debug log when upstream errors include unusually large payloads.
+
+### Fixed
+- **GitHub Auto-Update Fallbacks:** Patched the `electron-updater` GitHub provider to retry via the REST API (with authenticated request headers and structured logging) whenever the legacy HTML endpoint returns 406 responses. This closes the loop on update checks that previously stalled during GitHub API hardening.
+- **Windows Clone Execution:** Stopped spawning the Setup & Clone process through a Windows shell so Git/SVN executables with spaces in their path run reliably, while still logging the exact command for troubleshooting.
+
+### Documentation
+- Documented the repository card layout stabilization, debug log selection tooling, auto-update hardening, and Setup & Clone reliability fixes for maintainers preparing the 0.25.8 release.
+
 ## [0.25.7]
 
 ### Changed
