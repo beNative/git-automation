@@ -1872,6 +1872,7 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction, defaultCategoryId, onOpenWeblink, detectedExecutables }) => {
   const logger = useLogger();
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
+  const logger = useLogger();
 
   const repoIdForSuggestions = useMemo(() => {
     if ('id' in formData) {
@@ -1895,15 +1896,20 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   useEffect(() => {
     const currentRemoteUrl = formData.remoteUrl;
     const prevRemoteUrl = prevRemoteUrlRef.current;
-  
+
     // If the previous URL was empty and the current one is not, it means we just discovered it.
     if (!prevRemoteUrl && currentRemoteUrl) {
+      logger.info('Remote URL discovered', {
+        repoId: repository?.id ?? null,
+        repoPath: formData.localPath || repository?.localPath || null,
+        remoteUrl: currentRemoteUrl,
+      });
       setToast({ message: 'Remote URL and name discovered!', type: 'success' });
     }
-  
+
     // Update the ref for the next render.
     prevRemoteUrlRef.current = currentRemoteUrl;
-  }, [formData.remoteUrl, setToast]);
+  }, [formData.remoteUrl, formData.localPath, repository, logger, setToast]);
   
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => {
     if (repository && repository.tasks && repository.tasks.length > 0) {
@@ -2062,7 +2068,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   const fetchHistory = useCallback(async (loadMore = false) => {
     if (!repository || !supportsHistoryTab) return;
-    
+
     if (loadMore) {
         setIsMoreHistoryLoading(true);
     } else {
@@ -2071,7 +2077,17 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
 
     const skipCount = loadMore ? commits.length : 0;
-    
+    const repoId = repository?.id ?? null;
+    const repoPath = repository?.localPath || formData.localPath || null;
+
+    logger.info('Fetching commit history', {
+      repoId,
+      repoPath,
+      loadMore,
+      skipCount,
+      searchTerm: debouncedHistorySearch || null,
+    });
+
     try {
         const newCommits = await window.electronAPI?.getCommitHistory(repository, skipCount, debouncedHistorySearch);
         if(loadMore) {
@@ -2102,17 +2118,41 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         } else {
           setHistoryMatchStats({ commitCount: 0, occurrenceCount: 0 });
         }
+
+        logger.info('Completed fetching commit history', {
+          repoId,
+          repoPath,
+          loadMore,
+          retrievedCommits: newCommits?.length ?? 0,
+          hasMore: (newCommits || []).length === 100,
+          searchTerm: debouncedHistorySearch || null,
+        });
     } catch (e: any) {
+        logger.error('Failed to fetch commit history', {
+          repoId,
+          repoPath,
+          loadMore,
+          skipCount,
+          searchTerm: debouncedHistorySearch || null,
+          error: e instanceof Error ? { message: e.message, stack: e.stack } : e,
+        });
         setToast({ message: `Failed to load history: ${e.message}`, type: 'error' });
     } finally {
         setHistoryLoading(false);
         setIsMoreHistoryLoading(false);
     }
-  }, [repository, setToast, commits.length, debouncedHistorySearch, supportsHistoryTab]);
+  }, [repository, formData.localPath, logger, setToast, commits.length, debouncedHistorySearch, supportsHistoryTab]);
 
   const fetchBranches = useCallback(async () => {
     if (!repository || !supportsBranchTab) return;
     setBranchesLoading(true);
+
+    logger.info('Fetching branches', {
+      repoId: repository?.id ?? null,
+      repoPath: repository?.localPath ?? null,
+      vcs: repository?.vcs ?? null,
+    });
+
     try {
         const branches = await window.electronAPI?.listBranches({ repoPath: repository.localPath, vcs: repository.vcs });
         setBranchInfo(branches || null);
@@ -2135,24 +2175,54 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             }
             return [];
         });
+
+        logger.info('Completed fetching branches', {
+          repoId: repository?.id ?? null,
+          repoPath: repository?.localPath ?? null,
+          localBranchCount: branches?.local?.length ?? 0,
+          remoteBranchCount: branches?.remote?.length ?? 0,
+          currentBranch: branches?.current ?? null,
+        });
     } catch (e: any) {
+        logger.error('Failed to fetch branches', {
+          repoId: repository?.id ?? null,
+          repoPath: repository?.localPath ?? null,
+          error: e instanceof Error ? { message: e.message, stack: e.stack } : e,
+        });
         setToast({ message: `Failed to load branches: ${e.message}`, type: 'error' });
     } finally {
         setBranchesLoading(false);
     }
-  }, [repository, supportsBranchTab, setToast]);
+  }, [repository, supportsBranchTab, logger, setToast]);
 
   const fetchReleases = useCallback(async () => {
     if (!repository || !isGitHubRepo) return;
     setReleasesLoading(true);
     setReleasesError(null);
+
+    logger.info('Fetching releases', {
+      repoId: repository?.id ?? null,
+      repoPath: repository?.localPath ?? null,
+      remoteUrl: repository?.remoteUrl ?? null,
+    });
+
     try {
       const result = await window.electronAPI?.getAllReleases(repository);
       if (result) {
         setReleases(result);
+        logger.info('Completed fetching releases', {
+          repoId: repository?.id ?? null,
+          repoPath: repository?.localPath ?? null,
+          releaseCount: result.length,
+        });
       } else {
         const pat = await window.electronAPI?.getGithubPat();
         if (!pat) {
+          logger.warn('GitHub PAT missing while fetching releases', {
+            repoId: repository?.id ?? null,
+            repoPath: repository?.localPath ?? null,
+            remoteUrl: repository?.remoteUrl ?? null,
+          });
           setReleasesError("A GitHub Personal Access Token is required to manage releases. Please set one in Settings > Behavior.");
         } else {
           const errorMessage = "Failed to fetch releases. This may be due to an invalid PAT or insufficient permissions (requires 'Contents: Read & write'). Check the debug console for more details.";
@@ -2174,7 +2244,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     } finally {
       setReleasesLoading(false);
     }
-  }, [repository, isGitHubRepo]);
+  }, [repository, isGitHubRepo, logger]);
 
 
   // Fetch branch info on mount for the dropdown if possible
@@ -2398,25 +2468,77 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   };
   
   const handleCreateBranch = async () => {
-    if (!repository || !newBranchName.trim()) return;
+    const branchName = newBranchName.trim();
+    const repoId = repository?.id ?? null;
+
+    logger.info('Create branch requested', {
+      repoId,
+      repoPath: repository?.localPath,
+      branchName,
+    });
+
+    if (!repository || !branchName) {
+        logger.warn('Create branch aborted: missing repository context or branch name', {
+          repoId,
+          hasRepository: Boolean(repository),
+          branchName,
+        });
+        return;
+    }
     if (!isGitRepo) {
+        logger.warn('Create branch blocked: repository is not Git', {
+          repoId: repository.id,
+          repoPath: repository.localPath,
+          branchName,
+          vcs: repository.vcs,
+        });
         setToast({ message: 'Branch creation is only supported for Git repositories.', type: 'info' });
         return;
     }
-    const result = await window.electronAPI?.createBranch(repository.localPath, newBranchName.trim());
+    const result = await window.electronAPI?.createBranch(repository.localPath, branchName);
     if (result?.success) {
-        setToast({ message: `Branch '${newBranchName.trim()}' created`, type: 'success' });
+        logger.success('Branch created', {
+          repoId: repository.id,
+          repoPath: repository.localPath,
+          branchName,
+        });
+        setToast({ message: `Branch '${branchName}' created`, type: 'success' });
         setNewBranchName('');
         fetchBranches();
         onRefreshState(repository.id);
     } else {
-        setToast({ message: `Error: ${result?.error || 'Electron API not available.'}`, type: 'error' });
+        const errorMessage = result?.error || 'Electron API not available.';
+        logger.error('Branch creation failed', {
+          repoId: repository.id,
+          repoPath: repository.localPath,
+          branchName,
+          error: errorMessage,
+        });
+        setToast({ message: `Error: ${errorMessage}`, type: 'error' });
     }
   };
   
   const handleDeleteBranch = async (branchIdentifier: string, scope: 'local' | 'remote') => {
-    if (!repository) return;
+    const baseMetadata = {
+        repoId: repository?.id ?? null,
+        repoPath: repository?.localPath,
+        branchIdentifier,
+        scope,
+    };
+
+    logger.info('Delete branch requested', baseMetadata);
+
+    if (!repository) {
+        logger.warn('Delete branch aborted: missing repository context', baseMetadata);
+        return;
+    }
     if (!isGitRepo) {
+        logger.warn('Delete branch blocked: repository is not Git', {
+            ...baseMetadata,
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            vcs: repository.vcs,
+        });
         setToast({ message: 'Branch deletion is only supported for Git repositories.', type: 'info' });
         return;
     }
@@ -2425,11 +2547,26 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     const branchLabel = formatBranchSelectionLabel(branchIdentifier, scope);
 
     if (scope === 'local' && branchInfo?.current && branchIdentifier === branchInfo.current) {
+        logger.warn('Delete branch aborted: attempted to delete current branch', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            branchIdentifier,
+            branchLabel,
+            scope,
+            currentBranch: branchInfo.current,
+        });
         setToast({ message: 'Cannot delete the currently checked out branch.', type: 'info' });
         return;
     }
 
     if (isProtectedBranch(branchLabel, scope)) {
+        logger.warn('Delete branch aborted: branch is protected', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            branchIdentifier,
+            branchLabel,
+            scope,
+        });
         setToast({ message: `Branch '${branchLabel}' is protected and cannot be deleted.`, type: 'info' });
         return;
     }
@@ -2442,6 +2579,18 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         onConfirm: async () => {
             const branchArgument = isRemote ? (remoteDetails?.branchName ?? branchIdentifier) : branchIdentifier;
             const remoteName = remoteDetails?.remoteName;
+            const actionMetadata = {
+                repoId: repository.id,
+                repoPath: repository.localPath,
+                branchIdentifier,
+                branchLabel,
+                scope,
+                branchArgument,
+                remoteName,
+            };
+
+            logger.info('Deleting branch (confirmed)', actionMetadata);
+
             const result = await window.electronAPI?.deleteBranch(
                 repository.localPath,
                 branchArgument,
@@ -2449,22 +2598,50 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 remoteName
             );
             if (result?.success) {
+                logger.success('Branch deleted', actionMetadata);
                 setToast({ message: `Branch '${branchLabel}' deleted`, type: 'success' });
                 fetchBranches();
                 onRefreshState(repository.id);
             } else {
-                setToast({ message: `Error: ${result?.error || 'Electron API not available.'}`, type: 'error' });
+                const errorMessage = result?.error || 'Electron API not available.';
+                logger.error('Branch deletion failed', {
+                    ...actionMetadata,
+                    error: errorMessage,
+                });
+                setToast({ message: `Error: ${errorMessage}`, type: 'error' });
             }
         }
     });
   };
 
   const handleBulkDeleteSelectedBranches = useCallback(() => {
+    const repoId = repository?.id ?? null;
+    logger.info('Bulk branch delete requested', {
+        repoId,
+        repoPath: repository?.localPath,
+        selectionCount: selectedBranches.length,
+        selections: selectedBranches.map(selection => ({
+            name: selection.name,
+            scope: selection.scope,
+        })),
+    });
+
     if (!repository || selectedBranches.length === 0) {
+        logger.warn('Bulk branch delete aborted: missing repository context or selections', {
+            repoId,
+            hasRepository: Boolean(repository),
+            selectionCount: selectedBranches.length,
+        });
         return;
     }
 
     if (!isGitRepo) {
+        logger.warn('Bulk branch delete blocked: repository is not Git', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            vcs: repository.vcs,
+            selectionCount: selectedBranches.length,
+        });
         setToast({ message: 'Bulk branch deletion is only supported for Git repositories.', type: 'info' });
         return;
     }
@@ -2486,6 +2663,12 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     });
 
     if (deletable.length === 0) {
+        logger.warn('Bulk branch delete aborted: no deletable branches', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            skippedProtectedCount,
+            skippedCurrentCount,
+        });
         const messages: string[] = [];
         if (skippedProtectedCount) {
             messages.push(`Cannot delete protected branch${skippedProtectedCount > 1 ? 'es' : ''}.`);
@@ -2508,6 +2691,13 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         icon: <ExclamationCircleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />,
         onConfirm: async () => {
             setIsDeletingBranches(true);
+            logger.info('Bulk branch delete confirmed', {
+                repoId: repository.id,
+                repoPath: repository.localPath,
+                deletableCount: deletable.length,
+                skippedProtectedCount,
+                skippedCurrentCount,
+            });
             try {
                 const results: Array<{ selection: { name: string; scope: 'local' | 'remote' }; success: boolean; error?: string }> = [];
                 for (const selection of deletable) {
@@ -2517,6 +2707,15 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                         ? (remoteDetails?.branchName ?? selection.name)
                         : selection.name;
                     const remoteName = remoteDetails?.remoteName;
+                    const perBranchMetadata = {
+                        repoId: repository.id,
+                        repoPath: repository.localPath,
+                        branchName: selection.name,
+                        scope: selection.scope,
+                        branchArgument,
+                        remoteName,
+                    };
+                    logger.info('Deleting branch (bulk)', perBranchMetadata);
                     try {
                         const result = await window.electronAPI?.deleteBranch(
                             repository.localPath,
@@ -2525,12 +2724,23 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                             remoteName
                         );
                         if (result?.success) {
+                            logger.success('Branch deleted (bulk)', perBranchMetadata);
                             results.push({ selection, success: true });
                         } else {
-                            results.push({ selection, success: false, error: result?.error || 'Electron API not available.' });
+                            const errorMessage = result?.error || 'Electron API not available.';
+                            logger.error('Branch deletion failed (bulk)', {
+                                ...perBranchMetadata,
+                                error: errorMessage,
+                            });
+                            results.push({ selection, success: false, error: errorMessage });
                         }
                     } catch (error: any) {
-                        results.push({ selection, success: false, error: error.message });
+                        const errorMessage = error?.message || String(error);
+                        logger.error('Branch deletion encountered exception (bulk)', {
+                            ...perBranchMetadata,
+                            error: errorMessage,
+                        });
+                        results.push({ selection, success: false, error: errorMessage });
                     }
                 }
 
@@ -2565,11 +2775,33 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                     messages.push(`Failed to delete ${failed.length} branch${failed.length > 1 ? 'es' : ''}: ${failureList}.`);
                 }
 
+                const summaryMetadata = {
+                    repoId: repository.id,
+                    repoPath: repository.localPath,
+                    succeededCount: succeeded.length,
+                    failedCount: failed.length,
+                    skippedProtectedCount,
+                    skippedCurrentCount,
+                };
+
                 if (messages.length) {
                     const toastType: 'success' | 'info' | 'error' = failed.length
                         ? (succeeded.length ? 'info' : 'error')
                         : 'success';
+                    if (toastType === 'success') {
+                        logger.success('Bulk branch delete completed', summaryMetadata);
+                    } else if (toastType === 'info') {
+                        logger.warn('Bulk branch delete completed with partial failures', summaryMetadata);
+                    } else {
+                        logger.error('Bulk branch delete failed', summaryMetadata);
+                    }
                     setToast({ message: messages.join(' '), type: toastType });
+                } else {
+                    if (failed.length) {
+                        logger.error('Bulk branch delete finished with failures', summaryMetadata);
+                    } else {
+                        logger.success('Bulk branch delete finished without toast', summaryMetadata);
+                    }
                 }
 
                 const successfulKeys = new Set(
@@ -2586,86 +2818,198 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             }
         }
     });
-  }, [repository, selectedBranches, branchInfo?.current, confirmAction, setToast, fetchBranches, onRefreshState, isGitRepo]);
+  }, [repository, selectedBranches, branchInfo?.current, confirmAction, setToast, fetchBranches, onRefreshState, isGitRepo, logger]);
 
   const handlePruneRemoteBranches = useCallback(async () => {
+    const repoId = repository?.id ?? null;
+    logger.info('Prune remote branches requested', {
+        repoId,
+        repoPath: repository?.localPath,
+    });
     if (!repository) {
+        logger.warn('Remote branch pruning aborted: missing repository context', {
+            repoId,
+        });
         return;
     }
     if (!isGitRepo) {
+        logger.warn('Remote branch pruning blocked: repository is not Git', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            vcs: repository.vcs,
+        });
         setToast({ message: 'Remote pruning is only supported for Git repositories.', type: 'info' });
         return;
     }
 
     setIsPruningRemoteBranches(true);
     try {
+        logger.info('Pruning remote branches', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+        });
         const result = await window.electronAPI?.pruneRemoteBranches(repository.localPath);
         if (result?.success) {
+            logger.success('Remote branches pruned', {
+                repoId: repository.id,
+                repoPath: repository.localPath,
+                message: result?.message,
+            });
             setToast({ message: result?.message ?? 'Pruned stale remote branches.', type: 'success' });
             await fetchBranches();
             await onRefreshState(repository.id);
         } else {
-            setToast({ message: `Error: ${result?.error || 'Electron API not available.'}`, type: 'error' });
+            const errorMessage = result?.error || 'Electron API not available.';
+            logger.error('Remote branch pruning failed', {
+                repoId: repository.id,
+                repoPath: repository.localPath,
+                error: errorMessage,
+            });
+            setToast({ message: `Error: ${errorMessage}`, type: 'error' });
         }
     } catch (error: any) {
-        setToast({ message: `Error: ${error?.message || 'Failed to prune remote branches.'}`, type: 'error' });
+        const errorMessage = error?.message || 'Failed to prune remote branches.';
+        logger.error('Remote branch pruning threw exception', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            error: errorMessage,
+        });
+        setToast({ message: `Error: ${errorMessage}`, type: 'error' });
     } finally {
         setIsPruningRemoteBranches(false);
     }
-  }, [repository, isGitRepo, setToast, fetchBranches, onRefreshState]);
+  }, [repository, isGitRepo, setToast, fetchBranches, onRefreshState, logger]);
 
   const handleCleanupLocalBranches = useCallback(async () => {
+    const repoId = repository?.id ?? null;
+    logger.info('Cleanup local branches requested', {
+        repoId,
+        repoPath: repository?.localPath,
+    });
     if (!repository) {
+        logger.warn('Local branch cleanup aborted: missing repository context', {
+            repoId,
+        });
         return;
     }
     if (!isGitRepo) {
+        logger.warn('Local branch cleanup blocked: repository is not Git', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            vcs: repository.vcs,
+        });
         setToast({ message: 'Local branch cleanup is only supported for Git repositories.', type: 'info' });
         return;
     }
 
     setIsCleaningLocalBranches(true);
     try {
+        logger.info('Cleaning up local branches', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+        });
         const result = await window.electronAPI?.cleanupLocalBranches(repository.localPath);
         if (result?.success) {
+            logger.success('Local branches cleaned up', {
+                repoId: repository.id,
+                repoPath: repository.localPath,
+                message: result?.message,
+            });
             setToast({ message: result?.message ?? 'Removed merged or stale local branches.', type: 'success' });
             await fetchBranches();
             await onRefreshState(repository.id);
         } else {
-            setToast({ message: `Error: ${result?.error || 'Electron API not available.'}`, type: 'error' });
+            const errorMessage = result?.error || 'Electron API not available.';
+            logger.error('Local branch cleanup failed', {
+                repoId: repository.id,
+                repoPath: repository.localPath,
+                error: errorMessage,
+            });
+            setToast({ message: `Error: ${errorMessage}`, type: 'error' });
         }
     } catch (error: any) {
-        setToast({ message: `Error: ${error?.message || 'Failed to clean up local branches.'}`, type: 'error' });
+        const errorMessage = error?.message || 'Failed to clean up local branches.';
+        logger.error('Local branch cleanup threw exception', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            error: errorMessage,
+        });
+        setToast({ message: `Error: ${errorMessage}`, type: 'error' });
     } finally {
         setIsCleaningLocalBranches(false);
     }
-  }, [repository, isGitRepo, setToast, fetchBranches, onRefreshState]);
+  }, [repository, isGitRepo, setToast, fetchBranches, onRefreshState, logger]);
 
   const handleMergeBranch = async () => {
-      if (!repository || !branchToMerge) return;
+      const repoId = repository?.id ?? null;
+      logger.info('Merge branch requested', {
+          repoId,
+          repoPath: repository?.localPath,
+          sourceBranch: branchToMerge,
+          targetBranch: branchInfo?.current,
+      });
+      if (!repository || !branchToMerge) {
+        logger.warn('Branch merge aborted: missing repository context or merge target', {
+            repoId,
+            hasRepository: Boolean(repository),
+            branchToMerge,
+            currentBranch: branchInfo?.current,
+        });
+        return;
+      }
       if (!isGitRepo) {
+        logger.warn('Branch merge blocked: repository is not Git', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            branchToMerge,
+            currentBranch: branchInfo?.current,
+            vcs: repository.vcs,
+        });
         setToast({ message: 'Branch merging is only supported for Git repositories.', type: 'info' });
         return;
       }
       const currentBranch = branchInfo?.current;
       if (!currentBranch || branchToMerge === currentBranch) {
+        logger.warn('Branch merge aborted: invalid target branch', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            branchToMerge,
+            currentBranch,
+        });
         setToast({ message: 'Cannot merge a branch into itself.', type: 'info' });
         return;
       }
 
+      const mergeSource = branchToMerge;
+      const mergeTarget = currentBranch;
+
       confirmAction({
           title: "Merge Branch",
-          message: `Are you sure you want to merge '${branchToMerge}' into '${currentBranch}'?`,
+          message: `Are you sure you want to merge '${mergeSource}' into '${mergeTarget}'?`,
           confirmText: "Merge",
           icon: <GitBranchIcon className="h-6 w-6 text-green-600 dark:text-green-400" />,
           confirmButtonClass: 'bg-green-600 hover:bg-green-700 focus:ring-green-500',
           onConfirm: async () => {
-              const result = await window.electronAPI?.mergeBranch(repository.localPath, branchToMerge);
+              const actionMetadata = {
+                  repoId: repository.id,
+                  repoPath: repository.localPath,
+                  sourceBranch: mergeSource,
+                  targetBranch: mergeTarget,
+              };
+              logger.info('Merging branch (confirmed)', actionMetadata);
+              const result = await window.electronAPI?.mergeBranch(repository.localPath, mergeSource);
               if (result?.success) {
-                  setToast({ message: `Successfully merged '${branchToMerge}' into '${currentBranch}'`, type: 'success' });
+                  logger.success('Branch merged', actionMetadata);
+                  setToast({ message: `Successfully merged '${mergeSource}' into '${mergeTarget}'`, type: 'success' });
                   fetchBranches();
                   onRefreshState(repository.id);
               } else {
-                  setToast({ message: `Merge failed: ${result?.error || 'Electron API not available.'}`, type: 'error' });
+                  const errorMessage = result?.error || 'Electron API not available.';
+                  logger.error('Branch merge failed', {
+                      ...actionMetadata,
+                      error: errorMessage,
+                  });
+                  setToast({ message: `Merge failed: ${errorMessage}`, type: 'error' });
               }
           }
       });
@@ -2719,7 +3063,26 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, []);
 
   const handleCheckoutBranch = useCallback(async () => {
+    const repoId = repository?.id ?? null;
+    logger.info('Checkout branch requested', {
+        repoId,
+        repoPath: repository?.localPath,
+        selectionCount: selectedBranches.length,
+        selections: selectedBranches.map(selection => ({
+            name: selection.name,
+            scope: selection.scope,
+        })),
+        primarySelection: primarySelectedBranch
+            ? { name: primarySelectedBranch.name, scope: primarySelectedBranch.scope }
+            : null,
+    });
     if (!repository || selectedBranches.length !== 1 || !primarySelectedBranch) {
+        logger.warn('Branch checkout aborted: invalid selection or missing repository', {
+            repoId,
+            hasRepository: Boolean(repository),
+            selectionCount: selectedBranches.length,
+            hasPrimary: Boolean(primarySelectedBranch),
+        });
         return;
     }
 
@@ -2728,6 +3091,12 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     const checkoutLabel = primarySelectedBranch.name;
 
     if (currentBranch && normalizedSelectedBranchName && normalizedSelectedBranchName === currentBranch) {
+        logger.warn('Branch checkout aborted: branch already checked out', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            currentBranch,
+            requestedBranch: normalizedSelectedBranchName,
+        });
         setToast({ message: `Already on '${currentBranch}'.`, type: 'info' });
         return;
     }
@@ -2736,8 +3105,21 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     const checkoutTarget = primarySelectedBranch.name;
 
     try {
+        logger.info('Checking out branch', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            branch: checkoutTarget,
+            scope: primarySelectedBranch.scope,
+            currentBranch,
+        });
         const result = await window.electronAPI?.checkoutBranch({ repoPath: repository.localPath, branch: checkoutTarget, vcs: repository.vcs });
         if (result?.success) {
+            logger.success('Branch checked out', {
+                repoId: repository.id,
+                repoPath: repository.localPath,
+                branch: checkoutTarget,
+                scope: primarySelectedBranch.scope,
+            });
             setToast({ message: `Checked out '${checkoutLabel}'.`, type: 'success' });
             setBranchToMerge('');
             setSelectedBranches([]);
@@ -2747,14 +3129,30 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 requestAnimationFrame(() => focusBranchItem('local', focusTarget));
             }
         } else {
-            setToast({ message: `Checkout failed: ${result?.error || 'Electron API not available.'}`, type: 'error' });
+            const errorMessage = result?.error || 'Electron API not available.';
+            logger.error('Branch checkout failed', {
+                repoId: repository.id,
+                repoPath: repository.localPath,
+                branch: checkoutTarget,
+                scope: primarySelectedBranch.scope,
+                error: errorMessage,
+            });
+            setToast({ message: `Checkout failed: ${errorMessage}`, type: 'error' });
         }
     } catch (error: any) {
-        setToast({ message: `Checkout failed: ${error.message}`, type: 'error' });
+        const errorMessage = error?.message || String(error);
+        logger.error('Branch checkout threw exception', {
+            repoId: repository.id,
+            repoPath: repository.localPath,
+            branch: checkoutTarget,
+            scope: primarySelectedBranch.scope,
+            error: errorMessage,
+        });
+        setToast({ message: `Checkout failed: ${errorMessage}`, type: 'error' });
     } finally {
         setIsCheckoutLoading(false);
     }
-  }, [repository, selectedBranches.length, primarySelectedBranch, branchInfo?.current, normalizedSelectedBranchName, setToast, fetchBranches, onRefreshState, focusBranchItem]);
+  }, [repository, selectedBranches, primarySelectedBranch, branchInfo?.current, normalizedSelectedBranchName, setToast, fetchBranches, onRefreshState, focusBranchItem, logger]);
 
   const handleBranchKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>, branchName: string, scope: 'local' | 'remote') => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -2812,17 +3210,34 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
   const handleDiscoverRemote = useCallback(async () => {
     const currentLocalPath = formData.localPath;
+    const repoId = repository?.id ?? null;
     if (!currentLocalPath) {
+        logger.info('Remote discovery skipped because no local path was provided', {
+          repoId,
+          repoPath: formData.localPath || repository?.localPath || null,
+        });
         setToast({ message: 'Please provide a local path first.', type: 'info' });
         return;
     }
+
+    logger.info('Attempting to discover remote URL', {
+      repoId,
+      repoPath: currentLocalPath,
+      vcs: formData.vcs,
+    });
 
     try {
         const result = await window.electronAPI?.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
         if (result && result.url) {
             const discoveredUrl = result.url;
             const discoveredName = result.url.split('/').pop()?.replace(/\.git$/, '') || '';
-            
+
+            logger.info('Remote discovery succeeded', {
+              repoId,
+              repoPath: currentLocalPath,
+              remoteUrl: discoveredUrl,
+            });
+
             // This is the safe way: only set the local state. The useEffect will handle the toast.
             setFormData(prev => {
                 const newName = (!prev.name || prev.name.trim() === '') ? discoveredName : prev.name;
@@ -2831,13 +3246,23 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
         } else {
             const errorMsg = `Could not discover URL: ${result?.error || 'No remote found.'}`;
+            logger.error('Remote discovery failed', {
+              repoId,
+              repoPath: currentLocalPath,
+              error: result?.error || 'No remote found.',
+            });
             setToast({ message: errorMsg, type: 'error' });
         }
     } catch (e: any) {
+        logger.error('Remote discovery threw an exception', {
+          repoId,
+          repoPath: currentLocalPath,
+          error: e instanceof Error ? { message: e.message, stack: e.stack } : e,
+        });
         const errorMsg = `Error during discovery: ${e.message}`;
         setToast({ message: errorMsg, type: 'error' });
     }
-  }, [formData.localPath, formData.vcs, setToast]);
+  }, [formData.localPath, formData.vcs, repository, logger, setToast]);
 
   const handleChooseLocalPath = useCallback(async () => {
     const result = await window.electronAPI?.showDirectoryPicker();
