@@ -1871,6 +1871,7 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
 
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction, defaultCategoryId, onOpenWeblink, detectedExecutables }) => {
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
+  const logger = useLogger();
 
   const repoIdForSuggestions = useMemo(() => {
     if ('id' in formData) {
@@ -1894,15 +1895,20 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   useEffect(() => {
     const currentRemoteUrl = formData.remoteUrl;
     const prevRemoteUrl = prevRemoteUrlRef.current;
-  
+
     // If the previous URL was empty and the current one is not, it means we just discovered it.
     if (!prevRemoteUrl && currentRemoteUrl) {
+      logger.info('Remote URL discovered', {
+        repoId: repository?.id ?? null,
+        repoPath: formData.localPath || repository?.localPath || null,
+        remoteUrl: currentRemoteUrl,
+      });
       setToast({ message: 'Remote URL and name discovered!', type: 'success' });
     }
-  
+
     // Update the ref for the next render.
     prevRemoteUrlRef.current = currentRemoteUrl;
-  }, [formData.remoteUrl, setToast]);
+  }, [formData.remoteUrl, formData.localPath, repository, logger, setToast]);
   
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => {
     if (repository && repository.tasks && repository.tasks.length > 0) {
@@ -2061,7 +2067,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   const fetchHistory = useCallback(async (loadMore = false) => {
     if (!repository || !supportsHistoryTab) return;
-    
+
     if (loadMore) {
         setIsMoreHistoryLoading(true);
     } else {
@@ -2070,7 +2076,17 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     }
 
     const skipCount = loadMore ? commits.length : 0;
-    
+    const repoId = repository?.id ?? null;
+    const repoPath = repository?.localPath || formData.localPath || null;
+
+    logger.info('Fetching commit history', {
+      repoId,
+      repoPath,
+      loadMore,
+      skipCount,
+      searchTerm: debouncedHistorySearch || null,
+    });
+
     try {
         const newCommits = await window.electronAPI?.getCommitHistory(repository, skipCount, debouncedHistorySearch);
         if(loadMore) {
@@ -2101,17 +2117,41 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         } else {
           setHistoryMatchStats({ commitCount: 0, occurrenceCount: 0 });
         }
+
+        logger.info('Completed fetching commit history', {
+          repoId,
+          repoPath,
+          loadMore,
+          retrievedCommits: newCommits?.length ?? 0,
+          hasMore: (newCommits || []).length === 100,
+          searchTerm: debouncedHistorySearch || null,
+        });
     } catch (e: any) {
+        logger.error('Failed to fetch commit history', {
+          repoId,
+          repoPath,
+          loadMore,
+          skipCount,
+          searchTerm: debouncedHistorySearch || null,
+          error: e instanceof Error ? { message: e.message, stack: e.stack } : e,
+        });
         setToast({ message: `Failed to load history: ${e.message}`, type: 'error' });
     } finally {
         setHistoryLoading(false);
         setIsMoreHistoryLoading(false);
     }
-  }, [repository, setToast, commits.length, debouncedHistorySearch, supportsHistoryTab]);
+  }, [repository, formData.localPath, logger, setToast, commits.length, debouncedHistorySearch, supportsHistoryTab]);
 
   const fetchBranches = useCallback(async () => {
     if (!repository || !supportsBranchTab) return;
     setBranchesLoading(true);
+
+    logger.info('Fetching branches', {
+      repoId: repository?.id ?? null,
+      repoPath: repository?.localPath ?? null,
+      vcs: repository?.vcs ?? null,
+    });
+
     try {
         const branches = await window.electronAPI?.listBranches({ repoPath: repository.localPath, vcs: repository.vcs });
         setBranchInfo(branches || null);
@@ -2134,35 +2174,76 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             }
             return [];
         });
+
+        logger.info('Completed fetching branches', {
+          repoId: repository?.id ?? null,
+          repoPath: repository?.localPath ?? null,
+          localBranchCount: branches?.local?.length ?? 0,
+          remoteBranchCount: branches?.remote?.length ?? 0,
+          currentBranch: branches?.current ?? null,
+        });
     } catch (e: any) {
+        logger.error('Failed to fetch branches', {
+          repoId: repository?.id ?? null,
+          repoPath: repository?.localPath ?? null,
+          error: e instanceof Error ? { message: e.message, stack: e.stack } : e,
+        });
         setToast({ message: `Failed to load branches: ${e.message}`, type: 'error' });
     } finally {
         setBranchesLoading(false);
     }
-  }, [repository, supportsBranchTab, setToast]);
+  }, [repository, supportsBranchTab, logger, setToast]);
 
   const fetchReleases = useCallback(async () => {
     if (!repository || !isGitHubRepo) return;
     setReleasesLoading(true);
     setReleasesError(null);
+
+    logger.info('Fetching releases', {
+      repoId: repository?.id ?? null,
+      repoPath: repository?.localPath ?? null,
+      remoteUrl: repository?.remoteUrl ?? null,
+    });
+
     try {
       const result = await window.electronAPI?.getAllReleases(repository);
       if (result) {
         setReleases(result);
+        logger.info('Completed fetching releases', {
+          repoId: repository?.id ?? null,
+          repoPath: repository?.localPath ?? null,
+          releaseCount: result.length,
+        });
       } else {
         const pat = await window.electronAPI?.getGithubPat();
         if (!pat) {
+          logger.warn('GitHub PAT missing while fetching releases', {
+            repoId: repository?.id ?? null,
+            repoPath: repository?.localPath ?? null,
+            remoteUrl: repository?.remoteUrl ?? null,
+          });
           setReleasesError("A GitHub Personal Access Token is required to manage releases. Please set one in Settings > Behavior.");
         } else {
+          logger.error('Failed to fetch releases despite GitHub PAT', {
+            repoId: repository?.id ?? null,
+            repoPath: repository?.localPath ?? null,
+            remoteUrl: repository?.remoteUrl ?? null,
+          });
           setReleasesError("Failed to fetch releases. This may be due to an invalid PAT or insufficient permissions (requires 'Contents: Read & write'). Check the debug console for more details.");
         }
       }
     } catch (e: any) {
+      logger.error('Failed to fetch releases', {
+        repoId: repository?.id ?? null,
+        repoPath: repository?.localPath ?? null,
+        remoteUrl: repository?.remoteUrl ?? null,
+        error: e instanceof Error ? { message: e.message, stack: e.stack } : e,
+      });
       setReleasesError(`Error: ${e.message}`);
     } finally {
       setReleasesLoading(false);
     }
-  }, [repository, isGitHubRepo]);
+  }, [repository, isGitHubRepo, logger]);
 
 
   // Fetch branch info on mount for the dropdown if possible
@@ -2800,17 +2881,34 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   
   const handleDiscoverRemote = useCallback(async () => {
     const currentLocalPath = formData.localPath;
+    const repoId = repository?.id ?? null;
     if (!currentLocalPath) {
+        logger.info('Remote discovery skipped because no local path was provided', {
+          repoId,
+          repoPath: formData.localPath || repository?.localPath || null,
+        });
         setToast({ message: 'Please provide a local path first.', type: 'info' });
         return;
     }
+
+    logger.info('Attempting to discover remote URL', {
+      repoId,
+      repoPath: currentLocalPath,
+      vcs: formData.vcs,
+    });
 
     try {
         const result = await window.electronAPI?.discoverRemoteUrl({ localPath: currentLocalPath, vcs: formData.vcs });
         if (result && result.url) {
             const discoveredUrl = result.url;
             const discoveredName = result.url.split('/').pop()?.replace(/\.git$/, '') || '';
-            
+
+            logger.info('Remote discovery succeeded', {
+              repoId,
+              repoPath: currentLocalPath,
+              remoteUrl: discoveredUrl,
+            });
+
             // This is the safe way: only set the local state. The useEffect will handle the toast.
             setFormData(prev => {
                 const newName = (!prev.name || prev.name.trim() === '') ? discoveredName : prev.name;
@@ -2819,13 +2917,23 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
         } else {
             const errorMsg = `Could not discover URL: ${result?.error || 'No remote found.'}`;
+            logger.error('Remote discovery failed', {
+              repoId,
+              repoPath: currentLocalPath,
+              error: result?.error || 'No remote found.',
+            });
             setToast({ message: errorMsg, type: 'error' });
         }
     } catch (e: any) {
+        logger.error('Remote discovery threw an exception', {
+          repoId,
+          repoPath: currentLocalPath,
+          error: e instanceof Error ? { message: e.message, stack: e.stack } : e,
+        });
         const errorMsg = `Error during discovery: ${e.message}`;
         setToast({ message: errorMsg, type: 'error' });
     }
-  }, [formData.localPath, formData.vcs, setToast]);
+  }, [formData.localPath, formData.vcs, repository, logger, setToast]);
 
   const handleChooseLocalPath = useCallback(async () => {
     const result = await window.electronAPI?.showDirectoryPicker();
