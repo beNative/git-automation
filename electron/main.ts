@@ -1784,6 +1784,18 @@ ipcMain.handle('open-local-path', async (event, localPath: string) => {
   }
 });
 
+ipcMain.handle('open-installation-folder', async () => {
+  try {
+    const executablePath = app.getPath('exe');
+    const installationFolder = path.dirname(executablePath);
+    await shell.openPath(installationFolder);
+    return { success: true, path: installationFolder };
+  } catch (error: any) {
+    mainLogger.error('Failed to open installation folder', error);
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('open-weblink', async (event, url: string): Promise<{ success: boolean; error?: string, warning?: string }> => {
     try {
         const settings = await readSettings();
