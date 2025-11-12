@@ -2225,20 +2225,20 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
           });
           setReleasesError("A GitHub Personal Access Token is required to manage releases. Please set one in Settings > Behavior.");
         } else {
-          logger.error('Failed to fetch releases despite GitHub PAT', {
-            repoId: repository?.id ?? null,
-            repoPath: repository?.localPath ?? null,
-            remoteUrl: repository?.remoteUrl ?? null,
+          const errorMessage = "Failed to fetch releases. This may be due to an invalid PAT or insufficient permissions (requires 'Contents: Read & write'). Check the debug console for more details.";
+          logger.error('Failed to fetch releases for repository', {
+            repoId: repository.id,
+            repoName: repository.name,
+            error: errorMessage,
           });
-          setReleasesError("Failed to fetch releases. This may be due to an invalid PAT or insufficient permissions (requires 'Contents: Read & write'). Check the debug console for more details.");
+          setReleasesError(errorMessage);
         }
       }
     } catch (e: any) {
-      logger.error('Failed to fetch releases', {
-        repoId: repository?.id ?? null,
-        repoPath: repository?.localPath ?? null,
-        remoteUrl: repository?.remoteUrl ?? null,
-        error: e instanceof Error ? { message: e.message, stack: e.stack } : e,
+      logger.error('Error while fetching releases', {
+        repoId: repository.id,
+        repoName: repository.name,
+        error: e,
       });
       setReleasesError(`Error: ${e.message}`);
     } finally {
@@ -3272,38 +3272,73 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, []);
 
   const handleUpdateRelease = async (releaseId: number, options: Partial<ReleaseInfo>) => {
-    if (!repository) return;
-    const result = await window.electronAPI?.updateRelease({ repo: repository, releaseId, options });
-    if (result?.success) {
-      setToast({ message: 'Release updated.', type: 'success' });
-      fetchReleases();
-    } else {
-      setToast({ message: `Error: ${result?.error || 'API call failed.'}`, type: 'error' });
+    if (!repository) {
+      logger.warn('handleUpdateRelease called without repository context', { releaseId, options });
+      return;
+    }
+
+    const repoLogContext = { repoId: repository.id, repoName: repository.name, releaseId, options };
+    logger.info('Updating release', repoLogContext);
+
+    try {
+      const result = await window.electronAPI?.updateRelease({ repo: repository, releaseId, options });
+
+      if (result?.success) {
+        logger.info('Release update succeeded', repoLogContext);
+        setToast({ message: 'Release updated.', type: 'success' });
+        fetchReleases();
+      } else {
+        const errorMessage = result?.error || 'API call failed.';
+        logger.error('Release update failed', { ...repoLogContext, error: errorMessage });
+        setToast({ message: `Error: ${errorMessage}`, type: 'error' });
+      }
+    } catch (error) {
+      logger.error('Release update threw an exception', { ...repoLogContext, error });
+      setToast({ message: `Error: ${(error as Error).message}`, type: 'error' });
     }
   };
-  
+
   const handleDeleteRelease = async (releaseId: number) => {
-    if (!repository) return;
+    if (!repository) {
+      logger.warn('handleDeleteRelease called without repository context', { releaseId });
+      return;
+    }
+
+    logger.info('Preparing to delete release', { repoId: repository.id, repoName: repository.name, releaseId });
     confirmAction({
       title: 'Delete Release',
       message: 'Are you sure you want to delete this release? This action cannot be undone.',
       confirmText: 'Delete',
       icon: <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />,
       onConfirm: async () => {
-        const result = await window.electronAPI?.deleteRelease({ repo: repository, releaseId });
-        if (result?.success) {
-          setToast({ message: 'Release deleted.', type: 'success' });
-          fetchReleases();
-        } else {
-          setToast({ message: `Error: ${result?.error || 'API call failed.'}`, type: 'error' });
+        try {
+          const result = await window.electronAPI?.deleteRelease({ repo: repository, releaseId });
+          if (result?.success) {
+            logger.info('Release deletion succeeded', { repoId: repository.id, repoName: repository.name, releaseId });
+            setToast({ message: 'Release deleted.', type: 'success' });
+            fetchReleases();
+          } else {
+            const errorMessage = result?.error || 'API call failed.';
+            logger.error('Release deletion failed', { repoId: repository.id, repoName: repository.name, releaseId, error: errorMessage });
+            setToast({ message: `Error: ${errorMessage}`, type: 'error' });
+          }
+        } catch (error) {
+          logger.error('Release deletion threw an exception', { repoId: repository.id, repoName: repository.name, releaseId, error });
+          setToast({ message: `Error: ${(error as Error).message}`, type: 'error' });
         }
       },
     });
   };
 
   const handleSaveRelease = async () => {
-    if (!repository || !editingRelease) return;
-    
+    if (!repository || !editingRelease) {
+      logger.warn('handleSaveRelease called without required context', {
+        hasRepository: Boolean(repository),
+        hasEditingRelease: Boolean(editingRelease),
+      });
+      return;
+    }
+
     const options = {
         tag_name: editingRelease.tagName!,
         name: editingRelease.name!,
@@ -3311,20 +3346,39 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         draft: editingRelease.isDraft || false,
         prerelease: editingRelease.isPrerelease || false,
     };
-    
-    let result;
-    if (editingRelease.isNew) {
-      result = await window.electronAPI?.createRelease({ repo: repository, options });
-    } else {
-      result = await window.electronAPI?.updateRelease({ repo: repository, releaseId: editingRelease.id!, options });
-    }
 
-    if (result?.success) {
-      setToast({ message: `Release ${editingRelease.isNew ? 'created' : 'saved'}.`, type: 'success' });
-      setEditingRelease(null);
-      fetchReleases();
-    } else {
-      setToast({ message: `Error: ${result?.error || 'API call failed.'}`, type: 'error' });
+    const logContext = {
+      repoId: repository.id,
+      repoName: repository.name,
+      releaseId: editingRelease.id ?? null,
+      tagName: editingRelease.tagName,
+      options,
+      isNew: Boolean(editingRelease.isNew),
+    };
+
+    logger.info('Saving release', logContext);
+
+    try {
+      let result;
+      if (editingRelease.isNew) {
+        result = await window.electronAPI?.createRelease({ repo: repository, options });
+      } else {
+        result = await window.electronAPI?.updateRelease({ repo: repository, releaseId: editingRelease.id!, options });
+      }
+
+      if (result?.success) {
+        logger.info('Release save succeeded', logContext);
+        setToast({ message: `Release ${editingRelease.isNew ? 'created' : 'saved'}.`, type: 'success' });
+        setEditingRelease(null);
+        fetchReleases();
+      } else {
+        const errorMessage = result?.error || 'API call failed.';
+        logger.error('Release save failed', { ...logContext, error: errorMessage });
+        setToast({ message: `Error: ${errorMessage}`, type: 'error' });
+      }
+    } catch (error) {
+      logger.error('Release save threw an exception', { ...logContext, error });
+      setToast({ message: `Error: ${(error as Error).message}`, type: 'error' });
     }
   };
 
