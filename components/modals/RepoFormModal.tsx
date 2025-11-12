@@ -1872,7 +1872,6 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
 const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction, defaultCategoryId, onOpenWeblink, detectedExecutables }) => {
   const logger = useLogger();
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
-  const logger = useLogger();
 
   const repoIdForSuggestions = useMemo(() => {
     if ('id' in formData) {
