@@ -2867,7 +2867,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   const renderTabContent = () => {
     if (!('id' in formData)) {
-        return <div className="p-4 text-center text-gray-500">Please save the repository to access advanced features.</div>
+        return <div className="p-2 text-center text-gray-500">Please save the repository to access advanced features.</div>
     }
     switch(activeTab) {
         case 'tasks':
@@ -2895,11 +2895,11 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                             />
                           ))}
                            {(formData.tasks || []).length === 0 && (
-                                <p className="p-4 text-center text-xs text-gray-500">No tasks created yet.</p>
+                                <p className="p-2 text-center text-xs text-gray-500">No tasks created yet.</p>
                            )}
                         </ul>
                     </aside>
-                    <div className="flex-1 p-4 overflow-y-auto">
+                    <div className="flex-1 p-2 overflow-y-auto">
                       {selectedTask ? (
                         <TaskStepsEditor task={selectedTask} setTask={handleTaskChange} repository={repositoryForTaskEditor} onAddTask={handleNewTask} />
                       ) : (
@@ -2912,10 +2912,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             );
         case 'history':
             if (!supportsHistoryTab) {
-                return <div className="p-4 text-center text-gray-500">History is only available for Git or SVN repositories.</div>;
+                return <div className="p-2 text-center text-gray-500">History is only available for Git or SVN repositories.</div>;
             }
             return (
-                <div className="p-4 space-y-3 flex flex-col overflow-hidden h-full">
+                <div className="p-2 space-y-3 flex flex-col overflow-hidden h-full">
                     <div className="relative flex-shrink-0">
                         <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
                         <input
@@ -2953,7 +2953,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             );
         case 'branches': {
             if (!supportsBranchTab) {
-                return <div className="p-4 text-center text-gray-500">Branch management is only available for Git or SVN repositories.</div>;
+                return <div className="p-2 text-center text-gray-500">Branch management is only available for Git or SVN repositories.</div>;
             }
             const selectedBranchCount = selectedBranches.length;
             const selectedLocalCount = selectedBranches.filter(selection => selection.scope === 'local').length;
@@ -3007,7 +3007,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             })();
             return (
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
+                    <div className="flex-1 flex flex-col overflow-hidden p-2 gap-4">
                         {branchesLoading && <p className="text-sm text-gray-500 dark:text-gray-400">Loading branches...</p>}
                         {!hasBranches && !branchesLoading && (
                             <p className="text-sm text-gray-500 dark:text-gray-400">No branches found. This may be a new repository.</p>
@@ -3189,10 +3189,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             );
         }
         case 'releases':
-            if (!isGitHubRepo) return <div className="p-4 text-center text-gray-500">Release management is only available for repositories hosted on GitHub.</div>;
+            if (!isGitHubRepo) return <div className="p-2 text-center text-gray-500">Release management is only available for repositories hosted on GitHub.</div>;
             if (editingRelease) {
                 return (
-                    <div className="p-4 space-y-3">
+                    <div className="p-2 space-y-3">
                         <h3 className="text-lg font-semibold">{editingRelease.isNew ? 'Create New Release' : 'Edit Release'}</h3>
                         <div>
                             <label className={formLabelStyle}>Tag Name</label>
@@ -3275,7 +3275,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 )
             }
             return (
-                <div className="p-4 space-y-4">
+                <div className="p-2 space-y-4">
                      <div className="flex justify-between items-center">
                         <h3 className="text-lg font-semibold">GitHub Releases</h3>
                         <button onClick={() => setEditingRelease({ isNew: true, tagName: '', name: '', body: '', isDraft: false, isPrerelease: false })} className="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create New Release</button>
@@ -3283,7 +3283,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                      {releasesLoading && <p>Loading releases...</p>}
                      {releasesError && <p className="text-red-500">{releasesError}</p>}
                      {releases && releases.length === 0 && (
-                        <div className="p-4 text-center text-gray-500">
+                        <div className="p-2 text-center text-gray-500">
                             <p>No releases found for this repository.</p>
                             <p className="mt-2 text-xs">
                                 Note: To view draft releases, your GitHub Personal Access Token must have repository permissions for "Contents: Read & write".
@@ -3327,7 +3327,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
       className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-800 animate-fade-in"
       data-automation-id="repo-form"
     >
-        <header className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <header className="p-2 border-b border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center">
                 <div className="flex items-center">
                     <button onClick={onCancel} className="p-2 mr-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
@@ -3524,7 +3524,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             </main>
         </div>
 
-        <footer className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
+        <footer className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
             {repository && 'id' in repository && (
                 <button
                   type="button"
