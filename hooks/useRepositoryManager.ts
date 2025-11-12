@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Repository, LogEntry, Task, GlobalSettings, TaskStep, GitRepository } from '../types';
 import { RepoStatus, BuildHealth, LogLevel, TaskStepType, VcsType } from '../types';
 
@@ -37,6 +37,11 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
   const [logs, setLogs] = useState<Record<string, LogEntry[]>>({});
   const [isProcessing, setIsProcessing] = useState<Set<string>>(new Set());
   const activeExecutionsRef = useRef<Map<string, { stepExecutionId: string | null }>>(new Map());
+  const repositoriesRef = useRef<Repository[]>(repositories);
+
+  useEffect(() => {
+    repositoriesRef.current = repositories;
+  }, [repositories]);
   
   const addLogEntry = useCallback((repoId: string, message: string, level: LogLevel) => {
     const newEntry: LogEntry = {
@@ -51,7 +56,7 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
   }, []);
 
   const updateRepoStatus = useCallback((repoId: string, status: RepoStatus, buildHealth?: BuildHealth) => {
-    const repoToUpdate = repositories.find(r => r.id === repoId);
+    const repoToUpdate = repositoriesRef.current.find(r => r.id === repoId);
     if (repoToUpdate) {
         updateRepository({
             ...repoToUpdate,
@@ -60,7 +65,7 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
             ...(buildHealth && { buildHealth }),
         });
     }
-  }, [repositories, updateRepository]);
+  }, [updateRepository]);
 
   const runTask = useCallback(async (
     repo: Repository,
