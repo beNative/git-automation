@@ -205,6 +205,9 @@
           async openWeblink(url) {
             window.open(url, '_blank', 'noopener');
           },
+          async openInstallationFolder() {
+            console.info('Requested to open installation folder');
+          },
           async openLocalPath(path) {
             console.info('Requested to open local path:', path);
           },

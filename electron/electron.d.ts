@@ -59,6 +59,7 @@ export interface IElectronAPI {
   detectExecutables: (repoPath: string) => Promise<string[]>;
   launchExecutable: (args: { repoPath: string, executablePath: string }) => Promise<{ success: boolean; output: string }>;
   openLocalPath: (path: string) => Promise<{ success: boolean; error?: string }>;
+  openInstallationFolder: () => Promise<{ success: boolean; error?: string; path?: string }>;
   openWeblink: (url: string) => Promise<{ success: boolean; error?: string }>;
   openTerminal: (path: string) => Promise<{ success: boolean; error?: string }>;
   

@@ -45,26 +45,27 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, appVersion }) 
         <div className="p-6 text-center text-gray-700 dark:text-gray-300 space-y-4">
           <p className="font-bold text-xl">Git Automation Dashboard</p>
           <p className="text-sm text-gray-500 dark:text-gray-400">Version {appVersion}</p>
-          
-          <div className="text-sm">
-            <p>Design and concept by Tim Sinaeve</p>
-            <p>Implementation by Gemini 2.5 Pro</p>
-          </div>
-          
-          <p className="text-xs text-gray-400 dark:text-gray-500 pt-4">
-            © 2025 Tim Sinaeve
-          </p>
-        </div>
 
-        <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 sm:px-6 flex justify-end rounded-b-lg">
-          <button
-            type="button"
-            className="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 sm:w-auto sm:text-sm"
-            onClick={onClose}
-            data-automation-id="about-modal-dismiss"
-          >
-            Close
-          </button>
+          <p className="text-sm">© 2025 Tim Sinaeve. All rights reserved.</p>
+
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <button
+              type="button"
+              className="flex-1 inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-500 px-4 py-1.5 bg-white dark:bg-gray-700 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500"
+              onClick={() => window.electronAPI?.openWeblink('https://github.com/beNative/git-automation')}
+              data-automation-id="about-modal-open-github"
+            >
+              View on GitHub
+            </button>
+            <button
+              type="button"
+              className="flex-1 inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-500 px-4 py-1.5 bg-white dark:bg-gray-700 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500"
+              onClick={() => window.electronAPI?.openInstallationFolder?.()}
+              data-automation-id="about-modal-open-installation-folder"
+            >
+              Open Folder
+            </button>
+          </div>
         </div>
       </div>
     </div>
