@@ -3537,10 +3537,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 </button>
             )}
             <div className="flex gap-3">
-                 <button
-                   type="button"
-                   onClick={onCancel}
-                   className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 transition-colors"
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-4 py-[0.2rem] bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 transition-colors"
                    data-automation-id="repo-form-cancel"
                  >
                     {repository ? 'Close' : 'Cancel'}
@@ -3548,7 +3548,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 <button
                   type="button"
                   onClick={handleSave}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  className="px-4 py-[0.2rem] bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                   data-automation-id="repo-form-save"
                 >
                     Save Repository
