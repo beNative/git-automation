@@ -38,10 +38,9 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
   const [isProcessing, setIsProcessing] = useState<Set<string>>(new Set());
   const activeExecutionsRef = useRef<Map<string, { stepExecutionId: string | null }>>(new Map());
   const repositoriesRef = useRef<Repository[]>(repositories);
-
-  useEffect(() => {
-    repositoriesRef.current = repositories;
-  }, [repositories]);
+  // Keep the mutable ref synchronised with the latest repositories immediately during render
+  // so async callbacks (like task completion handlers) never see a stale snapshot.
+  repositoriesRef.current = repositories;
   
   const addLogEntry = useCallback((repoId: string, message: string, level: LogLevel) => {
     const newEntry: LogEntry = {
