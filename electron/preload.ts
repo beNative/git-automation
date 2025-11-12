@@ -41,6 +41,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listBranches: (args: { repoPath: string; vcs?: 'git' | 'svn' }): Promise<BranchInfo> => ipcRenderer.invoke('list-branches', args),
   checkoutBranch: (args: { repoPath: string; branch: string; vcs?: 'git' | 'svn' }): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('checkout-branch', args),
   createBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('create-branch', repoPath, branch),
+  pruneRemoteBranches: (repoPath: string): Promise<{ success: boolean; error?: string; message?: string }> => ipcRenderer.invoke('prune-stale-remote-branches', repoPath),
+  cleanupLocalBranches: (repoPath: string): Promise<{ success: boolean; error?: string; message?: string }> => ipcRenderer.invoke('cleanup-merged-local-branches', repoPath),
   deleteBranch: (repoPath: string, branch: string, isRemote: boolean, remoteName?: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('delete-branch', repoPath, branch, isRemote, remoteName),
   mergeBranch: (repoPath: string, branch: string): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('merge-branch', repoPath, branch),
   ignoreFilesAndPush: (args: { repo: Repository, filesToIgnore: string[] }): Promise<{ success: boolean, error?: string }> => ipcRenderer.invoke('ignore-files-and-push', args),

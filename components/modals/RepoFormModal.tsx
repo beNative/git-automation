@@ -1932,6 +1932,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [branchFilter, setBranchFilter] = useState('');
   const [debouncedBranchFilter, setDebouncedBranchFilter] = useState('');
   const [isDeletingBranches, setIsDeletingBranches] = useState(false);
+  const [isPruningRemoteBranches, setIsPruningRemoteBranches] = useState(false);
+  const [isCleaningLocalBranches, setIsCleaningLocalBranches] = useState(false);
   const branchItemRefs = useRef<{ local: Map<string, HTMLDivElement>; remote: Map<string, HTMLDivElement> }>({
     local: new Map<string, HTMLDivElement>(),
     remote: new Map<string, HTMLDivElement>(),
@@ -1968,6 +1970,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
 
   const formInputStyle = "block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
   const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
+  const branchActionButtonStyle = 'inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed';
 
   const isGitRepo = formData.vcs === VcsType.Git;
   const isSvnRepo = formData.vcs === VcsType.Svn;
@@ -2573,6 +2576,58 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     });
   }, [repository, selectedBranches, branchInfo?.current, confirmAction, setToast, fetchBranches, onRefreshState, isGitRepo]);
 
+  const handlePruneRemoteBranches = useCallback(async () => {
+    if (!repository) {
+        return;
+    }
+    if (!isGitRepo) {
+        setToast({ message: 'Remote pruning is only supported for Git repositories.', type: 'info' });
+        return;
+    }
+
+    setIsPruningRemoteBranches(true);
+    try {
+        const result = await window.electronAPI?.pruneRemoteBranches(repository.localPath);
+        if (result?.success) {
+            setToast({ message: result?.message ?? 'Pruned stale remote branches.', type: 'success' });
+            await fetchBranches();
+            await onRefreshState(repository.id);
+        } else {
+            setToast({ message: `Error: ${result?.error || 'Electron API not available.'}`, type: 'error' });
+        }
+    } catch (error: any) {
+        setToast({ message: `Error: ${error?.message || 'Failed to prune remote branches.'}`, type: 'error' });
+    } finally {
+        setIsPruningRemoteBranches(false);
+    }
+  }, [repository, isGitRepo, setToast, fetchBranches, onRefreshState]);
+
+  const handleCleanupLocalBranches = useCallback(async () => {
+    if (!repository) {
+        return;
+    }
+    if (!isGitRepo) {
+        setToast({ message: 'Local branch cleanup is only supported for Git repositories.', type: 'info' });
+        return;
+    }
+
+    setIsCleaningLocalBranches(true);
+    try {
+        const result = await window.electronAPI?.cleanupLocalBranches(repository.localPath);
+        if (result?.success) {
+            setToast({ message: result?.message ?? 'Removed merged or stale local branches.', type: 'success' });
+            await fetchBranches();
+            await onRefreshState(repository.id);
+        } else {
+            setToast({ message: `Error: ${result?.error || 'Electron API not available.'}`, type: 'error' });
+        }
+    } catch (error: any) {
+        setToast({ message: `Error: ${error?.message || 'Failed to clean up local branches.'}`, type: 'error' });
+    } finally {
+        setIsCleaningLocalBranches(false);
+    }
+  }, [repository, isGitRepo, setToast, fetchBranches, onRefreshState]);
+
   const handleMergeBranch = async () => {
       if (!repository || !branchToMerge) return;
       if (!isGitRepo) {
@@ -3017,29 +3072,51 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 <p className="text-sm">
                                     Current branch: <span className="font-bold font-mono text-blue-600 dark:text-blue-400">{branchInfo?.current}</span>
                                 </p>
-                                <div className="max-w-md flex flex-col sm:flex-row sm:items-center gap-2">
+                                <div className="max-w-2xl flex flex-col sm:flex-row sm:items-center gap-2">
                                     <input
                                         type="text"
                                         value={branchFilter}
                                         onChange={event => setBranchFilter(event.target.value)}
                                         placeholder="Filter branches"
-                                        className={`${formInputStyle} flex-1`}
+                                        className={`${formInputStyle} flex-1 min-w-[12rem]`}
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={fetchBranches}
-                                        disabled={branchesLoading}
-                                        className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 border border-blue-600 rounded-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 hover:bg-blue-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                                    >
-                                        {branchesLoading ? (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={fetchBranches}
+                                            disabled={branchesLoading || isPruningRemoteBranches || isCleaningLocalBranches}
+                                            className={`${branchActionButtonStyle} text-blue-600 border-blue-600 hover:bg-blue-50 focus-visible:ring-blue-500`}
+                                        >
+                                            {branchesLoading ? (
+                                                <>
+                                                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                                                    Refreshing...
+                                                </>
+                                            ) : (
+                                                'Refresh'
+                                            )}
+                                        </button>
+                                        {isGitRepo && (
                                             <>
-                                                <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                                                Refreshing...
+                                                <button
+                                                    type="button"
+                                                    onClick={handlePruneRemoteBranches}
+                                                    disabled={branchesLoading || isPruningRemoteBranches || isCleaningLocalBranches}
+                                                    className={`${branchActionButtonStyle} text-amber-600 border-amber-600 hover:bg-amber-50 focus-visible:ring-amber-500`}
+                                                >
+                                                    {isPruningRemoteBranches ? 'Pruning…' : 'Prune Remotes'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCleanupLocalBranches}
+                                                    disabled={branchesLoading || isPruningRemoteBranches || isCleaningLocalBranches}
+                                                    className={`${branchActionButtonStyle} text-emerald-600 border-emerald-600 hover:bg-emerald-50 focus-visible:ring-emerald-500`}
+                                                >
+                                                    {isCleaningLocalBranches ? 'Cleaning…' : 'Clean Local Branches'}
+                                                </button>
                                             </>
-                                        ) : (
-                                            'Refresh'
                                         )}
-                                    </button>
+                                    </div>
                                 </div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">Tip: Use Shift or Ctrl/Cmd-click to select multiple branches.</p>
                                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden">

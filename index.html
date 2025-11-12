@@ -177,6 +177,59 @@
             await delay(150);
             return 'valid';
           },
+          async getProjectInfo(repoPath) {
+            await delay(200);
+            const repoId = repoIdByPath.get(repoPath);
+            const nodeCapabilities = {
+              engine: 'node@20.10.0',
+              declaredManager: 'npm',
+              packageManagers: { pnpm: true, yarn: false, npm: true, bun: false },
+              typescript: true,
+              testFrameworks: ['vitest'],
+              linters: ['eslint', 'prettier'],
+              bundlers: ['vite'],
+              monorepo: { workspaces: false, turbo: false, nx: false, yarnBerryPnp: false },
+            };
+
+            if (repoId === 'repo-ui-stability') {
+              return {
+                tags: ['node', 'react', 'frontend'],
+                files: { dproj: [], pomXml: [], csproj: [], sln: [] },
+                nodejs: nodeCapabilities,
+              };
+            }
+
+            return {
+              tags: ['node', 'service'],
+              files: { dproj: [], pomXml: [], csproj: [], sln: [] },
+              nodejs: {
+                ...nodeCapabilities,
+                testFrameworks: ['jest'],
+              },
+              docker: {
+                composeFiles: ['docker-compose.yml'],
+                dockerfiles: ['Dockerfile'],
+              },
+            };
+          },
+          async getProjectSuggestions({ repoPath }) {
+            await delay(120);
+            const repoId = repoIdByPath.get(repoPath);
+            if (repoId === 'repo-ui-stability') {
+              return [
+                { label: 'Run lint', value: 'npm run lint', group: 'npm scripts' },
+                { label: 'Launch Storybook', value: 'npm run storybook', group: 'npm scripts' },
+              ];
+            }
+            return [
+              { label: 'Run integration tests', value: 'npm run test:integration', group: 'npm scripts' },
+              { label: 'Start API locally', value: 'npm run dev', group: 'npm scripts' },
+            ];
+          },
+          async getDelphiVersions() {
+            await delay(50);
+            return [];
+          },
           async getDetailedVcsStatus(repo) {
             await delay(350);
             const nextIndex = refreshIndexByRepo.get(repo.id) === 1 ? 0 : 1;
@@ -188,6 +241,57 @@
             const repoId = repoIdByPath.get(repoPath);
             const index = repoId ? refreshIndexByRepo.get(repoId) ?? 0 : 0;
             return branchSamples[index];
+          },
+          async pruneRemoteBranches() {
+            await delay(150);
+            console.info('Simulated pruning stale remote branches');
+            return { success: true, message: 'Simulated prune completed.' };
+          },
+          async cleanupLocalBranches() {
+            await delay(150);
+            console.info('Simulated cleanup of merged or stale local branches');
+            return { success: true, message: 'Simulated cleanup completed.' };
+          },
+          async getGithubPat() {
+            await delay(100);
+            return '';
+          },
+          async getAllReleases() {
+            await delay(200);
+            return [
+              {
+                id: 1,
+                tagName: 'v1.1.0',
+                name: 'Stability Improvements',
+                body: 'Improved caching and added new dashboards.',
+                isDraft: false,
+                isPrerelease: false,
+                url: 'https://example.com/releases/v1.1.0',
+                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString(),
+              },
+            ];
+          },
+          async updateRelease() {
+            await delay(150);
+            return { success: true };
+          },
+          async createRelease() {
+            await delay(150);
+            return { success: true };
+          },
+          async deleteRelease() {
+            await delay(150);
+            return { success: true };
+          },
+          async discoverRemoteUrl({ localPath }) {
+            await delay(120);
+            const repoId = repoIdByPath.get(localPath);
+            const repo = sampleRepositories.find(r => r.id === repoId);
+            return { url: repo?.remoteUrl ?? null };
+          },
+          async showDirectoryPicker() {
+            await delay(80);
+            return { canceled: false, filePaths: ['/Users/dev/projects'] };
           },
           async getLatestRelease() {
             await delay(200);
