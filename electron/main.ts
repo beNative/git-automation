@@ -3297,6 +3297,125 @@ ipcMain.handle('checkout-branch', async (event, arg1: any, arg2?: any) => {
     return { success: false, error: 'Unsupported repository type' };
 });
 ipcMain.handle('create-branch', (e, repoPath: string, branch: string) => simpleGitCommand(repoPath, `checkout -b ${branch}`));
+ipcMain.handle('prune-stale-remote-branches', async (event, repoPath: string) => {
+    try {
+        const settings = await readSettings();
+        const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
+        const { stdout } = await execAsync(`${gitCmd} remote`, { cwd: repoPath });
+        const remoteNames = stdout
+            .split(/\r?\n/)
+            .map(name => name.trim())
+            .filter(Boolean);
+
+        if (remoteNames.length === 0) {
+            return { success: true, message: 'No remotes configured; nothing to prune.' };
+        }
+
+        for (const remoteName of remoteNames) {
+            await execAsync(`${gitCmd} remote prune ${JSON.stringify(remoteName)}`, { cwd: repoPath });
+        }
+
+        return {
+            success: true,
+            message: `Pruned stale branches from ${remoteNames.length} remote${remoteNames.length === 1 ? '' : 's'}.`,
+        };
+    } catch (error: any) {
+        return { success: false, error: error?.stderr || error?.message || 'Failed to prune remote branches.' };
+    }
+});
+ipcMain.handle('cleanup-merged-local-branches', async (event, repoPath: string) => {
+    try {
+        const settings = await readSettings();
+        const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
+        const deletableBranches = new Map<string, { force: boolean }>();
+
+        const { stdout: currentStdout } = await execAsync(`${gitCmd} branch --show-current`, { cwd: repoPath });
+        const currentBranch = currentStdout.trim();
+
+        const { stdout: allBranchesStdout } = await execAsync(`${gitCmd} branch --format="%(refname:short)"`, { cwd: repoPath });
+        const allBranches = allBranchesStdout
+            .split(/\r?\n/)
+            .map(name => name.trim())
+            .filter(Boolean);
+        const branchSet = new Set(allBranches);
+
+        const addBranchForDeletion = (branchName: string, force: boolean) => {
+            if (!branchName || !branchSet.has(branchName)) {
+                return;
+            }
+            if (branchName === currentBranch) {
+                return;
+            }
+            if (isProtectedBranch(branchName, 'local')) {
+                return;
+            }
+
+            const existing = deletableBranches.get(branchName);
+            if (existing) {
+                existing.force = existing.force || force;
+                return;
+            }
+            deletableBranches.set(branchName, { force });
+        };
+
+        try {
+            const { stdout: mergedStdout } = await execAsync(
+                `${gitCmd} branch --merged main --format="%(refname:short)"`,
+                { cwd: repoPath }
+            );
+            mergedStdout
+                .split(/\r?\n/)
+                .map(name => name.trim())
+                .filter(Boolean)
+                .forEach(branchName => {
+                    if (branchName !== 'main') {
+                        addBranchForDeletion(branchName, false);
+                    }
+                });
+        } catch (error: any) {
+            const message = error?.stderr || error?.message || '';
+            if (!/not a valid object name|unknown revision|did not match any file|unknown switch/.test(message)) {
+                return { success: false, error: message || 'Failed to determine merged branches.' };
+            }
+        }
+
+        const { stdout: verboseStdout } = await execAsync(`${gitCmd} branch -vv`, { cwd: repoPath });
+        verboseStdout
+            .split(/\r?\n/)
+            .map(line => line.trimEnd())
+            .filter(Boolean)
+            .forEach(line => {
+                const withoutMarker = line.startsWith('*') ? line.slice(1).trimStart() : line;
+                const firstSpaceIndex = withoutMarker.indexOf(' ');
+                const branchName = firstSpaceIndex === -1 ? withoutMarker : withoutMarker.slice(0, firstSpaceIndex);
+                const remainder = firstSpaceIndex === -1 ? '' : withoutMarker.slice(firstSpaceIndex + 1);
+
+                if (!branchName) {
+                    return;
+                }
+
+                if (/\[.*gone.*\]/i.test(remainder)) {
+                    addBranchForDeletion(branchName, true);
+                }
+            });
+
+        if (deletableBranches.size === 0) {
+            return { success: true, message: 'No merged or stale local branches found.' };
+        }
+
+        for (const [branchName, { force }] of deletableBranches) {
+            const deleteFlag = force ? '-D' : '-d';
+            await execAsync(`${gitCmd} branch ${deleteFlag} ${JSON.stringify(branchName)}`, { cwd: repoPath });
+        }
+
+        return {
+            success: true,
+            message: `Deleted ${deletableBranches.size} local branch${deletableBranches.size === 1 ? '' : 'es'}.`,
+        };
+    } catch (error: any) {
+        return { success: false, error: error?.stderr || error?.message || 'Failed to clean up local branches.' };
+    }
+});
 ipcMain.handle('delete-branch', (e, repoPath: string, branch: string, isRemote: boolean, remoteName?: string) => {
     if (isRemote) {
         const originalTrimmed = branch.trim();

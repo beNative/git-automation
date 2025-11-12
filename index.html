@@ -189,6 +189,16 @@
             const index = repoId ? refreshIndexByRepo.get(repoId) ?? 0 : 0;
             return branchSamples[index];
           },
+          async pruneRemoteBranches() {
+            await delay(150);
+            console.info('Simulated pruning stale remote branches');
+            return { success: true, message: 'Simulated prune completed.' };
+          },
+          async cleanupLocalBranches() {
+            await delay(150);
+            console.info('Simulated cleanup of merged or stale local branches');
+            return { success: true, message: 'Simulated cleanup completed.' };
+          },
           async getLatestRelease() {
             await delay(200);
             return {

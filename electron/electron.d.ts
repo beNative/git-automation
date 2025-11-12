@@ -33,6 +33,8 @@ export interface IElectronAPI {
   listBranches: (args: { repoPath: string; vcs?: 'git' | 'svn' }) => Promise<BranchInfo>;
   checkoutBranch: (args: { repoPath: string; branch: string; vcs?: 'git' | 'svn' }) => Promise<{ success: boolean; error?: string }>;
   createBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
+  pruneRemoteBranches: (repoPath: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  cleanupLocalBranches: (repoPath: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   deleteBranch: (repoPath: string, branch: string, isRemote: boolean, remoteName?: string) => Promise<{ success: boolean; error?: string }>;
   mergeBranch: (repoPath: string, branch: string) => Promise<{ success: boolean; error?: string }>;
   ignoreFilesAndPush: (args: { repo: Repository; filesToIgnore: string[] }) => Promise<{ success: boolean; error?: string }>;
