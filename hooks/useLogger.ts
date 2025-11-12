@@ -10,6 +10,12 @@ export const useLogger = () => {
   return useMemo(() => ({
     debug: (message: string, data?: any) => addLog(DebugLogLevel.DEBUG, message, data),
     info: (message: string, data?: any) => addLog(DebugLogLevel.INFO, message, data),
+    success: (message: string, data?: any) =>
+      addLog(
+        DebugLogLevel.INFO,
+        message,
+        data ? { status: 'success', ...data } : { status: 'success' }
+      ),
     warn: (message: string, data?: any) => addLog(DebugLogLevel.WARN, message, data),
     error: (message: string, data?: any) => addLog(DebugLogLevel.ERROR, message, data),
   }), [addLog]);
