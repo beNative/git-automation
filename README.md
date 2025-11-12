@@ -19,7 +19,7 @@ This application provides a simple, powerful dashboard to manage and automate th
 -   **Parallel Execution:** Run tasks on multiple repositories at the same time without waiting.
 -   **One-Click Update Check:** A "Check Updates" button fetches the latest information from all remotes, showing an "Updates Available" indicator on repositories that are behind.
 -   **Detailed VCS Status:** See ahead/behind status (Git) and a summary of file changes directly on the dashboard.
--   **Branch Management:** Quickly switch branches from the dashboard. Git repositories can view, create, delete, and merge branches from the configuration view, while SVN repositories can browse branches/trunk and switch working copies.
+-   **Branch Management:** Quickly switch branches from the dashboard. Git repositories can view, create, delete, and merge branches from the configuration view, prune stale remote references, and clean up merged local branches in one click, while SVN repositories can browse branches/trunk and switch working copies.
 -   **Dirty Working Tree Safety:** Task runs are automatically paused when uncommitted changes are detected, giving you options to stash, force, or ignore selected files before continuing.
 -   **GitHub Release Management (Git):** See the latest release on the dashboard, and view, create, edit, and manage all your project's releases directly from the configuration view.
 -   **Commit History:** View the commit history for any Git or SVN repository, with **a stable, non-flickering UI**, search, and load-on-demand.
@@ -75,9 +75,9 @@ Follow this checklist when preparing a new minor or patch release:
     **Release Type** selector to the intended state (Full Release for GA builds, Draft or Pre-release as needed). Paste the freshly
     written changelog entry into the release body so the GitHub notes exactly match the repository history, then publish.
 
-### Documentation Status for 0.25.9
+### Documentation Status for 0.26.0
 
-- Documented the release manifest normalization script, CI manifest verification, and auto-update diagnostics refinements delivered in version `0.25.9`.
+- Documented the new Git branch maintenance actions, structured repository form logging, and UI layout refinements delivered in version `0.26.0`.
 
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._

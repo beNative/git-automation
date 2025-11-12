@@ -145,7 +145,7 @@ Displays a detailed list of commits or revisions, including the author, date, an
 #### Branches Tab
 Provides a unified interface to inspect branches for both Git and SVN repositories. The dropdown is backed by the shared `list-branches` IPC handler, so Git and SVN cards use the same data source on the dashboard.
 
--   **Git Repositories:** View all local and remote branches, create or delete branches, and merge another branch into your current one.
+-   **Git Repositories:** View all local and remote branches, create or delete branches, merge another branch into your current one, and trigger branch maintenance utilities. The toolbar now surfaces dedicated buttons to **Prune Remotes** (runs `git remote prune` across every configured remote) and **Clean Local Branches** (deletes merged, unprotected branches while respecting the active checkout). Success and failure states surface structured toasts and log entries for easy triage.
 -   **SVN Repositories:** Browse available branches (including trunk) and switch the working copy. Destructive operations such as creating or deleting branches remain Git-only.
 
 #### Releases Tab (Git Only)
@@ -216,6 +216,6 @@ For advanced users, the settings view includes a **"JSON Config"** tab. This sec
 -   **Export Settings:** Click the "Export Settings" button to save your current configuration into a compressed `.zip` archive. This is useful for creating backups or sharing your setup.
 -   **Import Settings:** Click the "Import Settings" button. You can select a `.zip` archive (created via the export feature) or a raw `.json` file to restore a configuration. This will overwrite your current settings and restart the application.
 
-### Documentation Status for 0.25.9
+### Documentation Status for 0.26.0
 
-- Captured the normalized Windows installer workflow, the GitHub updater diagnostics improvements, and the release manifest verification tooling introduced in version `0.25.9`.
+- Documented the Git branch maintenance toolbar, structured logging coverage for repository edits, and layout tightening delivered in version `0.26.0`.

@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 
 - _No unreleased changes._
 
+## [0.26.0]
+
+### Added
+- **Branch Maintenance Shortcuts:** Introduced one-click actions in the repository form to prune stale remote branches and clean merged local branches, wiring the renderer UI to new IPC handlers that execute the underlying Git commands with structured success/error messaging. ([#101](https://github.com/beNative/git-automation/pull/101))
+
+### Changed
+- **Structured Repository Logging:** Expanded structured logging coverage across the Repo Form modal and Repo Edit view so branch maintenance, release management, and configuration saves emit consistent diagnostics for the debug console and log files. ([#102](https://github.com/beNative/git-automation/pull/102), [#103](https://github.com/beNative/git-automation/pull/103), [#104](https://github.com/beNative/git-automation/pull/104))
+- **Repository Form Layout:** Tightened padding around action buttons and form panes to better fit long workflows without scrolling as frequently. ([#99](https://github.com/beNative/git-automation/pull/99), [#100](https://github.com/beNative/git-automation/pull/100))
+- **Browser Demo Parity:** Stubbed the project intelligence, branch maintenance, and release APIs inside the in-browser demo so product walkthroughs surface realistic responses while exercising the new Git maintenance flows. ([#101](https://github.com/beNative/git-automation/pull/101))
+
+### Fixed
+- **Concurrent Saves:** Prevented repository updates from silently failing when background tasks are still running, restoring reliable persistence. ([#98](https://github.com/beNative/git-automation/pull/98))
+- **Windows Checksum Refresh:** Ensured the Windows manifest normalization script rewrites installer filenames before computing checksums so automatic updates pick up the latest builds. ([#96](https://github.com/beNative/git-automation/pull/96))
+- **Repo Form Logging Regression:** Removed a duplicate logger declaration that caused symbol conflicts in the repository configuration modal. ([#105](https://github.com/beNative/git-automation/pull/105))
+- **About Modal Polish:** Cleaned up redundant controls in the About dialog to match the streamlined layout. ([#97](https://github.com/beNative/git-automation/pull/97))
+
+### Documentation
+- Documented the Git branch maintenance utilities, structured logging coverage, and UI spacing refinements introduced in version `0.26.0` across the README and manuals.
+
 ## [0.25.9]
 
 ### Added
