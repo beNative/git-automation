@@ -163,6 +163,8 @@ const STEP_CATEGORIES = [
 ];
 
 const PROTECTED_BRANCH_IDENTIFIERS = new Set(['main', 'origin', 'origin/main']);
+const WORKFLOW_TEMPLATE_MIN_HEIGHT = 160;
+const WORKFLOW_EDITOR_MIN_HEIGHT = 220;
 
 const normalizeWorkflowInputPath = (value: string): string => {
   let normalized = (value || '').trim().replace(/\\/g, '/');
@@ -2003,6 +2005,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [workflowCommitMessage, setWorkflowCommitMessage] = useState('chore: update workflow');
   const [isWorkflowCommitInProgress, setIsWorkflowCommitInProgress] = useState(false);
   const selectedWorkflowPathRef = useRef<string | null>(null);
+  const workflowPaneContainerRef = useRef<HTMLDivElement | null>(null);
+  const [workflowTemplatesPaneHeight, setWorkflowTemplatesPaneHeight] = useState(240);
+  const [isWorkflowTemplatesPaneResizing, setIsWorkflowTemplatesPaneResizing] = useState(false);
 
   useEffect(() => {
     selectedWorkflowPathRef.current = selectedWorkflowPath;
@@ -2018,6 +2023,60 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     setNewWorkflowTemplateId('');
     setNewWorkflowFilename('ci.yml');
   }, [repository?.id]);
+
+  const beginWorkflowTemplatesResize = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsWorkflowTemplatesPaneResizing(true);
+  }, []);
+
+  const handleWorkflowTemplatesMouseMove = useCallback((event: MouseEvent) => {
+    if (!isWorkflowTemplatesPaneResizing || !workflowPaneContainerRef.current) {
+        return;
+    }
+
+    const containerRect = workflowPaneContainerRef.current.getBoundingClientRect();
+    const totalHeight = containerRect.height;
+    if (totalHeight <= 0) {
+        return;
+    }
+
+    const distanceFromBottom = containerRect.bottom - event.clientY;
+    const availableForTemplates = totalHeight - WORKFLOW_EDITOR_MIN_HEIGHT;
+    const maxHeight = availableForTemplates > 0
+        ? availableForTemplates
+        : Math.min(WORKFLOW_TEMPLATE_MIN_HEIGHT, totalHeight);
+    const minHeight = availableForTemplates > WORKFLOW_TEMPLATE_MIN_HEIGHT
+        ? WORKFLOW_TEMPLATE_MIN_HEIGHT
+        : Math.max(Math.min(WORKFLOW_TEMPLATE_MIN_HEIGHT, availableForTemplates), 0);
+
+    const safeMinHeight = Math.min(minHeight, maxHeight);
+    const safeMaxHeight = Math.max(maxHeight, safeMinHeight);
+
+    const clampedHeight = Math.min(
+        Math.max(distanceFromBottom, safeMinHeight),
+        safeMaxHeight,
+    );
+
+    setWorkflowTemplatesPaneHeight(clampedHeight);
+  }, [isWorkflowTemplatesPaneResizing]);
+
+  const endWorkflowTemplatesResize = useCallback(() => {
+    setIsWorkflowTemplatesPaneResizing(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isWorkflowTemplatesPaneResizing) {
+        return undefined;
+    }
+
+    window.addEventListener('mousemove', handleWorkflowTemplatesMouseMove);
+    window.addEventListener('mouseup', endWorkflowTemplatesResize);
+
+    return () => {
+        window.removeEventListener('mousemove', handleWorkflowTemplatesMouseMove);
+        window.removeEventListener('mouseup', endWorkflowTemplatesResize);
+    };
+  }, [isWorkflowTemplatesPaneResizing, handleWorkflowTemplatesMouseMove, endWorkflowTemplatesResize]);
 
 
   const formInputStyle = "block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
@@ -4072,7 +4131,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                             <p className="text-[11px] text-gray-500 dark:text-gray-400">Files are stored in .github/workflows/.</p>
                         </div>
                     </aside>
-                    <div className="flex-1 flex flex-col min-h-0">
+                    <div className="flex-1 flex flex-col min-h-0" ref={workflowPaneContainerRef}>
                         {selectedWorkflowPath ? (
                             <>
                                 <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-start justify-between gap-3">
@@ -4131,9 +4190,22 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 </div>
                             </>
                         ) : (
-                            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">Select a workflow to edit or create one from a template.</div>
+                            <div className="flex-1 flex items-center justify-center text-center text-gray-500 dark:text-gray-400 px-6">
+                                Select a workflow to edit or create one from a template.
+                            </div>
                         )}
-                        <div className="border-t border-gray-200 dark:border-gray-700 p-3 space-y-3 max-h-72 overflow-y-auto">
+                        {selectedWorkflowPath && (
+                            <div
+                              onMouseDown={beginWorkflowTemplatesResize}
+                              role="separator"
+                              aria-label="Resize workflow template recommendations"
+                              className="flex-shrink-0 h-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 cursor-row-resize transition-colors"
+                            />
+                        )}
+                        <div
+                          className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 p-3 space-y-3 overflow-y-auto"
+                          style={{ height: `${workflowTemplatesPaneHeight}px` }}
+                        >
                             <div className="flex items-center justify-between">
                                 <h4 className="font-semibold text-gray-800 dark:text-gray-200">Recommended Templates</h4>
                                 <button type="button" onClick={fetchWorkflowTemplates} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Refresh</button>
