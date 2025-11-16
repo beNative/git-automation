@@ -13,7 +13,7 @@ import TaskLogPanel from './components/TaskLogPanel';
 import DebugPanel from './components/DebugPanel';
 import { IconContext } from './contexts/IconContext';
 import CommandPalette from './components/CommandPalette';
-import StatusBar from './components/StatusBar';
+import StatusBar, { StatusBarMessage } from './components/StatusBar';
 import DirtyRepoModal from './components/modals/DirtyRepoModal';
 import TaskSelectionModal from './components/modals/TaskSelectionModal';
 import LaunchSelectionModal from './components/modals/LaunchSelectionModal';
@@ -175,6 +175,7 @@ const App: React.FC = () => {
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isDebugPanelOpen, setIsDebugPanelOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const [statusBarMessage, setStatusBarMessage] = useState<StatusBarMessage | null>(null);
   const [localPathStates, setLocalPathStates] = useState<Record<string, LocalPathState>>({});
   const [localPathRefreshing, setLocalPathRefreshing] = useState<Record<string, boolean>>({});
   const [detectedExecutables, setDetectedExecutables] = useState<Record<string, string[]>>({});
@@ -1745,6 +1746,7 @@ const App: React.FC = () => {
                       onCancel={handleCloseRepoForm}
                       onRefreshState={refreshRepoState}
                       setToast={setToast}
+                      setStatusBarMessage={setStatusBarMessage}
                       confirmAction={confirmAction}
                       defaultCategoryId={repoFormState.defaultCategoryId}
                       onOpenWeblink={handleOpenWeblink}
@@ -1834,6 +1836,7 @@ const App: React.FC = () => {
             processingCount={isProcessing.size}
             isSimulationMode={settings.simulationMode}
             latestLog={latestLog}
+            statusMessage={statusBarMessage}
             appVersion={appVersion}
             onToggleDebugPanel={() => setIsDebugPanelOpen(p => !p)}
             onOpenAboutModal={() => setIsAboutModalOpen(true)}

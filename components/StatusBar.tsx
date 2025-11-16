@@ -7,18 +7,24 @@ import { KeyboardIcon } from './icons/KeyboardIcon';
 import { BugAntIcon } from './icons/BugAntIcon';
 import { useTooltip } from '../hooks/useTooltip';
 
+export type StatusBarMessage = {
+    text: string;
+    tone?: 'default' | 'info' | 'success' | 'warning' | 'danger';
+};
+
 interface StatusBarProps {
     repoCount: number;
     processingCount: number;
     isSimulationMode: boolean;
     latestLog: LogEntry | null;
+    statusMessage?: StatusBarMessage | null;
     appVersion: string;
     onToggleDebugPanel: () => void;
     onOpenAboutModal: () => void;
     commandPaletteShortcut: string;
 }
 
-const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog, appVersion, onToggleDebugPanel, onOpenAboutModal, commandPaletteShortcut }) => {
+const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSimulationMode, latestLog, statusMessage, appVersion, onToggleDebugPanel, onOpenAboutModal, commandPaletteShortcut }) => {
     const LOG_LEVEL_COLOR_CLASSES: Record<string, string> = {
         info: 'text-gray-500 dark:text-gray-400',
         command: 'text-blue-500 dark:text-blue-400',
@@ -27,12 +33,20 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
         warn: 'text-yellow-500 dark:text-yellow-400',
     };
 
+    const STATUS_MESSAGE_COLORS: Record<NonNullable<StatusBarMessage['tone']>, string> = {
+        default: 'text-gray-600 dark:text-gray-300',
+        info: 'text-blue-600 dark:text-blue-400',
+        success: 'text-green-600 dark:text-green-400',
+        warning: 'text-amber-600 dark:text-amber-400',
+        danger: 'text-red-600 dark:text-red-400',
+    };
+
     const repoCountTooltip = useTooltip('Total Repositories');
     const processingTooltip = useTooltip(`${processingCount} tasks running`);
     const simModeTooltip = useTooltip('Simulation mode is active. No real commands will be run.');
     const commandPaletteTooltip = useTooltip(`Command Palette (${commandPaletteShortcut || 'Ctrl+K'})`);
     const debugPanelTooltip = useTooltip('Toggle Debug Panel (Ctrl+D)');
-    const latestLogTooltip = useTooltip(latestLog?.message || '');
+    const centerTooltip = useTooltip(statusMessage?.text || latestLog?.message || '');
     const aboutTooltip = useTooltip('About this application');
 
     return (
@@ -58,12 +72,16 @@ const StatusBar: React.FC<StatusBarProps> = ({ repoCount, processingCount, isSim
             
             {/* Center Section */}
             <div
- {...latestLogTooltip} className="flex-1 text-center truncate px-4">
-                {latestLog && (
+ {...centerTooltip} className="flex-1 text-center truncate px-4">
+                {statusMessage ? (
+                    <span className={STATUS_MESSAGE_COLORS[statusMessage.tone || 'default']}>
+                        {statusMessage.text}
+                    </span>
+                ) : latestLog ? (
                     <span className={LOG_LEVEL_COLOR_CLASSES[latestLog.level] || 'text-gray-400'}>
                         [{new Date(latestLog.timestamp).toLocaleTimeString()}] {latestLog.message}
                     </span>
-                )}
+                ) : null}
             </div>
 
             {/* Right Section */}
