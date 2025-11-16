@@ -345,7 +345,7 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
             <p className="text-center text-gray-500">{debouncedSearchQuery ? `No commits found for "${debouncedSearchQuery}".` : 'No commits found.'}</p>
           ) : (
             <>
-              <ul className="space-y-3">
+              <ul className="space-y-3 list-none p-0">
                 {commits.map(commit => {
                   const isExpanded = expandedCommits.has(commit.hash);
                   const diffFiles = diffCache[commit.hash] || [];
@@ -362,6 +362,7 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
                   const noFilesMessage = diffFiles.length === 0 && filter === 'all'
                     ? 'No files changed in this commit.'
                     : 'No files match the selected filter.';
+                  const sanitizedMessage = commit.message.trimStart();
 
                   return (
                     <li key={commit.hash} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -374,8 +375,8 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
                           {isExpanded ? <ChevronDownIcon className="h-5 w-5" /> : <ChevronRightIcon className="h-5 w-5" />}
                         </span>
                         <div className="flex-1">
-                          <div className="font-sans whitespace-pre-wrap text-gray-900 dark:text-gray-100">
-                            <HighlightedText text={commit.message} highlight={debouncedSearchQuery} />
+                          <div className="font-sans whitespace-pre-line text-gray-900 dark:text-gray-100">
+                            <HighlightedText text={sanitizedMessage} highlight={debouncedSearchQuery} />
                           </div>
                         </div>
                       </button>
