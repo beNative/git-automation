@@ -2005,7 +2005,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [workflowCommitMessage, setWorkflowCommitMessage] = useState('chore: update workflow');
   const [isWorkflowCommitInProgress, setIsWorkflowCommitInProgress] = useState(false);
   const selectedWorkflowPathRef = useRef<string | null>(null);
-  const workflowPaneContainerRef = useRef<HTMLDivElement | null>(null);
+  const workflowEditorRegionRef = useRef<HTMLDivElement | null>(null);
   const [workflowTemplatesPaneHeight, setWorkflowTemplatesPaneHeight] = useState(240);
   const [isWorkflowTemplatesPaneResizing, setIsWorkflowTemplatesPaneResizing] = useState(false);
 
@@ -2030,11 +2030,11 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   }, []);
 
   const handleWorkflowTemplatesMouseMove = useCallback((event: MouseEvent) => {
-    if (!isWorkflowTemplatesPaneResizing || !workflowPaneContainerRef.current) {
+    if (!isWorkflowTemplatesPaneResizing || !workflowEditorRegionRef.current) {
         return;
     }
 
-    const containerRect = workflowPaneContainerRef.current.getBoundingClientRect();
+    const containerRect = workflowEditorRegionRef.current.getBoundingClientRect();
     const totalHeight = containerRect.height;
     if (totalHeight <= 0) {
         return;
@@ -4131,8 +4131,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                             <p className="text-[11px] text-gray-500 dark:text-gray-400">Files are stored in .github/workflows/.</p>
                         </div>
                     </aside>
-                    <div className="flex-1 flex flex-col min-h-0" ref={workflowPaneContainerRef}>
-                        {selectedWorkflowPath ? (
+                    <div className="flex-1 flex flex-col min-h-0">
+                        {selectedWorkflowPath && (
                             <>
                                 <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-start justify-between gap-3">
                                     <div>
@@ -4173,6 +4173,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                       className={`px-3 py-1.5 text-xs font-medium text-white rounded-md ${workflowDirty ? 'bg-gray-400 dark:bg-gray-600' : 'bg-indigo-600 hover:bg-indigo-700'} ${isWorkflowCommitInProgress ? 'cursor-wait' : ''}`}
                                     >{isWorkflowCommitInProgress ? 'Pushing…' : 'Commit & Push'}</button>
                                 </div>
+                            </>
+                        )}
+                        <div className="flex-1 flex flex-col min-h-0" ref={workflowEditorRegionRef}>
+                            {selectedWorkflowPath ? (
                                 <div className="flex-1 p-3 flex flex-col min-h-0">
                                     {isWorkflowLoading ? (
                                         <p className="text-sm text-gray-500">Loading workflow…</p>
@@ -4188,73 +4192,73 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                     )}
                                     {workflowError && <p className="text-xs text-red-500 mt-2">{workflowError}</p>}
                                 </div>
-                            </>
-                        ) : (
-                            <div className="flex-1 flex items-center justify-center text-center text-gray-500 dark:text-gray-400 px-6">
-                                Select a workflow to edit or create one from a template.
-                            </div>
-                        )}
-                        {selectedWorkflowPath && (
-                            <div
-                              onMouseDown={beginWorkflowTemplatesResize}
-                              role="separator"
-                              aria-label="Resize workflow template recommendations"
-                              className="flex-shrink-0 h-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 cursor-row-resize transition-colors"
-                            />
-                        )}
-                        <div
-                          className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 p-3 space-y-3 overflow-y-auto"
-                          style={{ height: `${workflowTemplatesPaneHeight}px` }}
-                        >
-                            <div className="flex items-center justify-between">
-                                <h4 className="font-semibold text-gray-800 dark:text-gray-200">Recommended Templates</h4>
-                                <button type="button" onClick={fetchWorkflowTemplates} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Refresh</button>
-                            </div>
-                            {workflowTemplatesLoading ? (
-                                <p className="text-sm text-gray-500">Loading templates…</p>
-                            ) : workflowTemplates.length === 0 ? (
-                                <p className="text-sm text-gray-500">No templates available for this repository yet.</p>
                             ) : (
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    {workflowTemplates.map(template => (
-                                        <div key={template.id} className="p-3 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/50 space-y-2">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div>
-                                                    <p className="font-medium text-sm text-gray-800 dark:text-gray-100">{template.label}</p>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{template.description}</p>
-                                                </div>
-                                                {template.recommended && (
-                                                    <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-100">Recommended</span>
-                                                )}
-                                            </div>
-                                            {template.tags.length > 0 && (
-                                                <div className="flex flex-wrap gap-1 text-[10px] text-gray-500 dark:text-gray-400">
-                                                    {template.tags.map(tag => (
-                                                        <span key={tag} className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800/70">{tag}</span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            <div className="flex flex-wrap gap-2">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => {
-                                                    setNewWorkflowTemplateId(template.id);
-                                                    setNewWorkflowFilename(template.filename);
-                                                  }}
-                                                  className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                                                >Use for new file</button>
-                                                {selectedWorkflowPath && (
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => handleApplyTemplateToEditor(template)}
-                                                      className="px-2 py-1 text-xs font-medium border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200"
-                                                    >Load in editor</button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
+                                <div className="flex-1 flex items-center justify-center text-center text-gray-500 dark:text-gray-400 px-6">
+                                    Select a workflow to edit or create one from a template.
                                 </div>
                             )}
+                            {selectedWorkflowPath && (
+                                <div
+                                  onMouseDown={beginWorkflowTemplatesResize}
+                                  role="separator"
+                                  aria-label="Resize workflow template recommendations"
+                                  className="flex-shrink-0 h-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 cursor-row-resize transition-colors"
+                                />
+                            )}
+                            <div
+                              className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 p-3 space-y-3 overflow-y-auto"
+                              style={{ height: `${workflowTemplatesPaneHeight}px` }}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <h4 className="font-semibold text-gray-800 dark:text-gray-200">Recommended Templates</h4>
+                                    <button type="button" onClick={fetchWorkflowTemplates} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Refresh</button>
+                                </div>
+                                {workflowTemplatesLoading ? (
+                                    <p className="text-sm text-gray-500">Loading templates…</p>
+                                ) : workflowTemplates.length === 0 ? (
+                                    <p className="text-sm text-gray-500">No templates available for this repository yet.</p>
+                                ) : (
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        {workflowTemplates.map(template => (
+                                            <div key={template.id} className="p-3 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/50 space-y-2">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <p className="font-medium text-sm text-gray-800 dark:text-gray-100">{template.label}</p>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">{template.description}</p>
+                                                    </div>
+                                                    {template.recommended && (
+                                                        <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-100">Recommended</span>
+                                                    )}
+                                                </div>
+                                                {template.tags.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 text-[10px] text-gray-500 dark:text-gray-400">
+                                                        {template.tags.map(tag => (
+                                                            <span key={tag} className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800/70">{tag}</span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <div className="flex flex-wrap gap-2">
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        setNewWorkflowTemplateId(template.id);
+                                                        setNewWorkflowFilename(template.filename);
+                                                      }}
+                                                      className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                                                    >Use for new file</button>
+                                                    {selectedWorkflowPath && (
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => handleApplyTemplateToEditor(template)}
+                                                          className="px-2 py-1 text-xs font-medium border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200"
+                                                        >Load in editor</button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
