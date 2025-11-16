@@ -38,6 +38,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PencilIcon } from '../icons/PencilIcon';
 import { ArrowPathIcon } from '../icons/ArrowPathIcon';
+import type { StatusBarMessage } from '../StatusBar';
 
 interface RepoEditViewProps {
   onSave: (repository: Repository, categoryId?: string) => void;
@@ -45,6 +46,7 @@ interface RepoEditViewProps {
   repository: Repository | null;
   onRefreshState: (repoId: string) => Promise<void>;
   setToast: (toast: { message: string; type: 'success' | 'error' | 'info' } | null) => void;
+  setStatusBarMessage?: (message: StatusBarMessage | null) => void;
   confirmAction: (options: {
     title: string;
     message: React.ReactNode;
@@ -1869,7 +1871,7 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
   );
 };
 
-const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, confirmAction, defaultCategoryId, onOpenWeblink, detectedExecutables }) => {
+const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, setStatusBarMessage, confirmAction, defaultCategoryId, onOpenWeblink, detectedExecutables }) => {
   const logger = useLogger();
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
 
@@ -1967,6 +1969,43 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     return keySet;
   }, [selectedBranches]);
 
+  const branchSelectionStats = useMemo(() => {
+    const selectedBranchCount = selectedBranches.length;
+    let selectedLocalCount = 0;
+    selectedBranches.forEach(selection => {
+        if (selection.scope === 'local') {
+            selectedLocalCount += 1;
+        }
+    });
+    const selectedRemoteCount = selectedBranchCount - selectedLocalCount;
+    const isCurrentSelection = Boolean(
+        selectedBranchCount === 1 &&
+        primarySelectedBranch?.scope === 'local' &&
+        branchInfo?.current &&
+        primarySelectedBranch.name === branchInfo.current
+    );
+
+    let selectionDescription: string | null = null;
+    if (!selectedBranchCount) {
+        selectionDescription = 'Select a branch to checkout.';
+    } else if (selectedBranchCount === 1 && primarySelectedBranch) {
+        if (!(primarySelectedBranch.scope === 'local' && branchInfo?.current === primarySelectedBranch.name)) {
+            selectionDescription = `${primarySelectedBranch.scope === 'remote' ? 'Remote' : 'Local'} branch: ${primarySelectedBranch.name}`;
+        }
+    } else {
+        const parts: string[] = [];
+        if (selectedLocalCount) {
+            parts.push(`${selectedLocalCount} local`);
+        }
+        if (selectedRemoteCount) {
+            parts.push(`${selectedRemoteCount} remote`);
+        }
+        selectionDescription = `${selectedBranchCount} branches selected (${parts.join(', ')})`;
+    }
+
+    return { selectedBranchCount, selectedLocalCount, selectedRemoteCount, isCurrentSelection, selectionDescription };
+  }, [selectedBranches, primarySelectedBranch, branchInfo?.current]);
+
   // State for Releases Tab
   const [releases, setReleases] = useState<ReleaseInfo[] | null>(null);
   const [releasesLoading, setReleasesLoading] = useState(false);
@@ -2034,6 +2073,23 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
         return next;
     });
   }, [filteredLocalBranches, filteredRemoteBranches, branchInfo?.current]);
+
+  useEffect(() => {
+    if (!setStatusBarMessage) {
+        return;
+    }
+    if (activeTab === 'branches' && branchSelectionStats.selectionDescription) {
+        setStatusBarMessage({ text: branchSelectionStats.selectionDescription, tone: 'info' });
+    } else {
+        setStatusBarMessage(null);
+    }
+  }, [activeTab, branchSelectionStats.selectionDescription, setStatusBarMessage]);
+
+  useEffect(() => {
+    return () => {
+        setStatusBarMessage?.(null);
+    };
+  }, [setStatusBarMessage]);
 
   useEffect(() => {
     if (!branchInfo) {
@@ -3500,35 +3556,13 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             if (!supportsBranchTab) {
                 return <div className="p-2 text-center text-gray-500">Branch management is only available for Git or SVN repositories.</div>;
             }
-            const selectedBranchCount = selectedBranches.length;
-            const selectedLocalCount = selectedBranches.filter(selection => selection.scope === 'local').length;
-            const selectedRemoteCount = selectedBranchCount - selectedLocalCount;
-            const isCurrentSelection = Boolean(
-                selectedBranchCount === 1 &&
-                primarySelectedBranch?.scope === 'local' &&
-                branchInfo?.current &&
-                primarySelectedBranch.name === branchInfo.current
-            );
+            const {
+                selectedBranchCount,
+                selectedLocalCount,
+                selectedRemoteCount,
+                isCurrentSelection,
+            } = branchSelectionStats;
             const checkoutDisabled = selectedBranchCount !== 1 || isCheckoutLoading || branchesLoading || isCurrentSelection;
-            const selectionDescription = (() => {
-                if (!selectedBranchCount) {
-                    return 'Select a branch to checkout.';
-                }
-                if (selectedBranchCount === 1 && primarySelectedBranch) {
-                    if (primarySelectedBranch.scope === 'local' && branchInfo?.current === primarySelectedBranch.name) {
-                        return undefined;
-                    }
-                    return `${primarySelectedBranch.scope === 'remote' ? 'Remote' : 'Local'} branch: ${primarySelectedBranch.name}`;
-                }
-                const parts: string[] = [];
-                if (selectedLocalCount) {
-                    parts.push(`${selectedLocalCount} local`);
-                }
-                if (selectedRemoteCount) {
-                    parts.push(`${selectedRemoteCount} remote`);
-                }
-                return `${selectedBranchCount} branches selected (${parts.join(', ')})`;
-            })();
             const hasProtectedSelection = selectedBranches.some(selection => isProtectedBranch(selection.name, selection.scope));
             const hasCurrentBranchSelected = selectedBranches.some(selection => selection.scope === 'local' && branchInfo?.current && selection.name === branchInfo.current);
             const hasDeletableSelection = selectedBranches.some(selection => {
@@ -3720,9 +3754,6 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                     </div>
                                 </div>
                                 <div className="pt-4 mt-2 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-4 flex-shrink-0">
-                                    {selectionDescription && (
-                                        <p className="text-sm text-gray-600 dark:text-gray-300">{selectionDescription}</p>
-                                    )}
                                     {isSvnRepo && (
                                         <p className="text-xs text-gray-500 dark:text-gray-400">
                                             Branch creation, deletion, and merging are currently only available for Git repositories.
