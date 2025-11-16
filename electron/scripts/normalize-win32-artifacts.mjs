@@ -41,6 +41,103 @@ const toBasename = (value) => {
   return path.basename(value.trim());
 };
 
+const collectSha512Mismatches = (lines, hashMap) => {
+  let inFilesSection = false;
+  let inPackagesSection = false;
+  let currentFileKey = null;
+  let currentPackageFileKey = null;
+  let rootFileKey = null;
+  const mismatches = [];
+
+  const checkHash = (line, key) => {
+    if (!key) {
+      return;
+    }
+    const expected = hashMap.get(key);
+    if (!expected) {
+      return;
+    }
+    const match = line.match(/sha512:\s+(.+)/);
+    if (!match) {
+      return;
+    }
+    const actual = match[1].trim();
+    if (actual !== expected) {
+      mismatches.push({ key, expected, actual });
+    }
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed === 'files:') {
+      inFilesSection = true;
+      inPackagesSection = false;
+      currentFileKey = null;
+      continue;
+    }
+    if (trimmed === 'packages:') {
+      inFilesSection = false;
+      inPackagesSection = true;
+      currentPackageFileKey = null;
+      continue;
+    }
+    if (!line.startsWith(' ')) {
+      inFilesSection = trimmed === '' ? inFilesSection : false;
+      if (trimmed !== 'packages:') {
+        inPackagesSection = false;
+      }
+    }
+
+    if (inFilesSection) {
+      const urlMatch = line.match(/^\s*-\s+url:\s+(.*)$/);
+      if (urlMatch) {
+        currentFileKey = toBasename(urlMatch[1]);
+        continue;
+      }
+
+      const pathMatch = line.match(/^\s+path:\s+(.*)$/);
+      if (pathMatch) {
+        currentFileKey = toBasename(pathMatch[1]);
+        continue;
+      }
+
+      if (/^\s+sha512:\s+/.test(line)) {
+        checkHash(line, currentFileKey);
+        continue;
+      }
+      continue;
+    }
+
+    if (inPackagesSection) {
+      const packagePathMatch = line.match(/^\s{4}path:\s+(.*)$/);
+      if (packagePathMatch) {
+        currentPackageFileKey = toBasename(packagePathMatch[1]);
+        continue;
+      }
+
+      if (/^\s{4}sha512:\s+/.test(line)) {
+        checkHash(line, currentPackageFileKey);
+        continue;
+      }
+      continue;
+    }
+
+    const rootPathMatch = line.match(/^path:\s+(.*)$/);
+    if (rootPathMatch) {
+      rootFileKey = toBasename(rootPathMatch[1]);
+      continue;
+    }
+
+    if (/^sha512:\s+/.test(line)) {
+      checkHash(line, rootFileKey);
+      continue;
+    }
+  }
+
+  return mismatches;
+};
+
 const updateManifestFile = async (manifestPath, renameMap, hashMap) => {
   const raw = await fsPromises.readFile(manifestPath, 'utf8');
   const lines = raw.split(/\r?\n/);
@@ -177,6 +274,17 @@ const updateManifestFile = async (manifestPath, renameMap, hashMap) => {
   }
 };
 
+const assertManifestIntegrity = async (manifestPath, hashMap) => {
+  const raw = await fsPromises.readFile(manifestPath, 'utf8');
+  const mismatches = collectSha512Mismatches(raw.split(/\r?\n/), hashMap);
+  if (mismatches.length > 0) {
+    const error = new Error(`Manifest ${path.basename(manifestPath)} has mismatched sha512 entries.`);
+    error.mismatches = mismatches;
+    throw error;
+  }
+  log('Manifest integrity verified.', { manifest: path.basename(manifestPath) });
+};
+
 const updateName = (name) => name.replace(/-ia32-/gi, '-win32-');
 
 const main = async () => {
@@ -255,6 +363,10 @@ const main = async () => {
 
   for (const manifest of manifestsToUpdate) {
     await updateManifestFile(manifest, renameMap, hashes);
+  }
+
+  for (const manifest of manifestsToUpdate) {
+    await assertManifestIntegrity(manifest, hashes);
   }
 };
 

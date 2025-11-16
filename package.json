@@ -10,8 +10,9 @@
     "watch": "node esbuild.config.js --watch",
     "electron": "wait-on dist/main.js dist/renderer.js dist/preload.js && electron .",
     "build": "cross-env NODE_ENV=production node esbuild.config.js",
-    "pack": "npm run build && electron-builder --publish never",
-    "publish": "npm run build && electron-builder --publish always",
+    "pack": "npm run build && electron-builder --publish never && npm run normalize:win32",
+    "publish": "npm run build && electron-builder --publish always && npm run normalize:win32",
+    "normalize:win32": "node electron/scripts/normalize-win32-artifacts.mjs",
     "test": "rm -rf build-tests && tsc -p tsconfig.test.json && node --test build-tests/tests"
   },
   "dependencies": {
