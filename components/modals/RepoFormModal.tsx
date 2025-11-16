@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo, DockerCapabilities, GoCapabilities, RustCapabilities, MavenCapabilities, DotnetCapabilities } from '../../types';
+import type { Repository, Task, TaskStep, ProjectSuggestion, GitRepository, SvnRepository, LaunchConfig, WebLinkConfig, Commit, BranchInfo, PythonCapabilities, ProjectInfo, DelphiCapabilities, NodejsCapabilities, LazarusCapabilities, ReleaseInfo, DockerCapabilities, GoCapabilities, RustCapabilities, MavenCapabilities, DotnetCapabilities, WorkflowFileSummary, WorkflowTemplateSuggestion } from '../../types';
 import { RepoStatus, BuildHealth, TaskStepType, VcsType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -59,6 +59,7 @@ interface RepoEditViewProps {
   defaultCategoryId?: string;
   onOpenWeblink: (url: string) => void;
   detectedExecutables: Record<string, string[]>;
+  onValidateWorkflow: (repo: Repository, relativePath: string) => Promise<'success' | 'failed'>;
 }
 
 const NEW_REPO_TEMPLATE: Omit<GitRepository, 'id'> = {
@@ -164,6 +165,21 @@ const STEP_CATEGORIES = [
 ];
 
 const PROTECTED_BRANCH_IDENTIFIERS = new Set(['main', 'origin', 'origin/main']);
+const WORKFLOW_TEMPLATE_MIN_HEIGHT = 160;
+const WORKFLOW_EDITOR_MIN_HEIGHT = 220;
+
+const normalizeWorkflowInputPath = (value: string): string => {
+  let normalized = (value || '').trim().replace(/\\/g, '/');
+  if (!normalized) return '';
+  if (normalized.startsWith('.github/')) {
+    normalized = normalized.slice('.github/'.length);
+  }
+  if (normalized.startsWith('workflows/')) {
+    normalized = normalized.slice('workflows/'.length);
+  }
+  normalized = normalized.replace(/^\/+/, '');
+  return `.github/workflows/${normalized}`;
+};
 
 const parseRemoteBranchIdentifier = (fullBranchName: string): { remoteName: string; branchName: string } | null => {
   const [remoteName, ...rest] = fullBranchName.split('/');
@@ -1875,7 +1891,7 @@ const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) =>
   );
 };
 
-const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, setStatusBarMessage, confirmAction, defaultCategoryId, onOpenWeblink, detectedExecutables }) => {
+const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repository, onRefreshState, setToast, setStatusBarMessage, confirmAction, defaultCategoryId, onOpenWeblink, detectedExecutables, onValidateWorkflow }) => {
   const logger = useLogger();
   const [formData, setFormData] = useState<Repository | Omit<Repository, 'id'>>(() => repository || NEW_REPO_TEMPLATE);
 
@@ -1923,7 +1939,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
     return null;
   });
 
-  const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'branches' | 'releases'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'branches' | 'releases' | 'ci'>('tasks');
   
   // State for History Tab
   const [commits, setCommits] = useState<Commit[]>([]);
@@ -2016,6 +2032,95 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const [releasesError, setReleasesError] = useState<string | null>(null);
   const [editingRelease, setEditingRelease] = useState<Partial<ReleaseInfo> & { isNew?: boolean } | null>(null);
 
+  const [workflowFiles, setWorkflowFiles] = useState<WorkflowFileSummary[]>([]);
+  const [workflowFilesLoading, setWorkflowFilesLoading] = useState(false);
+  const [selectedWorkflowPath, setSelectedWorkflowPath] = useState<string | null>(null);
+  const [workflowEditorContent, setWorkflowEditorContent] = useState('');
+  const [workflowOriginalContent, setWorkflowOriginalContent] = useState('');
+  const [workflowError, setWorkflowError] = useState<string | null>(null);
+  const [isWorkflowLoading, setIsWorkflowLoading] = useState(false);
+  const [isWorkflowSaving, setIsWorkflowSaving] = useState(false);
+  const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplateSuggestion[]>([]);
+  const [workflowTemplatesLoading, setWorkflowTemplatesLoading] = useState(false);
+  const [newWorkflowTemplateId, setNewWorkflowTemplateId] = useState<string>('');
+  const [newWorkflowFilename, setNewWorkflowFilename] = useState<string>('ci.yml');
+  const [isCreatingWorkflow, setIsCreatingWorkflow] = useState(false);
+  const [workflowCommitMessage, setWorkflowCommitMessage] = useState('chore: update workflow');
+  const [isWorkflowCommitInProgress, setIsWorkflowCommitInProgress] = useState(false);
+  const selectedWorkflowPathRef = useRef<string | null>(null);
+  const workflowEditorRegionRef = useRef<HTMLDivElement | null>(null);
+  const [workflowTemplatesPaneHeight, setWorkflowTemplatesPaneHeight] = useState(240);
+  const [isWorkflowTemplatesPaneResizing, setIsWorkflowTemplatesPaneResizing] = useState(false);
+
+  useEffect(() => {
+    selectedWorkflowPathRef.current = selectedWorkflowPath;
+  }, [selectedWorkflowPath]);
+
+  useEffect(() => {
+    setWorkflowFiles([]);
+    setSelectedWorkflowPath(null);
+    setWorkflowEditorContent('');
+    setWorkflowOriginalContent('');
+    setWorkflowError(null);
+    setWorkflowTemplates([]);
+    setNewWorkflowTemplateId('');
+    setNewWorkflowFilename('ci.yml');
+  }, [repository?.id]);
+
+  const beginWorkflowTemplatesResize = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsWorkflowTemplatesPaneResizing(true);
+  }, []);
+
+  const handleWorkflowTemplatesMouseMove = useCallback((event: MouseEvent) => {
+    if (!isWorkflowTemplatesPaneResizing || !workflowEditorRegionRef.current) {
+        return;
+    }
+
+    const containerRect = workflowEditorRegionRef.current.getBoundingClientRect();
+    const totalHeight = containerRect.height;
+    if (totalHeight <= 0) {
+        return;
+    }
+
+    const distanceFromBottom = containerRect.bottom - event.clientY;
+    const availableForTemplates = totalHeight - WORKFLOW_EDITOR_MIN_HEIGHT;
+    const maxHeight = availableForTemplates > 0
+        ? availableForTemplates
+        : Math.min(WORKFLOW_TEMPLATE_MIN_HEIGHT, totalHeight);
+    const minHeight = availableForTemplates > WORKFLOW_TEMPLATE_MIN_HEIGHT
+        ? WORKFLOW_TEMPLATE_MIN_HEIGHT
+        : Math.max(Math.min(WORKFLOW_TEMPLATE_MIN_HEIGHT, availableForTemplates), 0);
+
+    const safeMinHeight = Math.min(minHeight, maxHeight);
+    const safeMaxHeight = Math.max(maxHeight, safeMinHeight);
+
+    const clampedHeight = Math.min(
+        Math.max(distanceFromBottom, safeMinHeight),
+        safeMaxHeight,
+    );
+
+    setWorkflowTemplatesPaneHeight(clampedHeight);
+  }, [isWorkflowTemplatesPaneResizing]);
+
+  const endWorkflowTemplatesResize = useCallback(() => {
+    setIsWorkflowTemplatesPaneResizing(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isWorkflowTemplatesPaneResizing) {
+        return undefined;
+    }
+
+    window.addEventListener('mousemove', handleWorkflowTemplatesMouseMove);
+    window.addEventListener('mouseup', endWorkflowTemplatesResize);
+
+    return () => {
+        window.removeEventListener('mousemove', handleWorkflowTemplatesMouseMove);
+        window.removeEventListener('mouseup', endWorkflowTemplatesResize);
+    };
+  }, [isWorkflowTemplatesPaneResizing, handleWorkflowTemplatesMouseMove, endWorkflowTemplatesResize]);
+
 
   const formInputStyle = "block w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
   const formLabelStyle = "block text-sm font-medium text-gray-700 dark:text-gray-300";
@@ -2025,7 +2130,10 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   const isSvnRepo = formData.vcs === VcsType.Svn;
   const supportsHistoryTab = isGitRepo || isSvnRepo;
   const supportsBranchTab = isGitRepo || isSvnRepo;
+  const supportsCiTab = isGitRepo;
   const isGitHubRepo = useMemo(() => isGitRepo && formData.remoteUrl?.includes('github.com'), [isGitRepo, formData.remoteUrl]);
+  const workflowDirty = selectedWorkflowPath !== null && workflowEditorContent !== workflowOriginalContent;
+  const selectedWorkflowFile = useMemo(() => workflowFiles.find(file => file.relativePath === selectedWorkflowPath) || null, [workflowFiles, selectedWorkflowPath]);
 
   // Debounce history search
   useEffect(() => {
@@ -3442,6 +3550,212 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
   };
 
 
+  const loadWorkflowFile = useCallback(async (relativePath: string) => {
+    if (!repository?.localPath || !window.electronAPI?.readWorkflowFile) {
+      return;
+    }
+    setIsWorkflowLoading(true);
+    setWorkflowError(null);
+    try {
+      const result = await window.electronAPI.readWorkflowFile({ repoPath: repository.localPath, relativePath });
+      if (result?.success && typeof result.content === 'string') {
+        setWorkflowEditorContent(result.content);
+        setWorkflowOriginalContent(result.content);
+      } else {
+        setWorkflowError(result?.error || 'Unable to load workflow.');
+      }
+    } catch (error: any) {
+      logger.error('Failed to read workflow file', { repoId: repository?.id ?? null, relativePath, error: error?.message || error });
+      setWorkflowError(error?.message || 'Unable to read workflow.');
+    } finally {
+      setIsWorkflowLoading(false);
+    }
+  }, [repository, logger]);
+
+  const fetchWorkflowFiles = useCallback(async (focus?: string | null) => {
+    if (!repository?.localPath || !window.electronAPI?.listWorkflowFiles) {
+      return;
+    }
+    setWorkflowFilesLoading(true);
+    try {
+      const files = await window.electronAPI.listWorkflowFiles(repository.localPath);
+      setWorkflowFiles(files);
+      if (files.length === 0) {
+        setSelectedWorkflowPath(null);
+        setWorkflowEditorContent('');
+        setWorkflowOriginalContent('');
+        return;
+      }
+      const desired = typeof focus === 'string' ? focus : selectedWorkflowPathRef.current;
+      const found = desired && files.some(file => file.relativePath === desired);
+      const nextPath = found ? desired! : files[0].relativePath;
+      if (nextPath) {
+        setSelectedWorkflowPath(nextPath);
+        await loadWorkflowFile(nextPath);
+      }
+    } catch (error: any) {
+      logger.error('Failed to load workflow files', { repoId: repository?.id ?? null, error: error?.message || error });
+      setToast({ message: 'Failed to load workflow files.', type: 'error' });
+    } finally {
+      setWorkflowFilesLoading(false);
+    }
+  }, [repository, loadWorkflowFile, logger, setToast]);
+
+  const fetchWorkflowTemplates = useCallback(async () => {
+    if (!repository?.localPath || !window.electronAPI?.getWorkflowTemplates) {
+      setWorkflowTemplates([]);
+      return;
+    }
+    setWorkflowTemplatesLoading(true);
+    try {
+      const templates = await window.electronAPI.getWorkflowTemplates({ repoPath: repository.localPath, repoName: repository.name || '' });
+      setWorkflowTemplates(templates || []);
+      if (templates && templates.length > 0) {
+        const firstTemplate = templates[0];
+        setNewWorkflowTemplateId(prev => prev || firstTemplate.id);
+        setNewWorkflowFilename(prev => (prev && prev.trim().length > 0 ? prev : firstTemplate.filename));
+      }
+    } catch (error: any) {
+      logger.error('Failed to load workflow templates', { repoId: repository?.id ?? null, error: error?.message || error });
+      setToast({ message: 'Failed to load workflow templates.', type: 'error' });
+    } finally {
+      setWorkflowTemplatesLoading(false);
+    }
+  }, [repository, logger, setToast]);
+
+  const handleWorkflowSelection = useCallback((relativePath: string) => {
+    const select = () => {
+      setSelectedWorkflowPath(relativePath);
+      loadWorkflowFile(relativePath);
+    };
+    if (workflowDirty) {
+      confirmAction({
+        title: 'Discard unsaved changes?',
+        message: 'Switching workflows will discard unsaved edits.',
+        confirmText: 'Discard & Switch',
+        confirmButtonClass: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+        onConfirm: select,
+      });
+      return;
+    }
+    select();
+  }, [workflowDirty, confirmAction, loadWorkflowFile]);
+
+  const handleWorkflowSave = useCallback(async () => {
+    if (!repository?.localPath || !selectedWorkflowPath || !window.electronAPI?.writeWorkflowFile || !workflowDirty) {
+      return;
+    }
+    setIsWorkflowSaving(true);
+    setWorkflowError(null);
+    try {
+      const result = await window.electronAPI.writeWorkflowFile({ repoPath: repository.localPath, relativePath: selectedWorkflowPath, content: workflowEditorContent });
+      if (result?.success) {
+        setWorkflowOriginalContent(workflowEditorContent);
+        setToast({ message: 'Workflow saved.', type: 'success' });
+      } else {
+        const message = result?.error || 'Unable to save workflow.';
+        setWorkflowError(message);
+        setToast({ message, type: 'error' });
+      }
+    } catch (error: any) {
+      const message = error?.message || 'Unable to save workflow.';
+      logger.error('Failed to save workflow file', { repoId: repository?.id ?? null, relativePath: selectedWorkflowPath, error: message });
+      setWorkflowError(message);
+      setToast({ message, type: 'error' });
+    } finally {
+      setIsWorkflowSaving(false);
+    }
+  }, [repository, selectedWorkflowPath, workflowEditorContent, workflowDirty, logger, setToast]);
+
+  const handleWorkflowValidate = useCallback(async () => {
+    if (!repository || !selectedWorkflowPath) {
+      return;
+    }
+    if (workflowDirty) {
+      setToast({ message: 'Save the workflow before running validation.', type: 'info' });
+      return;
+    }
+    try {
+      setToast({ message: 'Workflow validation started. Check the Task Log Panel for progress.', type: 'info' });
+      const result = await onValidateWorkflow(repository, selectedWorkflowPath);
+      if (result === 'success') {
+        setToast({ message: 'Workflow validation completed.', type: 'success' });
+      } else if (result === 'failed') {
+        setToast({ message: 'Validation reported issues. Review the Task Log Panel for details.', type: 'error' });
+      }
+    } catch (error: any) {
+      setToast({ message: error?.message || 'Failed to start validation.', type: 'error' });
+    }
+  }, [repository, selectedWorkflowPath, workflowDirty, onValidateWorkflow, setToast]);
+
+  const handleCreateWorkflow = useCallback(async () => {
+    if (!repository?.localPath || !window.electronAPI?.createWorkflowFromTemplate) {
+      return;
+    }
+    const template = workflowTemplates.find(t => t.id === newWorkflowTemplateId) || workflowTemplates[0];
+    if (!template) {
+      setToast({ message: 'No templates available to fork.', type: 'info' });
+      return;
+    }
+    const normalizedPath = normalizeWorkflowInputPath(newWorkflowFilename);
+    if (!normalizedPath) {
+      setToast({ message: 'Enter a workflow file name.', type: 'info' });
+      return;
+    }
+    setIsCreatingWorkflow(true);
+    try {
+      const result = await window.electronAPI.createWorkflowFromTemplate({ repoPath: repository.localPath, relativePath: normalizedPath, content: template.content });
+      if (!result?.success) {
+        setToast({ message: result?.error || 'Failed to create workflow.', type: 'error' });
+        return;
+      }
+      setToast({ message: 'Workflow created from template.', type: 'success' });
+      await fetchWorkflowFiles(normalizedPath);
+    } catch (error: any) {
+      logger.error('Failed to create workflow from template', { repoId: repository?.id ?? null, error: error?.message || error });
+      setToast({ message: error?.message || 'Failed to create workflow.', type: 'error' });
+    } finally {
+      setIsCreatingWorkflow(false);
+    }
+  }, [repository, workflowTemplates, newWorkflowTemplateId, newWorkflowFilename, fetchWorkflowFiles, logger, setToast]);
+
+  const handleApplyTemplateToEditor = useCallback((template: WorkflowTemplateSuggestion) => {
+    setWorkflowEditorContent(template.content);
+    setWorkflowError(null);
+  }, []);
+
+  const handleWorkflowCommit = useCallback(async () => {
+    if (!repository || !selectedWorkflowPath || !window.electronAPI?.commitWorkflowFiles) {
+      return;
+    }
+    if (workflowDirty) {
+      setToast({ message: 'Save the workflow before committing changes.', type: 'info' });
+      return;
+    }
+    setIsWorkflowCommitInProgress(true);
+    try {
+      const message = (workflowCommitMessage || '').trim() || `chore: update ${selectedWorkflowPath.split('/').pop()}`;
+      const result = await window.electronAPI.commitWorkflowFiles({ repo: repository, filePaths: [selectedWorkflowPath], message });
+      if (result?.success) {
+        setToast({ message: 'Workflow changes committed and pushed.', type: 'success' });
+      } else {
+        setToast({ message: result?.error || 'Failed to push workflow changes.', type: 'error' });
+      }
+    } catch (error: any) {
+      logger.error('Failed to push workflow changes', { repoId: repository?.id ?? null, error: error?.message || error });
+      setToast({ message: error?.message || 'Failed to push workflow changes.', type: 'error' });
+    } finally {
+      setIsWorkflowCommitInProgress(false);
+    }
+  }, [repository, selectedWorkflowPath, workflowCommitMessage, workflowDirty, logger, setToast]);
+
+  useEffect(() => {
+    if (activeTab === 'ci' && repository?.localPath) {
+      fetchWorkflowFiles();
+      fetchWorkflowTemplates();
+    }
+  }, [activeTab, repository?.localPath, fetchWorkflowFiles, fetchWorkflowTemplates]);
+
   const selectedTask = useMemo(() => {
     return formData.tasks?.find(t => t.id === selectedTaskId) || null;
   }, [selectedTaskId, formData.tasks]);
@@ -3797,6 +4111,201 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 </div>
             );
         }
+        case 'ci': {
+            if (!supportsCiTab) {
+                return <div className="p-2 text-center text-gray-500">Workflow editing is only available for Git repositories.</div>;
+            }
+            return (
+                <div className="flex h-full">
+                    <aside className="w-72 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-900/50">
+                        <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                            <h3 className="font-semibold text-gray-800 dark:text-gray-200">Workflows</h3>
+                            <button
+                              type="button"
+                              onClick={() => fetchWorkflowFiles(selectedWorkflowPathRef.current)}
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                            >Refresh</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                            {workflowFilesLoading ? (
+                                <p className="text-sm text-gray-500">Loading workflows…</p>
+                            ) : workflowFiles.length === 0 ? (
+                                <p className="text-sm text-gray-500">No workflow files were found in .github/workflows.</p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {workflowFiles.map(file => (
+                                        <li key={file.relativePath}>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleWorkflowSelection(file.relativePath)}
+                                              className={`w-full text-left p-2 rounded-md border text-sm ${selectedWorkflowPath === file.relativePath ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-600 text-blue-900 dark:text-blue-100' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                                            >
+                                                <p className="font-medium break-all">{file.name}</p>
+                                                <p className="text-[11px] text-gray-500 dark:text-gray-400">{new Date(file.mtimeMs).toLocaleString()}</p>
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        <div className="p-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                            <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Fork Template</h4>
+                            <select value={newWorkflowTemplateId} onChange={e => setNewWorkflowTemplateId(e.target.value)} className={`${formInputStyle} text-xs`}>
+                                {workflowTemplates.map(template => (
+                                    <option key={template.id} value={template.id}>
+                                        {template.label}{template.recommended ? ' (recommended)' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            <input
+                              type="text"
+                              value={newWorkflowFilename}
+                              onChange={e => setNewWorkflowFilename(e.target.value)}
+                              placeholder="ci.yml"
+                              className={`${formInputStyle} text-xs font-mono`}
+                            />
+                            <button
+                              type="button"
+                              onClick={handleCreateWorkflow}
+                              disabled={isCreatingWorkflow}
+                              className="w-full px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-60"
+                            >{isCreatingWorkflow ? 'Creating…' : 'Create Workflow'}</button>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400">Files are stored in .github/workflows/.</p>
+                        </div>
+                    </aside>
+                    <div className="flex-1 flex flex-col min-h-0">
+                        {selectedWorkflowPath && (
+                            <>
+                                <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <p className="font-mono text-sm text-gray-800 dark:text-gray-100 break-all">{selectedWorkflowPath}</p>
+                                        {selectedWorkflowFile && (
+                                            <p className="text-[11px] text-gray-500 dark:text-gray-400">Updated {new Date(selectedWorkflowFile.mtimeMs).toLocaleString()}</p>
+                                        )}
+                                        {workflowDirty && <p className="text-[11px] text-amber-600">Unsaved changes</p>}
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={handleWorkflowSave}
+                                          disabled={!workflowDirty || isWorkflowSaving}
+                                          className={`px-3 py-1.5 text-xs font-medium text-white rounded-md ${workflowDirty ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 dark:bg-gray-600'} ${isWorkflowSaving ? 'cursor-wait' : ''}`}
+                                        >{isWorkflowSaving ? 'Saving…' : 'Save'}</button>
+                                        <button
+                                          type="button"
+                                          onClick={handleWorkflowValidate}
+                                          disabled={workflowDirty || isWorkflowLoading}
+                                          className={`px-3 py-1.5 text-xs font-medium rounded-md border ${workflowDirty ? 'border-gray-300 text-gray-400' : 'border-blue-300 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
+                                        >Validate</button>
+                                    </div>
+                                </div>
+                                <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center gap-2">
+                                    <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Commit message</label>
+                                    <input
+                                      type="text"
+                                      value={workflowCommitMessage}
+                                      onChange={e => setWorkflowCommitMessage(e.target.value)}
+                                      className={`${formInputStyle} text-xs flex-1`}
+                                      placeholder="chore: update workflow"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={handleWorkflowCommit}
+                                      disabled={workflowDirty || isWorkflowCommitInProgress}
+                                      className={`px-3 py-1.5 text-xs font-medium text-white rounded-md ${workflowDirty ? 'bg-gray-400 dark:bg-gray-600' : 'bg-indigo-600 hover:bg-indigo-700'} ${isWorkflowCommitInProgress ? 'cursor-wait' : ''}`}
+                                    >{isWorkflowCommitInProgress ? 'Pushing…' : 'Commit & Push'}</button>
+                                </div>
+                            </>
+                        )}
+                        <div className="flex-1 flex flex-col min-h-0" ref={workflowEditorRegionRef}>
+                            {selectedWorkflowPath ? (
+                                <div className="flex-1 p-3 flex flex-col min-h-0">
+                                    {isWorkflowLoading ? (
+                                        <p className="text-sm text-gray-500">Loading workflow…</p>
+                                    ) : (
+                                        <textarea
+                                          className={`${formInputStyle} font-mono text-sm flex-1 min-h-[12rem]`}
+                                          value={workflowEditorContent}
+                                          onChange={e => {
+                                            setWorkflowEditorContent(e.target.value);
+                                            if (workflowError) setWorkflowError(null);
+                                          }}
+                                        />
+                                    )}
+                                    {workflowError && <p className="text-xs text-red-500 mt-2">{workflowError}</p>}
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex items-center justify-center text-center text-gray-500 dark:text-gray-400 px-6">
+                                    Select a workflow to edit or create one from a template.
+                                </div>
+                            )}
+                            {selectedWorkflowPath && (
+                                <div
+                                  onMouseDown={beginWorkflowTemplatesResize}
+                                  role="separator"
+                                  aria-label="Resize workflow template recommendations"
+                                  className="flex-shrink-0 h-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 cursor-row-resize transition-colors"
+                                />
+                            )}
+                            <div
+                              className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 p-3 space-y-3 overflow-y-auto"
+                              style={{ height: `${workflowTemplatesPaneHeight}px` }}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <h4 className="font-semibold text-gray-800 dark:text-gray-200">Recommended Templates</h4>
+                                    <button type="button" onClick={fetchWorkflowTemplates} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Refresh</button>
+                                </div>
+                                {workflowTemplatesLoading ? (
+                                    <p className="text-sm text-gray-500">Loading templates…</p>
+                                ) : workflowTemplates.length === 0 ? (
+                                    <p className="text-sm text-gray-500">No templates available for this repository yet.</p>
+                                ) : (
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        {workflowTemplates.map(template => (
+                                            <div key={template.id} className="p-3 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/50 space-y-2">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <p className="font-medium text-sm text-gray-800 dark:text-gray-100">{template.label}</p>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">{template.description}</p>
+                                                    </div>
+                                                    {template.recommended && (
+                                                        <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-100">Recommended</span>
+                                                    )}
+                                                </div>
+                                                {template.tags.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 text-[10px] text-gray-500 dark:text-gray-400">
+                                                        {template.tags.map(tag => (
+                                                            <span key={tag} className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800/70">{tag}</span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <div className="flex flex-wrap gap-2">
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        setNewWorkflowTemplateId(template.id);
+                                                        setNewWorkflowFilename(template.filename);
+                                                      }}
+                                                      className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                                                    >Use for new file</button>
+                                                    {selectedWorkflowPath && (
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => handleApplyTemplateToEditor(template)}
+                                                          className="px-2 py-1 text-xs font-medium border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200"
+                                                        >Load in editor</button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
         case 'releases':
             if (!isGitHubRepo) return <div className="p-2 text-center text-gray-500">Release management is only available for repositories hosted on GitHub.</div>;
             if (editingRelease) {
@@ -4125,7 +4634,8 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                             <button onClick={() => setActiveTab('tasks')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'tasks' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Tasks</button>
                             {supportsHistoryTab && <button onClick={() => setActiveTab('history')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'history' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>History</button>}
                             {supportsBranchTab && <button onClick={() => setActiveTab('branches')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'branches' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Branches</button>}
-                             {isGitRepo && <button onClick={() => setActiveTab('releases')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'releases' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Releases</button>}
+                            {supportsCiTab && <button onClick={() => setActiveTab('ci')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'ci' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>CI</button>}
+                            {isGitRepo && <button onClick={() => setActiveTab('releases')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'releases' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Releases</button>}
                         </nav>
                     </div>
                 )}

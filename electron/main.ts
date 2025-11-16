@@ -7,7 +7,7 @@ import fs from 'fs/promises';
 import os, { platform } from 'os';
 import { spawn, exec, execFile } from 'child_process';
 import type { ChildProcess } from 'child_process';
-import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities, CommitDiffFile, GoCapabilities, RustCapabilities, MavenCapabilities, DotnetCapabilities, UpdateFailureDetails } from '../types';
+import type { Repository, Task, TaskStep, TaskVariable, GlobalSettings, ProjectSuggestion, LocalPathState, DetailedStatus, VcsFileStatus, Commit, BranchInfo, DebugLogEntry, VcsType, PythonCapabilities, ProjectInfo, DelphiCapabilities, DelphiProject, NodejsCapabilities, LazarusCapabilities, LazarusProject, Category, AppDataContextState, ReleaseInfo, DockerCapabilities, CommitDiffFile, GoCapabilities, RustCapabilities, MavenCapabilities, DotnetCapabilities, UpdateFailureDetails, WorkflowTemplateSuggestion, WorkflowFileSummary } from '../types';
 import { TaskStepType, LogLevel, VcsType as VcsTypeEnum } from '../types';
 import fsSync from 'fs';
 import JSZip from 'jszip';
@@ -75,6 +75,115 @@ let logStream: fsSync.WriteStream | null = null;
 const taskLogStreams = new Map<string, fsSync.WriteStream>();
 const runningProcesses = new Map<string, ChildProcess>();
 const cancelledExecutions = new Set<string>();
+
+type WorkflowTemplateDefinition = Omit<WorkflowTemplateSuggestion, 'recommended'>;
+
+const WORKFLOW_TEMPLATE_DEFINITIONS: WorkflowTemplateDefinition[] = [
+  {
+    id: 'node-ci',
+    label: 'Node.js Build & Test',
+    description: 'Checks out the repo, installs dependencies, runs tests, and builds the app for pushes and pull requests.',
+    filename: 'node-ci.yml',
+    tags: ['nodejs'],
+    content: `name: Node CI\n\non:\n  push:\n    branches: [ main ]\n  pull_request:\n    branches: [ main ]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n          cache: npm\n      - name: Install dependencies\n        run: npm ci\n      - name: Run tests\n        run: npm test --if-present\n      - name: Build project\n        run: npm run build --if-present\n`,
+  },
+  {
+    id: 'electron-release',
+    label: 'Electron Release (electron-builder)',
+    description: 'Builds packaged Electron artifacts across Windows, macOS, and Linux whenever you push a version tag.',
+    filename: 'electron-release.yml',
+    tags: ['nodejs', 'electron'],
+    content: `name: Electron Release\n\non:\n  push:\n    tags:\n      - 'v*.*.*'\n\njobs:\n  release:\n    runs-on: \${{ matrix.os }}\n    strategy:\n      matrix:\n        include:\n          - os: ubuntu-latest\n            target: linux\n          - os: macos-latest\n            target: mac\n          - os: windows-latest\n            target: win\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n      - name: Install dependencies\n        run: npm ci\n      - name: Build renderer\n        run: npm run build\n      - name: Package app\n        run: npx electron-builder --\${{ matrix.target }} --publish never\n      - name: Upload artifacts\n        uses: actions/upload-artifact@v4\n        with:\n          name: electron-build-\${{ matrix.os }}\n          path: dist/**\n`,
+  },
+  {
+    id: 'python-ci',
+    label: 'Python Tests & Lint',
+    description: 'Sets up Python, installs dependencies from requirements.txt, and runs pytest.',
+    filename: 'python-ci.yml',
+    tags: ['python'],
+    content: `name: Python CI\n\non:\n  push:\n    branches: [ main ]\n  pull_request:\n    branches: [ main ]\n\njobs:\n  tests:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n        with:\n          python-version: '3.11'\n      - name: Install dependencies\n        run: |\n          python -m pip install --upgrade pip\n          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi\n      - name: Run tests\n        run: |\n          if [ -f pyproject.toml ] || [ -f pytest.ini ] || [ -f tests ]; then pytest; else echo 'No tests directory detected'; fi\n`,
+  },
+  {
+    id: 'docker-image',
+    label: 'Docker Image Build',
+    description: 'Builds the default Dockerfile on every push so container changes are validated before merging.',
+    filename: 'docker-image.yml',
+    tags: ['docker'],
+    content: `name: Docker Image\n\non:\n  push:\n    branches: [ main ]\n  pull_request:\n    branches: [ main ]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Build Docker image\n        run: |\n          docker build -t local/app:ci .\n`,
+  },
+  {
+    id: 'basic-ci',
+    label: 'Basic YAML Starter',
+    description: 'Provides a minimal workflow skeleton you can customize for any project.',
+    filename: 'ci.yml',
+    tags: [],
+    content: `name: CI\n\non:\n  push:\n    branches: [ main ]\n  pull_request:\n    branches: [ main ]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Run custom commands\n        run: echo "Add your build steps here"\n`,
+  },
+];
+
+const normalizeWorkflowInput = (relativePath: string): string => {
+  let normalized = (relativePath || '').trim().replace(/\\/g, '/');
+  if (!normalized) {
+    throw new Error('Workflow path is required.');
+  }
+  if (normalized.startsWith('.github/')) {
+    normalized = normalized.slice('.github/'.length);
+  }
+  if (normalized.startsWith('workflows/')) {
+    normalized = normalized.slice('workflows/'.length);
+  }
+  normalized = normalized.replace(/^\/+/, '');
+  return normalized;
+};
+
+const resolveWorkflowPath = (repoPath: string, relativePath: string) => {
+  const normalized = normalizeWorkflowInput(relativePath);
+  const workflowsRoot = path.resolve(repoPath, '.github', 'workflows');
+  const absolutePath = path.resolve(workflowsRoot, normalized);
+  if (!absolutePath.startsWith(workflowsRoot)) {
+    throw new Error('Workflow path must stay within .github/workflows.');
+  }
+  return {
+    absolute: absolutePath,
+    relative: path.relative(repoPath, absolutePath).replace(/\\/g, '/'),
+  };
+};
+
+const ensureWorkflowDirectory = async (repoPath: string): Promise<string> => {
+  const workflowsRoot = path.join(repoPath, '.github', 'workflows');
+  await fs.mkdir(workflowsRoot, { recursive: true });
+  return workflowsRoot;
+};
+
+const gatherWorkflowFiles = async (directory: string, repoPath: string, results: WorkflowFileSummary[]): Promise<void> => {
+  let entries: fsSync.Dirent[];
+  try {
+    entries = await fs.readdir(directory, { withFileTypes: true }) as unknown as fsSync.Dirent[];
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      await gatherWorkflowFiles(fullPath, repoPath, results);
+      continue;
+    }
+    if (!entry.isFile() || !/\.ya?ml$/i.test(entry.name)) {
+      continue;
+    }
+    try {
+      const stats = await fs.stat(fullPath);
+      results.push({
+        name: entry.name,
+        absolutePath: fullPath,
+        relativePath: path.relative(repoPath, fullPath).replace(/\\/g, '/'),
+        mtimeMs: stats.mtimeMs,
+      });
+    } catch (error) {
+      mainLogger.warn('Failed to stat workflow file', { file: fullPath, error: (error as any)?.message });
+    }
+  }
+};
 
 type DownloadedUpdateValidation = {
   version: string;
@@ -1378,16 +1487,17 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
 
         // --- Node.js Project Detection ---
         let isNodeProject = false;
-        const nodejsCaps: NodejsCapabilities = {
-            engine: null,
-            declaredManager: null,
-            packageManagers: { pnpm: false, yarn: false, npm: false, bun: false },
-            typescript: false,
-            testFrameworks: [],
-            linters: [],
-            bundlers: [],
-            monorepo: { workspaces: false, turbo: false, nx: false, yarnBerryPnp: false },
-        };
+    const nodejsCaps: NodejsCapabilities = {
+        engine: null,
+        declaredManager: null,
+        packageManagers: { pnpm: false, yarn: false, npm: false, bun: false },
+        typescript: false,
+        testFrameworks: [],
+        linters: [],
+        bundlers: [],
+        monorepo: { workspaces: false, turbo: false, nx: false, yarnBerryPnp: false },
+        hasElectron: false,
+    };
 
         if (await fileExists(repoPath, 'package.json')) {
             isNodeProject = true;
@@ -1397,6 +1507,16 @@ const getProjectInfo = async (repoPath: string): Promise<ProjectInfo> => {
                 if (pkg.engines?.node) nodejsCaps.engine = pkg.engines.node;
                 if (pkg.packageManager) nodejsCaps.declaredManager = pkg.packageManager;
                 if (pkg.workspaces) nodejsCaps.monorepo.workspaces = true;
+                const hasElectronDep = Boolean(
+                    pkg.dependencies?.electron ||
+                    pkg.devDependencies?.electron ||
+                    pkg.devDependencies?.['electron-builder'] ||
+                    pkg.dependencies?.['electron-builder']
+                );
+                if (hasElectronDep) {
+                    nodejsCaps.hasElectron = true;
+                    tagsSet.add('electron');
+                }
             } catch (e) { mainLogger.error('Could not parse package.json', e); }
         }
 
@@ -1491,6 +1611,154 @@ ipcMain.handle('get-project-suggestions', async (event, { repoPath, repoName }: 
   return suggestions;
 });
 
+ipcMain.handle('get-workflow-templates', async (_event, { repoPath }: { repoPath: string; repoName: string }): Promise<WorkflowTemplateSuggestion[]> => {
+  const definitions = WORKFLOW_TEMPLATE_DEFINITIONS;
+  if (!repoPath) {
+    return definitions.map(def => ({ ...def, recommended: def.tags.length === 0 }));
+  }
+  try {
+    const projectInfo = await getProjectInfo(repoPath);
+    const tagSet = new Set(projectInfo.tags || []);
+    const templates = definitions.map(def => ({
+      ...def,
+      recommended: def.tags.length > 0 && def.tags.some(tag => tagSet.has(tag)),
+    }));
+    return templates.sort((a, b) => {
+      if (a.recommended === b.recommended) {
+        return a.label.localeCompare(b.label);
+      }
+      return a.recommended ? -1 : 1;
+    });
+  } catch (error: any) {
+    mainLogger.error('Failed to build workflow template recommendations.', { error: error?.message || error });
+    return definitions.map(def => ({ ...def, recommended: def.tags.length === 0 }));
+  }
+});
+
+ipcMain.handle('list-workflow-files', async (_event, repoPath: string): Promise<WorkflowFileSummary[]> => {
+  if (!repoPath) return [];
+  const workflowsRoot = path.join(repoPath, '.github', 'workflows');
+  try {
+    await fs.access(workflowsRoot);
+  } catch {
+    return [];
+  }
+  const results: WorkflowFileSummary[] = [];
+  await gatherWorkflowFiles(workflowsRoot, repoPath, results);
+  return results.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+});
+
+ipcMain.handle('read-workflow-file', async (_event, { repoPath, relativePath }: { repoPath: string; relativePath: string }): Promise<{ success: boolean; content?: string; error?: string }> => {
+  try {
+    const { absolute } = resolveWorkflowPath(repoPath, relativePath);
+    const content = await fs.readFile(absolute, 'utf-8');
+    return { success: true, content };
+  } catch (error: any) {
+    mainLogger.error('Failed to read workflow file.', { repoPath, relativePath, error: error?.message || error });
+    return { success: false, error: error?.message || 'Unable to read workflow file.' };
+  }
+});
+
+ipcMain.handle('write-workflow-file', async (_event, { repoPath, relativePath, content }: { repoPath: string; relativePath: string; content: string }): Promise<{ success: boolean; error?: string }> => {
+  try {
+    await ensureWorkflowDirectory(repoPath);
+    const { absolute } = resolveWorkflowPath(repoPath, relativePath);
+    await fs.mkdir(path.dirname(absolute), { recursive: true });
+    await fs.writeFile(absolute, content, 'utf-8');
+    return { success: true };
+  } catch (error: any) {
+    mainLogger.error('Failed to write workflow file.', { repoPath, relativePath, error: error?.message || error });
+    return { success: false, error: error?.message || 'Unable to write workflow file.' };
+  }
+});
+
+ipcMain.handle('create-workflow-from-template', async (_event, { repoPath, relativePath, content, overwrite }: { repoPath: string; relativePath: string; content: string; overwrite?: boolean }): Promise<{ success: boolean; error?: string }> => {
+  try {
+    await ensureWorkflowDirectory(repoPath);
+    const { absolute } = resolveWorkflowPath(repoPath, relativePath);
+    await fs.mkdir(path.dirname(absolute), { recursive: true });
+    if (!overwrite) {
+      try {
+        await fs.access(absolute);
+        return { success: false, error: 'A workflow with that name already exists.' };
+      } catch {
+        // file does not exist, continue
+      }
+    }
+    await fs.writeFile(absolute, content, 'utf-8');
+    return { success: true };
+  } catch (error: any) {
+    mainLogger.error('Failed to create workflow from template.', { repoPath, relativePath, error: error?.message || error });
+    return { success: false, error: error?.message || 'Unable to create workflow.' };
+  }
+});
+
+ipcMain.handle('commit-workflow-files', async (_event, { repo, filePaths, message }: { repo: Repository; filePaths: string[]; message: string }): Promise<{ success: boolean; error?: string }> => {
+  if (!repo || repo.vcs !== VcsTypeEnum.Git) {
+    return { success: false, error: 'Workflow commits are only supported for Git repositories.' };
+  }
+  try {
+    const settings = await readSettings();
+    const gitCmd = getExecutableCommand(VcsTypeEnum.Git, settings);
+    const sanitized = filePaths.map(fp => resolveWorkflowPath(repo.localPath, fp).relative);
+    const quotedFiles = sanitized.map(fp => `"${fp.replace(/"/g, '\\"')}"`).join(' ');
+    await execAsync(`${gitCmd} add ${quotedFiles}`, { cwd: repo.localPath });
+    await execAsync(`${gitCmd} commit -m "${message.replace(/"/g, '\\"')}"`, { cwd: repo.localPath });
+    await execAsync(`${gitCmd} push`, { cwd: repo.localPath });
+    return { success: true };
+  } catch (error: any) {
+    mainLogger.error('Failed to commit workflow changes.', { repoId: repo.id, error: error?.stderr || error?.message || error });
+    return { success: false, error: error?.stderr || error?.message || 'Unable to push workflow changes.' };
+  }
+});
+
+ipcMain.on('validate-workflow', async (_event, { repo, relativePath, executionId }: { repo: Repository; relativePath: string; executionId: string }) => {
+  const contents = mainWindow?.webContents;
+  if (!contents) return;
+  const sender = contents.send.bind(contents);
+  const sendLog = (message: string, level: LogLevel) => sender('task-log', { executionId, message, level });
+  const sendEnd = (exitCode: number) => sender('task-step-end', { executionId, exitCode });
+
+  try {
+    if (!repo || repo.vcs !== VcsTypeEnum.Git) {
+      sendLog('Workflow validation is only available for Git repositories.', LogLevel.Warn);
+      sendEnd(0);
+      return;
+    }
+    if (!relativePath) {
+      throw new Error('No workflow file selected.');
+    }
+
+    const { absolute } = resolveWorkflowPath(repo.localPath, relativePath);
+    await fs.access(absolute);
+
+    const hasYamllint = await commandExists('yamllint');
+    const hasAct = await commandExists('act');
+
+    if (!hasYamllint && !hasAct) {
+      sendLog('Neither yamllint nor act were found on PATH. Install one to enable validation.', LogLevel.Warn);
+      sendEnd(0);
+      return;
+    }
+
+    if (hasYamllint) {
+      sendLog('Running yamllint to check YAML syntax…', LogLevel.Info);
+      await executeCommand(repo.localPath, `yamllint -d "{extends: default}" "${absolute}"`, sender, executionId, process.env);
+    }
+
+    if (hasAct) {
+      sendLog('Running act -n to simulate GitHub Actions…', LogLevel.Info);
+      await executeCommand(repo.localPath, `act -n -W "${absolute}"`, sender, executionId, process.env);
+    }
+
+    sendLog('Workflow validation completed.', LogLevel.Success);
+    sendEnd(0);
+  } catch (error: any) {
+    sendLog(`Validation failed: ${error?.message || error}`, LogLevel.Error);
+    sendEnd(1);
+  }
+});
+
 // --- Promise-based command executor ---
 const execAsync = (command: string, options: { cwd: string }): Promise<{ stdout: string, stderr: string }> => {
   return new Promise((resolve, reject) => {
@@ -1514,6 +1782,16 @@ const execFileAsync = (file: string, args: string[], options: { cwd: string }): 
             resolve({ stdout, stderr });
         });
     });
+};
+
+const commandExists = async (command: string): Promise<boolean> => {
+    const checkCommand = os.platform() === 'win32' ? `where ${command}` : `which ${command}`;
+    try {
+        await execAsync(checkCommand, { cwd: os.homedir() });
+        return true;
+    } catch {
+        return false;
+    }
 };
 
 // --- Helper for resolving executable paths ---
