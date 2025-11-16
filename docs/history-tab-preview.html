@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>History Tab Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen flex items-start justify-center p-10">
+    <div class="bg-white shadow-xl rounded-lg max-w-3xl w-full">
+      <div class="p-4 border-b flex items-center gap-3">
+        <div class="bg-blue-100 text-blue-600 rounded-full h-10 w-10 flex items-center justify-center font-bold">H</div>
+        <div>
+          <h1 class="text-xl font-bold">Commit History</h1>
+          <p class="text-sm text-gray-500">for 'git-automation'</p>
+        </div>
+      </div>
+      <div class="p-4">
+        <ul class="space-y-3 list-none p-0">
+          <li class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="font-sans text-gray-900">
+              <span class="commit-message block whitespace-pre-line">Merge pull request #10 from beNative/codex/add-sqljs-support-and-configuration</span>
+            </div>
+            <div class="flex flex-col gap-2 text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200 sm:flex-row sm:items-center sm:justify-between">
+              <span>Tim Sinaeve</span>
+              <span class="font-mono">7986e7f • 6 weeks ago</span>
+            </div>
+          </li>
+          <li class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="font-sans text-gray-900">
+              <span class="commit-message block whitespace-pre-line">Use bundled sql.js assets for offline operation</span>
+            </div>
+            <div class="flex flex-col gap-2 text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200 sm:flex-row sm:items-center sm:justify-between">
+              <span>Tim Sinaeve</span>
+              <span class="font-mono">44e8c63 • 6 weeks ago</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </body>
+</html>

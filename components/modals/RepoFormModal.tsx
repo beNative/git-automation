@@ -1858,15 +1858,19 @@ interface CommitListItemProps {
 
 const CommitListItem: React.FC<CommitListItemProps> = ({ commit, highlight }) => {
   const commitHashTooltip = useTooltip(commit.hash);
+  const sanitizedMessage = commit.message.trimStart();
+
   return (
     <li className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-        <pre className="font-sans whitespace-pre-wrap text-gray-900 dark:text-gray-100">
-          <HighlightedText text={commit.message} highlight={highlight} />
-        </pre>
-        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-            <span>{commit.author}</span>
-            <span {...commitHashTooltip} className="font-mono">{commit.shortHash} &bull; {commit.date}</span>
-        </div>
+      <div className="font-sans text-gray-900 dark:text-gray-100">
+        <span className="block whitespace-pre-line leading-relaxed">
+          <HighlightedText text={sanitizedMessage} highlight={highlight} />
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+        <span>{commit.author}</span>
+        <span {...commitHashTooltip} className="font-mono">{commit.shortHash} &bull; {commit.date}</span>
+      </div>
     </li>
   );
 };
@@ -3539,7 +3543,11 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                             <p className="text-center text-gray-500">{debouncedHistorySearch ? `No commits found for "${debouncedHistorySearch}".` : 'No commits found.'}</p>
                         ) : (
                             <>
-                                {commits.map(commit => <CommitListItem key={commit.hash} commit={commit} highlight={debouncedHistorySearch} />)}
+                                <ul className="space-y-3 list-none p-0 m-0">
+                                    {commits.map(commit => (
+                                        <CommitListItem key={commit.hash} commit={commit} highlight={debouncedHistorySearch} />
+                                    ))}
+                                </ul>
                                 {hasMoreHistory && (
                                     <div className="text-center">
                                         <button onClick={() => fetchHistory(true)} disabled={isMoreHistoryLoading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500">
