@@ -4,7 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-- **Workflow Template Explorer:** Added a CI tab to the repository form so you can browse `.github/workflows` files, fork recommended templates, edit YAML in place, run validation via `yamllint`/`act`, and push commits without leaving the modal.
+- _No changes yet._
+
+## [0.27.0]
+
+### Added
+- **Workflow Template Explorer:** Added a CI tab to the repository form so you can browse `.github/workflows` files, fork recommended templates, edit YAML in place, drag-resize the recommendations pane, run validation via `yamllint`/`act`, and push commits without leaving the modal. ([#111](https://github.com/beNative/git-automation/pull/111))
+
+### Changed
+- **Branch Toolbar Ergonomics:** Kept Git branch management controls on one row and routed selection/validation feedback through the shared status bar so warnings stay visible without overlapping toolbar buttons. ([#109](https://github.com/beNative/git-automation/pull/109))
+
+### Fixed
+- **Commit History Formatting:** Trimmed phantom whitespace and tightened list spacing in the commit history panel so entries align with their metadata. ([#110](https://github.com/beNative/git-automation/pull/110))
+- **Release Tab Layout:** Corrected flex sizing in the releases pane so the editor and list views share space predictably across window sizes. ([#108](https://github.com/beNative/git-automation/pull/108))
+- **Windows Manifest Hashing:** Recomputed hashes after the Windows artifact normalization step, added regression tests, and surfaced mismatches early to prevent update checksum errors. ([#107](https://github.com/beNative/git-automation/pull/107))
+- **Workflow Validation Wiring:** Bound the CI validator to the correct IPC sender so the Validate button reliably streams `yamllint`/`act` output back to the log panel. ([#111](https://github.com/beNative/git-automation/pull/111))
+
+### Documentation
+- Documented the workflow template explorer UI, validation workflow, branch toolbar refresh, and release layout polish delivered in version `0.27.0` across the README and manuals.
 
 ## [0.26.0]
 

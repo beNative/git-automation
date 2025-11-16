@@ -71,6 +71,6 @@ The catalog defines the canonical list of actions and their defaults.
 ## Future Hooks
 - The structure supports hooking into a runtime shortcut registry (e.g., via a dedicated context) by indexing `settings.keyboardShortcuts.bindings`. Any consumer can reuse `shortcutKey` and the catalog to register listeners or show active shortcut hints. The state object is already versioned (`version: 1`) to accommodate future schema migrations.【F:keyboardShortcuts.ts†L285-L313】【F:types.ts†L23-L49】
 
-## Documentation Status for 0.26.0
-- Re-validated that the shortcut editor architecture, UI flows, and persistence notes above still reflect the current implementation for version `0.26.0`. The 0.26.0 branch maintenance and logging updates do not affect the shortcut editor, so no changes were required beyond recording this confirmation for the release audit trail.
+## Documentation Status for 0.27.0
+- Re-reviewed the shortcut editor architecture for version `0.27.0` and confirmed the CI workflow additions do not impact these flows, so the specification remains accurate aside from recording this verification for the audit trail.
 
