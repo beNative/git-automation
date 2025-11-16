@@ -1,6 +1,6 @@
 {
   "name": "git-automation-dashboard",
-  "version": "0.26.0",
+  "version": "0.27.0",
   "description": "A dashboard to manage and automate the workflow for a set of Git repositories.",
   "main": "dist/main.js",
   "author": "Tim Sinaeve <tim.sinaeve@gmail.com>",

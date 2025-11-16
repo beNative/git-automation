@@ -36,6 +36,7 @@ The application uses a custom frameless window to achieve a modern, VSCode-like 
         -   **Task Execution:** Executes shell commands for task steps. The `run-task-step` handler now contains logic to interpret and execute the new, ecosystem-specific step types (e.g., `PYTHON_INSTALL_DEPS`). It also handles setting environment variables for tasks and tracks each spawned child process in the `runningProcesses` map so the `cancel-task` IPC requests from the renderer can terminate long-running work safely.
         -   **Task Log Archiving:** Upon starting a task, it creates a timestamped log file in the user-configured directory. It then streams all `stdout` and `stderr` from the task's execution to this file, in addition to the live view in the UI.
         -   **VCS Commands:** Executes real Git/SVN commands for advanced features like checking status, fetching commit history (now for SVN as well), and managing branches.
+        -   **Workflow Template Explorer:** Powers the CI tab by exposing IPC handlers such as `get-workflow-templates`, `list-workflow-files`, `read-workflow-file`, `write-workflow-file`, `create-workflow-from-template`, and `commit-workflow-files`, plus an event-driven `validate-workflow` runner that shells out to `yamllint` (or `act`) while streaming structured log output back to the renderer.
         -   **Executable Path Management:** Handles IPC calls for file pickers, auto-detection, and testing of user-configured executable paths.
         -   **External Links:** Handles requests from the renderer to open web links in the user-specified browser.
     -   **GitHub API:** Fetches release information for a repository using a user-provided Personal Access Token.
@@ -98,9 +99,9 @@ Use this process when shipping a new minor update or bugfix:
 6.  **Validate Update Metadata:** From the project root, execute `node electron/scripts/normalize-win32-artifacts.mjs` and confirm the `release/` directory contains `latest.yml` (x64), `latest-win32.yml` (ia32), and matching installer names. This verification prevents shipping a release without the updater manifests that GitHub users rely on.
 7.  **Publish on GitHub:** Draft a new release on GitHub, attach the installers from the `release/` folder, verify the tag/version details, and explicitly set the **Release Type** selector to match your intent (Full Release for GA builds or Draft/Pre-release when staging). Paste the current changelog entry into the notes so the GitHub release matches the repository history, then publish.
 
-### Documentation Status for 0.26.0
+### Documentation Status for 0.27.0
 
-- Documented the new branch maintenance IPC handlers, structured repository edit logging, and renderer layout refinements introduced in version `0.26.0`.
+- Documented the workflow template explorer IPC surface, renderer tooling, and CI validation path introduced in version `0.27.0`.
 ## 7. Automatic Updates
 
 The application is configured to automatically check for updates on startup using the `electron-updater` library.

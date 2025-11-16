@@ -157,6 +157,15 @@ This tab provides a complete interface for managing your project's GitHub releas
 - **Toggle Pre-release:** Change a release from a stable to a pre-release and vice-versa.
 - **Delete Release:** Permanently delete a release from GitHub after a confirmation prompt.
 
+#### CI Tab (Git Only)
+Use the **CI** tab to manage GitHub Actions workflows without leaving the application.
+
+- **Workflow Browser:** The left rail lists every file inside `.github/workflows/`, including modified timestamps and a quick refresh button. Selecting a file loads it into the editor and surfaces its updated time plus an "Unsaved changes" indicator whenever edits diverge from disk.
+- **Template Forking:** A "Fork Template" footer lets you choose from curated templates (with recommended badges and descriptive tags), specify a destination filename, and create a workflow in place. Each template card can pre-fill the creation form so you can experiment quickly.
+- **Inline Editor:** The main panel exposes a monospace text area for editing YAML, a Save button, and validation controls. Save writes changes back to disk, while **Validate** shells out to `yamllint` (falling back to `act` when available) so syntax issues show up in the log stream before you commit.
+- **Commit & Push:** Provide a commit message and use **Commit & Push** to send edited workflows upstream. Buttons stay disabled while files are dirty or while operations run, mirroring the rest of the Repo Form ergonomics.
+- **Recommended Templates Pane:** The lower panel lists recommended templates with descriptions, tags, and quick actions to pre-populate the creation form. A draggable splitter lets you resize the pane to keep the editor comfortable on any display.
+
 After making any changes, click **"Save Repository"** on the main view to persist them.
 
 ## 4. The Task Log Panel
@@ -216,6 +225,6 @@ For advanced users, the settings view includes a **"JSON Config"** tab. This sec
 -   **Export Settings:** Click the "Export Settings" button to save your current configuration into a compressed `.zip` archive. This is useful for creating backups or sharing your setup.
 -   **Import Settings:** Click the "Import Settings" button. You can select a `.zip` archive (created via the export feature) or a raw `.json` file to restore a configuration. This will overwrite your current settings and restart the application.
 
-### Documentation Status for 0.26.0
+### Documentation Status for 0.27.0
 
-- Documented the Git branch maintenance toolbar, structured logging coverage for repository edits, and layout tightening delivered in version `0.26.0`.
+- Documented the CI workflow explorer, validation workflow, and the refreshed branch/release layouts introduced in version `0.27.0`.
