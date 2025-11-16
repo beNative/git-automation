@@ -448,6 +448,7 @@ export interface NodejsCapabilities {
   linters: ('eslint' | 'prettier')[];
   bundlers: ('vite' | 'webpack' | 'rollup' | 'tsup' | 'swc')[];
   monorepo: { workspaces: boolean, turbo: boolean, nx: boolean, yarnBerryPnp: boolean };
+  hasElectron: boolean;
 }
 
 export interface GoModuleInfo {
@@ -527,4 +528,21 @@ export interface ProjectInfo {
   rust?: RustCapabilities;
   maven?: MavenCapabilities;
   dotnet?: DotnetCapabilities;
+}
+
+export interface WorkflowFileSummary {
+  name: string;
+  relativePath: string;
+  absolutePath: string;
+  mtimeMs: number;
+}
+
+export interface WorkflowTemplateSuggestion {
+  id: string;
+  label: string;
+  description: string;
+  filename: string;
+  content: string;
+  tags: string[];
+  recommended: boolean;
 }

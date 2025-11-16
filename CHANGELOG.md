@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-- _No unreleased changes._
+- **Workflow Template Explorer:** Added a CI tab to the repository form so you can browse `.github/workflows` files, fork recommended templates, edit YAML in place, run validation via `yamllint`/`act`, and push commits without leaving the modal.
 
 ## [0.26.0]
 

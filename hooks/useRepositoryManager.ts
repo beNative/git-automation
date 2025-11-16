@@ -232,6 +232,33 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
         addLogEntry(repoId, `Failed to launch executable: ${e.message}`, LogLevel.Error);
       }
   }, [addLogEntry]);
+
+  const validateWorkflow = useCallback((repo: Repository, relativePath: string) => {
+    return new Promise<'success' | 'failed'>((resolve) => {
+      if (!window.electronAPI?.validateWorkflow) {
+        addLogEntry(repo.id, 'Workflow validation is not available in this environment.', LogLevel.Warn);
+        resolve('failed');
+        return;
+      }
+      const executionId = `workflow-validate-${repo.id}-${Date.now()}`;
+      const handleLog = (_event: any, logData: { executionId: string; message: string; level: LogLevel }) => {
+        if (logData.executionId === executionId) {
+          addLogEntry(repo.id, logData.message, logData.level);
+        }
+      };
+      const handleEnd = (_event: any, endData: { executionId: string; exitCode: number }) => {
+        if (endData.executionId === executionId) {
+          window.electronAPI.removeTaskLogListener(handleLog);
+          window.electronAPI.removeTaskStepEndListener(handleEnd);
+          resolve(endData.exitCode === 0 ? 'success' : 'failed');
+        }
+      };
+      addLogEntry(repo.id, `Validating workflow ${relativePath}…`, LogLevel.Info);
+      window.electronAPI.onTaskLog(handleLog);
+      window.electronAPI.onTaskStepEnd(handleEnd);
+      window.electronAPI.validateWorkflow({ repo, relativePath, executionId });
+    });
+  }, [addLogEntry]);
   
   const clearLogs = (repoId: string) => {
       setLogs(prev => ({...prev, [repoId]: []}));
@@ -259,6 +286,7 @@ export const useRepositoryManager = ({ repositories, updateRepository }: { repos
     cloneRepository,
     launchApplication,
     launchExecutable,
+    validateWorkflow,
     logs,
     clearLogs,
     isProcessing,

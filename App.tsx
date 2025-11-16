@@ -159,6 +159,7 @@ const App: React.FC = () => {
     cloneRepository,
     launchApplication,
     launchExecutable,
+    validateWorkflow,
     logs,
     clearLogs,
     isProcessing,
@@ -1253,6 +1254,11 @@ const App: React.FC = () => {
     });
   }, [clearLogs]);
 
+  const handleValidateWorkflow = useCallback((repo: Repository, relativePath: string) => {
+    openLogPanelForRepo(repo.id, false);
+    return validateWorkflow(repo, relativePath);
+  }, [openLogPanelForRepo, validateWorkflow]);
+
   const handleCancelTask = useCallback((repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
     if (!repo) {
@@ -1743,6 +1749,7 @@ const App: React.FC = () => {
                       defaultCategoryId={repoFormState.defaultCategoryId}
                       onOpenWeblink={handleOpenWeblink}
                       detectedExecutables={detectedExecutables}
+                      onValidateWorkflow={handleValidateWorkflow}
                     />;
                   case 'dashboard':
                   default:

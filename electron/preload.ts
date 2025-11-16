@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, Category, AppDataContextState, ReleaseInfo, CommitDiffFile } from '../types';
+import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, ProjectSuggestion, LocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, Category, AppDataContextState, ReleaseInfo, CommitDiffFile, WorkflowFileSummary, WorkflowTemplateSuggestion } from '../types';
 
 const taskLogChannel = 'task-log';
 const taskStepEndChannel = 'task-step-end';
@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Smart Scripts
   getProjectInfo: (repoPath: string): Promise<ProjectInfo> => ipcRenderer.invoke('get-project-info', repoPath),
   getProjectSuggestions: (args: { repoPath: string, repoName: string }): Promise<ProjectSuggestion[]> => ipcRenderer.invoke('get-project-suggestions', args),
+  getWorkflowTemplates: (args: { repoPath: string; repoName: string }): Promise<WorkflowTemplateSuggestion[]> => ipcRenderer.invoke('get-workflow-templates', args),
   getDelphiVersions: (): Promise<{ name: string; version: string }[]> => ipcRenderer.invoke('get-delphi-versions'),
 
   // Version Control
@@ -69,6 +70,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pathJoin: (...args: string[]): Promise<string> => ipcRenderer.invoke('path-join', ...args),
   detectExecutables: (repoPath: string): Promise<string[]> => ipcRenderer.invoke('detect-executables', repoPath),
   launchExecutable: (args: { repoPath: string, executablePath: string }): Promise<{ success: boolean; output: string }> => ipcRenderer.invoke('launch-executable', args),
+  listWorkflowFiles: (repoPath: string): Promise<WorkflowFileSummary[]> => ipcRenderer.invoke('list-workflow-files', repoPath),
+  readWorkflowFile: (args: { repoPath: string; relativePath: string }): Promise<{ success: boolean; content?: string; error?: string }> => ipcRenderer.invoke('read-workflow-file', args),
+  writeWorkflowFile: (args: { repoPath: string; relativePath: string; content: string }): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('write-workflow-file', args),
+  createWorkflowFromTemplate: (args: { repoPath: string; relativePath: string; content: string; overwrite?: boolean }): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('create-workflow-from-template', args),
+  commitWorkflowFiles: (args: { repo: Repository; filePaths: string[]; message: string }): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('commit-workflow-files', args),
+  validateWorkflow: (args: { repo: Repository; relativePath: string; executionId: string }) => {
+    ipcRenderer.send('validate-workflow', args);
+  },
   openLocalPath: (path: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('open-local-path', path),
   openInstallationFolder: (): Promise<{ success: boolean; error?: string; path?: string }> => ipcRenderer.invoke('open-installation-folder'),
   openWeblink: (url: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('open-weblink', url),

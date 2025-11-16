@@ -1,5 +1,5 @@
 import type { IpcRendererEvent } from 'electron';
-import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, UpdateStatusMessage, Category, AppDataContextState, ReleaseInfo, CommitDiffFile } from '../types';
+import type { Repository, Task, TaskStep, GlobalSettings, LogLevel, LocalPathState as AppLocalPathState, DetailedStatus, Commit, BranchInfo, DebugLogEntry, VcsType, ProjectInfo, UpdateStatusMessage, Category, AppDataContextState, ReleaseInfo, CommitDiffFile, WorkflowFileSummary, WorkflowTemplateSuggestion } from '../types';
 
 export type LocalPathState = AppLocalPathState;
 
@@ -25,6 +25,7 @@ export interface IElectronAPI {
   getDoc: (docName: string) => Promise<string>;
   getProjectInfo: (repoPath: string) => Promise<ProjectInfo>;
   getProjectSuggestions: (args: { repoPath: string, repoName: string }) => Promise<ProjectSuggestion[]>;
+  getWorkflowTemplates: (args: { repoPath: string; repoName: string }) => Promise<WorkflowTemplateSuggestion[]>;
   getDelphiVersions: () => Promise<{ name: string; version: string }[]>;
   checkVcsStatus: (repo: Repository) => Promise<{ isDirty: boolean; output: string; untrackedFiles: string[]; changedFiles: string[] }>;
   getDetailedVcsStatus: (repo: Repository) => Promise<DetailedStatus | null>;
@@ -60,6 +61,12 @@ export interface IElectronAPI {
   pathJoin: (...args: string[]) => Promise<string>;
   detectExecutables: (repoPath: string) => Promise<string[]>;
   launchExecutable: (args: { repoPath: string, executablePath: string }) => Promise<{ success: boolean; output: string }>;
+  listWorkflowFiles: (repoPath: string) => Promise<WorkflowFileSummary[]>;
+  readWorkflowFile: (args: { repoPath: string; relativePath: string }) => Promise<{ success: boolean; content?: string; error?: string }>;
+  writeWorkflowFile: (args: { repoPath: string; relativePath: string; content: string }) => Promise<{ success: boolean; error?: string }>;
+  createWorkflowFromTemplate: (args: { repoPath: string; relativePath: string; content: string; overwrite?: boolean }) => Promise<{ success: boolean; error?: string }>;
+  commitWorkflowFiles: (args: { repo: Repository; filePaths: string[]; message: string }) => Promise<{ success: boolean; error?: string }>;
+  validateWorkflow: (args: { repo: Repository; relativePath: string; executionId: string }) => void;
   openLocalPath: (path: string) => Promise<{ success: boolean; error?: string }>;
   openInstallationFolder: () => Promise<{ success: boolean; error?: string; path?: string }>;
   openWeblink: (url: string) => Promise<{ success: boolean; error?: string }>;
