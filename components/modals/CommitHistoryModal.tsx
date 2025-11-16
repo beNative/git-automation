@@ -375,8 +375,8 @@ const CommitHistoryModal: React.FC<CommitHistoryModalProps> = ({ isOpen, reposit
                           {isExpanded ? <ChevronDownIcon className="h-5 w-5" /> : <ChevronRightIcon className="h-5 w-5" />}
                         </span>
                         <div className="flex-1">
-                          <div className="font-sans whitespace-pre-line text-gray-900 dark:text-gray-100">
-                            <HighlightedText text={sanitizedMessage} highlight={debouncedSearchQuery} />
+                          <div className="font-sans text-gray-900 dark:text-gray-100">
+                            <span className="block whitespace-pre-line"><HighlightedText text={sanitizedMessage} highlight={debouncedSearchQuery} /></span>
                           </div>
                         </div>
                       </button>
