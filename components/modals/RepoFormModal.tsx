@@ -3515,6 +3515,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                     return 'Select a branch to checkout.';
                 }
                 if (selectedBranchCount === 1 && primarySelectedBranch) {
+                    if (primarySelectedBranch.scope === 'local' && branchInfo?.current === primarySelectedBranch.name) {
+                        return undefined;
+                    }
                     return `${primarySelectedBranch.scope === 'remote' ? 'Remote' : 'Local'} branch: ${primarySelectedBranch.name}`;
                 }
                 const parts: string[] = [];
@@ -3562,15 +3565,17 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                 <p className="text-sm">
                                     Current branch: <span className="font-bold font-mono text-blue-600 dark:text-blue-400">{branchInfo?.current}</span>
                                 </p>
-                                <div className="max-w-2xl flex flex-col sm:flex-row sm:items-center gap-2">
-                                    <input
-                                        type="text"
-                                        value={branchFilter}
-                                        onChange={event => setBranchFilter(event.target.value)}
-                                        placeholder="Filter branches"
-                                        className={`${formInputStyle} flex-1 min-w-[12rem]`}
-                                    />
-                                    <div className="flex flex-wrap items-center gap-2">
+                                <div className="w-full max-w-4xl flex flex-nowrap items-center gap-2">
+                                    <div className="flex-1 min-w-0">
+                                        <input
+                                            type="text"
+                                            value={branchFilter}
+                                            onChange={event => setBranchFilter(event.target.value)}
+                                            placeholder="Filter branches"
+                                            className={`${formInputStyle} w-full min-w-[12rem]`}
+                                        />
+                                    </div>
+                                    <div className="flex flex-nowrap items-center justify-end gap-2 overflow-x-auto flex-shrink-0">
                                         <button
                                             type="button"
                                             onClick={fetchBranches}
@@ -3606,6 +3611,25 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                 </button>
                                             </>
                                         )}
+                                        {isGitRepo && (
+                                            <button
+                                                type="button"
+                                                onClick={handleBulkDeleteSelectedBranches}
+                                                disabled={bulkDeleteDisabled}
+                                                title={bulkDeleteTitle}
+                                                className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:bg-gray-400 disabled:cursor-not-allowed ${isDeletingBranches ? 'cursor-wait' : ''}`}
+                                            >
+                                                {isDeletingBranches ? 'Deleting…' : 'Delete Selected'}
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={handleCheckoutBranch}
+                                            disabled={checkoutDisabled}
+                                            className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed ${isCheckoutLoading ? 'cursor-wait' : ''}`}
+                                        >
+                                            {isCheckoutLoading ? 'Checking out...' : 'Checkout'}
+                                        </button>
                                     </div>
                                 </div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">Tip: Use Shift or Ctrl/Cmd-click to select multiple branches.</p>
@@ -3696,30 +3720,9 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                     </div>
                                 </div>
                                 <div className="pt-4 mt-2 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-4 flex-shrink-0">
-                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                    {selectionDescription && (
                                         <p className="text-sm text-gray-600 dark:text-gray-300">{selectionDescription}</p>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            {isGitRepo && (
-                                                <button
-                                                    type="button"
-                                                    onClick={handleBulkDeleteSelectedBranches}
-                                                    disabled={bulkDeleteDisabled}
-                                                    title={bulkDeleteTitle}
-                                                    className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:bg-gray-400 disabled:cursor-not-allowed ${isDeletingBranches ? 'cursor-wait' : ''}`}
-                                                >
-                                                    {isDeletingBranches ? 'Deleting…' : 'Delete Selected'}
-                                                </button>
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={handleCheckoutBranch}
-                                                disabled={checkoutDisabled}
-                                                className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed ${isCheckoutLoading ? 'cursor-wait' : ''}`}
-                                            >
-                                                {isCheckoutLoading ? 'Checking out...' : 'Checkout'}
-                                            </button>
-                                        </div>
-                                    </div>
+                                    )}
                                     {isSvnRepo && (
                                         <p className="text-xs text-gray-500 dark:text-gray-400">
                                             Branch creation, deletion, and merging are currently only available for Git repositories.
