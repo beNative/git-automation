@@ -3759,7 +3759,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             if (!isGitHubRepo) return <div className="p-2 text-center text-gray-500">Release management is only available for repositories hosted on GitHub.</div>;
             if (editingRelease) {
                 return (
-                    <div className="p-2 space-y-3">
+                    <div className="flex-1 flex flex-col min-h-0 p-2 space-y-3 overflow-y-auto">
                         <h3 className="text-lg font-semibold">{editingRelease.isNew ? 'Create New Release' : 'Edit Release'}</h3>
                         <div>
                             <label className={formLabelStyle}>Tag Name</label>
@@ -3842,7 +3842,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                 )
             }
             return (
-                <div className="p-2 space-y-4">
+                <div className="flex-1 flex flex-col min-h-0 p-2 space-y-4 overflow-hidden">
                      <div className="flex justify-between items-center">
                         <h3 className="text-lg font-semibold">GitHub Releases</h3>
                         <button onClick={() => setEditingRelease({ isNew: true, tagName: '', name: '', body: '', isDraft: false, isPrerelease: false })} className="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">Create New Release</button>
@@ -3857,7 +3857,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                             </p>
                         </div>
                      )}
-                     <ul className="space-y-4 max-h-[60vh] overflow-y-auto">
+                     <ul className="flex-1 space-y-4 overflow-y-auto pr-1">
                         {releases?.map(release => (
                             <li key={release.id} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
                                 <div className="flex justify-between items-start">
