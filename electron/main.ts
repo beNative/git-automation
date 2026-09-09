@@ -22,6 +22,11 @@ import {
   type FileValidationResult,
   type UpdaterArch,
 } from './autoUpdateHelpers';
+import {
+  findLatestRelease,
+  sortGitHubReleases,
+  mapGitHubReleaseToReleaseInfo,
+} from './releaseHelpers';
 
 
 declare const require: (id: string) => any;
@@ -3910,9 +3915,9 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
     }
 
     const { owner, repo: repoName } = ownerRepo;
-    // Fetch a list of releases instead of just the latest one to apply logic.
-    // The API sorts by creation date descending, so the first one is the newest.
-    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases`;
+    // Fetch a list of releases instead of just the latest one to apply logic (e.g. allowPrerelease).
+    // Request up to 100 releases and sort them chronologically (newest first).
+    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases?per_page=100`;
 
     try {
         const response = await fetch(apiUrl, {
@@ -3935,17 +3940,8 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
             return null;
         }
 
-        // Find the latest release to display.
-        // We always show the latest release if it's a draft.
-        // Otherwise, we respect the 'allowPrerelease' setting.
-        const latestRelease = allReleases.find((release: any) => {
-            if (release.draft) {
-                return true; // Always include drafts if they are visible via API
-            }
-            if (!settings.allowPrerelease && release.prerelease) {
-                return false; // Skip if it's a pre-release and the setting is off
-            }
-            return true; // It's a full, published release
+        const latestRelease = findLatestRelease(allReleases, {
+            allowPrerelease: settings.allowPrerelease,
         });
         
         if (!latestRelease) {
@@ -3953,16 +3949,7 @@ ipcMain.handle('get-latest-release', async (event, repo: Repository): Promise<Re
             return null;
         }
 
-        return {
-            id: latestRelease.id,
-            tagName: latestRelease.tag_name,
-            name: latestRelease.name,
-            body: latestRelease.body,
-            isDraft: latestRelease.draft,
-            isPrerelease: latestRelease.prerelease,
-            url: latestRelease.html_url,
-            createdAt: latestRelease.created_at,
-        };
+        return mapGitHubReleaseToReleaseInfo(latestRelease);
     } catch (error: any) {
         mainLogger.error(`[GitHub] Failed to fetch latest release for ${owner}/${repoName}:`, error);
         // It's better to return null and let the UI handle it than to crash.
@@ -3983,7 +3970,7 @@ ipcMain.handle('get-all-releases', async (event, repo: Repository): Promise<Rele
     }
 
     const { owner, repo: repoName } = ownerRepo;
-    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases`;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/releases?per_page=100`;
 
     try {
         const response = await fetch(apiUrl, {
@@ -4000,18 +3987,10 @@ ipcMain.handle('get-all-releases', async (event, repo: Repository): Promise<Rele
         }
         
         const allReleases = await response.json();
-        if (!allReleases) return [];
+        if (!allReleases || !Array.isArray(allReleases)) return [];
 
-        return allReleases.map((release: any) => ({
-            id: release.id,
-            tagName: release.tag_name,
-            name: release.name,
-            body: release.body,
-            isDraft: release.draft,
-            isPrerelease: release.prerelease,
-            url: release.html_url,
-            createdAt: release.created_at,
-        }));
+        const sortedReleases = sortGitHubReleases(allReleases);
+        return sortedReleases.map(mapGitHubReleaseToReleaseInfo);
     } catch (error: any) {
         mainLogger.error(`[GitHub] Failed to fetch all releases for ${owner}/${repoName}:`, error);
         return null;

@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 - _No changes yet._
 
+## [0.27.1]
+
+### Fixed
+- **GitHub Latest Release Resolution:** Fixed an issue where draft releases (which GitHub returns at the top of the API response regardless of creation date) were selected over newer published releases. Release listings are now sorted chronologically by publication/creation date, ensuring the true latest release version is displayed on repository cards and in release management.
+- **Cross-Platform Test Execution:** Replaced the Unix-only `rm -rf` invocation in `package.json` with Node's native `fs.rmSync` so test runs succeed seamlessly on Windows and other operating systems.
+
 ## [0.27.0]
 
 ### Added

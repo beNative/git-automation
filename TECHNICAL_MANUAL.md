@@ -99,9 +99,9 @@ Use this process when shipping a new minor update or bugfix:
 6.  **Validate Update Metadata:** From the project root, execute `node electron/scripts/normalize-win32-artifacts.mjs` and confirm the `release/` directory contains `latest.yml` (x64), `latest-win32.yml` (ia32), and matching installer names. This verification prevents shipping a release without the updater manifests that GitHub users rely on.
 7.  **Publish on GitHub:** Draft a new release on GitHub, attach the installers from the `release/` folder, verify the tag/version details, and explicitly set the **Release Type** selector to match your intent (Full Release for GA builds or Draft/Pre-release when staging). Paste the current changelog entry into the notes so the GitHub release matches the repository history, then publish.
 
-### Documentation Status for 0.27.0
+### Documentation Status for 0.27.1
 
-- Documented the workflow template explorer IPC surface, renderer tooling, and CI validation path introduced in version `0.27.0`.
+- Documented the release helper utilities, chronological release sorting, and cross-platform test script updates introduced in version `0.27.1`.
 ## 7. Automatic Updates
 
 The application is configured to automatically check for updates on startup using the `electron-updater` library.

@@ -225,6 +225,6 @@ For advanced users, the settings view includes a **"JSON Config"** tab. This sec
 -   **Export Settings:** Click the "Export Settings" button to save your current configuration into a compressed `.zip` archive. This is useful for creating backups or sharing your setup.
 -   **Import Settings:** Click the "Import Settings" button. You can select a `.zip` archive (created via the export feature) or a raw `.json` file to restore a configuration. This will overwrite your current settings and restart the application.
 
-### Documentation Status for 0.27.0
+### Documentation Status for 0.27.1
 
-- Documented the CI workflow explorer, validation workflow, and the refreshed branch/release layouts introduced in version `0.27.0`.
+- Documented the GitHub latest release chronological sorting fix, accurate draft handling, and release view consistency confirmed in version `0.27.1`.
