@@ -334,6 +334,7 @@
           cloneRepository() {},
           launchApplication() {},
           launchExecutable() {},
+          showFilePicker: async () => ({ canceled: true, filePaths: [] }),
           checkVcsStatus: async () => ({ status: 'clean' }),
           detectExecutables: async () => ['npm', 'pnpm'],
           onUpdateStatusChange() {},

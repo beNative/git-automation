@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 
 - _No changes yet._
 
+## [0.27.2]
+
+### Fixed
+- **Launch Configuration Executable Selection:** Fixed a bug where selecting the "Select Executable" type in the Launch Configuration editor presented no controls to select or specify which executable to launch. The editor now provides a path input with suggestions, a quick-select dropdown of detected executables, and a native "Browse..." button to select any executable from disk.
+- **Cross-Platform Executable Launch Resolution:** Updated executable launching to support both relative paths (within the repository) and absolute paths (selected anywhere on disk or across Windows drive roots) via new path resolution helpers, preventing malformed concatenated paths.
+- **Dynamic Executable Selection Fallback:** Added a "Browse for executable..." action and empty-state fallback to `ExecutableSelectionModal` so users can still browse and launch executables on demand even if none were auto-detected in standard output directories (`dist`, `build`, `release`, etc.).
+
+### Added
+- **Executable Launch Path Configuration:** Added `executablePath` to the `LaunchConfig` interface and updated dashboard card launchers and overflow menus to directly launch configured executables.
+- **Launch Helper Utilities & Unit Tests:** Introduced `electron/launchHelpers.ts` with `normalizeExecutablePath` and `resolveExecutablePath`, covered by unit tests in `tests/launchHelpers.test.ts`.
+
 ## [0.27.1]
 
 ### Fixed

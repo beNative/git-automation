@@ -113,7 +113,7 @@ If the saved repository path does not contain a working copy yet, the dashboard 
 #### General Settings
 This is the main panel where you configure the name, path, URL, and launch configurations for the repository. In addition to the basic metadata, this tab lets you:
 
--   **Manage Launch Configurations:** Create launchers that either run a shell command or prompt for an executable to open. You can optionally capture command suggestions (pulled from the repo's detected project type), choose a working directory, and mark the launcher to **Show on dashboard** so it renders as a red lightning button on the repository card. Unpinned launchers remain available through the Launch menu on the card header and the card's right-click menu.
+-   **Manage Launch Configurations:** Create launchers that either run a shell command or target an executable (selected from auto-detected repository binaries, picked via a native file browser, or entered manually). If an executable path is left unset, running the configuration prompts for an executable dynamically. You can mark the launcher to **Show on dashboard** so it renders as a lightning button on the repository card. Unpinned launchers remain available through the Launch menu on the card header and the card's right-click menu.
 -   **Control Dirty Repository Overrides:** The **Ignore Dirty Repository** checkbox bypasses the safety modal described later in this manual. Leave it unchecked to keep the protective prompts.
 
 #### Tasks Tab
@@ -225,6 +225,6 @@ For advanced users, the settings view includes a **"JSON Config"** tab. This sec
 -   **Export Settings:** Click the "Export Settings" button to save your current configuration into a compressed `.zip` archive. This is useful for creating backups or sharing your setup.
 -   **Import Settings:** Click the "Import Settings" button. You can select a `.zip` archive (created via the export feature) or a raw `.json` file to restore a configuration. This will overwrite your current settings and restart the application.
 
-### Documentation Status for 0.27.1
+### Documentation Status for 0.27.2
 
-- Documented the GitHub latest release chronological sorting fix, accurate draft handling, and release view consistency confirmed in version `0.27.1`.
+- Documented the launch configuration executable selection controls, file browser support, and direct executable launching confirmed in version `0.27.2`.

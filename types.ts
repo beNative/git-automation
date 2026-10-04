@@ -260,6 +260,7 @@ export interface LaunchConfig {
   name: string;
   type: LaunchConfigType;
   command?: string; // only for 'command' type
+  executablePath?: string; // for 'select-executable' type
   showOnDashboard: boolean;
 }
 

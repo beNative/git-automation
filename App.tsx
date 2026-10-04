@@ -1437,7 +1437,11 @@ const App: React.FC = () => {
       if (launchable.config.type === 'command' && launchable.config.command) {
         await launchApplication(repo, launchable.config.command);
       } else if (launchable.config.type === 'select-executable') {
-        handleOpenExecutableSelection(repo.id, launchable.config.id);
+        if (launchable.config.executablePath) {
+          await launchExecutable(repo, launchable.config.executablePath);
+        } else {
+          handleOpenExecutableSelection(repo.id, launchable.config.id);
+        }
       }
     } else {
       await launchExecutable(repo, launchable.path);
@@ -1459,10 +1463,16 @@ const App: React.FC = () => {
         openLogPanelForRepo(repoId, true);
         await launchApplication(repo, config.command);
     } else if (config.type === 'select-executable') {
-        logger.info('Opening executable selection for launch config', { repoId, config });
-        handleOpenExecutableSelection(repoId, configId);
+        if (config.executablePath) {
+            logger.info('Running launch config (executable)', { repoId, executablePath: config.executablePath });
+            openLogPanelForRepo(repoId, true);
+            await launchExecutable(repo, config.executablePath);
+        } else {
+            logger.info('Opening executable selection for launch config', { repoId, config });
+            handleOpenExecutableSelection(repoId, configId);
+        }
     }
-  }, [repositories, launchApplication, openLogPanelForRepo, logger, instrumentation]);
+  }, [repositories, launchApplication, launchExecutable, openLogPanelForRepo, logger, instrumentation]);
 
   const handleOpenLaunchSelection = useCallback((repoId: string) => {
     const repo = repositories.find(r => r.id === repoId);
@@ -1490,7 +1500,7 @@ const App: React.FC = () => {
     const config = repo?.launchConfigs?.find(lc => lc.id === configId);
     const executables = detectedExecutables[repoId] || [];
 
-    if (repo && config && executables.length > 0) {
+    if (repo && config) {
       instrumentation?.trace('launch:executable-selection-opened', { repoId, configId, candidates: executables.length });
       setExecutableSelectionModal({
         isOpen: true,
@@ -1500,7 +1510,7 @@ const App: React.FC = () => {
       });
     } else {
       instrumentation?.trace('launch:executable-selection-unavailable', { repoId, configId, candidates: executables.length });
-      setToast({ message: 'No executables detected in release/dist/build folders.', type: 'info' });
+      setToast({ message: 'Repository or launch config not found.', type: 'error' });
     }
   };
 

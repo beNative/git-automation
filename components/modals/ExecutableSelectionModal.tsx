@@ -3,6 +3,7 @@ import type { Repository, LaunchConfig } from '../../types';
 import { CubeIcon } from '../icons/CubeIcon';
 import { XIcon } from '../icons/XIcon';
 import { LightningBoltIcon } from '../icons/LightningBoltIcon';
+import { FolderOpenIcon } from '../icons/FolderOpenIcon';
 
 interface ExecutableSelectionModalProps {
   isOpen: boolean;
@@ -17,6 +18,25 @@ const ExecutableSelectionModal: React.FC<ExecutableSelectionModalProps> = ({ isO
   if (!isOpen || !repository || !launchConfig) {
     return null;
   }
+
+  const handleBrowse = async () => {
+    try {
+      const result = await window.electronAPI?.showFilePicker();
+      if (result && !result.canceled && result.filePaths && result.filePaths.length > 0) {
+        let selectedPath = result.filePaths[0];
+        if (repository.localPath) {
+          const normRepo = repository.localPath.replace(/\\/g, '/').replace(/\/$/, '');
+          const normSelected = selectedPath.replace(/\\/g, '/');
+          if (normSelected.toLowerCase().startsWith(normRepo.toLowerCase() + '/')) {
+            selectedPath = normSelected.slice(normRepo.length + 1);
+          }
+        }
+        onSelect(selectedPath);
+      }
+    } catch (e) {
+      console.error('Failed to browse executable in selection modal', e);
+    }
+  };
 
   return (
     <div
@@ -50,23 +70,41 @@ const ExecutableSelectionModal: React.FC<ExecutableSelectionModalProps> = ({ isO
           </button>
         </div>
         
-        <div className="p-4 max-h-[60vh] overflow-y-auto">
-            <ul className="space-y-2">
-                {executables.map((path, index) => (
-                    <li key={index}>
-                        <button
-                            onClick={() => onSelect(path)}
-                            className="w-full flex items-center text-left p-3 rounded-md bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-100/50 dark:hover:bg-blue-900/40 hover:ring-2 ring-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                            data-automation-id={`executable-selection-item-${index}`}
-                        >
-                            <CubeIcon className="h-6 w-6 text-gray-500 dark:text-gray-400 mr-4 flex-shrink-0" />
-                            <div className="flex-grow overflow-hidden">
-                                <p className="font-mono text-sm text-gray-800 dark:text-gray-200 truncate" title={path}>{path}</p>
-                            </div>
-                        </button>
-                    </li>
-                ))}
-            </ul>
+        <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3">
+            {executables.length > 0 ? (
+                <ul className="space-y-2">
+                    {executables.map((path, index) => (
+                        <li key={index}>
+                            <button
+                                onClick={() => onSelect(path)}
+                                className="w-full flex items-center text-left p-3 rounded-md bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-100/50 dark:hover:bg-blue-900/40 hover:ring-2 ring-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                                data-automation-id={`executable-selection-item-${index}`}
+                            >
+                                <CubeIcon className="h-6 w-6 text-gray-500 dark:text-gray-400 mr-4 flex-shrink-0" />
+                                <div className="flex-grow overflow-hidden">
+                                    <p className="font-mono text-sm text-gray-800 dark:text-gray-200 truncate" title={path}>{path}</p>
+                                </div>
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
+                    No executables detected in standard output directories (dist, release, build, out, bin).
+                </div>
+            )}
+
+            <div className="pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                <button
+                    type="button"
+                    onClick={handleBrowse}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition-colors"
+                    data-automation-id="executable-selection-browse"
+                >
+                    <FolderOpenIcon className="h-4 w-4" />
+                    Browse for executable...
+                </button>
+            </div>
         </div>
       </div>
     </div>

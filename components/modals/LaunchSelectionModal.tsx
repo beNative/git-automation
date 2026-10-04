@@ -54,9 +54,12 @@ const LaunchSelectionModal: React.FC<LaunchSelectionModalProps> = ({ isOpen, rep
             <ul className="space-y-2">
                 {launchables.map((launchable, index) => {
                     const isManual = launchable.type === 'manual';
-                    const Icon = isManual ? CodeBracketIcon : CubeIcon;
+                    const isExecutableConfig = isManual && launchable.config.type === 'select-executable';
+                    const Icon = isManual && !isExecutableConfig ? CodeBracketIcon : CubeIcon;
                     const title = isManual ? launchable.config.name : launchable.path;
-                    const description = isManual ? launchable.config.command : 'Detected Executable';
+                    const description = isManual
+                        ? (isExecutableConfig ? (launchable.config.executablePath || 'Select executable at launch') : launchable.config.command)
+                        : 'Detected Executable';
                     const titleClass = isManual ? 'font-semibold text-gray-800 dark:text-gray-200' : 'font-mono text-sm text-gray-800 dark:text-gray-200';
 
                     return (

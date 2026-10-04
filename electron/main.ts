@@ -27,6 +27,8 @@ import {
   sortGitHubReleases,
   mapGitHubReleaseToReleaseInfo,
 } from './releaseHelpers';
+import { resolveExecutablePath } from './launchHelpers';
+
 
 
 declare const require: (id: string) => any;
@@ -2022,7 +2024,11 @@ ipcMain.handle('show-file-picker', async () => {
   if (!mainWindow) return { canceled: true, filePaths: [] };
   return await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
-    title: 'Select Executable File'
+    title: 'Select Executable File',
+    filters: [
+      { name: 'Executables', extensions: ['exe', 'bat', 'cmd', 'com', 'ps1', 'sh', 'app'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
   });
 });
 
@@ -2487,10 +2493,10 @@ ipcMain.handle('launch-application', async (event, { repo, command }: { repo: Re
 
 // --- IPC handler for launching a detected executable ---
 ipcMain.handle('launch-executable', async (event, { repoPath, executablePath }: { repoPath: string, executablePath: string }): Promise<{ success: boolean; output: string }> => {
-    const fullPath = path.join(repoPath, executablePath);
+    const { fullPath, cwd } = resolveExecutablePath(repoPath, executablePath);
     
     return new Promise((resolve) => {
-        execFile(fullPath, { cwd: repoPath }, (error, stdout, stderr) => {
+        execFile(fullPath, { cwd }, (error, stdout, stderr) => {
             if (error) {
                 resolve({ success: false, output: stderr || error.message });
                 return;

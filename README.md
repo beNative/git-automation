@@ -76,9 +76,9 @@ Follow this checklist when preparing a new minor or patch release:
     **Release Type** selector to the intended state (Full Release for GA builds, Draft or Pre-release as needed). Paste the freshly
     written changelog entry into the release body so the GitHub notes exactly match the repository history, then publish.
 
-### Documentation Status for 0.27.1
+### Documentation Status for 0.27.2
 
-- Documented the GitHub latest release chronological sorting fix and cross-platform test execution improvements delivered in version `0.27.1`.
+- Documented the launch configuration executable selection fix, cross-platform path resolution, and executable modal browse improvements delivered in version `0.27.2`.
 
 ---
 _For developer information, including how to run this project in development mode or build it from source, please see the **Technical Manual** tab in the Info Hub._

@@ -2618,13 +2618,38 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
             const updated = {...lc, [field]: value};
             // When changing type, reset the other type's data
             if (field === 'type') {
-                if (value === 'command') delete (updated as any).command;
+                if (value === 'command') {
+                  delete updated.executablePath;
+                } else if (value === 'select-executable') {
+                  delete updated.command;
+                }
             }
             return updated;
           }
           return lc;
         })
     }));
+  };
+
+  const handleBrowseExecutable = async (configId: string) => {
+    try {
+      const result = await window.electronAPI?.showFilePicker();
+      if (result && !result.canceled && result.filePaths && result.filePaths.length > 0) {
+        let selectedPath = result.filePaths[0];
+        const repoPath = formData.localPath || repository?.localPath;
+        if (repoPath) {
+          const normRepo = repoPath.replace(/\\/g, '/').replace(/\/$/, '');
+          const normSelected = selectedPath.replace(/\\/g, '/');
+          if (normSelected.toLowerCase().startsWith(normRepo.toLowerCase() + '/')) {
+            selectedPath = normSelected.slice(normRepo.length + 1);
+          }
+        }
+        handleUpdateLaunchConfig(configId, 'executablePath', selectedPath);
+      }
+    } catch (err: any) {
+      logger.error('Failed to browse for executable', { error: err?.message });
+      setToast({ message: 'Failed to select executable file.', type: 'error' });
+    }
   };
 
   const handleRemoveLaunchConfig = (id: string) => {
@@ -4580,12 +4605,12 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                             {(formData.launchConfigs || []).map(lc => (
                                 <div key={lc.id} className="p-2 rounded-md bg-gray-100 dark:bg-gray-900/50 space-y-2">
                                     <div className="flex items-center gap-2">
-                                        <input type="text" placeholder="Name" value={lc.name} onChange={e => handleUpdateLaunchConfig(lc.id, 'name', e.target.value)} className={`${formInputStyle} text-xs`} />
-                                        <select value={lc.type} onChange={e => handleUpdateLaunchConfig(lc.id, 'type', e.target.value)} className={`${formInputStyle} text-xs`}>
+                                        <input type="text" placeholder="Name" value={lc.name} onChange={e => handleUpdateLaunchConfig(lc.id, 'name', e.target.value)} className={`${formInputStyle} text-xs flex-1 min-w-0`} />
+                                        <select value={lc.type} onChange={e => handleUpdateLaunchConfig(lc.id, 'type', e.target.value)} className={`${formInputStyle} text-xs flex-1 min-w-0`}>
                                             <option value="command">Command</option>
                                             <option value="select-executable">Select Executable</option>
                                         </select>
-                                        <button type="button" onClick={() => handleRemoveLaunchConfig(lc.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="h-4 w-4"/></button>
+                                        <button type="button" onClick={() => handleRemoveLaunchConfig(lc.id)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0"><TrashIcon className="h-4 w-4"/></button>
                                     </div>
                                     {lc.type === 'command' && (() => {
                                         const datalistId = `launch-command-suggestions-${lc.id}`;
@@ -4594,7 +4619,7 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                 <input
                                                     type="text"
                                                     placeholder="e.g., npm start"
-                                                    value={lc.command}
+                                                    value={lc.command || ''}
                                                     onChange={e => handleUpdateLaunchConfig(lc.id, 'command', e.target.value)}
                                                     className={`${formInputStyle} text-xs font-mono`}
                                                     list={commandSuggestions.length > 0 ? datalistId : undefined}
@@ -4611,6 +4636,62 @@ const RepoEditView: React.FC<RepoEditViewProps> = ({ onSave, onCancel, repositor
                                                         </p>
                                                     </>
                                                 )}
+                                            </div>
+                                        );
+                                    })()}
+                                    {lc.type === 'select-executable' && (() => {
+                                        const datalistId = `launch-exec-suggestions-${lc.id}`;
+                                        return (
+                                            <div className="space-y-1.5">
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="e.g., dist/app.exe or bin/app"
+                                                        value={lc.executablePath || ''}
+                                                        onChange={e => handleUpdateLaunchConfig(lc.id, 'executablePath', e.target.value)}
+                                                        className={`${formInputStyle} text-xs font-mono flex-1 min-w-0`}
+                                                        list={commandSuggestions.length > 0 ? datalistId : undefined}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleBrowseExecutable(lc.id)}
+                                                        className="px-2.5 py-1.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors whitespace-nowrap flex-shrink-0"
+                                                        data-automation-id={`repo-form-browse-executable-${lc.id}`}
+                                                    >
+                                                        Browse...
+                                                    </button>
+                                                </div>
+                                                {commandSuggestions.length > 0 && (
+                                                    <>
+                                                        <datalist id={datalistId}>
+                                                            {commandSuggestions.map(path => (
+                                                                <option key={path} value={path} />
+                                                            ))}
+                                                        </datalist>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">Detected:</span>
+                                                            <select
+                                                                value={commandSuggestions.includes(lc.executablePath || '') ? lc.executablePath : ''}
+                                                                onChange={e => {
+                                                                    if (e.target.value) {
+                                                                        handleUpdateLaunchConfig(lc.id, 'executablePath', e.target.value);
+                                                                    }
+                                                                }}
+                                                                className={`${formInputStyle} text-xs py-1 flex-1 min-w-0`}
+                                                            >
+                                                                <option value="">-- Choose detected executable --</option>
+                                                                {commandSuggestions.map(path => (
+                                                                    <option key={path} value={path}>{path}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    </>
+                                                )}
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                    {commandSuggestions.length > 0
+                                                        ? 'Select a detected executable from the dropdown or click Browse to pick one.'
+                                                        : 'Click Browse to choose an executable or enter the path manually.'}
+                                                </p>
                                             </div>
                                         );
                                     })()}
